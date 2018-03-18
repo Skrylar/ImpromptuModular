@@ -621,7 +621,7 @@ struct WriteSeq32Widget : ModuleWidget {
 		displaySteps->valueKnob = &module->params[WriteSeq32::STEPS_PARAM].value;
 		addChild(displaySteps);
 		// Steps knob and cv input
-		addParam(ParamWidget::create<Davies1900hBlackSnapKnob>(Vec(columnRuler3+offsetDavies1900, rowRuler1+offsetDavies1900), module, WriteSeq32::STEPS_PARAM, 1.0f, 32.0f, 16.0f));		
+		addParam(ParamWidget::create<Davies1900hBlackSnapKnob>(Vec(columnRuler3+offsetDavies1900, rowRuler1+offsetDavies1900), module, WriteSeq32::STEPS_PARAM, 1.0f, 32.0f, 32.0f));		
 		// Monitor
 		addParam(ParamWidget::create<CKSSH>(Vec(columnRuler3+hOffsetCKSSH, rowRuler2+vOffsetCKSSH), module, WriteSeq32::MONITOR_PARAM, 0.0f, 1.0f, 0.0f));		
 		// Write input

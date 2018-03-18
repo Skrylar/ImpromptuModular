@@ -95,7 +95,7 @@ struct WriteSeq64 : Module {
 		indexChannel = 0;
 		for (int c = 0; c < 5; c++) {
 			indexStep[c] = 0;
-			indexSteps[c] = 16;
+			indexSteps[c] = 32;
 			for (int s = 0; s < 64; s++) {
 				cv[c][s] = 0.0f;
 				gates[c][s] = true;
@@ -115,7 +115,7 @@ struct WriteSeq64 : Module {
 		indexChannel = 0;
 		for (int c = 0; c < 5; c++) {
 			indexStep[c] = 0;
-			indexSteps[c] = 16;
+			indexSteps[c] = 32;
 			for (int s = 0; s < 64; s++) {
 				cv[c][s] = (randomUniform() *10.0f);
 				gates[c][s] = (randomUniform() > 0.5f);
@@ -695,13 +695,13 @@ struct WriteSeq64Widget : ModuleWidget {
 		static const int rowRuler3 = rowRuler2 + rowRulerStep;
 		
 		// Column 0 
-		// Reset
-		addInput(Port::create<PJ301MPort>(Vec(columnRuler0, rowRuler0), Port::INPUT, module, WriteSeq64::RESET_INPUT));		
 		// Copy/paste switches
-		addParam(ParamWidget::create<TL1105>(Vec(columnRuler0-10, rowRuler1+offsetTL1105), module, WriteSeq64::COPY_PARAM, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<TL1105>(Vec(columnRuler0+20, rowRuler1+offsetTL1105), module, WriteSeq64::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<TL1105>(Vec(columnRuler0-10, rowRuler0+offsetTL1105), module, WriteSeq64::COPY_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<TL1105>(Vec(columnRuler0+20, rowRuler0+offsetTL1105), module, WriteSeq64::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
 		// Paste sync
-		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRuler0+hOffsetCKSS, rowRuler2+vOffsetCKSSThree), module, WriteSeq64::PASTESYNC_PARAM, 0.0f, 2.0f, 0.0f));		
+		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRuler0+hOffsetCKSS, rowRuler1+vOffsetCKSSThree), module, WriteSeq64::PASTESYNC_PARAM, 0.0f, 2.0f, 0.0f));		
+		// Reset
+		addInput(Port::create<PJ301MPort>(Vec(columnRuler0, rowRuler2), Port::INPUT, module, WriteSeq64::RESET_INPUT));		
 		// Channel input
 		addInput(Port::create<PJ301MPort>(Vec(columnRuler0, rowRuler3), Port::INPUT, module, WriteSeq64::CHANNEL_INPUT));
 		

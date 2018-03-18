@@ -2,7 +2,7 @@
 
 ## License
 
-Based on code from the Fundamental and AudibleInstruments plugins by Andrew Belt and graphics from the Component Library by Wes Milholen.
+Based on code from the Fundamental and Audible Instruments plugins by Andrew Belt and graphics from the Component Library by Wes Milholen.
 
 See ./LICENSE.txt for all licenses.
 
@@ -19,7 +19,7 @@ TODO: See [Release Page](https://github.com/MarcBoule/ImpromptuModular/releases)
 
 ![IM](WriteSeq32.jpg)
 
-Three channel 32-step writable sequencer module. This sequencer was designed to allow the entering of notes into a sequencer in a quick and natural manner when a midi keyboard is connected to Rack. A soft keyboard such as VMPK ([Virtual Midi Piano Keyboard](http://vmpk.sourceforge.net/)) or the Autodafe keyboard in Rack can also be used. Although the display shows note names (ex. C4#, D5, etc.), any voltage within the -10V to 10V range can be stored/played in the sequencer, whether it is used as a pitch CV or not.
+Three channel 32-step writable sequencer module. This sequencer was designed to allow the entering of notes into a sequencer in a quick and natural manner when a midi keyboard is connected to Rack. Although the display shows note names (ex. C4#, D5, etc.), any voltage within the -10V to 10V range can be stored/played in the sequencer, whether it is used as a pitch CV or not.
 
 Ideas: if you have a sustain pedal, use Rack's Midi-CC module and connect the footpedal to the WRITE input to coordinate your writing of sequence notes while playing the keyboard. Turn on AUTOSTEP in Write-Seq-32 to step the sequencer forward on each write. Optionally, if you have a three-pedal foot controller, use the other pedals with the STEP L and STEP R inputs to control the sequencer position manually. Or, more simply, instead of sending the midi keyboard's gate signal into Write-Seq-32's gate input, send it to the write signal, and with autostep, each key-press will automatically be entered in sequence.
 
