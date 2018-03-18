@@ -95,7 +95,7 @@ struct WriteSeq64 : Module {
 		indexChannel = 0;
 		for (int c = 0; c < 5; c++) {
 			indexStep[c] = 0;
-			indexSteps[c] = 32;
+			indexSteps[c] = 64;
 			for (int s = 0; s < 64; s++) {
 				cv[c][s] = 0.0f;
 				gates[c][s] = true;
@@ -115,7 +115,7 @@ struct WriteSeq64 : Module {
 		indexChannel = 0;
 		for (int c = 0; c < 5; c++) {
 			indexStep[c] = 0;
-			indexSteps[c] = 32;
+			indexSteps[c] = 64;
 			for (int s = 0; s < 64; s++) {
 				cv[c][s] = (randomUniform() *10.0f);
 				gates[c][s] = (randomUniform() > 0.5f);
