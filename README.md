@@ -10,7 +10,7 @@ See ./res/fonts/ for font licenses.
 
 ## Releases
 
-See [Release Page](https://github.com/MarcBoule/ImpromptuModular/releases) for Mac, Win and Linux builds
+TODO: See [Release Page](https://github.com/MarcBoule/ImpromptuModular/releases) for Mac, Win and Linux builds
 
 
 # Modules
