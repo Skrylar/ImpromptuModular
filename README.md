@@ -17,7 +17,7 @@ See [Release Page](https://github.com/MarcBoule/ImpromptuModular/releases) for M
 
 ## Write-Seq-32
 
-![IM](WriteSeq32.jpg)
+![IM](WriteSeq32.jpg = 300x)
 
 Three channel 32-step writable sequencer module. This sequencer was designed to allow the entering of notes into a sequencer in a quick and natural manner when a midi keyboard is connected to Rack. A soft keyboard such as VMPK ([Virtual Midi Piano Keyboard](http://vmpk.sourceforge.net/)) or the Autodafe keyboard in Rack can also be used. Although the display shows note names (ex. C4#, D5, etc.), any voltage within the -10V to 10V range can be stored/played in the sequencer, whether it is used as a pitch CV or not.
 
@@ -77,7 +77,7 @@ Here are some specific details on each element on the faceplate of the module.
 
 ## Write-Seq-64
 
-![IM](https://github.com/MarcBoule/ImpromptuModular/master/WriteSeq64.jpg)
+![IM](WriteSeq64.jpg)
 
 Four channel 64-step writable sequencer module. This sequencer is based on Write-Seq-32, both of which share many of the same functionalities. Write-Seq-64 has dual clock inputs (each controls a pair of channels) and allows each channel to have their separate lengths.
 
