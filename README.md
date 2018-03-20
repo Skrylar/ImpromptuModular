@@ -51,7 +51,7 @@ Here are some specific details on each element on the faceplate of the module.
 
 * **Run 1-3**: When running, the sequencer responds to rising edges of the CLOCK input and will step all channels except the staging area (channel 4).
 
-* **Write**: This writes the pitch CV given in the CV IN input into the CV of the current step of the selected channel. If a wire is connected to the GATE IN input, this gate input is also written into the gate enable of the current step/channel. An enabled gate corresponds to a voltage of 1.0V or higher. No effect on channels 1 to 3 when the sequencer is running.
+* **Write**: This writes the pitch CV given in the CV IN input into the CV of the current step of the selected channel. If a wire is connected to the GATE IN input, this gate input is also written into the gate enable of the current step/channel. An enabled gate corresponds to a voltage of 1.0V or higher. The small LED indicates if writing via the write button is possible (green) or not (red).
 
 * **CV In**: This pitch CV is written into the current step of the selected channel. Any voltage between -10.0 and 10.0 is supported. See _Notes display_ and _Quantize_ above for more related information. No effect on channels 1 to 3 when the sequencer is running.
 
