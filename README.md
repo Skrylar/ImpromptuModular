@@ -6,16 +6,15 @@ Based on code from the Fundamental and Audible Instruments plugins by Andrew Bel
 
 See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
 
-## Releases
-
-TODO: See [Release Page](https://github.com/MarcBoule/ImpromptuModular/releases) for Mac, Win and Linux builds
-
 
 # Modules
 
 * Write-Seq-32
 
 * Write-Seq-64
+
+Details about each module are given below. Feedback and bug reports are always appreciated!
+
 
 ## Write-Seq-32
 
