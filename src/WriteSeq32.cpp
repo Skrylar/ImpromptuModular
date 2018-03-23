@@ -245,6 +245,7 @@ struct WriteSeq32 : Module {
 			}
 			else {
 				pendingPaste = params[PASTESYNC_PARAM].value > 1.5f ? 2 : 1;
+				pendingPaste |= indexChannel<<2; // add paste destination channel into pendingPaste
 			}
 		}
 		
@@ -278,10 +279,11 @@ struct WriteSeq32 : Module {
 				indexStep = moveIndex(indexStep, indexStep + 1, numSteps);
 				
 				// Pending paste on clock or end of seq
-				if ( (pendingPaste == 1) || (pendingPaste == 2 && indexStep == 0) ) {
+				if ( ((pendingPaste&0x3) == 1) || ((pendingPaste&0x3) == 2 && indexStep == 0) ) {
 					for (int s = 0; s < 32; s++) {
-						cv[indexChannel][s] = cvCPbuffer[s];
-						gates[indexChannel][s] = gateCPbuffer[s];
+						int pasteChannel = pendingPaste>>2;
+						cv[pasteChannel][s] = cvCPbuffer[s];
+						gates[pasteChannel][s] = gateCPbuffer[s];
 					}
 					pendingPaste = 0;
 				}
@@ -374,6 +376,8 @@ struct WriteSeq32 : Module {
 		setRGBLight(CHANNEL_LIGHTS + 3, 0.4f, 0.5f, 0.0f, (indexChannel == 1));// orange
 		setRGBLight(CHANNEL_LIGHTS + 6, 0.0f, 0.5f, 0.4f, (indexChannel == 2));// turquoise
 		setRGBLight(CHANNEL_LIGHTS + 9, 0.0f, 0.0f, 0.8f, (indexChannel == 3));// blue
+		if (pendingPaste != 0)
+			setRGBLight(CHANNEL_LIGHTS + (pendingPaste>>2)*3, 1.0f, 0.0f, 0.0f, true);
 		
 		// Write allowed light
 		lights[WRITE_LIGHT + 0].value = (canEdit)?1.0f:0.0f;

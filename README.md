@@ -20,11 +20,11 @@ Details about each module are given below. Feedback and bug reports are always a
 
 ![IM](WriteSeq32.jpg)
 
-Three channel 32-step writable sequencer module. This sequencer was designed to allow the entering of notes into a sequencer in a quick and natural manner when a midi keyboard is connected via the Core MIDI-1 module in VCV Rack. A software midi keyboard such as [VMPK](http://vmpk.sourceforge.net/) can also be used (a software midi loopback app may be required). Although the display shows note names (ex. C4#, D5, etc.), any voltage within the -10V to 10V range can be stored/played in the sequencer, whether it is used as a pitch CV or not, and whether it is quantized or not.
+Three channel 32-step writable sequencer module. This sequencer was designed to allow the entering of notes into a sequencer in a quick and natural manner when a midi keyboard is connected via the Core MIDI-1 module in VCV Rack. A software midi keyboard such as [VMPK](http://vmpk.sourceforge.net/) can also be used (a software midi loopback app may be required), or a keyboard within Rack such as the Autodafe keyboard. Although the display shows note names (ex. C4#, D5, etc.), any voltage within the -10V to 10V range can be stored/played in the sequencer, whether it is used as a pitch CV or not, and whether it is quantized or not.
 
 Ideas: if you have a sustain pedal, use Rack's Midi-CC module and connect the foot-pedal to the WRITE input to coordinate your writing of sequence notes while playing the keyboard. Turn on AUTOSTEP to step the sequencer forward on each write. Optionally, if you have a three-pedal foot controller, use the other pedals with the STEP L and STEP R inputs to control the sequencer position manually. Or, more simply, instead of sending the midi keyboard's gate signal into the sequencer's gate input, send it to the write signal instead, and with autostep, each key-press will automatically be entered in sequence. Gate states and window selection can be done by pressing the 8 and 4 LED buttons respectively, located below and above the main display. 
 
-Here are some specific details on each element on the faceplate of the module.
+Here are some specific details on each element on the faceplate of the module. Familiarity with Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers.
 
 * **Autostep**: Will automatically step the sequencer one step right on each write. No effect on channels 1 to 3 when the sequencer is running.
 
@@ -44,7 +44,7 @@ Here are some specific details on each element on the faceplate of the module.
 
 * **Copy-Paste**: Copy and paste the CVs and gates of a channel into another channel. In a given channel, press the left button to copy the channel into a buffer, then select another channel and press the right button to paste. All 32 steps are copied irrespective of the STPES knob setting.
 
-* **Paste sync**: Determines whether to paste in real time (RT), on the next clock (CLK), or at the next sequence start (SEQ). Pending pastes are cleared when the RUN 1-3 button is toggled. Pending pastes into the staging area (channel 4) are always done in realtime, irrespective of the state of the sync switch.
+* **Paste sync**: Determines whether to paste in real time (RT), on the next clock (CLK), or at the next sequence start (SEQ). Pending pastes to a given channel are shown by a red channel LED, and if the selected channel changes, the paste opertion will be performed in the channel that was selected when the paste button was pressed. Pending pastes are also automatically aborted when the RUN 1-3 button is pressed. Pending pastes into the staging area (channel 4) are always done in realtime, irrespective of the state of the sync switch.
 
 * **Step L/R**: Steps the sequencer one step left or right. No effect on channels 1 to 3 when the sequencer is running.
 
@@ -84,7 +84,7 @@ Four channel 64-step writable sequencer module. This sequencer is based on Write
 
 Ideas: The first part of the famous [Piano Phase](https://en.wikipedia.org/wiki/Piano_Phase) piece by Steve Reich can be easily programmed into the sequencer by entering the twelve notes into channel 1 with a midi keyboard, copy-pasting channel 1 into channel 3, setting STEPS to 12 for each of those channels, and then driving each clock input with two LFOs that have ever so slightly different frequencies. Exercise left to the reader!
 
-Here are some specific details on elements of the faceplate which differ compared to Write-Seq-32.
+Here are some specific details on elements of the faceplate which differ compared to Write-Seq-32. Familiarity with Write-Seq-32 is strongly recommended.
 
 * **Chan**: Four channels available, with a fifth channel that can be used as a staging area.
 

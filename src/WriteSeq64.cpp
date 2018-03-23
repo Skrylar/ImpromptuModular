@@ -294,6 +294,7 @@ struct WriteSeq64 : Module {
 			}
 			else {
 				pendingPaste = params[PASTESYNC_PARAM].value > 1.5f ? 2 : 1;
+				pendingPaste |= indexChannel<<2; // add paste destination channel into pendingPaste				
 			}
 		}
 			
@@ -348,12 +349,13 @@ struct WriteSeq64 : Module {
 			}	
 
 			// Pending paste on clock or end of seq
-			if ( (pendingPaste == 1) || (pendingPaste == 2 && indexStep[indexChannel] == 0) ) {
+			if ( ((pendingPaste&0x3) == 1) || ((pendingPaste&0x3) == 2 && indexStep[indexChannel] == 0) ) {
 				if ( (clk12step && (indexChannel == 0 || indexChannel == 1)) ||
 					 (clk34step && (indexChannel == 2 || indexChannel == 3)) ) {
 					for (int s = 0; s < 64; s++) {
-						cv[indexChannel][s] = cvCPbuffer[s];
-						gates[indexChannel][s] = gateCPbuffer[s];
+						int pasteChannel = pendingPaste>>2;
+						cv[pasteChannel][s] = cvCPbuffer[s];
+						gates[pasteChannel][s] = gateCPbuffer[s];
 					}
 					pendingPaste = 0;
 				}
