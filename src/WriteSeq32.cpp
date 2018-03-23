@@ -235,7 +235,7 @@ struct WriteSeq32 : Module {
 		}
 		// Paste
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
-			if (params[PASTESYNC_PARAM].value < 0.5f) {
+			if (params[PASTESYNC_PARAM].value < 0.5f || indexChannel == 3) {
 				// Paste realtime, no pending to schedule
 				for (int s = 0; s < 32; s++) {
 					cv[indexChannel][s] = cvCPbuffer[s];
@@ -262,6 +262,8 @@ struct WriteSeq32 : Module {
 				gates[indexChannel][iGate] = !gates[indexChannel][iGate];
 			}
 		}
+
+		bool canEdit = !running || (indexChannel == 3);
 			
 		// Steps knob will not trigger anything in step(), and if user goes lower than current step, lower the index accordingly
 		if (indexStep >= numSteps)
@@ -286,7 +288,6 @@ struct WriteSeq32 : Module {
 			}
 		}
 		
-		bool canEdit = !running || (indexChannel == 3);
 		if (canEdit)
 		{		
 			// Step L
@@ -369,20 +370,20 @@ struct WriteSeq32 : Module {
 		}
 			
 		// Channel lights
-		// Channel 0 LED (0,1,2) is green
-		lights[CHANNEL_LIGHTS + 1].value = (indexChannel == 0)?1.0f:0.0f;		
-		// Channel 1 LED (3,4,5) is orange
-		lights[CHANNEL_LIGHTS + 3].value = (indexChannel == 1)?0.4f:0.0f;
-		lights[CHANNEL_LIGHTS + 4].value = (indexChannel == 1)?0.5f:0.0f;
-		// Channel 2 LED (6,7,8) is green/blue
-		lights[CHANNEL_LIGHTS + 7].value = (indexChannel == 2)?0.5f:0.0f;	
-		lights[CHANNEL_LIGHTS + 8].value = (indexChannel == 2)?0.4f:0.0f;	
-		// Channel S LED (9,10,11) is blue
-		lights[CHANNEL_LIGHTS + 11].value = (indexChannel == 3)?0.8f:0.0f;	
+		setRGBLight(CHANNEL_LIGHTS + 0, 0.0f, 1.0f, 0.0f, (indexChannel == 0));// green
+		setRGBLight(CHANNEL_LIGHTS + 3, 0.4f, 0.5f, 0.0f, (indexChannel == 1));// orange
+		setRGBLight(CHANNEL_LIGHTS + 6, 0.0f, 0.5f, 0.4f, (indexChannel == 2));// turquoise
+		setRGBLight(CHANNEL_LIGHTS + 9, 0.0f, 0.0f, 0.8f, (indexChannel == 3));// blue
 		
 		// Write allowed light
 		lights[WRITE_LIGHT + 0].value = (canEdit)?1.0f:0.0f;
 		lights[WRITE_LIGHT + 1].value = (canEdit)?0.0f:1.0f;
+	}
+	
+	void setRGBLight(int id, float red, float green, float blue, bool enable) {
+		lights[id + 0].value = enable? red : 0.0f;
+		lights[id + 1].value = enable? green : 0.0f;
+		lights[id + 2].value = enable? blue : 0.0f;
 	}
 };
 
@@ -586,7 +587,7 @@ struct WriteSeq32Widget : ModuleWidget {
 		// Paste sync
 		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRuler0+hOffsetCKSS, rowRuler2+vOffsetCKSSThree), module, WriteSeq32::PASTESYNC_PARAM, 0.0f, 2.0f, 0.0f));		
 		// Channel input
-		addInput(Port::create<PJ301MPort>(Vec(columnRuler0, rowRuler3), Port::INPUT, module, WriteSeq32::CHANNEL_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRuler0, rowRuler3), Port::INPUT, module, WriteSeq32::CHANNEL_INPUT));
 		
 		
 		// Column 1
@@ -596,9 +597,9 @@ struct WriteSeq32Widget : ModuleWidget {
 		addParam(ParamWidget::create<LEDBezel>(Vec(columnRuler1+offsetLEDbezel, rowRuler1+offsetLEDbezel), module, WriteSeq32::RUN_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRuler1+offsetLEDbezel+offsetLEDbezelLight, rowRuler1+offsetLEDbezel+offsetLEDbezelLight), module, WriteSeq32::RUN_LIGHT));
 		// Gate input
-		addInput(Port::create<PJ301MPort>(Vec(columnRuler1, rowRuler2), Port::INPUT, module, WriteSeq32::GATE_INPUT));		
+		addInput(Port::create<PJ301MPortS>(Vec(columnRuler1, rowRuler2), Port::INPUT, module, WriteSeq32::GATE_INPUT));		
 		// Step L input
-		addInput(Port::create<PJ301MPort>(Vec(columnRuler1, rowRuler3), Port::INPUT, module, WriteSeq32::STEPL_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRuler1, rowRuler3), Port::INPUT, module, WriteSeq32::STEPL_INPUT));
 		
 		
 		// Column 2
@@ -608,9 +609,9 @@ struct WriteSeq32Widget : ModuleWidget {
 		addParam(ParamWidget::create<CKD6>(Vec(columnRuler2+offsetCKD6, rowRuler1+offsetCKD6), module, WriteSeq32::WRITE_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<SmallLight<GreenRedLight>>(Vec(columnRuler2 -12, rowRuler1 - 13), module, WriteSeq32::WRITE_LIGHT));
 		// CV input
-		addInput(Port::create<PJ301MPort>(Vec(columnRuler2, rowRuler2), Port::INPUT, module, WriteSeq32::CV_INPUT));		
+		addInput(Port::create<PJ301MPortS>(Vec(columnRuler2, rowRuler2), Port::INPUT, module, WriteSeq32::CV_INPUT));		
 		// Step R input
-		addInput(Port::create<PJ301MPort>(Vec(columnRuler2, rowRuler3), Port::INPUT, module, WriteSeq32::STEPR_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRuler2, rowRuler3), Port::INPUT, module, WriteSeq32::STEPR_INPUT));
 		
 		
 		// Column 3
@@ -625,25 +626,25 @@ struct WriteSeq32Widget : ModuleWidget {
 		// Monitor
 		addParam(ParamWidget::create<CKSSH>(Vec(columnRuler3+hOffsetCKSSH, rowRuler2+vOffsetCKSSH), module, WriteSeq32::MONITOR_PARAM, 0.0f, 1.0f, 0.0f));		
 		// Write input
-		addInput(Port::create<PJ301MPort>(Vec(columnRuler3, rowRuler3), Port::INPUT, module, WriteSeq32::WRITE_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRuler3, rowRuler3), Port::INPUT, module, WriteSeq32::WRITE_INPUT));
 		
 		
 		// Column 4
 		// Outputs
-		addOutput(Port::create<PJ301MPort>(Vec(columnRuler4, rowRuler0), Port::OUTPUT, module, WriteSeq32::CV_OUTPUTS + 0));
-		addOutput(Port::create<PJ301MPort>(Vec(columnRuler4, rowRuler1), Port::OUTPUT, module, WriteSeq32::CV_OUTPUTS + 1));
-		addOutput(Port::create<PJ301MPort>(Vec(columnRuler4, rowRuler2), Port::OUTPUT, module, WriteSeq32::CV_OUTPUTS + 2));
+		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler4, rowRuler0), Port::OUTPUT, module, WriteSeq32::CV_OUTPUTS + 0));
+		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler4, rowRuler1), Port::OUTPUT, module, WriteSeq32::CV_OUTPUTS + 1));
+		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler4, rowRuler2), Port::OUTPUT, module, WriteSeq32::CV_OUTPUTS + 2));
 		// Reset
-		addInput(Port::create<PJ301MPort>(Vec(columnRuler4, rowRuler3), Port::INPUT, module, WriteSeq32::RESET_INPUT));		
+		addInput(Port::create<PJ301MPortS>(Vec(columnRuler4, rowRuler3), Port::INPUT, module, WriteSeq32::RESET_INPUT));		
 
 		
 		// Column 5
 		// Gates
-		addOutput(Port::create<PJ301MPort>(Vec(columnRuler5, rowRuler0), Port::OUTPUT, module, WriteSeq32::GATE_OUTPUTS + 0));
-		addOutput(Port::create<PJ301MPort>(Vec(columnRuler5, rowRuler1), Port::OUTPUT, module, WriteSeq32::GATE_OUTPUTS + 1));
-		addOutput(Port::create<PJ301MPort>(Vec(columnRuler5, rowRuler2), Port::OUTPUT, module, WriteSeq32::GATE_OUTPUTS + 2));
+		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler5, rowRuler0), Port::OUTPUT, module, WriteSeq32::GATE_OUTPUTS + 0));
+		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler5, rowRuler1), Port::OUTPUT, module, WriteSeq32::GATE_OUTPUTS + 1));
+		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler5, rowRuler2), Port::OUTPUT, module, WriteSeq32::GATE_OUTPUTS + 2));
 		// Clock
-		addInput(Port::create<PJ301MPort>(Vec(columnRuler5, rowRuler3), Port::INPUT, module, WriteSeq32::CLOCK_INPUT));			
+		addInput(Port::create<PJ301MPortS>(Vec(columnRuler5, rowRuler3), Port::INPUT, module, WriteSeq32::CLOCK_INPUT));			
 	}
 };
 

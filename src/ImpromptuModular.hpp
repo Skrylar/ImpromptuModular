@@ -57,10 +57,20 @@ static const int offsetTrimpot = 3;//does both h and v
 
 // Variations on existing knobs, lights, etc
 
+struct PJ301MPortS : SVGPort {
+	PJ301MPortS() {
+		setSVG(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
+		shadow->blurRadius = 10.0;
+		shadow->opacity = 0.8;
+	}
+};
+
 struct Davies1900hBlackSnapKnob : Davies1900hBlackKnob {
 	Davies1900hBlackSnapKnob() {
 		snap = true;
 		smooth = false;
+		shadow->blurRadius = 10.0;
+		shadow->opacity = 0.8;
 	}
 };
 
@@ -69,6 +79,8 @@ struct Davies1900hBlackKnobNoTick : Davies1900hKnob {
 		setSVG(SVG::load(assetPlugin(plugin, "res/Davies1900hBlackNoTick.svg")));
 		speed = 0.9f;
 		smooth = false;
+		shadow->blurRadius = 10.0;
+		shadow->opacity = 0.8;
 	}
 	//void reset() override {} // called when initialize module (right click)
 };
