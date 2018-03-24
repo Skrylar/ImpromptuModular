@@ -70,6 +70,7 @@ struct WriteSeq64 : Module {
 	// No need to save
 	float cvCPbuffer[64];// copy paste buffer for CVs
 	float gateCPbuffer[64];// copy paste buffer for gates
+	int stepsCPbuffer;
 	float resetLight = 0.0f;
 	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq
 
@@ -105,6 +106,7 @@ struct WriteSeq64 : Module {
 			cvCPbuffer[s] = 0.0f;
 			gateCPbuffer[s] = true;
 		}
+		stepsCPbuffer = 64;
 		stepKnob = 0;
 		stepsKnob = 0;
 		pendingPaste = 0;
@@ -125,6 +127,7 @@ struct WriteSeq64 : Module {
 			cvCPbuffer[s] = 0.0f;
 			gateCPbuffer[s] = true;
 		}
+		stepsCPbuffer = 64;
 		stepKnob = 0;
 		stepsKnob = 0;
 		pendingPaste = 0;
@@ -281,6 +284,7 @@ struct WriteSeq64 : Module {
 				cvCPbuffer[i] = cv[indexChannel][i];
 				gateCPbuffer[i] = gates[indexChannel][i];
 			}
+			stepsCPbuffer = indexSteps[indexChannel];
 		}
 		// Paste
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
@@ -290,6 +294,9 @@ struct WriteSeq64 : Module {
 					cv[indexChannel][s] = cvCPbuffer[s];
 					gates[indexChannel][s] = gateCPbuffer[s];
 				}
+				indexSteps[indexChannel] = stepsCPbuffer;
+				if (indexStep[indexChannel] >= stepsCPbuffer)
+					indexStep[indexChannel] = stepsCPbuffer - 1;
 				pendingPaste = 0;
 			}
 			else {
@@ -352,11 +359,14 @@ struct WriteSeq64 : Module {
 			if ( ((pendingPaste&0x3) == 1) || ((pendingPaste&0x3) == 2 && indexStep[indexChannel] == 0) ) {
 				if ( (clk12step && (indexChannel == 0 || indexChannel == 1)) ||
 					 (clk34step && (indexChannel == 2 || indexChannel == 3)) ) {
+					int pasteChannel = pendingPaste>>2;
 					for (int s = 0; s < 64; s++) {
-						int pasteChannel = pendingPaste>>2;
 						cv[pasteChannel][s] = cvCPbuffer[s];
 						gates[pasteChannel][s] = gateCPbuffer[s];
 					}
+					indexSteps[pasteChannel] = stepsCPbuffer;
+					if (indexStep[pasteChannel] >= stepsCPbuffer)
+						indexStep[pasteChannel] = stepsCPbuffer - 1;
 					pendingPaste = 0;
 				}
 			}
@@ -416,7 +426,7 @@ struct WriteSeq64 : Module {
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			for (int t = 0; t < 5; t++)
 				indexStep[t] = 0;
-			resetLight = 1.0;
+			resetLight = 1.0f;
 		}
 		else
 			resetLight -= resetLight / lightLambda / engineGetSampleRate();

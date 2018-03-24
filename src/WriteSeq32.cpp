@@ -280,8 +280,8 @@ struct WriteSeq32 : Module {
 				
 				// Pending paste on clock or end of seq
 				if ( ((pendingPaste&0x3) == 1) || ((pendingPaste&0x3) == 2 && indexStep == 0) ) {
+					int pasteChannel = pendingPaste>>2;
 					for (int s = 0; s < 32; s++) {
-						int pasteChannel = pendingPaste>>2;
 						cv[pasteChannel][s] = cvCPbuffer[s];
 						gates[pasteChannel][s] = gateCPbuffer[s];
 					}
