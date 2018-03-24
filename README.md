@@ -9,18 +9,18 @@ See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
 
 # Modules
 
-* Write-Seq-32
+* [Write-Seq-32](#write-seq-32)
 
-* Write-Seq-64
+* [Write-Seq-64](#write-seq-64)
 
 Details about each module are given below. Feedback and bug reports are always appreciated!
 
 
-## Write-Seq-32
+## Write-Seq-32 <a id="write-seq-32"></a>
 
 ![IM](WriteSeq32.jpg)
 
-Three channel 32-step writable sequencer module. This sequencer was designed to allow the entering of notes into a sequencer in a quick and natural manner when using, for example:
+A three channel 32-step writable sequencer module. This sequencer was designed to allow the entering of notes into a sequencer in a quick and natural manner when using, for example:
 
 * a midi keyboard connected via the Core MIDI-1 module in VCV Rack;
 * a software midi keyboard such as [VMPK](http://vmpk.sourceforge.net/) (a software midi loopback app may be required); 
@@ -82,13 +82,13 @@ Here are some specific details on each element on the faceplate of the module. F
 
 
 
-## Write-Seq-64
+## Write-Seq-64 <a id="write-seq-64"></a>
 
 ![IM](WriteSeq64.jpg)
 
-Four channel 64-step writable sequencer module. This sequencer is based on Write-Seq-32, both of which share many of the same functionalities. Write-Seq-64 has dual clock inputs (each controls a pair of channels) and allows each channel to have their separate step lengths and step positions. This sequencer is more versatile since each channel has its own step position and maximum number of steps. Sequences of different lengths can be created, with different starting points.
+A four channel 64-step writable sequencer module. This sequencer is based on Write-Seq-32, both of which share many of the same functionalities. Write-Seq-64 has dual clock inputs (each controls a pair of channels). This sequencer is more versatile than Write-Seq-32 since each channel has its own step position and maximum number of steps. Sequences of different lengths can be created, with different starting points.
 
-Ideas: The first part of the famous [Piano Phase](https://en.wikipedia.org/wiki/Piano_Phase) piece by Steve Reich can be easily programmed into the sequencer by entering the twelve notes into channel 1 with a midi keyboard, copy-pasting channel 1 into channel 3, setting STEPS to 12 for each of those channels, and then driving each clock input with two LFOs that have ever so slightly different frequencies. Exercise left to the reader!
+Ideas: The first part of the famous [Piano Phase](https://en.wikipedia.org/wiki/Piano_Phase) piece by Steve Reich can be easily programmed into the sequencer by entering the twelve notes into channel 1 with a midi keyboard, setting STEPS to 12, copy-pasting channel 1 into channel 3, and then driving each clock input with two LFOs that have ever so slightly different frequencies. Exercise left to the reader!
 
 Here are some specific details on elements of the faceplate which differ compared to Write-Seq-32. Familiarity with Write-Seq-32 is strongly recommended.
 
@@ -96,7 +96,7 @@ Here are some specific details on elements of the faceplate which differ compare
 
 * **Gate LED and CV display**: Status of the gate and CV of the currently selected step.
 
-* **Steps**: Sets the number of steps of the currently selected sequence (sequence length). Each channel can have different lengths.
+* **Steps**: Sets the number of steps of the currently selected sequence (sequence length). Each channel can have different lengths. This value is included as part of a copy-paste operation.
 
 * **Reset input/button**: repositions all channels to their first step. A rising edge triggered at 1.0V will be detected as a reset.
 
