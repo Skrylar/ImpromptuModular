@@ -371,7 +371,7 @@ struct WriteSeq32 : Module {
 			lights[GATE_LIGHTS + i].value = gates[indexChannel][(index&0x18) | i] ? 1.0f : 0.0f;
 		}
 			
-		// Channel lights
+		// Channel lights (with pendingPaste state)
 		setRGBLight(CHANNEL_LIGHTS + 0, 0.0f, 1.0f, 0.0f, (indexChannel == 0));// green
 		setRGBLight(CHANNEL_LIGHTS + 3, 0.4f, 0.5f, 0.0f, (indexChannel == 1));// orange
 		setRGBLight(CHANNEL_LIGHTS + 6, 0.0f, 0.5f, 0.4f, (indexChannel == 2));// turquoise

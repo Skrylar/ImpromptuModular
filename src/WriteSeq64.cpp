@@ -54,6 +54,7 @@ struct WriteSeq64 : Module {
 		RUN_LIGHT,
 		RESET_LIGHT,
 		ENUMS(WRITE_LIGHT, 2),// room for GreenRed
+		PENDING_LIGHT,
 		NUM_LIGHTS
 	};
 
@@ -322,7 +323,7 @@ struct WriteSeq64 : Module {
 		// Steps knob
 		int newStepsKnob = (int)roundf(params[STEPS_PARAM].value*10.0f);
 		if (newStepsKnob != stepsKnob) {
-			if (abs(newStepsKnob - stepsKnob) <= 1) // avoid discontinuous step (initialize for example)
+			if (abs(newStepsKnob - stepsKnob) <= 2) // avoid discontinuous step (initialize for example)
 				indexSteps[indexChannel] = clamp( indexSteps[indexChannel] + newStepsKnob - stepsKnob, 1, 64); 
 			stepsKnob = newStepsKnob;
 		}	
@@ -330,7 +331,7 @@ struct WriteSeq64 : Module {
 		int newStepKnob = (int)roundf(params[STEP_PARAM].value*19.0f);
 		if (newStepKnob != stepKnob) {
 			info("newStepKnob = %i,  stepKnob = %i", newStepKnob, stepKnob);
-			if (canEdit && (abs(newStepKnob - stepKnob) <= 1) ) // avoid discontinuous step (initialize for example)
+			if (canEdit && (abs(newStepKnob - stepKnob) <= 2) ) // avoid discontinuous step (initialize for example)
 				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + newStepKnob - stepKnob, indexSteps[indexChannel]);
 			stepKnob = newStepKnob;// must do this step whether running or not
 		}	
@@ -440,6 +441,9 @@ struct WriteSeq64 : Module {
 		// Write allowed light
 		lights[WRITE_LIGHT + 0].value = (canEdit)?1.0f:0.0f;
 		lights[WRITE_LIGHT + 1].value = (canEdit)?0.0f:1.0f;
+		
+		// Pending paste light
+		lights[PENDING_LIGHT].value = (pendingPaste == 0 ? 0.0f : 1.0f);
 	}
 };
 
@@ -710,8 +714,9 @@ struct WriteSeq64Widget : ModuleWidget {
 		// Copy/paste switches
 		addParam(ParamWidget::create<TL1105>(Vec(columnRuler0-10, rowRuler0+offsetTL1105), module, WriteSeq64::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(columnRuler0+20, rowRuler0+offsetTL1105), module, WriteSeq64::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
-		// Paste sync
-		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRuler0+hOffsetCKSS, rowRuler1+vOffsetCKSSThree), module, WriteSeq64::PASTESYNC_PARAM, 0.0f, 2.0f, 0.0f));		
+		// Paste sync (and light)
+		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRuler0+hOffsetCKSS, rowRuler1+vOffsetCKSSThree), module, WriteSeq64::PASTESYNC_PARAM, 0.0f, 2.0f, 0.0f));	
+		addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(columnRuler0 + 41, rowRuler1 + 14), module, WriteSeq64::PENDING_LIGHT));
 		// Reset
 		addInput(Port::create<PJ301MPortS>(Vec(columnRuler0, rowRuler2), Port::INPUT, module, WriteSeq64::RESET_INPUT));		
 		// Channel input
