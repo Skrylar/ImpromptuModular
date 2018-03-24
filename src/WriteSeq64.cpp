@@ -395,7 +395,7 @@ struct WriteSeq64 : Module {
 				
 				// Gate
 				clockHigh = i < 2 ? clock12Trigger.isHigh() : clock34Trigger.isHigh();
-				outputs[GATE_OUTPUTS + i].value = (clockHigh && gates[i][indexStep[indexChannel]]) ? 10.0f : 0.0f;
+				outputs[GATE_OUTPUTS + i].value = (clockHigh && gates[i][indexStep[i]]) ? 10.0f : 0.0f;
 			}
 		}
 		else {

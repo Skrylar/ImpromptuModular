@@ -80,7 +80,7 @@ Here are some specific details on each element on the faceplate of the module. F
 
 ![IM](WriteSeq64.jpg)
 
-Four channel 64-step writable sequencer module. This sequencer is based on Write-Seq-32, both of which share many of the same functionalities. Write-Seq-64 has dual clock inputs (each controls a pair of channels) and allows each channel to have their separate step lengths and step positions. 
+Four channel 64-step writable sequencer module. This sequencer is based on Write-Seq-32, both of which share many of the same functionalities. Write-Seq-64 has dual clock inputs (each controls a pair of channels) and allows each channel to have their separate step lengths and step positions. This sequencer is more versatile since each channel has its own step position and maximum number of steps. Sequences of different lengths can be created, with different starting points.
 
 Ideas: The first part of the famous [Piano Phase](https://en.wikipedia.org/wiki/Piano_Phase) piece by Steve Reich can be easily programmed into the sequencer by entering the twelve notes into channel 1 with a midi keyboard, copy-pasting channel 1 into channel 3, setting STEPS to 12 for each of those channels, and then driving each clock input with two LFOs that have ever so slightly different frequencies. Exercise left to the reader!
 
@@ -90,8 +90,10 @@ Here are some specific details on elements of the faceplate which differ compare
 
 * **Gate LED and CV display**: Status of the gate and CV of the currently selected step.
 
-* **Steps**: Sets the number of steps of the currently selected sequence (sequence length).
+* **Steps**: Sets the number of steps of the currently selected sequence (sequence length). Each channel can have different lengths.
+
+* **Reset input/button**: repositions all channels to their first step. A rising edge triggered at 1.0V will be detected as a reset.
 
 * **Clock 1,2**: Clock signal for channels 1 and 2.
 
-* **Clock 3,4**: Clock signal for channels 3 and 4. If no wire is connected, _Clock 1,2_ is used internally to clock channels 3 and 4.
+* **Clock 3,4**: Clock signal for channels 3 and 4. If no wire is connected, _Clock 1,2_ is used internally for channels 3 and 4.
