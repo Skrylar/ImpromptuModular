@@ -19,6 +19,7 @@ using namespace rack;
 extern Plugin *plugin;
 
 // All modules that are part of plugin go here
+extern Model *modelTwelveKey;
 extern Model *modelWriteSeq32;
 extern Model *modelWriteSeq64;
 
@@ -85,7 +86,6 @@ struct Davies1900hBlackKnobNoTick : Davies1900hKnob {
 	//void reset() override {} // called when initialize module (right click)
 };
 
-
 struct CKSSThreeInv : SVGSwitch, ToggleSwitch {
 	CKSSThreeInv() {
 		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/CKSSThree_2.svg")));
@@ -107,5 +107,11 @@ struct CKSSH : SVGSwitch, ToggleSwitch {
 		addFrame(SVG::load(assetPlugin(plugin, "res/CKSSH_1.svg")));
 		sw->wrap();
 		box.size = sw->box.size;
+	}
+};
+
+struct InvisibleKey : MomentarySwitch {
+	InvisibleKey() {
+		box.size = Vec(34, 72);
 	}
 };

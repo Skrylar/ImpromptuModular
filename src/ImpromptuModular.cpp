@@ -19,7 +19,7 @@ void init(rack::Plugin *p) {
 	p->slug = TOSTRING(SLUG);
 	p->version = TOSTRING(VERSION);
 
+	//p->addModel(modelTwelveKey);
 	p->addModel(modelWriteSeq32);
 	p->addModel(modelWriteSeq64);
-
 }
