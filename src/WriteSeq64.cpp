@@ -589,11 +589,11 @@ struct WriteSeq64Widget : ModuleWidget {
 	};
 	
 	
-	struct TrackDisplayWidget : TransparentWidget {
+	struct ChannelDisplayWidget : TransparentWidget {
 		int *indexTrack;
 		std::shared_ptr<Font> font;
 		
-		TrackDisplayWidget() {
+		ChannelDisplayWidget() {
 			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
 		}
 
@@ -643,12 +643,12 @@ struct WriteSeq64Widget : ModuleWidget {
 		static const int columnRulerT3 = columnRulerT2 + 43;
 		static const int columnRulerT4 = columnRulerT3 + 175;
 		
-		// Track display
-		TrackDisplayWidget *displayTrack = new TrackDisplayWidget();
-		displayTrack->box.pos = Vec(columnRulerT0+1, rowRulerT0+vOffsetDisplay);
-		displayTrack->box.size = Vec(25, 30);// 1 character
-		displayTrack->indexTrack = &module->indexChannel;
-		addChild(displayTrack);
+		// Channel display
+		ChannelDisplayWidget *channelTrack = new ChannelDisplayWidget();
+		channelTrack->box.pos = Vec(columnRulerT0+1, rowRulerT0+vOffsetDisplay);
+		channelTrack->box.size = Vec(25, 30);// 1 character
+		channelTrack->indexTrack = &module->indexChannel;
+		addChild(channelTrack);
 		// Step display
 		StepDisplayWidget *displayStep = new StepDisplayWidget();
 		displayStep->box.pos = Vec(columnRulerT1-8, rowRulerT0+vOffsetDisplay);

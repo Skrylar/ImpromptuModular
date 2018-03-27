@@ -490,8 +490,8 @@ struct WriteSeq32Widget : ModuleWidget {
 			nvgText(vg, textPos.x, textPos.y, "~~", NULL);
 			nvgFillColor(vg, textColor);
 			char displayStr[3];
-			sprintf(displayStr, "%2u", (unsigned) clamp(roundf(*valueKnob //+ *valueCV*31.0/10.0
-				), 1.0f, 32.0f) );
+			sprintf(displayStr, "%2u", (unsigned) clamp(roundf(*valueKnob), 1.0f, 32.0f) );
+			displayStr[2] = 0;
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};

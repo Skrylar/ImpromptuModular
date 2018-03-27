@@ -1,11 +1,15 @@
 //***********************************************************************************************
 //Chain-able keyboard module for VCV Rack by Marc Boulé
 //
-//Based on code from the Fundamental plugin by Andrew Belt and on concepts from the Autodafe
-//keyboard by Antonio Grazioli and the cf mixer by Clément Foulc, and Twisted Electrons' TwelveKey
-//and graphics from the Component Library by Wes Milholen 
+//Based on code from the Fundamental and Audible Instruments plugins by Andrew Belt and graphics  
+//  from the Component Library by Wes Milholen. 
 //See ./LICENSE.txt for all licenses
 //See ./res/fonts/ for font licenses
+//
+//Module inspired by:
+//  * the Autodafe keyboard by Antonio Grazioli 
+//  * the cf mixer by Clément Foulc
+//  * Twisted Electrons' KeyChain 
 //***********************************************************************************************
 
 
@@ -15,7 +19,8 @@
 
 struct TwelveKey : Module {
 	enum ParamIds {
-		OCT_PARAM,
+		OCTINC_PARAM,
+		OCTDEC_PARAM,
 		ENUMS(KEY_PARAM, 12),
 		NUM_PARAMS
 	};
@@ -37,6 +42,7 @@ struct TwelveKey : Module {
 	};
 	
 	// Need to save
+	int octaveNum;// 0 to 9
 	float cv;
 	bool stateInternal;// false when pass through CV and Gate, true when CV and gate from this module
 	
@@ -46,18 +52,23 @@ struct TwelveKey : Module {
 	
 	SchmittTrigger keyTriggers[12];
 	SchmittTrigger gateInputTrigger;
+	SchmittTrigger octIncTrigger;
+	SchmittTrigger octDecTrigger;
+	
 
 	TwelveKey() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
 	}
 
 	void onReset() override {
+		octaveNum = 4;
 		cv = 0.0f;
 		stateInternal = inputs[GATE_INPUT].active ? false : true;
 	}
 
 	void onRandomize() override {
-		cv = quantize(randomUniform() * 10.0f - 4.0f);
+		octaveNum = randomu32() % 10;
+		cv = ((float)(octaveNum - 4)) + ((float)(randomu32() % 12)) / 12.0f;
 		stateInternal = inputs[GATE_INPUT].active ? false : true;
 	}
 
@@ -66,6 +77,9 @@ struct TwelveKey : Module {
 		
 		// cv
 		json_object_set_new(rootJ, "cv", json_real(cv));
+		
+		// octave
+		json_object_set_new(rootJ, "octave", json_integer(octaveNum));
 		
 		// stateInternal
 		json_object_set_new(rootJ, "stateInternal", json_boolean(stateInternal));
@@ -79,6 +93,11 @@ struct TwelveKey : Module {
 		json_t *cvJ = json_object_get(rootJ, "cv");
 		if (cvJ)
 			cv = json_real_value(cvJ);
+		
+		// octave
+		json_t *octaveJ = json_object_get(rootJ, "octave");
+		if (octaveJ)
+			octaveNum = json_integer_value(octaveJ);
 
 		// stateInternal
 		json_t *stateInternalJ = json_object_get(rootJ, "stateInternal");
@@ -86,18 +105,27 @@ struct TwelveKey : Module {
 			stateInternal = json_is_true(stateInternalJ);
 	}
 
-		
-	inline float quantize(float cv) {
-		return (roundf(cv * 12.0f) / 12.0f);
-	}
 
 	void step() override {		
+		
+		// set octaveNum
+		if (inputs[OCT_INPUT].active) {
+			octaveNum = ((int) floor(inputs[OCT_INPUT].value));
+		}
+		else {
+			// detect button presses and inc/dec octaveNum
+			if (octIncTrigger.process(params[OCTINC_PARAM].value))
+				octaveNum++;
+			if (octDecTrigger.process(params[OCTDEC_PARAM].value))
+				octaveNum--;
+		}
+		if (octaveNum > 9) octaveNum = 9;
+		if (octaveNum < 0) octaveNum = 0;
 		
 		// set stateInternal and memorize cv 
 		for (int i = 0; i < 12; i++) {
 			if (keyTriggers[i].process(params[KEY_PARAM + i].value)) {
-				cv = inputs[OCT_INPUT].active ? inputs[OCT_INPUT].value : (params[OCT_PARAM].value - 4.0f);
-				cv += ((float) i) / 12.0f;
+				cv = ((float)(octaveNum - 4)) + ((float) i) / 12.0f;
 				stateInternal = true;
 			}
 		}
@@ -119,8 +147,10 @@ struct TwelveKey : Module {
 		lights[PRESS_LIGHT].value = gateLight;
 		
 		
-		// cv and gate outputs
+		// cv output
 		outputs[CV_OUTPUT].value = cv;
+		
+		// gate output
 		if (stateInternal == false) {// if receiving a key from left chain
 			outputs[GATE_OUTPUT].value = inputs[GATE_INPUT].value;
 		}
@@ -129,18 +159,50 @@ struct TwelveKey : Module {
 		}
 		
 		// Octave output
-		if (inputs[OCT_INPUT].active) {
-			outputs[OCT_OUTPUT].value = inputs[OCT_INPUT].value + 1.0f;
-		}
-		else {
-			outputs[OCT_OUTPUT].value = params[OCT_PARAM].value - 4.0f + 1.0f;
-		}
+		outputs[OCT_OUTPUT].value = round( (float)(octaveNum + 1) );
 	}
 };
 
 
 struct TwelveKeyWidget : ModuleWidget {
 
+	
+	struct OctaveNumDisplayWidget : TransparentWidget {
+		int *octaveNum;
+		std::shared_ptr<Font> font;
+		
+		OctaveNumDisplayWidget() {
+			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
+		}
+
+		void draw(NVGcontext *vg) override {
+			NVGcolor backgroundColor = nvgRGB(0x38, 0x38, 0x38);
+			NVGcolor borderColor = nvgRGB(0x10, 0x10, 0x10);
+			nvgBeginPath(vg);
+			nvgRoundedRect(vg, 0.0, 0.0, box.size.x, box.size.y, 5.0);
+			nvgFillColor(vg, backgroundColor);
+			nvgFill(vg);
+			nvgStrokeWidth(vg, 1.0);
+			nvgStrokeColor(vg, borderColor);
+			nvgStroke(vg);
+
+			nvgFontSize(vg, 18);
+			nvgFontFaceId(vg, font->handle);
+			//nvgTextLetterSpacing(vg, 2.5);
+
+			Vec textPos = Vec(6, 24);
+			NVGcolor textColor = nvgRGB(0xaf, 0xd2, 0x2c);
+			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
+			nvgText(vg, textPos.x, textPos.y, "~", NULL);
+			nvgFillColor(vg, textColor);
+			char displayStr[3];
+			sprintf(displayStr, "%1u", (unsigned) *octaveNum);
+			displayStr[1] = 0;
+			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
+		}
+	};
+
+	
 	TwelveKeyWidget(TwelveKey *module) : ModuleWidget(module) {
 
 		// Main panel from Inkscape
@@ -192,9 +254,18 @@ struct TwelveKeyWidget : ModuleWidget {
 
 		// Middle
 		// Press LED
-		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(columnRulerM + offsetMediumLight, rowRuler0 + offsetMediumLight), module, TwelveKey::PRESS_LIGHT));
-		// Octave knob
-		addParam(ParamWidget::create<Davies1900hBlackSnapKnob>(Vec(columnRulerM + offsetDavies1900, rowRuler1 + 20 + offsetDavies1900), module, TwelveKey::OCT_PARAM, 0.0f, 9.0f, 4.0f));		
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(columnRulerM + offsetMediumLight, rowRuler0 - 15 + offsetMediumLight), module, TwelveKey::PRESS_LIGHT));
+		// Octave displ
+		OctaveNumDisplayWidget *octaveNumDisplay = new OctaveNumDisplayWidget();
+		octaveNumDisplay->box.pos = Vec(columnRulerM + 1, rowRuler1 - 11 + vOffsetDisplay);
+		octaveNumDisplay->box.size = Vec(25, 30);// 1 character
+		octaveNumDisplay->octaveNum = &module->octaveNum;
+		addChild(octaveNumDisplay);
+		// Octave buttons
+		//addParam(ParamWidget::create<Davies1900hBlackSnapKnob>(Vec(columnRulerM + offsetDavies1900, rowRuler1 + 20 + offsetDavies1900), module, TwelveKey::OCT_PARAM, 0.0f, 9.0f, 4.0f));		
+		addParam(ParamWidget::create<CKD6>(Vec(columnRulerM - 20 + offsetCKD6, rowRuler2 - 10 + offsetCKD6), module, TwelveKey::OCTDEC_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6>(Vec(columnRulerM + 20 + offsetCKD6, rowRuler2 - 10 + offsetCKD6), module, TwelveKey::OCTINC_PARAM, 0.0f, 1.0f, 0.0f));
+		
 		
 		// Right side outputs
 		addOutput(Port::create<PJ301MPortS>(Vec(columnRulerR, rowRuler0), Port::OUTPUT, module, TwelveKey::CV_OUTPUT));
