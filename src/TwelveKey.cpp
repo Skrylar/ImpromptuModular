@@ -36,57 +36,76 @@ struct TwelveKey : Module {
 		NUM_LIGHTS
 	};
 	
+	// Need to save
+	float cv;
+	bool stateInternal;// false when pass through CV and Gate, true when CV and gate from this module
 	
 	// No need to save
 	float gateLight = 0.0f;
 	
+	
+	SchmittTrigger keyTriggers[12];
+	SchmittTrigger gateInputTrigger;
 
 	TwelveKey() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
 	}
 
 	void onReset() override {
+		cv = 0.0f;
+		stateInternal = inputs[GATE_INPUT].active ? false : true;
 	}
 
 	void onRandomize() override {
+		cv = quantize(randomUniform() * 10.0f - 4.0f);
+		stateInternal = inputs[GATE_INPUT].active ? false : true;
 	}
 
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
+		
+		// cv
+		json_object_set_new(rootJ, "cv", json_real(cv));
+		
+		// stateInternal
+		json_object_set_new(rootJ, "stateInternal", json_boolean(stateInternal));
+
 		return rootJ;
 	}
 
 	void fromJson(json_t *rootJ) override {
+		
+		// cv
+		json_t *cvJ = json_object_get(rootJ, "cv");
+		if (cvJ)
+			cv = json_real_value(cvJ);
+
+		// stateInternal
+		json_t *stateInternalJ = json_object_get(rootJ, "stateInternal");
+		if (stateInternalJ)
+			stateInternal = json_is_true(stateInternalJ);
 	}
 
 		
+	inline float quantize(float cv) {
+		return (roundf(cv * 12.0f) / 12.0f);
+	}
+
 	void step() override {		
 		
-		// CV and gate outputs
-		if (inputs[GATE_INPUT].value > 0.5f) {// if receiving a key from left chain
-			outputs[CV_OUTPUT].value = inputs[GATE_INPUT].value;
-			outputs[GATE_OUTPUT].value = inputs[GATE_INPUT].value;
-		}
-		else {// key from this
-			float cv = inputs[OCT_INPUT].active ? inputs[OCT_INPUT].value : (params[OCT_PARAM].value - 4.0f);
-			
-			for (int i = 0; i < 12 ; i++) {
-				if (params[KEY_PARAM + i].value > 0.5f) {
-					cv += ((float) i) / 12.0f;
-				}
+		// set stateInternal and memorize cv 
+		for (int i = 0; i < 12; i++) {
+			if (keyTriggers[i].process(params[KEY_PARAM + i].value)) {
+				cv = inputs[OCT_INPUT].active ? inputs[OCT_INPUT].value : (params[OCT_PARAM].value - 4.0f);
+				cv += ((float) i) / 12.0f;
+				stateInternal = true;
 			}
+		}
+		if (gateInputTrigger.process(inputs[GATE_INPUT].value)) {
+			cv = inputs[CV_INPUT].value;			
+			stateInternal = false;
+		}
 			
-			outputs[CV_OUTPUT].value = cv;
-			outputs[GATE_OUTPUT].value = 10.0f;
-		}
-		
-		// Octave output
-		if (inputs[OCT_INPUT].active) {
-			outputs[OCT_OUTPUT].value = inputs[OCT_INPUT].value + 1.0f;
-		}
-		else {
-			outputs[OCT_OUTPUT].value = params[OCT_PARAM].value - 4.0f + 1.0f;
-		}
 		
 		// Gate keypress LED (with fade)
 		int pressed = 0;
@@ -98,6 +117,24 @@ struct TwelveKey : Module {
 		else
 			gateLight -= gateLight / lightLambda / engineGetSampleRate();
 		lights[PRESS_LIGHT].value = gateLight;
+		
+		
+		// cv and gate outputs
+		outputs[CV_OUTPUT].value = cv;
+		if (stateInternal == false) {// if receiving a key from left chain
+			outputs[GATE_OUTPUT].value = inputs[GATE_INPUT].value;
+		}
+		else {// key from this
+			outputs[GATE_OUTPUT].value = (pressed != 0 ? 10.0f : 0.0f);
+		}
+		
+		// Octave output
+		if (inputs[OCT_INPUT].active) {
+			outputs[OCT_OUTPUT].value = inputs[OCT_INPUT].value + 1.0f;
+		}
+		else {
+			outputs[OCT_OUTPUT].value = params[OCT_PARAM].value - 4.0f + 1.0f;
+		}
 	}
 };
 

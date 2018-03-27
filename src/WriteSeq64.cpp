@@ -242,7 +242,6 @@ struct WriteSeq64 : Module {
 		json_t *stepsKnobJ = json_object_get(rootJ, "stepsKnob");
 		if (stepsKnobJ)
 			stepsKnob = json_integer_value(stepsKnobJ);
-
 	}
 
 	inline float quantize(float cv, bool enable) {
