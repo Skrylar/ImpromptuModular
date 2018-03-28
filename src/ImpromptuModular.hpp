@@ -115,3 +115,5 @@ struct InvisibleKey : MomentarySwitch {
 		box.size = Vec(34, 72);
 	}
 };
+
+NVGcolor prepareDisplay(NVGcontext *vg, Rect *box);

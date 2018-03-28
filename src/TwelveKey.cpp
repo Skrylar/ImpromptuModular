@@ -166,7 +166,6 @@ struct TwelveKey : Module {
 
 struct TwelveKeyWidget : ModuleWidget {
 
-	
 	struct OctaveNumDisplayWidget : TransparentWidget {
 		int *octaveNum;
 		std::shared_ptr<Font> font;
@@ -176,35 +175,23 @@ struct TwelveKeyWidget : ModuleWidget {
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor backgroundColor = nvgRGB(0x38, 0x38, 0x38);
-			NVGcolor borderColor = nvgRGB(0x10, 0x10, 0x10);
-			nvgBeginPath(vg);
-			nvgRoundedRect(vg, 0.0, 0.0, box.size.x, box.size.y, 5.0);
-			nvgFillColor(vg, backgroundColor);
-			nvgFill(vg);
-			nvgStrokeWidth(vg, 1.0);
-			nvgStrokeColor(vg, borderColor);
-			nvgStroke(vg);
-
-			nvgFontSize(vg, 18);
+			NVGcolor textColor = prepareDisplay(vg, &box);
 			nvgFontFaceId(vg, font->handle);
 			//nvgTextLetterSpacing(vg, 2.5);
 
 			Vec textPos = Vec(6, 24);
-			NVGcolor textColor = nvgRGB(0xaf, 0xd2, 0x2c);
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~", NULL);
 			nvgFillColor(vg, textColor);
-			char displayStr[3];
-			sprintf(displayStr, "%1u", (unsigned) *octaveNum);
+			char displayStr[2];
+			displayStr[0] = 0x30 + (char) *octaveNum;
 			displayStr[1] = 0;
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};
 
-	
 	TwelveKeyWidget(TwelveKey *module) : ModuleWidget(module) {
-
+		
 		// Main panel from Inkscape
 		setPanel(SVG::load(assetPlugin(plugin, "res/TwelveKey.svg")));
 
@@ -255,17 +242,15 @@ struct TwelveKeyWidget : ModuleWidget {
 		// Middle
 		// Press LED
 		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(columnRulerM + offsetMediumLight, rowRuler0 - 15 + offsetMediumLight), module, TwelveKey::PRESS_LIGHT));
-		// Octave displ
+		// Octave display
 		OctaveNumDisplayWidget *octaveNumDisplay = new OctaveNumDisplayWidget();
 		octaveNumDisplay->box.pos = Vec(columnRulerM + 1, rowRuler1 - 11 + vOffsetDisplay);
 		octaveNumDisplay->box.size = Vec(25, 30);// 1 character
 		octaveNumDisplay->octaveNum = &module->octaveNum;
 		addChild(octaveNumDisplay);
 		// Octave buttons
-		//addParam(ParamWidget::create<Davies1900hBlackSnapKnob>(Vec(columnRulerM + offsetDavies1900, rowRuler1 + 20 + offsetDavies1900), module, TwelveKey::OCT_PARAM, 0.0f, 9.0f, 4.0f));		
 		addParam(ParamWidget::create<CKD6>(Vec(columnRulerM - 20 + offsetCKD6, rowRuler2 - 10 + offsetCKD6), module, TwelveKey::OCTDEC_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<CKD6>(Vec(columnRulerM + 20 + offsetCKD6, rowRuler2 - 10 + offsetCKD6), module, TwelveKey::OCTINC_PARAM, 0.0f, 1.0f, 0.0f));
-		
 		
 		// Right side outputs
 		addOutput(Port::create<PJ301MPortS>(Vec(columnRulerR, rowRuler0), Port::OUTPUT, module, TwelveKey::CV_OUTPUT));
@@ -273,7 +258,5 @@ struct TwelveKeyWidget : ModuleWidget {
 		addOutput(Port::create<PJ301MPortS>(Vec(columnRulerR, rowRuler2), Port::OUTPUT, module, TwelveKey::OCT_OUTPUT));
 	}
 };
-
-
 
 Model *modelTwelveKey = Model::create<TwelveKey, TwelveKeyWidget>("Impromptu Modular", "Twelve-Key", "Twelve-Key", CONTROLLER_TAG);

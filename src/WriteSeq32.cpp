@@ -430,27 +430,16 @@ struct WriteSeq32Widget : ModuleWidget {
 				text[3] = 0;
 			//}
 			//else  // show first two decimals of fractional part
-			//	snprintf(text, sizeof(text), "%2u ", (unsigned)((cvVal-floorf(cvVal))*100.0f));
+			//	snprintf(text, 4, "%2u ", (unsigned)((cvVal-floorf(cvVal))*100.0f));
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor backgroundColor = nvgRGB(0x38, 0x38, 0x38);
-			NVGcolor borderColor = nvgRGB(0x10, 0x10, 0x10);
-			nvgBeginPath(vg);
-			nvgRoundedRect(vg, 0.0, 0.0, box.size.x, box.size.y, 5.0);
-			nvgFillColor(vg, backgroundColor);
-			nvgFill(vg);
-			nvgStrokeWidth(vg, 1.0);
-			nvgStrokeColor(vg, borderColor);
-			nvgStroke(vg);
-
-			nvgFontSize(vg, 18);
+			NVGcolor textColor = prepareDisplay(vg, &box);
 			nvgFontFaceId(vg, font->handle);
 			nvgTextLetterSpacing(vg, -1.5);
 
 			for (int i = 0; i < 8; i++) {
 				Vec textPos = Vec(module->notesPos[i], 24);
-				NVGcolor textColor = nvgRGB(0xaf, 0xd2, 0x2c);
 				nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 				nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 				nvgFillColor(vg, textColor);
@@ -470,34 +459,21 @@ struct WriteSeq32Widget : ModuleWidget {
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor backgroundColor = nvgRGB(0x38, 0x38, 0x38);
-			NVGcolor borderColor = nvgRGB(0x10, 0x10, 0x10);
-			nvgBeginPath(vg);
-			nvgRoundedRect(vg, 0.0, 0.0, box.size.x, box.size.y, 5.0);
-			nvgFillColor(vg, backgroundColor);
-			nvgFill(vg);
-			nvgStrokeWidth(vg, 1.0);
-			nvgStrokeColor(vg, borderColor);
-			nvgStroke(vg);
-
-			nvgFontSize(vg, 18);
+			NVGcolor textColor = prepareDisplay(vg, &box);
 			nvgFontFaceId(vg, font->handle);
 			//nvgTextLetterSpacing(vg, 2.5);
 
 			Vec textPos = Vec(6, 24);
-			NVGcolor textColor = nvgRGB(0xaf, 0xd2, 0x2c);
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~~", NULL);
 			nvgFillColor(vg, textColor);
 			char displayStr[3];
-			sprintf(displayStr, "%2u", (unsigned) clamp(roundf(*valueKnob), 1.0f, 32.0f) );
-			displayStr[2] = 0;
+			snprintf(displayStr, 3, "%2u", (unsigned) clamp(roundf(*valueKnob), 1.0f, 32.0f) );
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};
 
-
-
+	
 	WriteSeq32Widget(WriteSeq32 *module) : ModuleWidget(module) {
 
 		// Main panel from Inkscape
@@ -651,7 +627,5 @@ struct WriteSeq32Widget : ModuleWidget {
 		addInput(Port::create<PJ301MPortS>(Vec(columnRuler5, rowRuler3), Port::INPUT, module, WriteSeq32::CLOCK_INPUT));			
 	}
 };
-
-
 
 Model *modelWriteSeq32 = Model::create<WriteSeq32, WriteSeq32Widget>("Impromptu Modular", "Write-Seq-32", "Write-Seq-32", SEQUENCER_TAG);

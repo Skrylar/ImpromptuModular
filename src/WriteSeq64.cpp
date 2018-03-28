@@ -495,22 +495,11 @@ struct WriteSeq64Widget : ModuleWidget {
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor backgroundColor = nvgRGB(0x38, 0x38, 0x38);
-			NVGcolor borderColor = nvgRGB(0x10, 0x10, 0x10);
-			nvgBeginPath(vg);
-			nvgRoundedRect(vg, 0.0, 0.0, box.size.x, box.size.y, 5.0);
-			nvgFillColor(vg, backgroundColor);
-			nvgFill(vg);
-			nvgStrokeWidth(vg, 1.0);
-			nvgStrokeColor(vg, borderColor);
-			nvgStroke(vg);
-
-			nvgFontSize(vg, 18);
+			NVGcolor textColor = prepareDisplay(vg, &box);
 			nvgFontFaceId(vg, font->handle);
 			nvgTextLetterSpacing(vg, -1.5);
 
 			Vec textPos = Vec(6, 24);
-			NVGcolor textColor = nvgRGB(0xaf, 0xd2, 0x2c);
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~~~~~~", NULL);
 			nvgFillColor(vg, textColor);
@@ -529,30 +518,20 @@ struct WriteSeq64Widget : ModuleWidget {
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor backgroundColor = nvgRGB(0x38, 0x38, 0x38);
-			NVGcolor borderColor = nvgRGB(0x10, 0x10, 0x10);
-			nvgBeginPath(vg);
-			nvgRoundedRect(vg, 0.0, 0.0, box.size.x, box.size.y, 5.0);
-			nvgFillColor(vg, backgroundColor);
-			nvgFill(vg);
-			nvgStrokeWidth(vg, 1.0);
-			nvgStrokeColor(vg, borderColor);
-			nvgStroke(vg);
-
-			nvgFontSize(vg, 18);
+			NVGcolor textColor = prepareDisplay(vg, &box);
 			nvgFontFaceId(vg, font->handle);
 			//nvgTextLetterSpacing(vg, 2.5);
 
 			Vec textPos = Vec(6, 24);
-			NVGcolor textColor = nvgRGB(0xaf, 0xd2, 0x2c);
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~~", NULL);
 			nvgFillColor(vg, textColor);
 			char displayStr[3];
-			sprintf(displayStr, "%2u", (unsigned) module->indexSteps[module->indexChannel]);
+			snprintf(displayStr, 3, "%2u", (unsigned) module->indexSteps[module->indexChannel]);
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};	
+	
 	
 	struct StepDisplayWidget : TransparentWidget {
 		WriteSeq64 *module;
@@ -563,27 +542,16 @@ struct WriteSeq64Widget : ModuleWidget {
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor backgroundColor = nvgRGB(0x38, 0x38, 0x38);
-			NVGcolor borderColor = nvgRGB(0x10, 0x10, 0x10);
-			nvgBeginPath(vg);
-			nvgRoundedRect(vg, 0.0, 0.0, box.size.x, box.size.y, 5.0);
-			nvgFillColor(vg, backgroundColor);
-			nvgFill(vg);
-			nvgStrokeWidth(vg, 1.0);
-			nvgStrokeColor(vg, borderColor);
-			nvgStroke(vg);
-
-			nvgFontSize(vg, 18);
+			NVGcolor textColor = prepareDisplay(vg, &box);
 			nvgFontFaceId(vg, font->handle);
 			//nvgTextLetterSpacing(vg, 2.5);
 
 			Vec textPos = Vec(6, 24);
-			NVGcolor textColor = nvgRGB(0xaf, 0xd2, 0x2c);
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~~", NULL);
 			nvgFillColor(vg, textColor);
 			char displayStr[3];
-			sprintf(displayStr, "%2u", (unsigned) module->indexStep[module->indexChannel] + 1);
+			snprintf(displayStr, 3, "%2u", (unsigned) module->indexStep[module->indexChannel] + 1);
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};
@@ -598,31 +566,22 @@ struct WriteSeq64Widget : ModuleWidget {
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor backgroundColor = nvgRGB(0x38, 0x38, 0x38);
-			NVGcolor borderColor = nvgRGB(0x10, 0x10, 0x10);
-			nvgBeginPath(vg);
-			nvgRoundedRect(vg, 0.0, 0.0, box.size.x, box.size.y, 5.0);
-			nvgFillColor(vg, backgroundColor);
-			nvgFill(vg);
-			nvgStrokeWidth(vg, 1.0);
-			nvgStrokeColor(vg, borderColor);
-			nvgStroke(vg);
-
-			nvgFontSize(vg, 18);
+			NVGcolor textColor = prepareDisplay(vg, &box);
 			nvgFontFaceId(vg, font->handle);
 			//nvgTextLetterSpacing(vg, 2.5);
 
 			Vec textPos = Vec(6, 24);
-			NVGcolor textColor = nvgRGB(0xaf, 0xd2, 0x2c);
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~", NULL);
 			nvgFillColor(vg, textColor);
-			char displayStr[3];
-			sprintf(displayStr, "%1u", (unsigned) *indexTrack + 1);
+			char displayStr[2];
+			displayStr[0] = 0x30 + (char) (*indexTrack + 1);
+			displayStr[1] = 0;
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};
 
+	
 	WriteSeq64Widget(WriteSeq64 *module) : ModuleWidget(module) {
 		// Main panel from Inkscape
 		setPanel(SVG::load(assetPlugin(plugin, "res/WriteSeq64.svg")));
@@ -772,7 +731,5 @@ struct WriteSeq64Widget : ModuleWidget {
 		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler5, rowRuler3), Port::OUTPUT, module, WriteSeq64::GATE_OUTPUTS + 3));
 	}
 };
-
-
 
 Model *modelWriteSeq64 = Model::create<WriteSeq64, WriteSeq64Widget>("Impromptu Modular", "Write-Seq-64", "Write-Seq-64", SEQUENCER_TAG);
