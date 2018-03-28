@@ -9,11 +9,34 @@ See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
 
 # Modules
 
+* [Twelve-Key](#twelve-key)
+
 * [Write-Seq-32](#write-seq-32)
 
 * [Write-Seq-64](#write-seq-64)
 
 Details about each module are given below. Feedback and bug reports are always appreciated!
+
+
+
+## Twelve-Key <a id="twelve-key"></a>
+
+![IM](TwelveKey.jpg)
+
+A chainable keyboard controller for your virtual Rack. When multiple Twelve-Key modules are connected in series from left to right, only the octave of the left-most module needs to be set, all other downchain modules' octaves are set automatically. The aggregate output is that of the right-most module. To set up a chain of Twelve-Key modules, simply connect the three ouputs on the right side of a module to the three inputs of the next module beside it (typically to the right).
+
+Here are some specific details on each element on the faceplate of the module.
+
+* **CV output**: Outputs the CV from the keyboard or its CV input, depending on which key was last pressed (an up-chain key or a key of the given keyboard module).
+
+* **Gate output**: Gate signal from the keyboard or its gate input.
+
+* **Octave +/-**: Buttons to set the base octave of the module. These buttons have no effect when a cable is connected to the OCT input.
+
+* **Oct**: CV input to set the base octave of the module. The voltage range is 0V (octave 0) to 9V (octave 9). Non-integer voltages or voltages outside this range are floored/clamped. 
+
+* **Oct+1**: CV output for setting the voltage of the next down-chain Twelve-Key module. This corresponds to the base octave of the current module incremented by 1V.
+
 
 
 ## Write-Seq-32 <a id="write-seq-32"></a>
