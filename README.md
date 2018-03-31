@@ -10,7 +10,7 @@ See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
 
 ## Modules
 
-* [Twelve-Key](#twelve-key):Chainable one octave keyboard controller.
+* [Twelve-Key](#twelve-key): Chainable one octave keyboard controller.
 
 * [Write-Seq-32](#write-seq-32): 32-step sequencer with CV in for easy sequence programming.
 
