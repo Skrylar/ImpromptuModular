@@ -8,7 +8,7 @@ Based on code from the Fundamental and Audible Instruments plugins by Andrew Bel
 See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
 
 
-# Modules
+## Modules
 
 * [Twelve-Key](#twelve-key) Chainable one octave keyboard controller.
 
@@ -20,7 +20,7 @@ Details about each module are given below. Feedback and bug reports are always a
 
 
 
-## Twelve-Key <a id="twelve-key"></a>
+# Twelve-Key <a id="twelve-key"></a>
 
 ![IM](TwelveKey.jpg)
 
@@ -40,7 +40,7 @@ Here are some specific details on each element on the faceplate of the module.
 
 
 
-## Write-Seq-32 <a id="write-seq-32"></a>
+# Write-Seq-32 <a id="write-seq-32"></a>
 
 ![IM](WriteSeq32.jpg)
 
@@ -106,7 +106,7 @@ Here are some specific details on each element on the faceplate of the module. F
 
 
 
-## Write-Seq-64 <a id="write-seq-64"></a>
+# Write-Seq-64 <a id="write-seq-64"></a>
 
 ![IM](WriteSeq64.jpg)
 
