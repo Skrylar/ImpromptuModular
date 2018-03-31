@@ -1,5 +1,5 @@
 # Impromptu Modular: Modules for [VCV Rack](https://vcvrack.com) by Marc Boulé
-Version 0.6.1 (current plugin manager version is 0.6.0, update pending)
+Version 0.6.1
 
 ## License
 
@@ -10,11 +10,11 @@ See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
 
 ## Modules
 
-* [Twelve-Key](#twelve-key) Chainable one octave keyboard controller.
+* [Twelve-Key](#twelve-key):Chainable one octave keyboard controller.
 
-* [Write-Seq-32](#write-seq-32) 32-step sequencer with CV in for easy sequence programming.
+* [Write-Seq-32](#write-seq-32): 32-step sequencer with CV in for easy sequence programming.
 
-* [Write-Seq-64](#write-seq-64) 64-step sequencer with CV in for easy sequence programming.
+* [Write-Seq-64](#write-seq-64): 64-step sequencer with CV in for easy sequence programming.
 
 Details about each module are given below. Feedback and bug reports are always appreciated!
 
