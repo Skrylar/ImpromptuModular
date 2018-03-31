@@ -1,4 +1,5 @@
 # Impromptu Modular: Modules for [VCV Rack](https://vcvrack.com) by Marc Boulé
+Version 0.6.1 (current plugin manager version is 0.6.0, update pending)
 
 ## License
 
@@ -9,11 +10,11 @@ See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
 
 # Modules
 
-* [Twelve-Key](#twelve-key)
+* [Twelve-Key](#twelve-key) Chainable one octave keyboard controller.
 
-* [Write-Seq-32](#write-seq-32)
+* [Write-Seq-32](#write-seq-32) 32-step sequencer with CV in for easy sequence programming.
 
-* [Write-Seq-64](#write-seq-64)
+* [Write-Seq-64](#write-seq-64) 64-step sequencer with CV in for easy sequence programming.
 
 Details about each module are given below. Feedback and bug reports are always appreciated!
 
@@ -47,11 +48,11 @@ A three channel 32-step writable sequencer module. This sequencer was designed t
 
 * a midi keyboard connected via the Core MIDI-1 module in VCV Rack;
 * a software midi keyboard such as [VMPK](http://vmpk.sourceforge.net/) (a software midi loopback app may be required); 
-* a keyboard within Rack such as the Autodafe keyboard. 
+* a keyboard within Rack such as the Autodafe keyboard or [Twelve-Key](#twelve-key). 
 
 Although the display shows note names (ex. C4#, D5, etc.), any voltage within the -10V to 10V range can be stored/played in the sequencer, whether it is used as a pitch CV or not, and whether it is quantized or not.
 
-Ideas: if you have a sustain pedal, use Rack's Midi-CC module and connect the foot-pedal to the WRITE input to coordinate your writing of sequence notes while playing the keyboard. Turn on AUTOSTEP to step the sequencer forward on each write. Optionally, if you have a three-pedal foot controller, use the other pedals with the STEP L and STEP R inputs to control the sequencer position manually. Or, more simply, instead of sending the midi keyboard's gate signal into the sequencer's gate input, send it to the write signal instead, and with autostep on, each key-press will automatically be entered in sequence. Gate states and window selection can be done by pressing the 8 and 4 LED buttons respectively, located below and above the main display. 
+Ideas: send the midi keyboard's CV into the the sequencer's CV in, and send the keyboard's gate signal into the sequencer's _write_ input. With autostep activated, each key-press will automatically be entered in sequence. Gate states and window selection can be done by pressing the 8 and 4 LED buttons respectively, located below and above the main display. 
 
 Here are some specific details on each element on the faceplate of the module. Familiarity with Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers.
 
