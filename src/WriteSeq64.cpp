@@ -486,10 +486,10 @@ struct WriteSeq64Widget : ModuleWidget {
 				text[4] = 0;
 			}
 			else  {// show volts
-				text[0] = (cvVal<0.0f) ? '-' : ' ';
 				float cvValPrint = fabs(cvVal);
 				cvValPrint = (cvValPrint > 9.999f) ? 9.999f : cvValPrint;
-				snprintf(&text[1], 6, "%4.3f ", cvValPrint);// Four-wide, three positions after the decimal, left-justified
+				snprintf(text, 7, " %4.3f", cvValPrint);// Four-wide, three positions after the decimal, left-justified
+				text[0] = (cvVal<0.0f) ? '-' : ' ';
 				text[2] = ',';
 			}
 		}
