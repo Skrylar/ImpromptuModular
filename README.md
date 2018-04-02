@@ -1,5 +1,12 @@
 # Impromptu Modular: Modules for [VCV Rack](https://vcvrack.com) by Marc Boulé
+
+[//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!
+
 Version 0.6.1
+
+[//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!)
+
+Available in the VCV Rack [plugin manager](https://vcvrack.com/plugins.html).
 
 ## License
 
