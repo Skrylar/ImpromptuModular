@@ -605,7 +605,7 @@ struct WriteSeq64Widget : ModuleWidget {
 		// Channel display
 		ChannelDisplayWidget *channelTrack = new ChannelDisplayWidget();
 		channelTrack->box.pos = Vec(columnRulerT0+1, rowRulerT0+vOffsetDisplay);
-		channelTrack->box.size = Vec(25, 30);// 1 character
+		channelTrack->box.size = Vec(24, 30);// 1 character
 		channelTrack->indexTrack = &module->indexChannel;
 		addChild(channelTrack);
 		// Step display
@@ -638,7 +638,7 @@ struct WriteSeq64Widget : ModuleWidget {
 		// Step knob
 		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(columnRulerT1+offsetDavies1900, rowRulerT1+offsetDavies1900), module, WriteSeq64::STEP_PARAM, -INFINITY, INFINITY, 0.0f));		
 		// Gate button
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerT2+offsetCKD6, rowRulerT1+offsetCKD6), module, WriteSeq64::GATE_PARAM , 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6>(Vec(columnRulerT2-1+offsetCKD6, rowRulerT1+offsetCKD6), module, WriteSeq64::GATE_PARAM , 0.0f, 1.0f, 0.0f));
 		// Autostep	
 		addParam(ParamWidget::create<CKSS>(Vec(columnRulerT2+53+hOffsetCKSS, rowRulerT1+6+vOffsetCKSS), module, WriteSeq64::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));
 		// Quantize switch

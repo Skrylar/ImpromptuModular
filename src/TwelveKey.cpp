@@ -244,13 +244,13 @@ struct TwelveKeyWidget : ModuleWidget {
 		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(columnRulerM + offsetMediumLight, rowRuler0 - 15 + offsetMediumLight), module, TwelveKey::PRESS_LIGHT));
 		// Octave display
 		OctaveNumDisplayWidget *octaveNumDisplay = new OctaveNumDisplayWidget();
-		octaveNumDisplay->box.pos = Vec(columnRulerM + 1, rowRuler1 - 11 + vOffsetDisplay);
-		octaveNumDisplay->box.size = Vec(25, 30);// 1 character
+		octaveNumDisplay->box.pos = Vec(columnRulerM + 2, rowRuler1 - 11 + vOffsetDisplay);
+		octaveNumDisplay->box.size = Vec(24, 30);// 1 character
 		octaveNumDisplay->octaveNum = &module->octaveNum;
 		addChild(octaveNumDisplay);
 		// Octave buttons
 		addParam(ParamWidget::create<CKD6>(Vec(columnRulerM - 20 + offsetCKD6, rowRuler2 - 10 + offsetCKD6), module, TwelveKey::OCTDEC_PARAM, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerM + 20 + offsetCKD6, rowRuler2 - 10 + offsetCKD6), module, TwelveKey::OCTINC_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6>(Vec(columnRulerM + 22 + offsetCKD6, rowRuler2 - 10 + offsetCKD6), module, TwelveKey::OCTINC_PARAM, 0.0f, 1.0f, 0.0f));
 		
 		// Right side outputs
 		addOutput(Port::create<PJ301MPortS>(Vec(columnRulerR, rowRuler0), Port::OUTPUT, module, TwelveKey::CV_OUTPUT));
