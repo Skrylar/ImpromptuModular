@@ -47,6 +47,7 @@ static const int vOffsetCKSSH = 5;
 static const int offsetCKD6 = -1;//does both h and v
 static const int vOffsetDisplay = -2;
 static const int offsetDavies1900 = -6;//does both h and v
+static const int offsetRoundSmallBlackKnob = 1;//does both h and v
 static const int offsetMediumLight = 9;
 static const float offsetLEDbutton = 3.0f;//does both h and v
 static const float offsetLEDbuttonLight = 4.4f;//does both h and v
