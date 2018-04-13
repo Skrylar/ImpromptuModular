@@ -270,6 +270,7 @@ struct WriteSeq64 : Module {
 	}
 
 	
+	/* Advances the module by 1 audio frame with duration 1.0 / gSampleRate */
 	void step() override {
 		// Run state and light
 		if (runningTrigger.process(params[RUN_PARAM].value)) {
@@ -646,7 +647,7 @@ struct WriteSeq64Widget : ModuleWidget {
 		// Reset LED bezel and light
 		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerT2+164+offsetLEDbezel, rowRulerT1+6+offsetLEDbezel), module, WriteSeq64::RESET_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerT2+164+offsetLEDbezel+offsetLEDbezelLight, rowRulerT1+6+offsetLEDbezel+offsetLEDbezelLight), module, WriteSeq64::RESET_LIGHT));
-		// Steps knob and cv input
+		// Steps knob
 		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(columnRulerT4+offsetDavies1900, rowRulerT1+offsetDavies1900), module, WriteSeq64::STEPS_PARAM, -INFINITY, INFINITY, 0.0f));		
 	
 		

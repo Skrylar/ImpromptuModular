@@ -216,6 +216,8 @@ struct WriteSeq32 : Module {
 		return index;
 	}
 	
+	
+	/* Advances the module by 1 audio frame with duration 1.0 / gSampleRate */
 	void step() override {
 		int numSteps = (int) clamp(roundf(params[STEPS_PARAM].value), 1.0f, 32.0f);	
 		
@@ -601,7 +603,7 @@ struct WriteSeq32Widget : ModuleWidget {
 		displaySteps->box.size = Vec(40, 30);// 2 characters
 		displaySteps->valueKnob = &module->params[WriteSeq32::STEPS_PARAM].value;
 		addChild(displaySteps);
-		// Steps knob and cv input
+		// Steps knob
 		addParam(ParamWidget::create<Davies1900hBlackSnapKnob>(Vec(columnRuler3+offsetDavies1900, rowRuler1+offsetDavies1900), module, WriteSeq32::STEPS_PARAM, 1.0f, 32.0f, 32.0f));		
 		// Monitor
 		addParam(ParamWidget::create<CKSSH>(Vec(columnRuler3+hOffsetCKSSH, rowRuler2+vOffsetCKSSH), module, WriteSeq32::MONITOR_PARAM, 0.0f, 1.0f, 0.0f));		

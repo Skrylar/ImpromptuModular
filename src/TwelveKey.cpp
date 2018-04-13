@@ -105,9 +105,10 @@ struct TwelveKey : Module {
 			stateInternal = json_is_true(stateInternalJ);
 	}
 
-
+	
+	/* Advances the module by 1 audio frame with duration 1.0 / gSampleRate */
 	void step() override {		
-		
+
 		// set octaveNum
 		if (inputs[OCT_INPUT].active) {
 			octaveNum = ((int) floor(inputs[OCT_INPUT].value));
@@ -219,7 +220,7 @@ struct TwelveKeyWidget : ModuleWidget {
 		addParam(ParamWidget::create<InvisibleKey>(Vec(174, 112), module, TwelveKey::KEY_PARAM + 7, 0.0, 1.0, 0.0));
 		addParam(ParamWidget::create<InvisibleKey>(Vec(215, 112), module, TwelveKey::KEY_PARAM + 9, 0.0, 1.0, 0.0));
 		addParam(ParamWidget::create<InvisibleKey>(Vec(256, 112), module, TwelveKey::KEY_PARAM + 11, 0.0, 1.0, 0.0));
-
+		
 		
 		// ****** Bottom portion ******
 
