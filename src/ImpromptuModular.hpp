@@ -22,6 +22,7 @@ extern Plugin *plugin;
 extern Model *modelTwelveKey;
 extern Model *modelWriteSeq32;
 extern Model *modelWriteSeq64;
+extern Model *modelPhraseSeq16;
 
 
 
@@ -40,7 +41,7 @@ static const char isBlackKey      [12] = { 0,   1,   0,   1,   0,   0,   1,   0,
 
 static const int hOffsetCKSS = 5;
 static const int vOffsetCKSS = 2;
-static const int vOffsetCKSSThree = -2;//TODO adjust
+static const int vOffsetCKSSThree = -2;
 static const int hOffsetCKSSH = 2;
 static const int vOffsetCKSSH = 5;
 static const int offsetCKD6 = -1;//does both h and v
