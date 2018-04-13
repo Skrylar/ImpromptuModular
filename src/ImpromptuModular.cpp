@@ -22,7 +22,7 @@ void init(rack::Plugin *p) {
 	p->addModel(modelTwelveKey);
 	p->addModel(modelWriteSeq32);
 	p->addModel(modelWriteSeq64);
-	p->addModel(modelPhraseSeq16);
+	//p->addModel(modelPhraseSeq16);
 }
 
 
@@ -39,4 +39,25 @@ NVGcolor prepareDisplay(NVGcontext *vg, Rect *box) {
 	nvgFontSize(vg, 18);
 	NVGcolor textColor = nvgRGB(0xaf, 0xd2, 0x2c);
 	return textColor;
+}
+
+int moveIndex(int index, int indexNext, int numSteps) {
+	if (indexNext < 0)
+		index = numSteps - 1;
+	else
+	{
+		if (indexNext - index >= 0) { // if moving right or same place
+			if (indexNext >= numSteps)
+				index = 0;
+			else
+				index = indexNext;
+		}
+		else { // moving left 
+			if (indexNext >= numSteps)
+				index = numSteps - 1;
+			else
+				index = indexNext;
+		}
+	}
+	return index;
 }

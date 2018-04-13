@@ -248,27 +248,6 @@ struct WriteSeq64 : Module {
 		return enable ? (roundf(cv * 12.0f) / 12.0f) : cv;
 	}
 	
-	int moveIndex(int index, int indexNext, int numSteps) {
-		if (indexNext < 0)
-			index = numSteps - 1;
-		else
-		{
-			if (indexNext - index >= 0) { // if moving right or same place
-				if (indexNext >= numSteps)
-					index = 0;
-				else
-					index = indexNext;
-			}
-			else { // moving left 
-				if (indexNext >= numSteps)
-					index = numSteps - 1;
-				else
-					index = indexNext;
-			}
-		}
-		return index;
-	}
-
 	
 	/* Advances the module by 1 audio frame with duration 1.0 / gSampleRate */
 	void step() override {

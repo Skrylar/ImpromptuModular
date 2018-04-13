@@ -21,7 +21,7 @@ struct TwelveKey : Module {
 	enum ParamIds {
 		OCTINC_PARAM,
 		OCTDEC_PARAM,
-		ENUMS(KEY_PARAM, 12),
+		ENUMS(KEY_PARAMS, 12),
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -125,7 +125,7 @@ struct TwelveKey : Module {
 		
 		// set stateInternal and memorize cv 
 		for (int i = 0; i < 12; i++) {
-			if (keyTriggers[i].process(params[KEY_PARAM + i].value)) {
+			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 				cv = ((float)(octaveNum - 4)) + ((float) i) / 12.0f;
 				stateInternal = true;
 			}
@@ -139,7 +139,7 @@ struct TwelveKey : Module {
 		// Gate keypress LED (with fade)
 		int pressed = 0;
 		for (int i = 0; i < 12; i++)
-			if (params[KEY_PARAM + i].value > 0.5f)
+			if (params[KEY_PARAMS + i].value > 0.5f)
 				pressed++;
 		if (pressed != 0)
 			gateLight = 1.0f;
@@ -206,20 +206,20 @@ struct TwelveKeyWidget : ModuleWidget {
 		// ****** Top portion (keys) ******
 		
 		// Black keys
-		addParam(ParamWidget::create<InvisibleKey>(Vec(30, 40), module, TwelveKey::KEY_PARAM + 1, 0.0, 1.0, 0.0));
-		addParam(ParamWidget::create<InvisibleKey>(Vec(71, 40), module, TwelveKey::KEY_PARAM + 3, 0.0, 1.0, 0.0));
-		addParam(ParamWidget::create<InvisibleKey>(Vec(154, 40), module, TwelveKey::KEY_PARAM + 6, 0.0, 1.0, 0.0));
-		addParam(ParamWidget::create<InvisibleKey>(Vec(195, 40), module, TwelveKey::KEY_PARAM + 8, 0.0, 1.0, 0.0));
-		addParam(ParamWidget::create<InvisibleKey>(Vec(236, 40), module, TwelveKey::KEY_PARAM + 10, 0.0, 1.0, 0.0));
+		addParam(ParamWidget::create<InvisibleKey>(Vec(30, 40), module, TwelveKey::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
+		addParam(ParamWidget::create<InvisibleKey>(Vec(71, 40), module, TwelveKey::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
+		addParam(ParamWidget::create<InvisibleKey>(Vec(154, 40), module, TwelveKey::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
+		addParam(ParamWidget::create<InvisibleKey>(Vec(195, 40), module, TwelveKey::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
+		addParam(ParamWidget::create<InvisibleKey>(Vec(236, 40), module, TwelveKey::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
 
 		// White keys
-		addParam(ParamWidget::create<InvisibleKey>(Vec(10, 112), module, TwelveKey::KEY_PARAM + 0, 0.0, 1.0, 0.0));
-		addParam(ParamWidget::create<InvisibleKey>(Vec(51, 112), module, TwelveKey::KEY_PARAM + 2, 0.0, 1.0, 0.0));
-		addParam(ParamWidget::create<InvisibleKey>(Vec(92, 112), module, TwelveKey::KEY_PARAM + 4, 0.0, 1.0, 0.0));
-		addParam(ParamWidget::create<InvisibleKey>(Vec(133, 112), module, TwelveKey::KEY_PARAM + 5, 0.0, 1.0, 0.0));
-		addParam(ParamWidget::create<InvisibleKey>(Vec(174, 112), module, TwelveKey::KEY_PARAM + 7, 0.0, 1.0, 0.0));
-		addParam(ParamWidget::create<InvisibleKey>(Vec(215, 112), module, TwelveKey::KEY_PARAM + 9, 0.0, 1.0, 0.0));
-		addParam(ParamWidget::create<InvisibleKey>(Vec(256, 112), module, TwelveKey::KEY_PARAM + 11, 0.0, 1.0, 0.0));
+		addParam(ParamWidget::create<InvisibleKey>(Vec(10, 112), module, TwelveKey::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
+		addParam(ParamWidget::create<InvisibleKey>(Vec(51, 112), module, TwelveKey::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
+		addParam(ParamWidget::create<InvisibleKey>(Vec(92, 112), module, TwelveKey::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
+		addParam(ParamWidget::create<InvisibleKey>(Vec(133, 112), module, TwelveKey::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
+		addParam(ParamWidget::create<InvisibleKey>(Vec(174, 112), module, TwelveKey::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
+		addParam(ParamWidget::create<InvisibleKey>(Vec(215, 112), module, TwelveKey::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
+		addParam(ParamWidget::create<InvisibleKey>(Vec(256, 112), module, TwelveKey::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
 		
 		
 		// ****** Bottom portion ******

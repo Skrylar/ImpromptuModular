@@ -120,8 +120,10 @@ struct InvisibleKey : MomentarySwitch {
 
 struct InvisibleKeySmall : MomentarySwitch {
 	InvisibleKeySmall() {
-		box.size = Vec(34, 50);
+		box.size = Vec(23, 50);
 	}
 };
 
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box);
+int moveIndex(int index, int indexNext, int numSteps);
+

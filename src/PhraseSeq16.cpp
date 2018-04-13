@@ -35,6 +35,7 @@ struct PhraseSeq16 : Module {
 		ROTATER_PARAM,
 		TRANSPOSEU_PARAM,
 		TRANSPOSED_PARAM,
+		ENUMS(KEY_PARAMS, 12),
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -53,6 +54,7 @@ struct PhraseSeq16 : Module {
 	enum LightIds {
 		ENUMS(STEP_PHRASE_LIGHTS, 16*2),// room for GreenRed
 		ENUMS(OCTAVE_LIGHTS, 7),// octaves 1 to 7
+		ENUMS(KEY_LIGHTS, 12),
 		RUN_LIGHT,
 		RESET_LIGHT,
 		GATE1_LIGHT,
@@ -62,36 +64,276 @@ struct PhraseSeq16 : Module {
 	};
 
 	// Need to save
-
+	bool running;
+	int stepIndexEdit;
+	int stepIndexRun;
+	int phraseIndexEdit;
+	int phraseIndexRun;
+	int steps;//1 to 16
+	int phrases;//1 to 16
+	float cv[16][16] = {}; // First index is patten number, 2nd index is step
+	bool gate1[16][16] = {}; // First index is patten number, 2nd index is step
+	bool gate2[16][16] = {}; // First index is patten number, 2nd index is step
+	bool slide[16][16] = {}; // First index is patten number, 2nd index is step
+	int phrase[16] = {};// This is the song (series of phases; a phrase is a patten number)
+	
 	// No need to save
-	
-	
+	float resetLight = 0.0f;
+		
+	SchmittTrigger resetTrigger;
+	SchmittTrigger leftTrigger;
+	SchmittTrigger rightTrigger;
+	SchmittTrigger runningTrigger;
+
+		
 	PhraseSeq16() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
 	}
 
 	void onReset() override {
-
+		running = false;
+		stepIndexEdit = 0;
+		stepIndexRun = 0;
+		phraseIndexEdit = 0;
+		phraseIndexRun = 0;
+		steps = 16;
+		phrases = 1;
+		for (int i = 0; i < 16; i++) {
+			for (int s = 0; s < 16; s++) {
+				cv[i][s] = 0.0f;
+				gate1[i][s] = true;
+				gate2[i][s] = true;
+				slide[i][s] = true;
+			}
+			phrase[i] = 0;
+		}
 	}
 
 	void onRandomize() override {
-
+		running = false;
+		stepIndexEdit = 0;
+		stepIndexRun = 0;
+		phraseIndexEdit = 0;
+		phraseIndexRun = 0;
+		steps = 1 + (randomu32() % 16);
+		phrases = 1 + (randomu32() % 16);
+		for (int i = 0; i < 16; i++) {
+			for (int s = 0; s < 16; s++) {
+				cv[i][s] = 0.0f;
+				gate1[i][s] = (randomUniform() > 0.5f);
+				gate2[i][s] = (randomUniform() > 0.5f);
+				slide[i][s] = (randomUniform() > 0.5f);
+			}
+			phrase[i] = randomu32() % 16;
+		}
 	}
 
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
+		// running
+		json_object_set_new(rootJ, "running", json_boolean(running));
+		
+		// stepIndexEdit
+		json_object_set_new(rootJ, "stepIndexEdit", json_integer(stepIndexEdit));
+
+		// stepIndexRun
+		json_object_set_new(rootJ, "stepIndexRun", json_integer(stepIndexRun));
+
+		// phraseIndexEdit
+		json_object_set_new(rootJ, "phraseIndexEdit", json_integer(phraseIndexEdit));
+
+		// phraseIndexRun
+		json_object_set_new(rootJ, "phraseIndexRun", json_integer(phraseIndexRun));
+
+		// steps
+		json_object_set_new(rootJ, "steps", json_integer(steps));
+
+		// phrases
+		json_object_set_new(rootJ, "phrases", json_integer(phrases));
+
+		// CV
+		json_t *cvJ = json_array();
+		for (int i = 0; i < 16; i++)
+			for (int s = 0; s < 16; s++) {
+				json_array_insert_new(cvJ, s + (i<<16), json_real(cv[i][s]));
+			}
+		json_object_set_new(rootJ, "cv", cvJ);
+
+		// gate1
+		json_t *gate1J = json_array();
+		for (int i = 0; i < 16; i++)
+			for (int s = 0; s < 16; s++) {
+				json_array_insert_new(gate1J, s + (i<<16), json_integer((int) gate1[i][s]));
+			}
+		json_object_set_new(rootJ, "gate1", gate1J);
+
+		// gate2
+		json_t *gate2J = json_array();
+		for (int i = 0; i < 16; i++)
+			for (int s = 0; s < 16; s++) {
+				json_array_insert_new(gate2J, s + (i<<16), json_integer((int) gate2[i][s]));
+			}
+		json_object_set_new(rootJ, "gate2", gate2J);
+
+		// slide
+		json_t *slideJ = json_array();
+		for (int i = 0; i < 16; i++)
+			for (int s = 0; s < 16; s++) {
+				json_array_insert_new(slideJ, s + (i<<16), json_integer((int) slide[i][s]));
+			}
+		json_object_set_new(rootJ, "slide", slideJ);
+
+		// phrase 
+		json_t *phraseJ = json_array();
+		for (int i = 0; i < 16; i++)
+			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
+		json_object_set_new(rootJ, "phrase", phraseJ);
+		
 		return rootJ;
 	}
 
 	void fromJson(json_t *rootJ) override {
+		// running
+		json_t *runningJ = json_object_get(rootJ, "running");
+		if (runningJ)
+			running = json_is_true(runningJ);
 
+		// stepIndexEdit
+		json_t *stepIndexEditJ = json_object_get(rootJ, "stepIndexEdit");
+		if (stepIndexEditJ)
+			stepIndexEdit = json_integer_value(stepIndexEditJ);
+		
+		// stepIndexRun
+		json_t *stepIndexRunJ = json_object_get(rootJ, "stepIndexRun");
+		if (stepIndexRunJ)
+			stepIndexRun = json_integer_value(stepIndexRunJ);
+		
+		// phraseIndexEdit
+		json_t *phraseIndexEditJ = json_object_get(rootJ, "phraseIndexEdit");
+		if (phraseIndexEditJ)
+			phraseIndexEdit = json_integer_value(phraseIndexEditJ);
+		
+		// phraseIndexRun
+		json_t *phraseIndexRunJ = json_object_get(rootJ, "phraseIndexRun");
+		if (phraseIndexRunJ)
+			phraseIndexRun = json_integer_value(phraseIndexRunJ);
+		
+		// steps
+		json_t *stepsJ = json_object_get(rootJ, "steps");
+		if (stepsJ)
+			steps = json_integer_value(stepsJ);
+		
+		// phrases
+		json_t *phrasesJ = json_object_get(rootJ, "phrases");
+		if (phrasesJ)
+			phrases = json_integer_value(phrasesJ);
+		
+		// CV
+		json_t *cvJ = json_object_get(rootJ, "cv");
+		if (cvJ) {
+			for (int i = 0; i < 16; i++)
+				for (int s = 0; s < 16; s++) {
+					json_t *cvArrayJ = json_array_get(cvJ, s + (i<<6));
+					if (cvArrayJ)
+						cv[i][s] = json_real_value(cvArrayJ);
+				}
+		}
+		
+		// gate1
+		json_t *gate1J = json_object_get(rootJ, "gate1");
+		if (gate1J) {
+			for (int i = 0; i < 16; i++)
+				for (int s = 0; s < 16; s++) {
+					json_t *gate1arrayJ = json_array_get(gate1J, s + (i<<16));
+					if (gate1arrayJ)
+						gate1[i][s] = !!json_integer_value(gate1arrayJ);
+				}
+		}
+		
+		// gate2
+		json_t *gate2J = json_object_get(rootJ, "gate2");
+		if (gate2J) {
+			for (int i = 0; i < 16; i++)
+				for (int s = 0; s < 16; s++) {
+					json_t *gate2arrayJ = json_array_get(gate2J, s + (i<<16));
+					if (gate2arrayJ)
+						gate2[i][s] = !!json_integer_value(gate2arrayJ);
+				}
+		}
+		
+		// slide
+		json_t *slideJ = json_object_get(rootJ, "slide");
+		if (slideJ) {
+			for (int i = 0; i < 16; i++)
+				for (int s = 0; s < 16; s++) {
+					json_t *slideArrayJ = json_array_get(slideJ, s + (i<<16));
+					if (slideArrayJ)
+						slide[i][s] = !!json_integer_value(slideArrayJ);
+				}
+		}
+		
+		// phrase
+		json_t *phraseJ = json_object_get(rootJ, "phrase");
+		if (phraseJ)
+			for (int i = 0; i < 16; i++)
+			{
+				json_t *phraseArrayJ = json_array_get(phraseJ, i);
+				if (phraseArrayJ)
+					phrase[i] = json_integer_value(phraseArrayJ);
+			}
 	}
 
 	
 	/* Advances the module by 1 audio frame with duration 1.0 / gSampleRate */
 	void step() override {
+		// Run state and light
+		if (runningTrigger.process(params[RUN_PARAM].value)) {
+			running = !running;
+		}
+		lights[RUN_LIGHT].value = (running);
 
+		// Left and right buttons
+		if (leftTrigger.process(params[LEFT_PARAM].value)) {
+			if (params[EDIT_PARAM].value > 0.5f)// if editing pattern
+				stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit - 1, steps);
+			else
+				phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit - 1, phrases);
+		}
+		if (rightTrigger.process(params[RIGHT_PARAM].value)) {
+			if (params[EDIT_PARAM].value > 0.5f)// if editing pattern
+				stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, steps);
+			else
+				phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + 1, phrases);
+		}
+	
+		// Reset
+		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
+			stepIndexEdit = 0;
+			stepIndexRun = 0;
+			phraseIndexEdit = 0;
+			phraseIndexRun = 0;
+			resetLight = 1.0f;
+		}
+		else
+			resetLight -= resetLight / lightLambda / engineGetSampleRate();
+	
+		// Step/phrase lights
+		for (int i = 0; i < 16; i++) {
+			// Edit cursor
+			if (params[EDIT_PARAM].value > 0.5f)// if editing pattern
+				lights[STEP_PHRASE_LIGHTS + (i<<1)].value = (i == stepIndexEdit ? 1.0f : 0.0f);
+			else
+				lights[STEP_PHRASE_LIGHTS + (i<<1)].value = (i == phraseIndexEdit ? 1.0f : 0.0f);
+			// Run cursor
+			if (running) {
+				if (params[EDIT_PARAM].value > 0.5f)// if editing pattern
+					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexRun ? 1.0f : 0.0f);
+				else
+					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == phraseIndexRun ? 1.0f : 0.0f);
+			}
+		}
+	
 	}
 };
 
@@ -116,7 +358,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 			nvgText(vg, textPos.x, textPos.y, "~~", NULL);
 			nvgFillColor(vg, textColor);
 			char displayStr[3];
-			snprintf(displayStr, 3, "%2u", (unsigned) 1);//module->indexSteps[module->indexChannel]);
+			snprintf(displayStr, 3, "%2u", (unsigned) (module->params[PhraseSeq16::EDIT_PARAM].value > 0.5f ? module->stepIndexEdit : module->phraseIndexEdit) + 1 );
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};		
@@ -144,11 +386,9 @@ struct PhraseSeq16Widget : ModuleWidget {
 		for (int i = 0; i < 16; i++) {
 			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(columnRulerT0 + spLightsSpacing * i + offsetMediumLight, rowRulerT0 + offsetMediumLight), module, PhraseSeq16::STEP_PHRASE_LIGHTS + (i*2)));
 		}
-		
 		// Left/Right buttons
 		addParam(ParamWidget::create<CKD6>(Vec(columnRulerT1 + offsetCKD6, rowRulerT0 + offsetCKD6), module, PhraseSeq16::LEFT_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<CKD6>(Vec(columnRulerT1 + 32 + offsetCKD6, rowRulerT0 + offsetCKD6), module, PhraseSeq16::RIGHT_PARAM, 0.0f, 1.0f, 0.0f));
-		
 		// Length button
 		addParam(ParamWidget::create<CKD6>(Vec(columnRulerT2 + offsetCKD6, rowRulerT0 + offsetCKD6), module, PhraseSeq16::LENGTH_PARAM, 0.0f, 1.0f, 0.0f));
 		
@@ -167,7 +407,34 @@ struct PhraseSeq16Widget : ModuleWidget {
 			addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(columnRulerMK0 + offsetMediumLight, rowRulerMK0 - 2 + octLightsSpacing * i + offsetMediumLight), module, PhraseSeq16::OCTAVE_LIGHTS + i));
 		}
 		// Keys and Key lights
-		//InvisibleKeySmall (12x) and <MediumLight<GreenLight>> (12x)
+		static const int offsetKeyLEDx = 6;
+		static const int offsetKeyLEDy = 28;
+		// Black keys and lights
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(61, 93), module, PhraseSeq16::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(61+offsetKeyLEDx, 93+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 1));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(89, 93), module, PhraseSeq16::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(89+offsetKeyLEDx, 93+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 3));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(146, 93), module, PhraseSeq16::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(146+offsetKeyLEDx, 93+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 6));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(174, 93), module, PhraseSeq16::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(174+offsetKeyLEDx, 93+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 8));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(202, 93), module, PhraseSeq16::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(202+offsetKeyLEDx, 93+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 10));
+		// White keys and lights
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(47, 143), module, PhraseSeq16::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(47+offsetKeyLEDx, 143+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 0));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(75, 143), module, PhraseSeq16::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(75+offsetKeyLEDx, 143+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 2));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(103, 143), module, PhraseSeq16::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(103+offsetKeyLEDx, 143+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 4));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(132, 143), module, PhraseSeq16::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(132+offsetKeyLEDx, 143+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 5));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(160, 143), module, PhraseSeq16::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(160+offsetKeyLEDx, 143+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 7));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(188, 143), module, PhraseSeq16::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(188+offsetKeyLEDx, 143+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 9));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(216, 143), module, PhraseSeq16::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(216+offsetKeyLEDx, 143+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 11));
 		// Edit mode switch
 		addParam(ParamWidget::create<CKSS>(Vec(columnRulerMK1 + hOffsetCKSS, rowRulerMK0 + 17 + vOffsetCKSS), module, PhraseSeq16::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
 		// Run LED bezel and light
@@ -187,6 +454,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		
 		
 		// ****** Middle Buttons portion ******
+		
 		static const int rowRulerMB0 = 228;
 		static const int rowRulerMB1 = rowRulerMB0 + 36;
 		static const int columnRulerMB0 = 22;// Oct
@@ -220,11 +488,9 @@ struct PhraseSeq16Widget : ModuleWidget {
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB5-10, rowRulerMB1+offsetTL1105), module, PhraseSeq16::ROTATEL_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB5+20, rowRulerMB1+offsetTL1105), module, PhraseSeq16::ROTATER_PARAM, 0.0f, 1.0f, 0.0f));
 		
-		
-		
-		
-		
+						
 		// ****** Bottom portion ******
+		
 		static const int rowRulerB0 = 319;
 		static const int columnRulerB6 = columnRulerMB5;
 		static const int outputJackSpacingX = 54;
