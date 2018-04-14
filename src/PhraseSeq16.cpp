@@ -84,10 +84,9 @@ struct PhraseSeq16 : Module {
 	//
 	int patternKnob = 0;// save this so no delta triggered when close/open Rack
 
-	
-	
 	// No need to save
 	float resetLight = 0.0f;
+	unsigned long editingLength = 0;// 0 when not editing length, downward step counter timer when editing length
 		
 	SchmittTrigger resetTrigger;
 	SchmittTrigger leftTrigger;
@@ -99,7 +98,8 @@ struct PhraseSeq16 : Module {
 	SchmittTrigger gate1Trigger;
 	SchmittTrigger gate2Trigger;
 	SchmittTrigger slideTrigger;
-
+	SchmittTrigger lengthTrigger;
+	
 		
 	PhraseSeq16() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
@@ -125,6 +125,7 @@ struct PhraseSeq16 : Module {
 			phrase[i] = 0;
 		}
 		patternKnob = 0;
+		editingLength = 0;
 	}
 
 	void onRandomize() override {
@@ -147,6 +148,7 @@ struct PhraseSeq16 : Module {
 			phrase[i] = randomu32() % 16;
 		}
 		patternKnob = 0;
+		editingLength = 0;
 	}
 
 	json_t *toJson() override {
@@ -340,18 +342,36 @@ struct PhraseSeq16 : Module {
 		}
 		lights[RUN_LIGHT].value = (running);
 
-		// Left and right buttons
-		if (leftTrigger.process(params[LEFT_PARAM].value)) {
-			if (editingPattern)
-				stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit - 1, steps);
-			else
-				phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit - 1, phrases);
+		// Length button
+		static const float editTime = 4.0f;// seconds
+		if (lengthTrigger.process(params[LENGTH_PARAM].value)) {
+			editingLength = (unsigned long) (editTime * engineGetSampleRate());
 		}
-		if (rightTrigger.process(params[RIGHT_PARAM].value)) {
-			if (editingPattern)
-				stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, steps);
-			else
-				phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + 1, phrases);
+		else {
+			if (editingLength > 0)
+				editingLength--;
+		}
+		
+		// Left and right buttons
+		int delta = 0;
+		if (leftTrigger.process(params[LEFT_PARAM].value)) 
+			delta = -1;
+		if (rightTrigger.process(params[RIGHT_PARAM].value))
+			delta = +1;
+		if (delta != 0) {
+			if (editingLength > 0) {
+				editingLength = (unsigned long) (editTime * engineGetSampleRate());// restart editing timer to keep on editing
+				if (editingPattern)
+					steps = moveIndex(steps, steps + delta, 16);
+				else
+					phrases = moveIndex(phrases, phrases + delta, 16);
+			}
+			else {
+				if (editingPattern)
+					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, steps);
+				else
+					phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, phrases);
+			}
 		}
 		
 		// Pattern knob
@@ -431,20 +451,31 @@ struct PhraseSeq16 : Module {
 			resetLight = 1.0f;
 		}
 		else
-			resetLight -= resetLight / lightLambda / engineGetSampleRate();
+			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
 	
 		// Step/phrase lights
 		for (int i = 0; i < 16; i++) {
-			// Edit cursor
-			if (editingPattern)
-				lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexEdit ? 1.0f : 0.0f);
-			else
-				lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == phraseIndexEdit ? 1.0f : 0.0f);
-			// Run cursor
-			if (editingPattern)
-				lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == stepIndexRun)) ? 1.0f : 0.0f);
-			else
-				lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
+			if (editingLength > 0) {
+				// Length (green)
+				if (editingPattern)
+					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < steps) ? 0.5f : 0.0f);
+				else
+					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
+				// Nothing (red)
+				lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = 0.0f;
+			}
+			else {
+				// Run cursor (green)
+				if (editingPattern)
+					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == stepIndexRun)) ? 1.0f : 0.0f);
+				else
+					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
+				// Edit cursor (red)
+				if (editingPattern)
+					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexEdit ? 1.0f : 0.0f);
+				else
+					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == phraseIndexEdit ? 1.0f : 0.0f);
+			}
 		}
 	
 		// Octave lights
@@ -458,6 +489,10 @@ struct PhraseSeq16 : Module {
 		lights[GATE1_LIGHT].value = (editingPattern && gate1[pattern][stepIndexEdit]) ? 1.0f : 0.0f;
 		lights[GATE2_LIGHT].value = (editingPattern && gate2[pattern][stepIndexEdit]) ? 1.0f : 0.0f;
 		lights[SLIDE_LIGHT].value = (editingPattern && slide[pattern][stepIndexEdit]) ? 1.0f : 0.0f;
+
+		// Reset light
+		lights[RESET_LIGHT].value =	resetLight;	
+
 	}
 };
 

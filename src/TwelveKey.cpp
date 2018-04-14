@@ -144,7 +144,7 @@ struct TwelveKey : Module {
 		if (pressed != 0)
 			gateLight = 1.0f;
 		else
-			gateLight -= gateLight / lightLambda / engineGetSampleRate();
+			gateLight -= (gateLight / lightLambda) * engineGetSampleTime();
 		lights[PRESS_LIGHT].value = gateLight;
 		
 		

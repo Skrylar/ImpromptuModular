@@ -408,7 +408,7 @@ struct WriteSeq64 : Module {
 			resetLight = 1.0f;
 		}
 		else
-			resetLight -= resetLight / lightLambda / engineGetSampleRate();
+			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
 		
 		// Gate light
 		lights[GATE_LIGHT].value = gates[indexChannel][indexStep[indexChannel]] ? 1.0f : 0.0f;			
