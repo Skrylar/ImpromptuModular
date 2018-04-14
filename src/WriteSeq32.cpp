@@ -111,7 +111,7 @@ struct WriteSeq32 : Module {
 		indexChannel = 0;
 		for (int s = 0; s < 32; s++) {
 			for (int c = 0; c < 4; c++) {
-				cv[c][s] = (randomUniform() *10.0f);
+				cv[c][s] = quantize((randomUniform() *10.0f) - 4.0f, params[QUANTIZE_PARAM].value > 0.5f);
 				gates[c][s] = (randomUniform() > 0.5f);
 			}
 			cvCPbuffer[s] = 0.0f;

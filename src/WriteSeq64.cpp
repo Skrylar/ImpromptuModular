@@ -120,7 +120,7 @@ struct WriteSeq64 : Module {
 			indexStep[c] = 0;
 			indexSteps[c] = 64;
 			for (int s = 0; s < 64; s++) {
-				cv[c][s] = (randomUniform() *10.0f);
+				cv[c][s] = quantize((randomUniform() *10.0f) - 4.0f, params[QUANTIZE_PARAM].value > 0.5f);
 				gates[c][s] = (randomUniform() > 0.5f);
 			}
 		}

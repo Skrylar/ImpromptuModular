@@ -376,17 +376,18 @@ struct PhraseSeq16 : Module {
 		if (octpTrigger.process(params[OCTP_PARAM].value)) {
 			if (editingPattern) {
 				float newCV = cv[pattern][stepIndexEdit] + 1.0f;
-				if (newCV >= -3.0f && newCV < 3.92f)// 3.917 is top cv
+				if (newCV >= -3.0f && newCV < 4.0f)
 					cv[pattern][stepIndexEdit] = newCV;
 			}
 		}		
 		if (octmTrigger.process(params[OCTM_PARAM].value)) {
 			if (editingPattern) {
 				float newCV = cv[pattern][stepIndexEdit] - 1.0f;
-				if (newCV >= -3.0f && newCV < 3.92f)// 3.917 is top cv
+				if (newCV >= -3.0f && newCV < 4.0f)
 					cv[pattern][stepIndexEdit] = newCV;
 			}
 		}		
+		
 		// Gate1, Gate2 and slide buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingPattern)
