@@ -106,7 +106,7 @@ struct TwelveKey : Module {
 	}
 
 	
-	/* Advances the module by 1 audio frame with duration 1.0 / gSampleRate */
+	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
 
 		// set octaveNum

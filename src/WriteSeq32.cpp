@@ -196,7 +196,7 @@ struct WriteSeq32 : Module {
 	}
 	
 	
-	/* Advances the module by 1 audio frame with duration 1.0 / gSampleRate */
+	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		int numSteps = (int) clamp(roundf(params[STEPS_PARAM].value), 1.0f, 32.0f);	
 		
@@ -253,8 +253,7 @@ struct WriteSeq32 : Module {
 		if (indexStepStage >= numSteps)
 			indexStepStage = numSteps - 1;
 		
-		if (running)
-		{
+		if (running) {
 			// Clock
 			if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
 				indexStep = moveIndex(indexStep, indexStep + 1, numSteps);
@@ -271,8 +270,7 @@ struct WriteSeq32 : Module {
 			}
 		}
 		
-		if (canEdit)
-		{		
+		if (canEdit) {		
 			// Step L
 			if (stepLTrigger.process(params[STEPL_PARAM].value + inputs[STEPL_INPUT].value)) {
 				if (indexChannel == 3)

@@ -249,7 +249,7 @@ struct WriteSeq64 : Module {
 	}
 	
 	
-	/* Advances the module by 1 audio frame with duration 1.0 / gSampleRate */
+	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		// Run state and light
 		if (runningTrigger.process(params[RUN_PARAM].value)) {
@@ -319,8 +319,7 @@ struct WriteSeq64 : Module {
 				indexStep[c] = indexSteps[c] - 1;
 
 
-		if (running)
-		{
+		if (running) {
 			// Clock
 			// Call max once per step
 			bool clk12step = clock12Trigger.process(inputs[CLOCK12_INPUT].value);
@@ -351,8 +350,7 @@ struct WriteSeq64 : Module {
 			}
 		}
 		
-		if (canEdit)
-		{		
+		if (canEdit) {		
 			// Step L
 			if (stepLTrigger.process(params[STEPL_PARAM].value + inputs[STEPL_INPUT].value)) {
 				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] - 1, indexSteps[indexChannel]); 
@@ -375,8 +373,7 @@ struct WriteSeq64 : Module {
 		}
 		
 		// CV and gate outputs (staging area not used)
-		if (running)
-		{
+		if (running) {
 			bool clockHigh = false;
 			for (int i = 0; i < 4; i++) {
 				// CV
