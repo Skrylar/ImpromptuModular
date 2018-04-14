@@ -65,17 +65,26 @@ struct PhraseSeq16 : Module {
 
 	// Need to save
 	bool running;
+	//
 	int stepIndexEdit;
 	int stepIndexRun;
+	int pattern;
+	int steps;//1 to 16
+	//
 	int phraseIndexEdit;
 	int phraseIndexRun;
-	int steps;//1 to 16
+	int stepIndexPhraseRun;
+	int phrase[16] = {};// This is the song (series of phases; a phrase is a patten number)
 	int phrases;//1 to 16
-	float cv[16][16] = {}; // First index is patten number, 2nd index is step
+	//
+	float cv[16][16] = {}; // [-3.0 : 3.917]. First index is patten number, 2nd index is step
 	bool gate1[16][16] = {}; // First index is patten number, 2nd index is step
 	bool gate2[16][16] = {}; // First index is patten number, 2nd index is step
 	bool slide[16][16] = {}; // First index is patten number, 2nd index is step
-	int phrase[16] = {};// This is the song (series of phases; a phrase is a patten number)
+	//
+	int patternKnob = 0;// save this so no delta triggered when close/open Rack
+
+	
 	
 	// No need to save
 	float resetLight = 0.0f;
@@ -84,6 +93,12 @@ struct PhraseSeq16 : Module {
 	SchmittTrigger leftTrigger;
 	SchmittTrigger rightTrigger;
 	SchmittTrigger runningTrigger;
+	SchmittTrigger clockTrigger;
+	SchmittTrigger octpTrigger;
+	SchmittTrigger octmTrigger;
+	SchmittTrigger gate1Trigger;
+	SchmittTrigger gate2Trigger;
+	SchmittTrigger slideTrigger;
 
 		
 	PhraseSeq16() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -94,9 +109,11 @@ struct PhraseSeq16 : Module {
 		running = false;
 		stepIndexEdit = 0;
 		stepIndexRun = 0;
+		pattern = 0;
+		steps = 16;
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
-		steps = 16;
+		stepIndexPhraseRun = 0;
 		phrases = 1;
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 16; s++) {
@@ -107,25 +124,29 @@ struct PhraseSeq16 : Module {
 			}
 			phrase[i] = 0;
 		}
+		patternKnob = 0;
 	}
 
 	void onRandomize() override {
 		running = false;
 		stepIndexEdit = 0;
 		stepIndexRun = 0;
+		pattern = randomu32() % 16;
+		steps = 1 + (randomu32() % 16);
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
-		steps = 1 + (randomu32() % 16);
+		stepIndexPhraseRun = 0;
 		phrases = 1 + (randomu32() % 16);
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 16; s++) {
-				cv[i][s] = 0.0f;
+				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 				gate1[i][s] = (randomUniform() > 0.5f);
 				gate2[i][s] = (randomUniform() > 0.5f);
 				slide[i][s] = (randomUniform() > 0.5f);
 			}
 			phrase[i] = randomu32() % 16;
 		}
+		patternKnob = 0;
 	}
 
 	json_t *toJson() override {
@@ -140,14 +161,20 @@ struct PhraseSeq16 : Module {
 		// stepIndexRun
 		json_object_set_new(rootJ, "stepIndexRun", json_integer(stepIndexRun));
 
+		// pattern
+		json_object_set_new(rootJ, "pattern", json_integer(pattern));
+
+		// steps
+		json_object_set_new(rootJ, "steps", json_integer(steps));
+
 		// phraseIndexEdit
 		json_object_set_new(rootJ, "phraseIndexEdit", json_integer(phraseIndexEdit));
 
 		// phraseIndexRun
 		json_object_set_new(rootJ, "phraseIndexRun", json_integer(phraseIndexRun));
 
-		// steps
-		json_object_set_new(rootJ, "steps", json_integer(steps));
+		// stepIndexPhraseRun
+		json_object_set_new(rootJ, "stepIndexPhraseRun", json_integer(stepIndexPhraseRun));
 
 		// phrases
 		json_object_set_new(rootJ, "phrases", json_integer(phrases));
@@ -189,7 +216,10 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 16; i++)
 			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
 		json_object_set_new(rootJ, "phrase", phraseJ);
-		
+
+		// patternKnob
+		json_object_set_new(rootJ, "patternKnob", json_integer(patternKnob));
+
 		return rootJ;
 	}
 
@@ -209,6 +239,16 @@ struct PhraseSeq16 : Module {
 		if (stepIndexRunJ)
 			stepIndexRun = json_integer_value(stepIndexRunJ);
 		
+		// pattern
+		json_t *patternJ = json_object_get(rootJ, "pattern");
+		if (patternJ)
+			pattern = json_integer_value(patternJ);
+		
+		// steps
+		json_t *stepsJ = json_object_get(rootJ, "steps");
+		if (stepsJ)
+			steps = json_integer_value(stepsJ);
+		
 		// phraseIndexEdit
 		json_t *phraseIndexEditJ = json_object_get(rootJ, "phraseIndexEdit");
 		if (phraseIndexEditJ)
@@ -219,10 +259,10 @@ struct PhraseSeq16 : Module {
 		if (phraseIndexRunJ)
 			phraseIndexRun = json_integer_value(phraseIndexRunJ);
 		
-		// steps
-		json_t *stepsJ = json_object_get(rootJ, "steps");
-		if (stepsJ)
-			steps = json_integer_value(stepsJ);
+		// stepIndexPhraseRun
+		json_t *stepIndexPhraseRunJ = json_object_get(rootJ, "stepIndexPhraseRun");
+		if (stepIndexPhraseRunJ)
+			stepIndexPhraseRun = json_integer_value(stepIndexPhraseRunJ);
 		
 		// phrases
 		json_t *phrasesJ = json_object_get(rootJ, "phrases");
@@ -282,11 +322,18 @@ struct PhraseSeq16 : Module {
 				if (phraseArrayJ)
 					phrase[i] = json_integer_value(phraseArrayJ);
 			}
+			
+		// patternKnob
+		json_t *patternKnobJ = json_object_get(rootJ, "patternKnob");
+		if (patternKnobJ)
+			patternKnob = json_integer_value(patternKnobJ);
 	}
 
 	
 	/* Advances the module by 1 audio frame with duration 1.0 / gSampleRate */
 	void step() override {
+		bool editingPattern = params[EDIT_PARAM].value > 0.5f;// true = editing pattern, false = editing song
+		
 		// Run state and light
 		if (runningTrigger.process(params[RUN_PARAM].value)) {
 			running = !running;
@@ -295,18 +342,85 @@ struct PhraseSeq16 : Module {
 
 		// Left and right buttons
 		if (leftTrigger.process(params[LEFT_PARAM].value)) {
-			if (params[EDIT_PARAM].value > 0.5f)// if editing pattern
+			if (editingPattern)
 				stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit - 1, steps);
 			else
 				phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit - 1, phrases);
 		}
 		if (rightTrigger.process(params[RIGHT_PARAM].value)) {
-			if (params[EDIT_PARAM].value > 0.5f)// if editing pattern
+			if (editingPattern)
 				stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, steps);
 			else
 				phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + 1, phrases);
 		}
+		
+		// Pattern knob
+		int newPatternKnob = (int)roundf(params[PATTERN_PARAM].value*19.0f);
+		if (newPatternKnob != patternKnob) {
+			if (abs(newPatternKnob - patternKnob) <= 2) {// avoid discontinuous step (initialize for example)
+				if (editingPattern) {
+					pattern += newPatternKnob - patternKnob;
+					if (pattern < 0) pattern = 0;
+					if (pattern > 15) pattern = 15;
+				}
+				else {
+					phrase[phraseIndexEdit] += newPatternKnob - patternKnob;
+					if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
+					if (phrase[phraseIndexEdit] > 15) phrase[phraseIndexEdit] = 15;					
+				}
+			}
+			patternKnob = newPatternKnob;
+		}	
+		
+		// Octave buttons
+		if (octpTrigger.process(params[OCTP_PARAM].value)) {
+			if (editingPattern) {
+				float newCV = cv[pattern][stepIndexEdit] + 1.0f;
+				if (newCV >= -3.0f && newCV < 3.92f)// 3.917 is top cv
+					cv[pattern][stepIndexEdit] = newCV;
+			}
+		}		
+		if (octmTrigger.process(params[OCTM_PARAM].value)) {
+			if (editingPattern) {
+				float newCV = cv[pattern][stepIndexEdit] - 1.0f;
+				if (newCV >= -3.0f && newCV < 3.92f)// 3.917 is top cv
+					cv[pattern][stepIndexEdit] = newCV;
+			}
+		}		
+		// Gate1, Gate2 and slide buttons
+		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
+			if (editingPattern)
+				gate1[pattern][stepIndexEdit] = !gate1[pattern][stepIndexEdit];
+		}		
+		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
+			if (editingPattern)
+				gate2[pattern][stepIndexEdit] = !gate2[pattern][stepIndexEdit];
+		}		
+		if (slideTrigger.process(params[SLIDE_BTN_PARAM].value)) {
+			if (editingPattern)
+				slide[pattern][stepIndexEdit] = !slide[pattern][stepIndexEdit];
+		}		
+		
 	
+		if (running)
+		{
+			// Clock
+			if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
+				if (editingPattern) {
+					stepIndexRun++;
+					if (stepIndexRun >= steps) stepIndexRun = 0;
+				}
+				else {
+					stepIndexPhraseRun++;
+					if (stepIndexPhraseRun >= steps) {
+						stepIndexPhraseRun = 0;
+						phraseIndexRun++;
+						if (phraseIndexRun >= phrases) 
+							phraseIndexRun = 0;
+					}	
+				}
+			}
+		}	
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			stepIndexEdit = 0;
@@ -321,19 +435,28 @@ struct PhraseSeq16 : Module {
 		// Step/phrase lights
 		for (int i = 0; i < 16; i++) {
 			// Edit cursor
-			if (params[EDIT_PARAM].value > 0.5f)// if editing pattern
-				lights[STEP_PHRASE_LIGHTS + (i<<1)].value = (i == stepIndexEdit ? 1.0f : 0.0f);
+			if (editingPattern)
+				lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexEdit ? 1.0f : 0.0f);
 			else
-				lights[STEP_PHRASE_LIGHTS + (i<<1)].value = (i == phraseIndexEdit ? 1.0f : 0.0f);
+				lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == phraseIndexEdit ? 1.0f : 0.0f);
 			// Run cursor
-			if (running) {
-				if (params[EDIT_PARAM].value > 0.5f)// if editing pattern
-					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexRun ? 1.0f : 0.0f);
-				else
-					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == phraseIndexRun ? 1.0f : 0.0f);
-			}
+			if (editingPattern)
+				lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == stepIndexRun)) ? 1.0f : 0.0f);
+			else
+				lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
 		}
 	
+		// Octave lights
+		int octLightIndex = -1;
+		if (editingPattern)
+			octLightIndex = (int)floor(cv[pattern][stepIndexEdit] + 3.0f);
+		for (int i = 0; i < 7; i++) {
+			lights[OCTAVE_LIGHTS + i].value = (i == octLightIndex ? 1.0f : 0.0f);
+		}
+		// Gate1, Gate2 and Slide lights
+		lights[GATE1_LIGHT].value = (editingPattern && gate1[pattern][stepIndexEdit]) ? 1.0f : 0.0f;
+		lights[GATE2_LIGHT].value = (editingPattern && gate2[pattern][stepIndexEdit]) ? 1.0f : 0.0f;
+		lights[SLIDE_LIGHT].value = (editingPattern && slide[pattern][stepIndexEdit]) ? 1.0f : 0.0f;
 	}
 };
 
@@ -358,7 +481,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 			nvgText(vg, textPos.x, textPos.y, "~~", NULL);
 			nvgFillColor(vg, textColor);
 			char displayStr[3];
-			snprintf(displayStr, 3, "%2u", (unsigned) (module->params[PhraseSeq16::EDIT_PARAM].value > 0.5f ? module->stepIndexEdit : module->phraseIndexEdit) + 1 );
+			snprintf(displayStr, 3, "%2u", (unsigned) (module->params[PhraseSeq16::EDIT_PARAM].value > 0.5f ? 
+				module->pattern : module->phrase[module->phraseIndexEdit]) + 1 );
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};		
@@ -404,7 +528,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		// Octave lights
 		static const int octLightsSpacing = 15;
 		for (int i = 0; i < 7; i++) {
-			addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(columnRulerMK0 + offsetMediumLight, rowRulerMK0 - 2 + octLightsSpacing * i + offsetMediumLight), module, PhraseSeq16::OCTAVE_LIGHTS + i));
+			addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(columnRulerMK0 + offsetMediumLight, rowRulerMK0 - 2 + octLightsSpacing * i + offsetMediumLight), module, PhraseSeq16::OCTAVE_LIGHTS + 6 - i));
 		}
 		// Keys and Key lights
 		static const int offsetKeyLEDx = 6;
