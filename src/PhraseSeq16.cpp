@@ -376,7 +376,7 @@ struct PhraseSeq16 : Module {
 		}
 		
 		// Length button
-		static const float editTime = 1.8f;// seconds
+		static const float editTime = 1.6f;// seconds
 		if (lengthTrigger.process(params[LENGTH_PARAM].value)) {
 			editingLength = (unsigned long) (editTime * engineGetSampleRate());
 		}
@@ -470,7 +470,7 @@ struct PhraseSeq16 : Module {
 		
 		// Rotate left, right buttons
 		float rotCV;
-		bool rotGate1, rotGate2, rotSlide
+		bool rotGate1, rotGate2, rotSlide;
 		if (rotateLeftTrigger.process(params[ROTATEL_PARAM].value)) {
 			if (editingSequence) {
 				rotCV = cv[sequence][0];
@@ -483,13 +483,31 @@ struct PhraseSeq16 : Module {
 					gate2[sequence][i] = gate2[sequence][i + 1];
 					slide[sequence][i] = slide[sequence][i + 1];
 				}
-				cv[sequence][i] = rotCV;
-				gate1[sequence][i] = rotGate1;
-				gate2[sequence][i] = rotGate2;
-				slide[sequence][i] = rotSlide;				
+				cv[sequence][steps - 1] = rotCV;
+				gate1[sequence][steps - 1] = rotGate1;
+				gate2[sequence][steps - 1] = rotGate2;
+				slide[sequence][steps - 1] = rotSlide;				
 			}
 		}
-		
+		if (rotateRightTrigger.process(params[ROTATER_PARAM].value)) {
+			if (editingSequence) {
+				rotCV = cv[sequence][steps - 1];
+				rotGate1 = gate1[sequence][steps - 1];
+				rotGate2 = gate2[sequence][steps - 1];
+				rotSlide = slide[sequence][steps - 1];
+				for (int i = steps - 1 ; i > 0; i--) {
+					cv[sequence][i] = cv[sequence][i - 1];
+					gate1[sequence][i] = gate1[sequence][i - 1];
+					gate2[sequence][i] = gate2[sequence][i - 1];
+					slide[sequence][i] = slide[sequence][i - 1];
+				}
+				cv[sequence][0] = rotCV;
+				gate1[sequence][0] = rotGate1;
+				gate2[sequence][0] = rotGate2;
+				slide[sequence][0] = rotSlide;				
+			}
+		}
+
 		// Gate1, Gate2 and slide buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingSequence)
