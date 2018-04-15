@@ -22,12 +22,12 @@ void init(rack::Plugin *p) {
 	p->addModel(modelTwelveKey);
 	p->addModel(modelWriteSeq32);
 	p->addModel(modelWriteSeq64);
-	//p->addModel(modelPhraseSeq16);
+	p->addModel(modelPhraseSeq16);
 }
 
 
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box) {
-	NVGcolor backgroundColor = nvgRGB(0x38, 0x38, 0x38);
+	NVGcolor backgroundColor = nvgRGB(0x38, 0x38, 0x38); 
 	NVGcolor borderColor = nvgRGB(0x10, 0x10, 0x10);
 	nvgBeginPath(vg);
 	nvgRoundedRect(vg, 0.0, 0.0, box->size.x, box->size.y, 5.0);
