@@ -110,16 +110,12 @@ struct TwelveKey : Module {
 	void step() override {		
 
 		// set octaveNum
-		if (inputs[OCT_INPUT].active) {
+		if (octIncTrigger.process(params[OCTINC_PARAM].value))
+			octaveNum++;
+		if (octDecTrigger.process(params[OCTDEC_PARAM].value))
+			octaveNum--;
+		if (inputs[OCT_INPUT].active)
 			octaveNum = ((int) floor(inputs[OCT_INPUT].value));
-		}
-		else {
-			// detect button presses and inc/dec octaveNum
-			if (octIncTrigger.process(params[OCTINC_PARAM].value))
-				octaveNum++;
-			if (octDecTrigger.process(params[OCTDEC_PARAM].value))
-				octaveNum--;
-		}
 		if (octaveNum > 9) octaveNum = 9;
 		if (octaveNum < 0) octaveNum = 0;
 		

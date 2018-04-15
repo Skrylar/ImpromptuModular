@@ -73,7 +73,7 @@ struct WriteSeq64 : Module {
 	float gateCPbuffer[64];// copy paste buffer for gates
 	int stepsCPbuffer;
 	float resetLight = 0.0f;
-	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq
+	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq, destination channel in next msbits
 
 	SchmittTrigger clock12Trigger;
 	SchmittTrigger clock34Trigger;
@@ -254,7 +254,7 @@ struct WriteSeq64 : Module {
 		// Run state and light
 		if (runningTrigger.process(params[RUN_PARAM].value)) {
 			running = !running;
-			pendingPaste = 0;// no pending pastes across run state toggles
+			//pendingPaste = 0;// no pending pastes across run state toggles
 		}
 		lights[RUN_LIGHT].value = (running);
 	
@@ -319,11 +319,11 @@ struct WriteSeq64 : Module {
 				indexStep[c] = indexSteps[c] - 1;
 
 
+		// Clock
+		bool clk12step = clock12Trigger.process(inputs[CLOCK12_INPUT].value);
+		bool clk34step = ((!inputs[CLOCK34_INPUT].active) && clk12step) || 
+						  clock34Trigger.process(inputs[CLOCK34_INPUT].value);
 		if (running) {
-			// Clock
-			// Call max once per step
-			bool clk12step = clock12Trigger.process(inputs[CLOCK12_INPUT].value);
-			bool clk34step = ((!inputs[CLOCK34_INPUT].active) && clk12step) || clock34Trigger.process(inputs[CLOCK34_INPUT].value);
 			if (clk12step) {
 				indexStep[0] = moveIndex(indexStep[0], indexStep[0] + 1, indexSteps[0]);
 				indexStep[1] = moveIndex(indexStep[1], indexStep[1] + 1, indexSteps[1]);
@@ -350,17 +350,21 @@ struct WriteSeq64 : Module {
 			}
 		}
 		
-		if (canEdit) {		
-			// Step L
-			if (stepLTrigger.process(params[STEPL_PARAM].value + inputs[STEPL_INPUT].value)) {
+		// Step L
+		if (stepLTrigger.process(params[STEPL_PARAM].value + inputs[STEPL_INPUT].value)) {
+			if (canEdit) {		
 				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] - 1, indexSteps[indexChannel]); 
 			}
-			// Step R
-			if (stepRTrigger.process(params[STEPR_PARAM].value + inputs[STEPR_INPUT].value)) {
+		}
+		// Step R
+		if (stepRTrigger.process(params[STEPR_PARAM].value + inputs[STEPR_INPUT].value)) {
+			if (canEdit) {		
 				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + 1, indexSteps[indexChannel]); 
 			}
-			// Write
-			if (writeTrigger.process(params[WRITE_PARAM].value + inputs[WRITE_INPUT].value)) {
+		}
+		// Write
+		if (writeTrigger.process(params[WRITE_PARAM].value + inputs[WRITE_INPUT].value)) {
+			if (canEdit) {		
 				// CV
 				cv[indexChannel][indexStep[indexChannel]] = quantize(inputs[CV_INPUT].value, params[QUANTIZE_PARAM].value > 0.5f);
 				// Gate

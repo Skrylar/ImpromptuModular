@@ -61,6 +61,7 @@ struct PhraseSeq16 : Module {
 		GATE2_LIGHT,
 		SLIDE_LIGHT,
 		ATTACH_LIGHT,
+		PENDING_LIGHT,
 		NUM_LIGHTS
 	};
 
@@ -90,7 +91,12 @@ struct PhraseSeq16 : Module {
 	float resetLight = 0.0f;
 	unsigned long editingLength;// 0 when not editing length, downward step counter timer when editing length
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
-		
+	float cvCPbuffer[16];// copy paste buffer for CVs
+	bool gate1CPbuffer[16];// copy paste buffer for gate1
+	bool gate2CPbuffer[16];// copy paste buffer for gate2
+	bool slideCPbuffer[16];// copy paste buffer for slide
+	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq, destination seq in next msbits
+
 	SchmittTrigger resetTrigger;
 	SchmittTrigger leftTrigger;
 	SchmittTrigger rightTrigger;
@@ -107,6 +113,8 @@ struct PhraseSeq16 : Module {
 	SchmittTrigger attachTrigger;
 	SchmittTrigger rotateLeftTrigger;
 	SchmittTrigger rotateRightTrigger;
+	SchmittTrigger copyTrigger;
+	SchmittTrigger pasteTrigger;
 	
 		
 	PhraseSeq16() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -131,11 +139,16 @@ struct PhraseSeq16 : Module {
 				slide[i][s] = true;
 			}
 			phrase[i] = 0;
+			cvCPbuffer[i] = 0.0f;
+			gate1CPbuffer[i] = true;
+			gate2CPbuffer[i] = true;
+			slideCPbuffer[i] = true;
 		}
 		sequenceKnob = 0;
 		editingLength = 0ul;
 		editingGate = 0ul;
 		attach = 1.0f;
+		pendingPaste = 0;
 	}
 
 	void onRandomize() override {
@@ -156,11 +169,16 @@ struct PhraseSeq16 : Module {
 				slide[i][s] = (randomUniform() > 0.5f);
 			}
 			phrase[i] = randomu32() % 16;
+			cvCPbuffer[i] = 0.0f;
+			gate1CPbuffer[i] = true;
+			gate2CPbuffer[i] = true;
+			slideCPbuffer[i] = true;
 		}
 		sequenceKnob = 0;
 		editingLength = 0ul;
 		editingGate = 0ul;
 		attach = 1.0f;
+		pendingPaste = 0;
 	}
 
 	json_t *toJson() override {
@@ -359,6 +377,7 @@ struct PhraseSeq16 : Module {
 		// Run state and light
 		if (runningTrigger.process(params[RUN_PARAM].value)) {
 			running = !running;
+			//pendingPaste = 0;// no pending pastes across run state toggles
 		}
 		lights[RUN_LIGHT].value = (running);
 
@@ -375,6 +394,37 @@ struct PhraseSeq16 : Module {
 				phraseIndexEdit = phraseIndexRun;
 		}
 		
+		// Copy
+		if (copyTrigger.process(params[COPY_PARAM].value)) {
+			if (editingSequence) {
+				for (int s = 0; s < 16; s++) {
+					cvCPbuffer[s] = cv[sequence][s];
+					gate1CPbuffer[s] = gate1[sequence][s];
+					gate2CPbuffer[s] = gate2[sequence][s];
+					slideCPbuffer[s] = slide[sequence][s];
+				}
+			}
+		}
+		// Paste
+		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
+			if (editingSequence) {
+				if (params[PASTESYNC_PARAM].value < 0.5f) {
+					// Paste realtime, no pending to schedule
+					for (int s = 0; s < 16; s++) {
+						cv[sequence][s] = cvCPbuffer[s];
+						gate1[sequence][s] = gate1CPbuffer[s];
+						gate2[sequence][s] = gate2CPbuffer[s];
+						slide[sequence][s] = slideCPbuffer[s];
+					}
+					pendingPaste = 0;
+				}
+				else {
+					pendingPaste = params[PASTESYNC_PARAM].value > 1.5f ? 2 : 1;
+					pendingPaste |= sequence<<2; // add paste destination channel into pendingPaste				
+				}
+			}
+		}
+
 		// Length button
 		static const float editTime = 1.6f;// seconds
 		if (lengthTrigger.process(params[LENGTH_PARAM].value)) {
@@ -440,7 +490,7 @@ struct PhraseSeq16 : Module {
 		int newOct = -1;
 		for (int i = 0; i < 7; i++) {
 			if (octTriggers[i].process(params[OCTAVE_PARAM + i].value))
-				newOct = i;
+				newOct = 6 - i;
 		}
 		if (newOct >=0 && newOct <=6) {
 			if (editingSequence) {
@@ -453,60 +503,53 @@ struct PhraseSeq16 : Module {
 		}		
 		
 		// Keyboard and cv input 
-		if (editingSequence) {
-			for (int i = 0; i < 12; i++) {
-				if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
+		for (int i = 0; i < 12; i++) {
+			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
+				if (editingSequence) {
 					cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 				}
 			}
-			if (writeTrigger.process(inputs[WRITE_INPUT].value)) {
+		}
+		if (writeTrigger.process(inputs[WRITE_INPUT].value)) {
+			if (editingSequence) {
 				cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
 				editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 				if (params[AUTOSTEP_PARAM].value > 0.5f)
 					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, steps);
 			}
 		}
-		
+
 		// Rotate left, right buttons
 		float rotCV;
 		bool rotGate1, rotGate2, rotSlide;
+		int iRot = 0;
+		int iDelta = 0;
 		if (rotateLeftTrigger.process(params[ROTATEL_PARAM].value)) {
-			if (editingSequence) {
-				rotCV = cv[sequence][0];
-				rotGate1 = gate1[sequence][0];
-				rotGate2 = gate2[sequence][0];
-				rotSlide = slide[sequence][0];
-				for (int i = 0; i < steps - 1; i++) {
-					cv[sequence][i] = cv[sequence][i + 1];
-					gate1[sequence][i] = gate1[sequence][i + 1];
-					gate2[sequence][i] = gate2[sequence][i + 1];
-					slide[sequence][i] = slide[sequence][i + 1];
-				}
-				cv[sequence][steps - 1] = rotCV;
-				gate1[sequence][steps - 1] = rotGate1;
-				gate2[sequence][steps - 1] = rotGate2;
-				slide[sequence][steps - 1] = rotSlide;				
-			}
+			iDelta = 1;
 		}
 		if (rotateRightTrigger.process(params[ROTATER_PARAM].value)) {
-			if (editingSequence) {
-				rotCV = cv[sequence][steps - 1];
-				rotGate1 = gate1[sequence][steps - 1];
-				rotGate2 = gate2[sequence][steps - 1];
-				rotSlide = slide[sequence][steps - 1];
-				for (int i = steps - 1 ; i > 0; i--) {
-					cv[sequence][i] = cv[sequence][i - 1];
-					gate1[sequence][i] = gate1[sequence][i - 1];
-					gate2[sequence][i] = gate2[sequence][i - 1];
-					slide[sequence][i] = slide[sequence][i - 1];
-				}
-				cv[sequence][0] = rotCV;
-				gate1[sequence][0] = rotGate1;
-				gate2[sequence][0] = rotGate2;
-				slide[sequence][0] = rotSlide;				
-			}
+			iRot = steps - 1;
+			iDelta = -1;
 		}
+		if (iDelta != 0 && editingSequence) {	
+			rotCV = cv[sequence][iRot];
+			rotGate1 = gate1[sequence][iRot];
+			rotGate2 = gate2[sequence][iRot];
+			rotSlide = slide[sequence][iRot];		
+			for ( ; ; iRot += iDelta) {
+				if (iDelta == 1 && iRot >= steps - 1) break;
+				if (iDelta == -1 && iRot <= 0) break;				
+				cv[sequence][iRot] = cv[sequence][iRot + iDelta];
+				gate1[sequence][iRot] = gate1[sequence][iRot + iDelta];
+				gate2[sequence][iRot] = gate2[sequence][iRot + iDelta];
+				slide[sequence][iRot] = slide[sequence][iRot + iDelta];
+			}
+			cv[sequence][iRot] = rotCV;
+			gate1[sequence][iRot] = rotGate1;
+			gate2[sequence][iRot] = rotGate2;
+			slide[sequence][iRot] = rotSlide;				
+		}	
 
 		// Gate1, Gate2 and slide buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
@@ -523,9 +566,9 @@ struct PhraseSeq16 : Module {
 		}		
 		
 	
-		if (running) {
-			// Clock
-			if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
+		// Clock
+		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
+			if (running) {
 				if (editingSequence) {
 					stepIndexRun++;
 					if (stepIndexRun >= steps) stepIndexRun = 0;
@@ -538,6 +581,20 @@ struct PhraseSeq16 : Module {
 						if (phraseIndexRun >= phrases) 
 							phraseIndexRun = 0;
 					}	
+				}
+			
+				// Pending paste on clock or end of seq
+				if ( ((pendingPaste&0x3) == 1) || ((pendingPaste&0x3) == 2 && stepIndexRun == 0) ) {
+					if (editingSequence) {
+						int pasteSeq = pendingPaste>>2;
+						for (int s = 0; s < 16; s++) {
+							cv[pasteSeq][s] = cvCPbuffer[s];
+							gate1[pasteSeq][s] = gate1CPbuffer[s];
+							gate2[pasteSeq][s] = gate2CPbuffer[s];
+							slide[pasteSeq][s] = slideCPbuffer[s];
+						}
+						pendingPaste = 0;
+					}
 				}
 			}
 		}	
@@ -611,7 +668,7 @@ struct PhraseSeq16 : Module {
 		if (editingSequence)
 			octLightIndex = (int) floor(cv[sequence][stepIndexEdit] + 3.0f);
 		for (int i = 0; i < 7; i++) {
-			lights[OCTAVE_LIGHTS + i].value = (i == octLightIndex ? 1.0f : 0.0f);
+			lights[OCTAVE_LIGHTS + i].value = (i == (6 - octLightIndex) ? 1.0f : 0.0f);
 		}
 		// Keyboard lights
 		int keyLightIndex = -1;
@@ -633,6 +690,8 @@ struct PhraseSeq16 : Module {
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
 
+		// Pending paste light
+		lights[PENDING_LIGHT].value = (pendingPaste == 0 ? 0.0f : 1.0f);
 	}
 };
 
@@ -791,7 +850,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB5 + 20, rowRulerMB0 - 10 + offsetTL1105), module, PhraseSeq16::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
 		// Paste sync (and light)
 		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRulerMB5 - 6 + hOffsetCKSS, rowRulerMB1 - 1 + vOffsetCKSSThree), module, PhraseSeq16::PASTESYNC_PARAM, 0.0f, 2.0f, 0.0f));	
-		//addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(columnRulerMB5 + 41, rowRulerMB1 - 5 + 14), module, PhraseSeq16::PENDING_LIGHT));
+		addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(columnRulerMB5 - 6 + 41, rowRulerMB1 - 1 + 14), module, PhraseSeq16::PENDING_LIGHT));
 		
 						
 		// ****** Bottom portion ******

@@ -79,7 +79,7 @@ Here are some specific details on each element on the faceplate of the module. F
 
 * **Copy-Paste**: Copy and paste the CVs and gates of a channel into another channel. In a given channel, press the left button to copy the channel into a buffer, then select another channel and press the right button to paste. All 32 steps are copied irrespective of the STPES knob setting.
 
-* **Paste sync**: Determines whether to paste in real time (RT), on the next clock (CLK), or at the next sequence start (SEQ). Pending pastes to a given channel are shown by a red channel LED, and if the selected channel changes, the paste opertion will be performed in the channel that was selected when the paste button was pressed. Pending pastes are also automatically aborted when the RUN 1-3 button is pressed. Pending pastes into the staging area (channel 4) are always done in realtime, irrespective of the state of the sync switch.
+* **Paste sync**: Determines whether to paste in real time (RT), on the next clock (CLK), or at the next sequence start (SEQ). Pending pastes are shown by a red LED beside CLK/SEQ, and if the selected channel changes, the paste opertion will be performed in the channel that was selected when the paste button was pressed. Pending pastes into the staging area (channel 4) are always done in realtime, irrespective of the state of the paste sync switch.
 
 * **Step L/R**: Steps the sequencer one step left or right. No effect on channels 1 to 3 when the sequencer is running.
 

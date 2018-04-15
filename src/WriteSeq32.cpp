@@ -54,6 +54,7 @@ struct WriteSeq32 : Module {
 		ENUMS(CHANNEL_LIGHTS, 4 * 3),// room for GreenRedBlue
 		RUN_LIGHT,
 		ENUMS(WRITE_LIGHT, 2),// room for GreenRed
+		PENDING_LIGHT,
 		NUM_LIGHTS
 	};
 
@@ -69,7 +70,7 @@ struct WriteSeq32 : Module {
 	int notesPos[8]; // used for rendering notes in LCD_24, 8 gate and 8 step LEDs 
 	float cvCPbuffer[32];// copy paste buffer for CVs
 	bool gateCPbuffer[32];// copy paste buffer for gates
-	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq
+	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq, destination channel in next msbits
 
 	SchmittTrigger clockTrigger;
 	SchmittTrigger resetTrigger;
@@ -203,7 +204,7 @@ struct WriteSeq32 : Module {
 		// Run state and light
 		if (runningTrigger.process(params[RUN_PARAM].value)) {
 			running = !running;
-			pendingPaste = 0;// no pending pastes across run state toggles
+			//pendingPaste = 0;// no pending pastes across run state toggles
 		}
 		lights[RUN_LIGHT].value = (running);
 		
@@ -253,9 +254,9 @@ struct WriteSeq32 : Module {
 		if (indexStepStage >= numSteps)
 			indexStepStage = numSteps - 1;
 		
-		if (running) {
-			// Clock
-			if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
+		// Clock
+		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
+			if (running) {
 				indexStep = moveIndex(indexStep, indexStep + 1, numSteps);
 				
 				// Pending paste on clock or end of seq
@@ -270,32 +271,38 @@ struct WriteSeq32 : Module {
 			}
 		}
 		
-		if (canEdit) {		
-			// Step L
-			if (stepLTrigger.process(params[STEPL_PARAM].value + inputs[STEPL_INPUT].value)) {
+		// Step L
+		if (stepLTrigger.process(params[STEPL_PARAM].value + inputs[STEPL_INPUT].value)) {
+			if (canEdit) {		
 				if (indexChannel == 3)
 					indexStepStage = moveIndex(indexStepStage, indexStepStage - 1, numSteps);
 				else 
 					indexStep = moveIndex(indexStep, indexStep - 1, numSteps);
 			}
-			// Step R
-			if (stepRTrigger.process(params[STEPR_PARAM].value + inputs[STEPR_INPUT].value)) {
+		}
+		// Step R
+		if (stepRTrigger.process(params[STEPR_PARAM].value + inputs[STEPR_INPUT].value)) {
+			if (canEdit) {		
 				if (indexChannel == 3)
 					indexStepStage = moveIndex(indexStepStage, indexStepStage + 1, numSteps);
 				else 
 					indexStep = moveIndex(indexStep, indexStep + 1, numSteps);
 			}
-			// Window
-			for (int i = 0; i < 4; i++) {
-				if (windowTriggers[i].process(params[WINDOW_PARAM+i].value)) {
+		}
+		// Window
+		for (int i = 0; i < 4; i++) {
+			if (windowTriggers[i].process(params[WINDOW_PARAM+i].value)) {
+				if (canEdit) {		
 					if (indexChannel == 3)
 						indexStepStage = (i<<3) | (indexStepStage&0x7);
 					else 
 						indexStep = (i<<3) | (indexStep&0x7);
 				}
 			}
-			// Write
-			if (writeTrigger.process(params[WRITE_PARAM].value + inputs[WRITE_INPUT].value)) {
+		}
+		// Write
+		if (writeTrigger.process(params[WRITE_PARAM].value + inputs[WRITE_INPUT].value)) {
+			if (canEdit) {		
 				int index = (indexChannel == 3 ? indexStepStage : indexStep);
 				// CV
 				cv[indexChannel][index] = quantize(inputs[CV_INPUT].value, params[QUANTIZE_PARAM].value > 0.5f);
@@ -350,17 +357,18 @@ struct WriteSeq32 : Module {
 			lights[GATE_LIGHTS + i].value = gates[indexChannel][(index&0x18) | i] ? 1.0f : 0.0f;
 		}
 			
-		// Channel lights (with pendingPaste state)
+		// Channel lights
 		setRGBLight(CHANNEL_LIGHTS + 0, 0.0f, 1.0f, 0.0f, (indexChannel == 0));// green
 		setRGBLight(CHANNEL_LIGHTS + 3, 0.4f, 0.5f, 0.0f, (indexChannel == 1));// orange
 		setRGBLight(CHANNEL_LIGHTS + 6, 0.0f, 0.5f, 0.4f, (indexChannel == 2));// turquoise
 		setRGBLight(CHANNEL_LIGHTS + 9, 0.0f, 0.0f, 0.8f, (indexChannel == 3));// blue
-		if (pendingPaste != 0)
-			setRGBLight(CHANNEL_LIGHTS + (pendingPaste>>2)*3, 1.0f, 0.0f, 0.0f, true);
 		
 		// Write allowed light
 		lights[WRITE_LIGHT + 0].value = (canEdit)?1.0f:0.0f;
 		lights[WRITE_LIGHT + 1].value = (canEdit)?0.0f:1.0f;
+		
+		// Pending paste light
+		lights[PENDING_LIGHT].value = (pendingPaste == 0 ? 0.0f : 1.0f);
 	}
 	
 	void setRGBLight(int id, float red, float green, float blue, bool enable) {
@@ -539,8 +547,9 @@ struct WriteSeq32Widget : ModuleWidget {
 		// Copy/paste switches
 		addParam(ParamWidget::create<TL1105>(Vec(columnRuler0-10, rowRuler1+offsetTL1105), module, WriteSeq32::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(columnRuler0+20, rowRuler1+offsetTL1105), module, WriteSeq32::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
-		// Paste sync
-		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRuler0+hOffsetCKSS, rowRuler2+vOffsetCKSSThree), module, WriteSeq32::PASTESYNC_PARAM, 0.0f, 2.0f, 0.0f));		
+		// Paste sync (and light)
+		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRuler0+hOffsetCKSS, rowRuler2+vOffsetCKSSThree), module, WriteSeq32::PASTESYNC_PARAM, 0.0f, 2.0f, 0.0f));	
+		addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(columnRuler0 + 41, rowRuler2 + 14), module, WriteSeq32::PENDING_LIGHT));		
 		// Channel input
 		addInput(Port::create<PJ301MPortS>(Vec(columnRuler0, rowRuler3), Port::INPUT, module, WriteSeq32::CHANNEL_INPUT));
 		
