@@ -6,7 +6,7 @@
 //See ./LICENSE.txt for all licenses
 //See ./res/fonts/ for font licenses
 //
-//Module inspired by the SA-100 Stepper Acid Sequencer by Transistor Sounds Labs
+//Module inspired by the SA-100 Stepper Acid sequencer by Transistor Sounds Labs
 //***********************************************************************************************
 
 
@@ -20,7 +20,7 @@ struct PhraseSeq16 : Module {
 		RIGHT_PARAM,
 		LENGTH_PARAM,
 		EDIT_PARAM,
-		PATTERN_PARAM,
+		SEQUENCE_PARAM,
 		RUN_PARAM,
 		COPY_PARAM,
 		PASTE_PARAM,
@@ -69,7 +69,7 @@ struct PhraseSeq16 : Module {
 	//
 	int stepIndexEdit;
 	int stepIndexRun;
-	int pattern;
+	int sequence;
 	int steps;//1 to 16
 	//
 	int phraseIndexEdit;
@@ -83,7 +83,7 @@ struct PhraseSeq16 : Module {
 	bool gate2[16][16] = {}; // First index is patten number, 2nd index is step
 	bool slide[16][16] = {}; // First index is patten number, 2nd index is step
 	//
-	int patternKnob;// save this so no delta triggered when close/open Rack
+	int sequenceKnob;// save this so no delta triggered when close/open Rack
 	float attach;
 
 	// No need to save
@@ -105,6 +105,8 @@ struct PhraseSeq16 : Module {
 	SchmittTrigger keyTriggers[12];
 	SchmittTrigger writeTrigger;
 	SchmittTrigger attachTrigger;
+	SchmittTrigger rotateLeftTrigger;
+	SchmittTrigger rotateRightTrigger;
 	
 		
 	PhraseSeq16() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -115,7 +117,7 @@ struct PhraseSeq16 : Module {
 		running = false;
 		stepIndexEdit = 0;
 		stepIndexRun = 0;
-		pattern = 0;
+		sequence = 0;
 		steps = 16;
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
@@ -130,7 +132,7 @@ struct PhraseSeq16 : Module {
 			}
 			phrase[i] = 0;
 		}
-		patternKnob = 0;
+		sequenceKnob = 0;
 		editingLength = 0ul;
 		editingGate = 0ul;
 		attach = 1.0f;
@@ -140,7 +142,7 @@ struct PhraseSeq16 : Module {
 		running = false;
 		stepIndexEdit = 0;
 		stepIndexRun = 0;
-		pattern = randomu32() % 16;
+		sequence = randomu32() % 16;
 		steps = 1 + (randomu32() % 16);
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
@@ -155,7 +157,7 @@ struct PhraseSeq16 : Module {
 			}
 			phrase[i] = randomu32() % 16;
 		}
-		patternKnob = 0;
+		sequenceKnob = 0;
 		editingLength = 0ul;
 		editingGate = 0ul;
 		attach = 1.0f;
@@ -173,8 +175,8 @@ struct PhraseSeq16 : Module {
 		// stepIndexRun
 		json_object_set_new(rootJ, "stepIndexRun", json_integer(stepIndexRun));
 
-		// pattern
-		json_object_set_new(rootJ, "pattern", json_integer(pattern));
+		// sequence
+		json_object_set_new(rootJ, "sequence", json_integer(sequence));
 
 		// steps
 		json_object_set_new(rootJ, "steps", json_integer(steps));
@@ -229,8 +231,8 @@ struct PhraseSeq16 : Module {
 			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
 		json_object_set_new(rootJ, "phrase", phraseJ);
 
-		// patternKnob
-		json_object_set_new(rootJ, "patternKnob", json_integer(patternKnob));
+		// sequenceKnob
+		json_object_set_new(rootJ, "sequenceKnob", json_integer(sequenceKnob));
 
 		// attach
 		json_object_set_new(rootJ, "attach", json_real(attach));
@@ -254,10 +256,10 @@ struct PhraseSeq16 : Module {
 		if (stepIndexRunJ)
 			stepIndexRun = json_integer_value(stepIndexRunJ);
 		
-		// pattern
-		json_t *patternJ = json_object_get(rootJ, "pattern");
-		if (patternJ)
-			pattern = json_integer_value(patternJ);
+		// sequence
+		json_t *sequenceJ = json_object_get(rootJ, "sequence");
+		if (sequenceJ)
+			sequence = json_integer_value(sequenceJ);
 		
 		// steps
 		json_t *stepsJ = json_object_get(rootJ, "steps");
@@ -338,10 +340,10 @@ struct PhraseSeq16 : Module {
 					phrase[i] = json_integer_value(phraseArrayJ);
 			}
 			
-		// patternKnob
-		json_t *patternKnobJ = json_object_get(rootJ, "patternKnob");
-		if (patternKnobJ)
-			patternKnob = json_integer_value(patternKnobJ);
+		// sequenceKnob
+		json_t *sequenceKnobJ = json_object_get(rootJ, "sequenceKnob");
+		if (sequenceKnobJ)
+			sequenceKnob = json_integer_value(sequenceKnobJ);
 		
 		// attach
 		json_t *attachJ = json_object_get(rootJ, "attach");
@@ -352,7 +354,7 @@ struct PhraseSeq16 : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
-		bool editingPattern = params[EDIT_PARAM].value > 0.5f;// true = editing pattern, false = editing song
+		bool editingSequence = params[EDIT_PARAM].value > 0.5f;// true = editing sequence, false = editing song
 		
 		// Run state and light
 		if (runningTrigger.process(params[RUN_PARAM].value)) {
@@ -367,14 +369,14 @@ struct PhraseSeq16 : Module {
 			}			
 		}
 		if (running && attach > 0.5f) {
-			if (editingPattern)
+			if (editingSequence)
 				stepIndexEdit = stepIndexRun;
 			else
 				phraseIndexEdit = phraseIndexRun;
 		}
 		
 		// Length button
-		static const float editTime = 2.0f;// seconds
+		static const float editTime = 1.8f;// seconds
 		if (lengthTrigger.process(params[LENGTH_PARAM].value)) {
 			editingLength = (unsigned long) (editTime * engineGetSampleRate());
 		}
@@ -392,7 +394,7 @@ struct PhraseSeq16 : Module {
 		if (delta != 0) {
 			if (editingLength > 0ul) {
 				editingLength = (unsigned long) (editTime * engineGetSampleRate());// restart editing timer
-				if (editingPattern) {
+				if (editingSequence) {
 					steps += delta;
 					if (steps > 16) steps = 16;
 					if (steps < 1 ) steps = 1;
@@ -407,7 +409,7 @@ struct PhraseSeq16 : Module {
 			}
 			else {
 				if (!running || attach < 0.5f) {// don't move heads when attach and running
-					if (editingPattern)
+					if (editingSequence)
 						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, steps);
 					else
 						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, phrases);
@@ -415,23 +417,22 @@ struct PhraseSeq16 : Module {
 			}
 		}
 		
-		
-		// Pattern knob
-		int newPatternKnob = (int)roundf(params[PATTERN_PARAM].value*7.0f);
-		if (newPatternKnob != patternKnob) {
-			if (abs(newPatternKnob - patternKnob) <= 1) {// avoid discontinuous step (initialize for example)
-				if (editingPattern) {
-					pattern += newPatternKnob - patternKnob;
-					if (pattern < 0) pattern = 0;
-					if (pattern > 15) pattern = 15;
+		// Sequence knob
+		int newSequenceKnob = (int)roundf(params[SEQUENCE_PARAM].value*7.0f);
+		if (newSequenceKnob != sequenceKnob) {
+			if (abs(newSequenceKnob - sequenceKnob) <= 1) {// avoid discontinuous step (initialize for example)
+				if (editingSequence) {
+					sequence += newSequenceKnob - sequenceKnob;
+					if (sequence < 0) sequence = 0;
+					if (sequence > 15) sequence = 15;
 				}
 				else {
-					phrase[phraseIndexEdit] += newPatternKnob - patternKnob;
+					phrase[phraseIndexEdit] += newSequenceKnob - sequenceKnob;
 					if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
 					if (phrase[phraseIndexEdit] > 15) phrase[phraseIndexEdit] = 15;					
 				}
 			}
-			patternKnob = newPatternKnob;
+			sequenceKnob = newSequenceKnob;
 		}	
 		
 		// Octave buttons
@@ -442,61 +443,72 @@ struct PhraseSeq16 : Module {
 				newOct = i;
 		}
 		if (newOct >=0 && newOct <=6) {
-			if (editingPattern) {
-				float newCV = cv[pattern][stepIndexEdit];
+			if (editingSequence) {
+				float newCV = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
 				newCV = newCV - floor(newCV) + (float) (newOct - 3);
 				if (newCV >= -3.0f && newCV < 4.0f)
-					cv[pattern][stepIndexEdit] = newCV;
+					cv[sequence][stepIndexEdit] = newCV;
 				editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 			}
 		}		
-		/*float deltaOct = 0.0f;
-		if (octpTrigger.process(params[OCTP_PARAM].value))
-			deltaOct = 1.0f;
-		if (octmTrigger.process(params[OCTM_PARAM].value)) 
-			deltaOct = -1.0f;
-		if (deltaOct > 0.5f || deltaOct < -0.5f) {
-			if (editingPattern) {
-				float newCV = cv[pattern][stepIndexEdit] + deltaOct;
-				if (newCV >= -3.0f && newCV < 4.0f)
-					cv[pattern][stepIndexEdit] = newCV;
-				editingGate = (unsigned long) (gateTime * engineGetSampleRate());
-			}
-		}*/		
 		
 		// Keyboard and cv input 
-		if (editingPattern) {
+		if (editingSequence) {
 			for (int i = 0; i < 12; i++) {
 				if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
-					cv[pattern][stepIndexEdit] = floor(cv[pattern][stepIndexEdit]) + ((float) i) / 12.0f;
+					cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 				}
 			}
 			if (writeTrigger.process(inputs[WRITE_INPUT].value)) {
-				cv[pattern][stepIndexEdit] = inputs[CV_INPUT].value;
+				cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
 				editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+				if (params[AUTOSTEP_PARAM].value > 0.5f)
+					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, steps);
+			}
+		}
+		
+		// Rotate left, right buttons
+		float rotCV;
+		bool rotGate1, rotGate2, rotSlide
+		if (rotateLeftTrigger.process(params[ROTATEL_PARAM].value)) {
+			if (editingSequence) {
+				rotCV = cv[sequence][0];
+				rotGate1 = gate1[sequence][0];
+				rotGate2 = gate2[sequence][0];
+				rotSlide = slide[sequence][0];
+				for (int i = 0; i < steps - 1; i++) {
+					cv[sequence][i] = cv[sequence][i + 1];
+					gate1[sequence][i] = gate1[sequence][i + 1];
+					gate2[sequence][i] = gate2[sequence][i + 1];
+					slide[sequence][i] = slide[sequence][i + 1];
+				}
+				cv[sequence][i] = rotCV;
+				gate1[sequence][i] = rotGate1;
+				gate2[sequence][i] = rotGate2;
+				slide[sequence][i] = rotSlide;				
 			}
 		}
 		
 		// Gate1, Gate2 and slide buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
-			if (editingPattern)
-				gate1[pattern][stepIndexEdit] = !gate1[pattern][stepIndexEdit];
+			if (editingSequence)
+				gate1[sequence][stepIndexEdit] = !gate1[sequence][stepIndexEdit];
 		}		
 		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
-			if (editingPattern)
-				gate2[pattern][stepIndexEdit] = !gate2[pattern][stepIndexEdit];
+			if (editingSequence)
+				gate2[sequence][stepIndexEdit] = !gate2[sequence][stepIndexEdit];
 		}		
 		if (slideTrigger.process(params[SLIDE_BTN_PARAM].value)) {
-			if (editingPattern)
-				slide[pattern][stepIndexEdit] = !slide[pattern][stepIndexEdit];
+			if (editingSequence)
+				slide[sequence][stepIndexEdit] = !slide[sequence][stepIndexEdit];
 		}		
 		
 	
 		if (running) {
 			// Clock
 			if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
-				if (editingPattern) {
+				if (editingSequence) {
 					stepIndexRun++;
 					if (stepIndexRun >= steps) stepIndexRun = 0;
 				}
@@ -514,10 +526,10 @@ struct PhraseSeq16 : Module {
 		
 		// CV and gates outputs
 		if (running) {
-			if (editingPattern) {// editing pattern while running
-				outputs[CV_OUTPUT].value = cv[pattern][stepIndexRun];
-				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1[pattern][stepIndexRun]) ? 10.0f : 0.0f;
-				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2[pattern][stepIndexRun]) ? 10.0f : 0.0f;
+			if (editingSequence) {// editing sequence while running
+				outputs[CV_OUTPUT].value = cv[sequence][stepIndexRun];
+				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1[sequence][stepIndexRun]) ? 10.0f : 0.0f;
+				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2[sequence][stepIndexRun]) ? 10.0f : 0.0f;
 			}
 			else {// editing song while running
 				outputs[CV_OUTPUT].value = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
@@ -526,8 +538,8 @@ struct PhraseSeq16 : Module {
 			}
 		}
 		else {// not running 
-			if (editingPattern) {// editing pattern while not running
-				outputs[CV_OUTPUT].value = cv[pattern][stepIndexEdit];
+			if (editingSequence) {// editing sequence while not running
+				outputs[CV_OUTPUT].value = cv[sequence][stepIndexEdit];
 				outputs[GATE1_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 				outputs[GATE2_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 			}
@@ -555,7 +567,7 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 16; i++) {
 			if (editingLength > 0ul) {
 				// Length (green)
-				if (editingPattern)
+				if (editingSequence)
 					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < steps) ? 0.5f : 0.0f);
 				else
 					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
@@ -564,12 +576,12 @@ struct PhraseSeq16 : Module {
 			}
 			else {
 				// Run cursor (green)
-				if (editingPattern)
+				if (editingSequence)
 					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == stepIndexRun)) ? 1.0f : 0.0f);
 				else
 					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
 				// Edit cursor (red)
-				if (editingPattern)
+				if (editingSequence)
 					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexEdit ? 1.0f : 0.0f);
 				else
 					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == phraseIndexEdit ? 1.0f : 0.0f);
@@ -578,24 +590,24 @@ struct PhraseSeq16 : Module {
 	
 		// Octave lights
 		int octLightIndex = -1;
-		if (editingPattern)
-			octLightIndex = (int) floor(cv[pattern][stepIndexEdit] + 3.0f);
+		if (editingSequence)
+			octLightIndex = (int) floor(cv[sequence][stepIndexEdit] + 3.0f);
 		for (int i = 0; i < 7; i++) {
 			lights[OCTAVE_LIGHTS + i].value = (i == octLightIndex ? 1.0f : 0.0f);
 		}
 		// Keyboard lights
 		int keyLightIndex = -1;
-		if (editingPattern) {
-			float cvValOffset = cv[pattern][stepIndexEdit] +10.0f;//to properly handle negative note voltages
+		if (editingSequence) {
+			float cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
 			keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
 		}
 		for (int i = 0; i < 12; i++) {
 			lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
 		}		
 		// Gate1, Gate2 and Slide lights
-		lights[GATE1_LIGHT].value = (editingPattern && gate1[pattern][stepIndexEdit]) ? 1.0f : 0.0f;
-		lights[GATE2_LIGHT].value = (editingPattern && gate2[pattern][stepIndexEdit]) ? 1.0f : 0.0f;
-		lights[SLIDE_LIGHT].value = (editingPattern && slide[pattern][stepIndexEdit]) ? 1.0f : 0.0f;
+		lights[GATE1_LIGHT].value = (editingSequence && gate1[sequence][stepIndexEdit]) ? 1.0f : 0.0f;
+		lights[GATE2_LIGHT].value = (editingSequence && gate2[sequence][stepIndexEdit]) ? 1.0f : 0.0f;
+		lights[SLIDE_LIGHT].value = (editingSequence && slide[sequence][stepIndexEdit]) ? 1.0f : 0.0f;
 
 		// attach light
 		lights[ATTACH_LIGHT].value = running ? attach : 0.0f;
@@ -609,11 +621,11 @@ struct PhraseSeq16 : Module {
 
 struct PhraseSeq16Widget : ModuleWidget {
 
-	struct PatternDisplayWidget : TransparentWidget {
+	struct SequenceDisplayWidget : TransparentWidget {
 		PhraseSeq16 *module;
 		std::shared_ptr<Font> font;
 		
-		PatternDisplayWidget() {
+		SequenceDisplayWidget() {
 			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
 		}
 
@@ -628,7 +640,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 			nvgFillColor(vg, textColor);
 			char displayStr[3];
 			snprintf(displayStr, 3, "%2u", (unsigned) (module->params[PhraseSeq16::EDIT_PARAM].value > 0.5f ? 
-				module->pattern : module->phrase[module->phraseIndexEdit]) + 1 );
+				module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};		
@@ -669,7 +681,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int rowRulerMK1 = rowRulerMK0 + 82;
 		static const int columnRulerMK0 = 15;// Octave lights
 		static const int columnRulerMK1 = columnRulerMK0 + 264;// Edit mode and run/reset switches
-		static const int columnRulerMK2 = 350;// Pattern display and knob
+		static const int columnRulerMK2 = 350;// Sequence display and knob
 
 
 
@@ -677,7 +689,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const float octLightsIntY = 21.0f;
 		for (int i = 0; i < 7; i++) {
 			addParam(ParamWidget::create<LEDButton>(Vec(columnRulerMK0 + 3, rowRulerMK0 + 7 + i * octLightsIntY- 4.4f), module, PhraseSeq16::OCTAVE_PARAM + i, 0.0f, 1.0f, 0.0f));
-			addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(columnRulerMK0 + 3 + 4.4f, rowRulerMK0 + 7 + i * octLightsIntY), module, PhraseSeq16::OCTAVE_LIGHTS + i));
+			addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMK0 + 3 + 4.4f, rowRulerMK0 + 7 + i * octLightsIntY), module, PhraseSeq16::OCTAVE_LIGHTS + i));
 		}
 		// Keys and Key lights
 		static const int offsetKeyLEDx = 6;
@@ -716,14 +728,14 @@ struct PhraseSeq16Widget : ModuleWidget {
 		// Reset LED bezel and light
 		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK1 + 17 + offsetLEDbezel, rowRulerMK1 + offsetLEDbezel), module, PhraseSeq16::RESET_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK1 + 17 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK1 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq16::RESET_LIGHT));
-		// Pattern display
-		PatternDisplayWidget *displayPattern = new PatternDisplayWidget();
-		displayPattern->box.pos = Vec(columnRulerMK2-7, rowRulerMK0 + 20 + vOffsetDisplay);
-		displayPattern->box.size = Vec(40, 30);// 2 characters
-		displayPattern->module = module;
-		addChild(displayPattern);
-		// Pattern knob
-		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(columnRulerMK2 + offsetDavies1900, rowRulerMK0 + 72 + offsetDavies1900), module, PhraseSeq16::PATTERN_PARAM, -INFINITY, INFINITY, 0.0f));		
+		// Sequence display
+		SequenceDisplayWidget *displaySequence = new SequenceDisplayWidget();
+		displaySequence->box.pos = Vec(columnRulerMK2-7, rowRulerMK0 + 20 + vOffsetDisplay);
+		displaySequence->box.size = Vec(40, 30);// 2 characters
+		displaySequence->module = module;
+		addChild(displaySequence);
+		// Sequence knob
+		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(columnRulerMK2 + offsetDavies1900, rowRulerMK0 + 72 + offsetDavies1900), module, PhraseSeq16::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f));		
 		
 		
 		// ****** Middle Buttons portion ******

@@ -385,31 +385,27 @@ struct WriteSeq32Widget : ModuleWidget {
 		void cvToStr(int index8) {
 			int index = (module->indexChannel == 3 ? module->indexStepStage : module->indexStep);
 			float cvVal = module->cv[module->indexChannel][index8|(index&0x18)];
-			//if (module->params[WriteSeq32::QUANTIZE_PARAM].value) {
-				float cvValOffset = cvVal +10.0f;//to properly handle negative note voltages
-				int indexNote = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
-				bool sharp = (module->params[WriteSeq32::SHARP_PARAM].value > 0.5f) ? true : false;
-				
-				// note letter
-				text[0] = sharp ? noteLettersSharp[indexNote] : noteLettersFlat[indexNote];
-				
-				// octave number
-				int octave = (int) roundf(floorf(cvVal)+4.0f);
-				if (octave < 0 || octave > 9)
-					text[1] = (octave > 9) ? ':' : '_';
-				else
-					text[1] = (char) ( 0x30 + octave);
-				
-				// sharp/flat
-				text[2] = ' ';
-				if (isBlackKey[indexNote] == 1)
-					text[2] = (sharp ? '\"' : '^' );
-				
-				// end of string
-				text[3] = 0;
-			//}
-			//else  // show first two decimals of fractional part
-			//	snprintf(text, 4, "%2u ", (unsigned)((cvVal-floorf(cvVal))*100.0f));
+			float cvValOffset = cvVal +10.0f;//to properly handle negative note voltages
+			int indexNote = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
+			bool sharp = (module->params[WriteSeq32::SHARP_PARAM].value > 0.5f) ? true : false;
+			
+			// note letter
+			text[0] = sharp ? noteLettersSharp[indexNote] : noteLettersFlat[indexNote];
+			
+			// octave number
+			int octave = (int) roundf(floorf(cvVal)+4.0f);
+			if (octave < 0 || octave > 9)
+				text[1] = (octave > 9) ? ':' : '_';
+			else
+				text[1] = (char) ( 0x30 + octave);
+			
+			// sharp/flat
+			text[2] = ' ';
+			if (isBlackKey[indexNote] == 1)
+				text[2] = (sharp ? '\"' : '^' );
+			
+			// end of string
+			text[3] = 0;
 		}
 
 		void draw(NVGcontext *vg) override {
