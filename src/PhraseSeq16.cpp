@@ -36,6 +36,8 @@ struct PhraseSeq16 : Module {
 		PASTESYNC_PARAM,
 		AUTOSTEP_PARAM,
 		ENUMS(KEY_PARAMS, 12),
+		TRANSPOSEU_PARAM,
+		TRANSPOSED_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -115,6 +117,8 @@ struct PhraseSeq16 : Module {
 	SchmittTrigger rotateRightTrigger;
 	SchmittTrigger copyTrigger;
 	SchmittTrigger pasteTrigger;
+	SchmittTrigger transposeDTrigger;
+	SchmittTrigger transposeUTrigger;
 	
 		
 	PhraseSeq16() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -130,7 +134,7 @@ struct PhraseSeq16 : Module {
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
 		stepIndexPhraseRun = 0;
-		phrases = 1;
+		phrases = 4;
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 16; s++) {
 				cv[i][s] = 0.0f;
@@ -550,6 +554,20 @@ struct PhraseSeq16 : Module {
 			gate2[sequence][iRot] = rotGate2;
 			slide[sequence][iRot] = rotSlide;				
 		}	
+		
+		// Transpose
+		float transposeOffset = 0.0f;
+		if (transposeDTrigger.process(params[TRANSPOSED_PARAM].value)) {
+			transposeOffset = -1.0f/12.0f;
+		}
+		if (transposeUTrigger.process(params[TRANSPOSEU_PARAM].value)) {
+			transposeOffset = 1.0f/12.0f;
+		}
+		if (transposeOffset != 0.0f && editingSequence) {
+			for (int s = 0; s < 16; s++) {
+				cv[sequence][s] += transposeOffset;
+			}
+		}
 
 		// Gate1, Gate2 and slide buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
@@ -634,6 +652,7 @@ struct PhraseSeq16 : Module {
 			phraseIndexEdit = 0;
 			phraseIndexRun = 0;
 			resetLight = 1.0f;
+			pendingPaste = 0;
 		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
@@ -727,10 +746,10 @@ struct PhraseSeq16Widget : ModuleWidget {
 		setPanel(SVG::load(assetPlugin(plugin, "res/PhraseSeq16.svg")));
 
 		// Screws
-		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 0)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 0)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 365)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 365)));
 
 		
 		// ****** Top portion ******
@@ -817,37 +836,40 @@ struct PhraseSeq16Widget : ModuleWidget {
 		
 		// ****** Middle Buttons portion ******
 		
-		static const int rowRulerMB0 = 224;
-		static const int rowRulerMB1 = rowRulerMB0 + 36;
+		static const int rowRulerMB0 = 214;
+		static const int rowRulerMB1 = rowRulerMB0 + 46;
 		static const int columnRulerMB0 = 22;// Oct
-		static const int columnRulerMBspacing = 54;
+		static const int columnRulerMBspacing = 59;
 		static const int columnRulerMB1 = columnRulerMB0 + columnRulerMBspacing;// Gate1
 		static const int columnRulerMB2 = columnRulerMB1 + columnRulerMBspacing;// Gate2
-		static const int columnRulerMB3 = columnRulerMB2 + columnRulerMBspacing + 12;// Slide
+		static const int columnRulerMB3 = columnRulerMB2 + columnRulerMBspacing;// Slide
 		static const int columnRulerMB4 = columnRulerMK1 - 2;// Attach and rotate
 		static const int columnRulerMB5 = columnRulerMK2;// Copy-paste and paste sync
 		
+		// Gate 1 light and button
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 + 25 + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::GATE1_LIGHT));		
+		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB1 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::GATE1_PARAM, 0.0f, 1.0f, 0.0f));
+		// Gate 2 light and button
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB2 + 25 + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::GATE2_LIGHT));		
+		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB2 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::GATE2_PARAM, 0.0f, 1.0f, 0.0f));
+		// Slide light, button and knob
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB3 + 25 + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::SLIDE_LIGHT));		
+		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB3 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(columnRulerMB3 + offsetRoundSmallBlackKnob, rowRulerMB1 + offsetRoundSmallBlackKnob), module, PhraseSeq16::SLIDE_KNOB_PARAM, 1.0f, 31.0f, 16.0f));		
+		// Attach button and light
+		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB4 - 10, rowRulerMB0 + offsetTL1105), module, PhraseSeq16::ATTACH_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB4 + 14 + offsetMediumLight, rowRulerMB0 - 1 + offsetMediumLight), module, PhraseSeq16::ATTACH_LIGHT));		
+		// Copy/paste buttons
+		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB5 - 10, rowRulerMB0 + offsetTL1105), module, PhraseSeq16::COPY_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB5 + 20, rowRulerMB0 + offsetTL1105), module, PhraseSeq16::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
 		// Autostep
 		addParam(ParamWidget::create<CKSS>(Vec(columnRulerMB0 + 2 + hOffsetCKSS, rowRulerMB1 + 1 + vOffsetCKSS), module, PhraseSeq16::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
-		// Gate 1 light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 + offsetMediumLight, rowRulerMB0 + offsetMediumLight), module, PhraseSeq16::GATE1_LIGHT));		
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB1 + offsetCKD6, rowRulerMB1 + offsetCKD6), module, PhraseSeq16::GATE1_PARAM, 0.0f, 1.0f, 0.0f));
-		// Gate 2 light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB2 + offsetMediumLight, rowRulerMB0 + offsetMediumLight), module, PhraseSeq16::GATE2_LIGHT));		
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB2 + offsetCKD6, rowRulerMB1 + offsetCKD6), module, PhraseSeq16::GATE2_PARAM, 0.0f, 1.0f, 0.0f));
-		// Slide light, knob and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB3 - 21 + offsetMediumLight, rowRulerMB0 + offsetMediumLight), module, PhraseSeq16::SLIDE_LIGHT));		
-		addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(columnRulerMB3 + 21 + offsetRoundSmallBlackKnob, rowRulerMB0 + offsetRoundSmallBlackKnob), module, PhraseSeq16::SLIDE_KNOB_PARAM, 1.0f, 31.0f, 16.0f));		
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB3 + offsetCKD6, rowRulerMB1 + offsetCKD6), module, PhraseSeq16::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f));
-		// Attach button and light
-		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB4 - 10, rowRulerMB0 - 10 + offsetTL1105), module, PhraseSeq16::ATTACH_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB4 + 14 + offsetMediumLight, rowRulerMB0 - 11 + offsetMediumLight), module, PhraseSeq16::ATTACH_LIGHT));		
+		// Transpose
+		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB1 - 3 + offsetTL1105, rowRulerMB1 + 1 + offsetTL1105), module, PhraseSeq16::TRANSPOSED_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB2 + 22 + offsetTL1105, rowRulerMB1 + 1 + offsetTL1105), module, PhraseSeq16::TRANSPOSEU_PARAM, 0.0f, 1.0f, 0.0f));
 		// Rotate buttons
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB4 - 10, rowRulerMB1 - 1 + offsetTL1105), module, PhraseSeq16::ROTATEL_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB4 + 20, rowRulerMB1 - 1 + offsetTL1105), module, PhraseSeq16::ROTATER_PARAM, 0.0f, 1.0f, 0.0f));
-		// Copy/paste buttons
-		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB5 - 10, rowRulerMB0 - 10 + offsetTL1105), module, PhraseSeq16::COPY_PARAM, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB5 + 20, rowRulerMB0 - 10 + offsetTL1105), module, PhraseSeq16::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
 		// Paste sync (and light)
 		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRulerMB5 - 6 + hOffsetCKSS, rowRulerMB1 - 1 + vOffsetCKSSThree), module, PhraseSeq16::PASTESYNC_PARAM, 0.0f, 2.0f, 0.0f));	
 		addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(columnRulerMB5 - 6 + 41, rowRulerMB1 - 1 + 14), module, PhraseSeq16::PENDING_LIGHT));
@@ -860,10 +882,10 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int outputJackSpacingX = 54;
 		static const int columnRulerB5 = columnRulerB6 - outputJackSpacingX;
 		static const int columnRulerB4 = columnRulerB5 - outputJackSpacingX;
-		static const int columnRulerB0 = columnRulerMB0;
-		static const int columnRulerB1 = columnRulerMB1;
-		static const int columnRulerB2 = columnRulerMB2;
-		static const int columnRulerB3 = columnRulerMB2 + columnRulerMBspacing;
+		static const int columnRulerB0 = 22;
+		static const int columnRulerB1 = columnRulerB0 + outputJackSpacingX;
+		static const int columnRulerB2 = columnRulerB1 + outputJackSpacingX;
+		static const int columnRulerB3 = columnRulerB2 + outputJackSpacingX;
 
 		// Inputs
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq16::WRITE_INPUT));

@@ -25,6 +25,23 @@ void init(rack::Plugin *p) {
 	p->addModel(modelPhraseSeq16);
 }
 
+SVGScrewRot::SVGScrewRot() {
+	tw = new TransformWidget();
+	addChild(tw);
+	sw = new SVGWidget();
+	tw->addChild(sw);
+}
+ScrewSilverRandomRot::ScrewSilverRandomRot() {
+	sw->setSVG(SVG::load(assetGlobal("res/ComponentLibrary/ScrewSilver.svg")));
+	box.size = sw->box.size;
+	tw->box.size = sw->box.size;
+	tw->identity();
+	// Rotate SVG
+	Vec center = sw->box.getCenter();
+	tw->translate(center);
+	tw->rotate(randomUniform()*2.0f*M_PI);
+	tw->translate(center.neg());
+}
 
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box) {
 	NVGcolor backgroundColor = nvgRGB(0x38, 0x38, 0x38); 

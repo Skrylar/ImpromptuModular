@@ -344,6 +344,7 @@ struct WriteSeq32 : Module {
 		if (resetTrigger.process(inputs[RESET_INPUT].value)) {
 			indexStep = 0;
 			indexStepStage = 0;	
+			pendingPaste = 0;
 		}
 
 		int index = (indexChannel == 3 ? indexStepStage : indexStep);
@@ -463,10 +464,10 @@ struct WriteSeq32Widget : ModuleWidget {
 		setPanel(SVG::load(assetPlugin(plugin, "res/WriteSeq32.svg")));
 
 		// Screws
-		addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-		addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
-		addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 0)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 0)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 365)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 365)));
 
 		// Column rulers (horizontal positions)
 		static const int columnRuler0 = 25;

@@ -13,6 +13,7 @@
 #include "rack.hpp"
 
 
+
 using namespace rack;
 
 
@@ -122,6 +123,15 @@ struct InvisibleKeySmall : MomentarySwitch {
 	InvisibleKeySmall() {
 		box.size = Vec(23, 50);
 	}
+};
+
+struct SVGScrewRot : FramebufferWidget {
+	SVGWidget *sw;
+	TransformWidget *tw;
+	SVGScrewRot();
+};
+struct ScrewSilverRandomRot : SVGScrewRot {
+	ScrewSilverRandomRot();
 };
 
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box);
