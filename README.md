@@ -184,7 +184,3 @@ Here are some specific details on elements of the faceplate. Familiarity with Fu
 * **Reset input/button**: repositions the run and edit heads of the sequence or song to the first step. A rising edge triggered at 1.0V will be detected as a reset. Pending pastes are also cleared.
 
 * **Clock**: when the sequencer is running, each rising edge (1.0V threshold) will advance the sequencer by one step. The width (duration) of the high pulse of the clock is used as the width (duration) of the gate outputs. 
-
-
-UNDER DEVELOPMENT, TO BE CONTINUED
-
