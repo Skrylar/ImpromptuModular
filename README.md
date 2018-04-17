@@ -1,6 +1,6 @@
 # Impromptu Modular: Modules for [VCV Rack](https://vcvrack.com) by Marc Boulé
 
-Version 0.6.1
+Version 0.6.2
 
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!)
 
@@ -20,6 +20,8 @@ See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
 * [Write-Seq-32](#write-seq-32): 32-step sequencer with CV in for easy sequence programming.
 
 * [Write-Seq-64](#write-seq-64): 64-step sequencer with CV in for easy sequence programming.
+
+* [Phrase-Seq-16](#phrase-seq-16): 16-phrase sequencer with 16 steps per sequence.
 
 Details about each module are given below. Feedback and bug reports are always appreciated!
 
@@ -132,3 +134,20 @@ Here are some specific details on elements of the faceplate which differ compare
 * **Clock 1,2**: Clock signal for channels 1 and 2.
 
 * **Clock 3,4**: Clock signal for channels 3 and 4. If no wire is connected, _Clock 1,2_ is used internally for channels 3 and 4.
+
+
+
+# Phrase-Seq-16 <a id="phrase-seq-16"></a>
+
+![IM](PhraseSeq16.jpg)
+
+A 16 phrase sequencer module where each phrase is an index into a set of 16 defined sequences of 16 steps (maximum). CVs can be entered via a CV input when using an external keyboard controller or via the builtin keyboard on the module itself.
+
+Here are some specific details on elements of the faceplate. Familiarity with Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers.
+
+* **Seq/Song**: This is the main switch that controls the two major modes of the sequencer. When in Seq mode with a running sequencer, the sequencer plays the sequence currently selected with the Seq# knob. In this mode, all controls are available (transpose, rotate, copy-paste, etc.). When the sequencer is Song mode and is running, the sequencer plays the series of sequences indexed by the series of phrases. In this mode, very few controls are available.
+
+* **Length**: When in SEQ mode, allows the arrow buttons to select the length of sequences (number of steps, default is 16). When in SONG mode, allows the arrow buttons to select the number of phrases in the song (default is 4).
+
+UNDER DEVELOPMENT, TO BE CONTINUED
+

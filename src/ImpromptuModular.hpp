@@ -125,12 +125,12 @@ struct InvisibleKeySmall : MomentarySwitch {
 	}
 };
 
-struct SVGScrewRot : FramebufferWidget {
+struct SVGScrewRot : FramebufferWidget {// location: include/app.hpp and src/app/SVGScrew.cpp [some code also from src/app/SVGKnob.cpp]
 	SVGWidget *sw;
 	TransformWidget *tw;
 	SVGScrewRot();
 };
-struct ScrewSilverRandomRot : SVGScrewRot {
+struct ScrewSilverRandomRot : SVGScrewRot {// include/componentlibrary.hpp
 	ScrewSilverRandomRot();
 };
 

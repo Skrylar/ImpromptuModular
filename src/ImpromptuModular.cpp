@@ -34,7 +34,7 @@ SVGScrewRot::SVGScrewRot() {
 ScrewSilverRandomRot::ScrewSilverRandomRot() {
 	sw->setSVG(SVG::load(assetGlobal("res/ComponentLibrary/ScrewSilver.svg")));
 	box.size = sw->box.size;
-	tw->box.size = sw->box.size;
+	tw->box.size = sw->box.size; 
 	tw->identity();
 	// Rotate SVG
 	Vec center = sw->box.getCenter();
