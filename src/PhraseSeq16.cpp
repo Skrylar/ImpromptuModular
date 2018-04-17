@@ -848,8 +848,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int rowRulerMB0 = 214;
 		static const int rowRulerMB1 = rowRulerMB0 + 46;
 		static const int columnRulerMB0 = 22;// Oct
-		static const int columnRulerMBspacing = 59;
-		static const int columnRulerMB1 = columnRulerMB0 + columnRulerMBspacing;// Gate1
+		static const int columnRulerMBspacing = 62;
+		static const int columnRulerMB1 = columnRulerMB0 + 54;// Gate1
 		static const int columnRulerMB2 = columnRulerMB1 + columnRulerMBspacing;// Gate2
 		static const int columnRulerMB3 = columnRulerMB2 + columnRulerMBspacing;// Slide
 		static const int columnRulerMB4 = columnRulerMK1 - 2;// Attach and rotate

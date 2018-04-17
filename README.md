@@ -143,7 +143,13 @@ Here are some specific details on elements of the faceplate which differ compare
 
 A 16 phrase sequencer module where each phrase is an index into a set of 16 defined sequences of 16 steps (maximum). CVs can be entered via a CV input when using an external keyboard controller or via the builtin keyboard on the module itself.
 
-Here are some specific details on elements of the faceplate. Familiarity with Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers.
+Ideas: If you need a 256-step sequence in one module, this is the sequencer for you!
+
+The following block diagram shows how sequences and phrases relate to each other to create a song. In the diagram, a 12-bar blues pattern is created by setting the song length to 12, the step lengths to 8 (not visible in the figure), and then creating 5 sequences. The 12 phrases then become indexes into the 5 sequences that were created.
+
+![IM](PhraseSeq16BlockDiag.jpg)
+
+Here are some specific details on elements of the faceplate. Familiarity with Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers. 
 
 * **Seq/Song**: This is the main switch that controls the two major modes of the sequencer. When in Seq mode with a running sequencer, the sequencer plays the sequence currently selected with the Seq# knob. In this mode, all controls are available (transpose, rotate, copy-paste, etc.). When the sequencer is Song mode and is running, the sequencer plays the series of sequences indexed by the series of phrases. In this mode, very few controls are available.
 
