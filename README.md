@@ -29,7 +29,7 @@ Details about each module are given below. Feedback and bug reports are always a
 
 # Twelve-Key <a id="twelve-key"></a>
 
-![IM](TwelveKey.jpg)
+![IM](res/img/TwelveKey.jpg)
 
 A chainable keyboard controller for your virtual Rack. When multiple Twelve-Key modules are connected in series from left to right, only the octave of the left-most module needs to be set, all other downchain modules' octaves are set automatically. The aggregate output is that of the right-most module. To set up a chain of Twelve-Key modules, simply connect the three ouputs on the right side of a module to the three inputs of the next module beside it (typically to the right).
 
@@ -49,7 +49,7 @@ Here are some specific details on each element on the faceplate of the module.
 
 # Write-Seq-32 <a id="write-seq-32"></a>
 
-![IM](WriteSeq32.jpg)
+![IM](res/img/WriteSeq32.jpg)
 
 A three channel 32-step writable sequencer module. This sequencer was designed to allow the entering of notes into a sequencer in a quick and natural manner when using, for example:
 
@@ -115,7 +115,7 @@ Here are some specific details on each element on the faceplate of the module. F
 
 # Write-Seq-64 <a id="write-seq-64"></a>
 
-![IM](WriteSeq64.jpg)
+![IM](res/img/WriteSeq64.jpg)
 
 A four channel 64-step writable sequencer module. This sequencer is based on Write-Seq-32, both of which share many of the same functionalities. Write-Seq-64 has dual clock inputs (each controls a pair of channels). This sequencer is more versatile than Write-Seq-32 since each channel has its own step position and maximum number of steps. Sequences of different lengths can be created, with different starting points.
 
@@ -139,7 +139,7 @@ Here are some specific details on elements of the faceplate which differ compare
 
 # Phrase-Seq-16 <a id="phrase-seq-16"></a>
 
-![IM](PhraseSeq16.jpg)
+![IM](res/img/PhraseSeq16.jpg)
 
 A 16 phrase sequencer module where each phrase is an index into a set of 16 defined sequences of 16 steps (maximum). CVs can be entered via a CV input when using an external keyboard controller or via the builtin keyboard on the module itself.
 
@@ -147,7 +147,7 @@ Ideas: If you need a 256-step sequence in one module, this is the sequencer for 
 
 The following block diagram shows how sequences and phrases relate to each other to create a song. In the diagram, a 12-bar blues pattern is created by setting the song length to 12, the step lengths to 8 (not visible in the figure), and then creating 4 sequences. The 12 phrases are indexes into the 4 sequences that were created.
 
-![IM](PhraseSeq16BlockDiag.jpg)
+![IM](res/img/PhraseSeq16BlockDiag.jpg)
 
 Here are some specific details on elements of the faceplate. Familiarity with Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers. 
 
