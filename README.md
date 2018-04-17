@@ -145,7 +145,7 @@ A 16 phrase sequencer module where each phrase is an index into a set of 16 defi
 
 Ideas: If you need a 256-step sequence in one module, this is the sequencer for you!
 
-The following block diagram shows how sequences and phrases relate to each other to create a song. In the diagram, a 12-bar blues pattern is created by setting the song length to 12, the step lengths to 8 (not visible in the figure), and then creating 5 sequences. The 12 phrases are indexes into the 5 sequences that were created.
+The following block diagram shows how sequences and phrases relate to each other to create a song. In the diagram, a 12-bar blues pattern is created by setting the song length to 12, the step lengths to 8 (not visible in the figure), and then creating 4 sequences. The 12 phrases are indexes into the 4 sequences that were created.
 
 ![IM](PhraseSeq16BlockDiag.jpg)
 
