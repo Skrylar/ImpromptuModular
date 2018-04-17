@@ -107,7 +107,7 @@ Here are some specific details on each element on the faceplate of the module. F
 
 * **Step L/R inputs**: control voltages for step selection (STEP L/R buttons). A rising edge triggered at 1.0V will step the sequencer left/right by one step.
 
-* **Reset input**: repositions the sequencer at the first step. A rising edge triggered at 1.0V will be detected as a reset.
+* **Reset input**: repositions the sequencer at the first step. A rising edge triggered at 1.0V will be detected as a reset. Pending pastes are also cleared.
 
 * **Clock**: when the sequencer is running, each rising edge (1.0V threshold) will advance the sequencer by one step. The width (duration) of the high pulse of the clock is used as the width (duration) of the gate outputs. 
 
@@ -129,7 +129,7 @@ Here are some specific details on elements of the faceplate which differ compare
 
 * **Steps**: Sets the number of steps of the currently selected sequence (sequence length). Each channel can have different lengths. This value is included as part of a copy-paste operation.
 
-* **Reset input/button**: repositions all channels to their first step. A rising edge triggered at 1.0V will be detected as a reset.
+* **Reset input/button**: repositions all channels to their first step. A rising edge triggered at 1.0V will be detected as a reset. Pending pastes are also cleared.
 
 * **Clock 1,2**: Clock signal for channels 1 and 2.
 
@@ -145,15 +145,46 @@ A 16 phrase sequencer module where each phrase is an index into a set of 16 defi
 
 Ideas: If you need a 256-step sequence in one module, this is the sequencer for you!
 
-The following block diagram shows how sequences and phrases relate to each other to create a song. In the diagram, a 12-bar blues pattern is created by setting the song length to 12, the step lengths to 8 (not visible in the figure), and then creating 5 sequences. The 12 phrases then become indexes into the 5 sequences that were created.
+The following block diagram shows how sequences and phrases relate to each other to create a song. In the diagram, a 12-bar blues pattern is created by setting the song length to 12, the step lengths to 8 (not visible in the figure), and then creating 5 sequences. The 12 phrases are indexes into the 5 sequences that were created.
 
 ![IM](PhraseSeq16BlockDiag.jpg)
 
 Here are some specific details on elements of the faceplate. Familiarity with Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers. 
 
-* **Seq/Song**: This is the main switch that controls the two major modes of the sequencer. When in Seq mode with a running sequencer, the sequencer plays the sequence currently selected with the Seq# knob. In this mode, all controls are available (transpose, rotate, copy-paste, etc.). When the sequencer is Song mode and is running, the sequencer plays the series of sequences indexed by the series of phrases. In this mode, very few controls are available.
+* **Seq/Song**: This is the main switch that controls the two major modes of the sequencer. When in Seq mode with a running sequencer, the sequencer plays the currently selected sequence indicated by the Seq# knob. In this mode, all controls are available (transpose, rotate, copy-paste, gates, slide, octave, notes). When the sequencer is in Song mode and is running, the sequencer plays the sequences indexed by the series of phrases. In this mode, the aforementioned controls are unavailable.
 
-* **Length**: When in SEQ mode, allows the arrow buttons to select the length of sequences (number of steps, default is 16). When in SONG mode, allows the arrow buttons to select the number of phrases in the song (default is 4).
+* **Length**: When in SEQ mode, allows the arrow buttons to select the length of sequences (number of steps, the default is 16). All sequences have the same length. When in SONG mode, allows the arrow buttons to select the number of phrases in the song (the default is 4).
+
+* **Seq#**: In Seq mode, this number determines which sequence is being editied/played. In Song mode, this number determines the sequence index for the currently selected phrase; the selected phrase is shown in the 16 LEDs at the top of the module).
+
+* **Attach**: Allows the edit head to follow the run head (attach on). The position of the edit head is shown with a red LED, and the position of the run head is shown by a green LED. When in Sequence mode, the actual content of a step (i.e. note, oct, gates, slide) of the sequence can be modified in real time as the sequencer is advancing (_attach_ on), or manually by using the < and > buttons (_attach_ off).
+
+* **Oct and keyboard**: When in Sequence mode, the octave LED buttons and the keyboard can be used to set the notes of a sequence.
+
+* **CV In**: This pitch CV is written into the current step of the selected sequence. Any voltage between -10.0V and 10.0V is supported. When a pitch is not quantized, the closest key is illuminated; octaves greater than 7 or smaller than 1 are not displayed by the octave LEDs.
+
+* **Write input**: control voltage for writing CVs into the sequencer. A rising edge triggered at 1.0V will perform the write action.
+
+* **Autostep**: Will automatically step the sequencer one step right on each write. This works with the _Write input_ only, and has no effect when entering notes with the onboard keys.
+
+* **Gate 1, 2**: Gate signal outputs for each channel at the current step. The duration of the gates corresponds to the high time of the clock signal. Gates can be turned on/off using the Gate buttons. Gate 2 is perfect for using as an acctent if desired.
+
+* **Slide**: Typical portamento between CVs of successive steps. Slide can be activated for a given step using the slide button. The slide duration (0 to 2 seconds) can be set using the small knob below the slide button. This knob's setting is not memorized for each step, it applies to the sequencer as a whole.
+
+* **Transpose**: Increse/decrease the CVs of the currently selected sequence by one semitone. Only available in Seq mode.
+
+* **Rotate**: Rotate (left or right) the steps of the currently selected sequence by one step. Only available in Seq mode.
+
+* **Copy-Paste**: Copy and paste the CVs, gates and slide states of a sequence into another sequence. Press the left button to copy the channel into a buffer, then select another sequence and press the right button to paste. All 16 steps are copied irrespective of the length of the sequences. Only available in Seq mode.
+
+* **Paste sync**: Determines whether to paste in real time (RT), on the next clock (CLK), or at the next sequence start (SEQ). Pending pastes are shown by a red LED beside CLK/SEQ, and if the selected sequence changes, the paste opertion will be performed in the sequence that was selected when the paste button was pressed.
+
+* **CV**: pitch CV output of the sequence/song the current step.
+
+* **Reset input/button**: repositions the run and edit heads of the sequence or song to the first step. A rising edge triggered at 1.0V will be detected as a reset. Pending pastes are also cleared.
+
+* **Clock**: when the sequencer is running, each rising edge (1.0V threshold) will advance the sequencer by one step. The width (duration) of the high pulse of the clock is used as the width (duration) of the gate outputs. 
+
 
 UNDER DEVELOPMENT, TO BE CONTINUED
 

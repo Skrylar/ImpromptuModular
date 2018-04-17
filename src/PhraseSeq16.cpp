@@ -93,6 +93,8 @@ struct PhraseSeq16 : Module {
 	float resetLight = 0.0f;
 	unsigned long editingLength;// 0 when not editing length, downward step counter timer when editing length
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
+	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
+	float slideCVdelta;// no need to initialize, this is a companion to slideStepsRemain
 	float cvCPbuffer[16];// copy paste buffer for CVs
 	bool gate1CPbuffer[16];// copy paste buffer for gate1
 	bool gate2CPbuffer[16];// copy paste buffer for gate2
@@ -151,6 +153,7 @@ struct PhraseSeq16 : Module {
 		sequenceKnob = 0;
 		editingLength = 0ul;
 		editingGate = 0ul;
+		slideStepsRemain = 0ul;
 		attach = 1.0f;
 		pendingPaste = 0;
 	}
@@ -181,6 +184,7 @@ struct PhraseSeq16 : Module {
 		sequenceKnob = 0;
 		editingLength = 0ul;
 		editingGate = 0ul;
+		slideStepsRemain = 0ul;
 		attach = 1.0f;
 		pendingPaste = 0;
 	}
@@ -439,10 +443,6 @@ struct PhraseSeq16 : Module {
 			else
 				editingLength = (unsigned long) (editTime * engineGetSampleRate());
 		}
-		else {
-			if (editingLength > 0ul)
-				editingLength--;
-		}
 		
 		// Left and right buttons
 		int delta = 0;
@@ -589,22 +589,33 @@ struct PhraseSeq16 : Module {
 				slide[sequence][stepIndexEdit] = !slide[sequence][stepIndexEdit];
 		}		
 		
-	
 		// Clock
 		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
 			if (running) {
+				float slideFromCV = 0.0f;
+				float slideToCV = 0.0f;
 				if (editingSequence) {
+					slideFromCV = cv[sequence][stepIndexRun];
 					stepIndexRun++;
 					if (stepIndexRun >= steps) stepIndexRun = 0;
+					slideToCV = cv[sequence][stepIndexRun];
 				}
 				else {
+					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
 					stepIndexPhraseRun++;
 					if (stepIndexPhraseRun >= steps) {
 						stepIndexPhraseRun = 0;
 						phraseIndexRun++;
 						if (phraseIndexRun >= phrases) 
 							phraseIndexRun = 0;
-					}	
+					}
+					slideToCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
+				}
+				
+				// Slide
+				if ( (editingSequence && slide[sequence][stepIndexRun]) || (!editingSequence && slide[phrase[phraseIndexRun]][stepIndexPhraseRun]) ) {
+					slideStepsRemain = (unsigned long) (params[SLIDE_KNOB_PARAM].value * engineGetSampleRate());// avtivate sliding
+					slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
 				}
 			
 				// Pending paste on clock or end of seq
@@ -625,13 +636,14 @@ struct PhraseSeq16 : Module {
 		
 		// CV and gates outputs
 		if (running) {
+			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
 			if (editingSequence) {// editing sequence while running
-				outputs[CV_OUTPUT].value = cv[sequence][stepIndexRun];
+				outputs[CV_OUTPUT].value = cv[sequence][stepIndexRun] - slideOffset;
 				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1[sequence][stepIndexRun]) ? 10.0f : 0.0f;
 				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2[sequence][stepIndexRun]) ? 10.0f : 0.0f;
 			}
 			else {// editing song while running
-				outputs[CV_OUTPUT].value = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
+				outputs[CV_OUTPUT].value = cv[phrase[phraseIndexRun]][stepIndexPhraseRun] - slideOffset;
 				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1[phrase[phraseIndexRun]][stepIndexPhraseRun]) ? 10.0f : 0.0f;
 				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2[phrase[phraseIndexRun]][stepIndexPhraseRun]) ? 10.0f : 0.0f;
 			}
@@ -648,8 +660,6 @@ struct PhraseSeq16 : Module {
 				outputs[GATE2_OUTPUT].value = 0.0f;
 			}
 		}
-		if (editingGate > 0ul)
-			editingGate--;
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
@@ -720,6 +730,13 @@ struct PhraseSeq16 : Module {
 
 		// Pending paste light
 		lights[PENDING_LIGHT].value = (pendingPaste == 0 ? 0.0f : 1.0f);
+		
+		if (editingGate > 0ul)
+			editingGate--;
+		if (editingLength > 0ul)
+			editingLength--;
+		if (slideStepsRemain > 0ul)
+			slideStepsRemain--;
 	}
 };
 
@@ -864,7 +881,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		// Slide light, button and knob
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB3 + 25 + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::SLIDE_LIGHT));		
 		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB3 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(columnRulerMB3 + offsetRoundSmallBlackKnob, rowRulerMB1 + offsetRoundSmallBlackKnob), module, PhraseSeq16::SLIDE_KNOB_PARAM, 1.0f, 31.0f, 16.0f));		
+		addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(columnRulerMB3 + offsetRoundSmallBlackKnob, rowRulerMB1 + offsetRoundSmallBlackKnob), module, PhraseSeq16::SLIDE_KNOB_PARAM, 0.0f, 2.0f, 0.25f));// slide time in seconds		
 		// Attach button and light
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB4 - 10, rowRulerMB0 + offsetTL1105), module, PhraseSeq16::ATTACH_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB4 + 14 + offsetMediumLight, rowRulerMB0 - 1 + offsetMediumLight), module, PhraseSeq16::ATTACH_LIGHT));		
