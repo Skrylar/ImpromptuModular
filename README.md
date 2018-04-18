@@ -141,7 +141,7 @@ Here are some specific details on elements of the faceplate which differ compare
 
 ![IM](res/img/PhraseSeq16.jpg)
 
-A 16 phrase sequencer module where each phrase is an index into a set of 16 defined sequences of 16 steps (maximum). CVs can be entered via a CV input when using an external keyboard controller or via the built-in keyboard on the module itself.
+A 16 phrase sequencer module where each phrase is an index into a set of 16 sequences of 16 steps (maximum). CVs can be entered via a CV input when using an external keyboard controller or via the built-in keyboard on the module itself.
 
 Ideas: If you need a 256-step sequence in a single module, this is the sequencer for you!
 
