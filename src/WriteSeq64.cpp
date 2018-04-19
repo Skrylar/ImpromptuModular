@@ -567,6 +567,12 @@ struct WriteSeq64Widget : ModuleWidget {
 		// Main panel from Inkscape
 		setPanel(SVG::load(assetPlugin(plugin, "res/WriteSeq64.svg")));
 
+		// Screw holes
+		addChild(new ScrewHole(Vec(15, 0)));
+		addChild(new ScrewHole(Vec(box.size.x-30, 0)));
+		addChild(new ScrewHole(Vec(15, 365)));
+		addChild(new ScrewHole(Vec(box.size.x-30, 365)));
+
 		// Screws
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 0)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 0)));

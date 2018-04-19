@@ -134,6 +134,11 @@ struct ScrewSilverRandomRot : SVGScrewRot {// include/componentlibrary.hpp
 	ScrewSilverRandomRot();
 };
 
+struct ScrewHole : TransparentWidget {
+	ScrewHole(Vec posGiven);
+	void draw(NVGcontext *vg) override;
+};	
+
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box);
 int moveIndex(int index, int indexNext, int numSteps);
 
