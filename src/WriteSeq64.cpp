@@ -61,7 +61,6 @@ struct WriteSeq64 : Module {
 	// Need to save
 	bool running;
 	int indexChannel;
-	int indexStep[5];// [0;63] each
 	int indexSteps[5];// [1;64] each
 	float cv[5][64] = {};
 	bool gates[5][64] = {};
@@ -69,6 +68,7 @@ struct WriteSeq64 : Module {
 	int stepsKnob = 0;// save this so no delta triggered when close/open Rack
 
 	// No need to save
+	int indexStep[5];// [0;63] each
 	float cvCPbuffer[64];// copy paste buffer for CVs
 	float gateCPbuffer[64];// copy paste buffer for gates
 	int stepsCPbuffer;
@@ -144,10 +144,10 @@ struct WriteSeq64 : Module {
 		json_object_set_new(rootJ, "indexChannel", json_integer(indexChannel));
 
 		// indexStep 
-		json_t *indexStepJ = json_array();
+		/*json_t *indexStepJ = json_array();
 		for (int c = 0; c < 5; c++)
 			json_array_insert_new(indexStepJ, c, json_integer(indexStep[c]));
-		json_object_set_new(rootJ, "indexStep", indexStepJ);
+		json_object_set_new(rootJ, "indexStep", indexStepJ);*/
 		
 		// indexSteps 
 		json_t *indexStepsJ = json_array();
@@ -192,14 +192,14 @@ struct WriteSeq64 : Module {
 			indexChannel = json_integer_value(indexChannelJ);
 		
 		// indexStep
-		json_t *indexStepJ = json_object_get(rootJ, "indexStep");
+		/*json_t *indexStepJ = json_object_get(rootJ, "indexStep");
 		if (indexStepJ)
 			for (int c = 0; c < 5; c++)
 			{
 				json_t *indexStepArrayJ = json_array_get(indexStepJ, c);
 				if (indexStepArrayJ)
 					indexStep[c] = json_integer_value(indexStepArrayJ);
-			}
+			}*/
 		
 		// indexSteps
 		json_t *indexStepsJ = json_object_get(rootJ, "indexSteps");
@@ -408,7 +408,7 @@ struct WriteSeq64 : Module {
 			for (int t = 0; t < 5; t++)
 				indexStep[t] = 0;
 			resetLight = 1.0f;
-			pendingPaste = 0;
+			//pendingPaste = 0;
 		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();

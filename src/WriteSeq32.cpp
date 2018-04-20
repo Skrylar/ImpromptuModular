@@ -60,13 +60,13 @@ struct WriteSeq32 : Module {
 
 	// Need to save
 	bool running;
-	int indexStep;
-	int indexStepStage;
 	int indexChannel;
 	float cv[4][32] = {};
 	bool gates[4][32] = {};
 
 	// No need to save
+	int indexStep;
+	int indexStepStage;
 	int notesPos[8]; // used for rendering notes in LCD_24, 8 gate and 8 step LEDs 
 	float cvCPbuffer[32];// copy paste buffer for CVs
 	bool gateCPbuffer[32];// copy paste buffer for gates
@@ -128,8 +128,8 @@ struct WriteSeq32 : Module {
 		json_object_set_new(rootJ, "running", json_boolean(running));
 
 		// indexStep, indexStepStage, indexChannel
-		json_object_set_new(rootJ, "indexStep", json_integer(indexStep));
-		json_object_set_new(rootJ, "indexStepStage", json_integer(indexStepStage));
+		//json_object_set_new(rootJ, "indexStep", json_integer(indexStep));
+		//json_object_set_new(rootJ, "indexStepStage", json_integer(indexStepStage));
 		json_object_set_new(rootJ, "indexChannel", json_integer(indexChannel));
 
 		// CV
@@ -158,12 +158,12 @@ struct WriteSeq32 : Module {
 			running = json_is_true(runningJ);
 		
 		// indexStep, indexStepStage, indexChannel
-		json_t *indexStepJ = json_object_get(rootJ, "indexStep");
+		/*json_t *indexStepJ = json_object_get(rootJ, "indexStep");
 		if (indexStepJ)
 			indexStep = json_integer_value(indexStepJ);
 		json_t *indexStepStageJ = json_object_get(rootJ, "indexStepStage");
 		if (indexStepStageJ)
-			indexStepStage = json_integer_value(indexStepStageJ);
+			indexStepStage = json_integer_value(indexStepStageJ);*/
 		json_t *indexChannelJ = json_object_get(rootJ, "indexChannel");
 		if (indexChannelJ)
 			indexChannel = json_integer_value(indexChannelJ);
@@ -239,10 +239,11 @@ struct WriteSeq32 : Module {
 		}
 		
 		// Gate buttons
-		for (int i =0, iGate = 0; i < 8; i++) {
-			if (gateTriggers[i].process(params[GATE_PARAM + i].value)) {
-				iGate = ( (indexChannel == 3 ? indexStepStage : indexStep) & 0x18) | i;
-				gates[indexChannel][iGate] = !gates[indexChannel][iGate];
+		for (int index8 = 0, iGate = 0; index8 < 8; index8++) {
+			if (gateTriggers[index8].process(params[GATE_PARAM + index8].value)) {
+				iGate = ( (indexChannel == 3 ? indexStepStage : indexStep) & 0x18) | index8;
+				if (iGate < numSteps)// don't toggle gates beyond steps
+					gates[indexChannel][iGate] = !gates[indexChannel][iGate];
 			}
 		}
 
@@ -347,7 +348,7 @@ struct WriteSeq32 : Module {
 		if (resetTrigger.process(inputs[RESET_INPUT].value)) {
 			indexStep = 0;
 			indexStepStage = 0;	
-			pendingPaste = 0;
+			//pendingPaste = 0;
 		}
 
 		int index = (indexChannel == 3 ? indexStepStage : indexStep);
@@ -356,9 +357,10 @@ struct WriteSeq32 : Module {
 			lights[WINDOW_LIGHTS + i].value = ((i == (index >> 3))?1.0f:0.0f);
 		}
 		// Step and gate lights
-		for (int i = 0; i < 8; i++) {
-			lights[STEP_LIGHTS + i].value = (i == (index&0x7)) ? 1.0f : 0.0f;
-			lights[GATE_LIGHTS + i].value = gates[indexChannel][(index&0x18) | i] ? 1.0f : 0.0f;
+		for (int index8 = 0, iGate = 0; index8 < 8; index8++) {
+			lights[STEP_LIGHTS + index8].value = (index8 == (index&0x7)) ? 1.0f : 0.0f;
+			iGate = (index&0x18) | index8;
+			lights[GATE_LIGHTS + index8].value = (gates[indexChannel][iGate] && iGate < numSteps) ? 1.0f : 0.0f;
 		}
 			
 		// Channel lights
@@ -366,6 +368,8 @@ struct WriteSeq32 : Module {
 		setRGBLight(CHANNEL_LIGHTS + 3, 0.4f, 0.5f, 0.0f, (indexChannel == 1));// orange
 		setRGBLight(CHANNEL_LIGHTS + 6, 0.0f, 0.5f, 0.4f, (indexChannel == 2));// turquoise
 		setRGBLight(CHANNEL_LIGHTS + 9, 0.0f, 0.0f, 0.8f, (indexChannel == 3));// blue
+		//if (pendingPaste != 0)
+			//setRGBLight(CHANNEL_LIGHTS + (pendingPaste>>2)*3, 1.0f, 0.0f, 0.0f, true);
 		
 		// Write allowed light
 		lights[WRITE_LIGHT + 0].value = (canEdit)?1.0f:0.0f;
@@ -396,9 +400,9 @@ struct WriteSeq32Widget : ModuleWidget {
 		
 		void cvToStr(int index8) {
 			int index = (module->indexChannel == 3 ? module->indexStepStage : module->indexStep);
-			if ((index8|(index&0x18)) >= (int) clamp(roundf(module->params[WriteSeq32::STEPS_PARAM].value), 1.0f, 32.0f)) {
-				text[0] = '-';
-				text[1] = '-';
+			if ( ( (index&0x18) |index8) >= (int) clamp(roundf(module->params[WriteSeq32::STEPS_PARAM].value), 1.0f, 32.0f) ) {
+				text[0] = ' ';
+				text[1] = ' ';
 			}
 			else {
 				float cvVal = module->cv[module->indexChannel][index8|(index&0x18)];
