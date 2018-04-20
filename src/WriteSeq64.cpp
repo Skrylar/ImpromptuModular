@@ -350,19 +350,8 @@ struct WriteSeq64 : Module {
 			}
 		}
 		
-		// Step L
-		if (stepLTrigger.process(params[STEPL_PARAM].value + inputs[STEPL_INPUT].value)) {
-			if (canEdit) {		
-				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] - 1, indexSteps[indexChannel]); 
-			}
-		}
-		// Step R
-		if (stepRTrigger.process(params[STEPR_PARAM].value + inputs[STEPR_INPUT].value)) {
-			if (canEdit) {		
-				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + 1, indexSteps[indexChannel]); 
-			}
-		}
-		// Write
+		// Write (must be before StepL and StepR in case route gate simultaneously to Step R and Write for example
+		//  (write must be to correct step)
 		if (writeTrigger.process(params[WRITE_PARAM].value + inputs[WRITE_INPUT].value)) {
 			if (canEdit) {		
 				// CV
@@ -373,6 +362,18 @@ struct WriteSeq64 : Module {
 				// Autostep
 				if (params[AUTOSTEP_PARAM].value > 0.5f)
 					indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + 1, indexSteps[indexChannel]);
+			}
+		}
+		// Step L
+		if (stepLTrigger.process(params[STEPL_PARAM].value + inputs[STEPL_INPUT].value)) {
+			if (canEdit) {		
+				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] - 1, indexSteps[indexChannel]); 
+			}
+		}
+		// Step R
+		if (stepRTrigger.process(params[STEPR_PARAM].value + inputs[STEPR_INPUT].value)) {
+			if (canEdit) {		
+				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + 1, indexSteps[indexChannel]); 
 			}
 		}
 		
@@ -567,11 +568,11 @@ struct WriteSeq64Widget : ModuleWidget {
 		// Main panel from Inkscape
 		setPanel(SVG::load(assetPlugin(plugin, "res/WriteSeq64.svg")));
 
-		// Screw holes
-		addChild(new ScrewHole(Vec(15, 0)));
+		// Screw holes (optical illustion makes screws look oval, remove for now)
+		/*addChild(new ScrewHole(Vec(15, 0)));
 		addChild(new ScrewHole(Vec(box.size.x-30, 0)));
 		addChild(new ScrewHole(Vec(15, 365)));
-		addChild(new ScrewHole(Vec(box.size.x-30, 365)));
+		addChild(new ScrewHole(Vec(box.size.x-30, 365)));*/
 
 		// Screws
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 0)));

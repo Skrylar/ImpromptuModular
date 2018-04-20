@@ -34,6 +34,7 @@ SVGScrewRot::SVGScrewRot() {
 }
 ScrewSilverRandomRot::ScrewSilverRandomRot() {
 	sw->setSVG(SVG::load(assetPlugin(plugin, "res/Screw.svg")));
+	//sw->setSVG(SVG::load(assetGlobal("res/ComponentLibrary/ScrewSilver.svg")));
 	box.size = sw->box.size;
 	tw->box.size = sw->box.size; 
 	tw->identity();
@@ -50,8 +51,8 @@ ScrewHole::ScrewHole(Vec posGiven) {
 	box.pos = Vec(posGiven.x, posGiven.y + 4);// nudgeX for realism 0 = no nudge
 }
 void ScrewHole::draw(NVGcontext *vg) {
-	NVGcolor backgroundColor = nvgRGB(0x40, 0x40, 0x40); 
-	NVGcolor borderColor = nvgRGB(0x50, 0x50, 0x50);
+	NVGcolor backgroundColor = nvgRGB(0x10, 0x10, 0x10); 
+	NVGcolor borderColor = nvgRGB(0x20, 0x20, 0x20);
 	nvgBeginPath(vg);
 	nvgRoundedRect(vg, 0.0, 0.0, box.size.x, box.size.y, 2.5f);
 	nvgFillColor(vg, backgroundColor);

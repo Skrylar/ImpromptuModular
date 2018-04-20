@@ -805,9 +805,25 @@ struct PhraseSeq16Widget : ModuleWidget {
 	struct SequenceDisplayWidget : TransparentWidget {
 		PhraseSeq16 *module;
 		std::shared_ptr<Font> font;
+		char displayStr[3];
 		
 		SequenceDisplayWidget() {
 			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
+		}
+		
+		void runModeToStr(int num) {
+			if(num == 0) {
+				displayStr[0] = 'F'; displayStr[1] = 'W'; 
+			} else if (num == 1) {
+				displayStr[0] = 'R'; displayStr[1] = 'V'; 
+			} else if (num == 2) {
+				displayStr[0] = 'F'; displayStr[1] = 'R'; 
+			} else if (num == 3) {
+				displayStr[0] = 'R'; displayStr[1] = 'W'; 
+			} else { // num == 4
+				displayStr[0] = 'R'; displayStr[1] = ' '; 
+			}
+			displayStr[2] = 0;
 		}
 
 		void draw(NVGcontext *vg) override {
@@ -819,15 +835,12 @@ struct PhraseSeq16Widget : ModuleWidget {
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~~", NULL);
 			nvgFillColor(vg, textColor);
-			char displayStr[3];
 			if (module->editingPlayMode > 0ul) {
 				if (module->params[PhraseSeq16::EDIT_PARAM].value > 0.5f) { // if editing sequence
-					displayStr[0] = 'E';
-					displayStr[1] = (char) module->playModeSeq + 0x30;// TODO change this to the proper string
+					runModeToStr(module->playModeSeq);
 				}
 				else {
-					displayStr[0] = 'O';
-					displayStr[1] = (char) module->playModeSong + 0x30;// TODO change this to the proper string
+					runModeToStr(module->playModeSong);
 				}
 				displayStr[2] = 0;
 			}
@@ -843,11 +856,11 @@ struct PhraseSeq16Widget : ModuleWidget {
 		// Main panel from Inkscape
 		setPanel(SVG::load(assetPlugin(plugin, "res/PhraseSeq16.svg")));
 
-		// Screw holes
-		addChild(new ScrewHole(Vec(15, 0)));
+		// Screw holes (optical illustion makes screws look oval, remove for now)
+		/*addChild(new ScrewHole(Vec(15, 0)));
 		addChild(new ScrewHole(Vec(box.size.x-30, 0)));
 		addChild(new ScrewHole(Vec(15, 365)));
-		addChild(new ScrewHole(Vec(box.size.x-30, 365)));
+		addChild(new ScrewHole(Vec(box.size.x-30, 365)));*/
 		
 		// Screws
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 0)));

@@ -271,6 +271,25 @@ struct WriteSeq32 : Module {
 			}
 		}
 		
+		// Write (must be before StepL and StepR in case route gate simultaneously to Step R and Write for example
+		//  (write must be to correct step)
+		if (writeTrigger.process(params[WRITE_PARAM].value + inputs[WRITE_INPUT].value)) {
+			if (canEdit) {		
+				int index = (indexChannel == 3 ? indexStepStage : indexStep);
+				// CV
+				cv[indexChannel][index] = quantize(inputs[CV_INPUT].value, params[QUANTIZE_PARAM].value > 0.5f);
+				// Gate
+				if (inputs[GATE_INPUT].active)
+					gates[indexChannel][index] = (inputs[GATE_INPUT].value >= 1.0f) ? true : false;
+				// Autostep
+				if (params[AUTOSTEP_PARAM].value > 0.5f) {
+					if (indexChannel == 3)
+						indexStepStage = moveIndex(indexStepStage, indexStepStage + 1, numSteps);
+					else 
+						indexStep = moveIndex(indexStep, indexStep + 1, numSteps);
+				}
+			}
+		}		
 		// Step L
 		if (stepLTrigger.process(params[STEPL_PARAM].value + inputs[STEPL_INPUT].value)) {
 			if (canEdit) {		
@@ -289,6 +308,7 @@ struct WriteSeq32 : Module {
 					indexStep = moveIndex(indexStep, indexStep + 1, numSteps);
 			}
 		}
+		
 		// Window
 		for (int i = 0; i < 4; i++) {
 			if (windowTriggers[i].process(params[WINDOW_PARAM+i].value)) {
@@ -300,24 +320,7 @@ struct WriteSeq32 : Module {
 				}
 			}
 		}
-		// Write
-		if (writeTrigger.process(params[WRITE_PARAM].value + inputs[WRITE_INPUT].value)) {
-			if (canEdit) {		
-				int index = (indexChannel == 3 ? indexStepStage : indexStep);
-				// CV
-				cv[indexChannel][index] = quantize(inputs[CV_INPUT].value, params[QUANTIZE_PARAM].value > 0.5f);
-				// Gate
-				if (inputs[GATE_INPUT].active)
-					gates[indexChannel][index] = (inputs[GATE_INPUT].value >= 1.0f) ? true : false;
-				// Autostep
-				if (params[AUTOSTEP_PARAM].value > 0.5f) {
-					if (indexChannel == 3)
-						indexStepStage = moveIndex(indexStepStage, indexStepStage + 1, numSteps);
-					else 
-						indexStep = moveIndex(indexStep, indexStep + 1, numSteps);
-				}
-			}
-		}
+
 		
 		// CV and gate outputs (staging area not used)
 		if (running) {
@@ -393,26 +396,31 @@ struct WriteSeq32Widget : ModuleWidget {
 		
 		void cvToStr(int index8) {
 			int index = (module->indexChannel == 3 ? module->indexStepStage : module->indexStep);
-			float cvVal = module->cv[module->indexChannel][index8|(index&0x18)];
-			float cvValOffset = cvVal +10.0f;//to properly handle negative note voltages
-			int indexNote = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
-			bool sharp = (module->params[WriteSeq32::SHARP_PARAM].value > 0.5f) ? true : false;
-			
-			// note letter
-			text[0] = sharp ? noteLettersSharp[indexNote] : noteLettersFlat[indexNote];
-			
-			// octave number
-			int octave = (int) roundf(floorf(cvVal)+4.0f);
-			if (octave < 0 || octave > 9)
-				text[1] = (octave > 9) ? ':' : '_';
-			else
-				text[1] = (char) ( 0x30 + octave);
-			
-			// sharp/flat
-			text[2] = ' ';
-			if (isBlackKey[indexNote] == 1)
-				text[2] = (sharp ? '\"' : '^' );
-			
+			if ((index8|(index&0x18)) >= (int) clamp(roundf(module->params[WriteSeq32::STEPS_PARAM].value), 1.0f, 32.0f)) {
+				text[0] = '-';
+				text[1] = '-';
+			}
+			else {
+				float cvVal = module->cv[module->indexChannel][index8|(index&0x18)];
+				float cvValOffset = cvVal +10.0f;//to properly handle negative note voltages
+				int indexNote = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
+				bool sharp = (module->params[WriteSeq32::SHARP_PARAM].value > 0.5f) ? true : false;
+				
+				// note letter
+				text[0] = sharp ? noteLettersSharp[indexNote] : noteLettersFlat[indexNote];
+				
+				// octave number
+				int octave = (int) roundf(floorf(cvVal)+4.0f);
+				if (octave < 0 || octave > 9)
+					text[1] = (octave > 9) ? ':' : '_';
+				else
+					text[1] = (char) ( 0x30 + octave);
+				
+				// sharp/flat
+				text[2] = ' ';
+				if (isBlackKey[indexNote] == 1)
+					text[2] = (sharp ? '\"' : '^' );
+			}
 			// end of string
 			text[3] = 0;
 		}
@@ -463,11 +471,11 @@ struct WriteSeq32Widget : ModuleWidget {
 		// Main panel from Inkscape
 		setPanel(SVG::load(assetPlugin(plugin, "res/WriteSeq32.svg")));
 
-		// Screw holes
-		addChild(new ScrewHole(Vec(15, 0)));
+		// Screw holes (optical illustion makes screws look oval, remove for now)
+		/*addChild(new ScrewHole(Vec(15, 0)));
 		addChild(new ScrewHole(Vec(box.size.x-30, 0)));
 		addChild(new ScrewHole(Vec(15, 365)));
-		addChild(new ScrewHole(Vec(box.size.x-30, 365)));
+		addChild(new ScrewHole(Vec(box.size.x-30, 365)));*/
 		
 		// Screws
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 0)));
