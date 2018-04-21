@@ -56,6 +56,7 @@ struct PhraseSeq16 : Module {
 		RIGHTCV_INPUT,
 		RUNCV_INPUT,
 		SEQCV_INPUT,
+		RUNMODECV_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -685,15 +686,18 @@ struct PhraseSeq16 : Module {
 		// CV and gates outputs
 		if (running) {
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
+			//TODO two lines below don't work since called each step() !! (move to clock section and make bools global)
+			//bool gate1RandomEnable = randomUniform() < params[GATE1_KNOB_PARAM].value;// randomUniform is [0.0, 1.0), see include/util/common.hpp
+			//bool gate2RandomEnable = randomUniform() < params[GATE2_KNOB_PARAM].value;// randomUniform is [0.0, 1.0), see include/util/common.hpp
 			if (editingSequence) {// editing sequence while running
 				outputs[CV_OUTPUT].value = cv[sequence][stepIndexRun] - slideOffset;
-				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1[sequence][stepIndexRun]) ? 10.0f : 0.0f;
-				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2[sequence][stepIndexRun]) ? 10.0f : 0.0f;
+				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() /*&& gate1RandomEnable*/ && gate1[sequence][stepIndexRun]) ? 10.0f : 0.0f;
+				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() /*&& gate2RandomEnable*/ && gate2[sequence][stepIndexRun]) ? 10.0f : 0.0f;
 			}
 			else {// editing song while running
 				outputs[CV_OUTPUT].value = cv[phrase[phraseIndexRun]][stepIndexPhraseRun] - slideOffset;
-				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1[phrase[phraseIndexRun]][stepIndexPhraseRun]) ? 10.0f : 0.0f;
-				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2[phrase[phraseIndexRun]][stepIndexPhraseRun]) ? 10.0f : 0.0f;
+				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() /*&& gate1RandomEnable*/ && gate1[phrase[phraseIndexRun]][stepIndexPhraseRun]) ? 10.0f : 0.0f;
+				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() /*&& gate2RandomEnable*/ && gate2[phrase[phraseIndexRun]][stepIndexPhraseRun]) ? 10.0f : 0.0f;
 			}
 		}
 		else {// not running 
@@ -862,8 +866,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int rowRulerT0 = 48;
 		static const int columnRulerT0 = 15;// Length button
 		static const int columnRulerT1 = columnRulerT0 + 47;// Left/Right buttons
-		static const int columnRulerT2 = columnRulerT1 + 79;// Step/Phase lights
-		static const int columnRulerT3 = columnRulerT2 + 274;// Attach
+		static const int columnRulerT2 = columnRulerT1 + 75;// Step/Phase lights
+		static const int columnRulerT3 = columnRulerT2 + 263;// Attach (also used to align rest of right side of module)
 
 		// Length button
 		addParam(ParamWidget::create<CKD6>(Vec(columnRulerT0 + offsetCKD6, rowRulerT0 + offsetCKD6), module, PhraseSeq16::LENGTH_PARAM, 0.0f, 1.0f, 0.0f));
@@ -876,8 +880,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(columnRulerT2 + spLightsSpacing * i + offsetMediumLight, rowRulerT0 + offsetMediumLight), module, PhraseSeq16::STEP_PHRASE_LIGHTS + (i*2)));
 		}
 		// Attach button and light
-		addParam(ParamWidget::create<TL1105>(Vec(columnRulerT3 - 7, rowRulerT0 + offsetTL1105), module, PhraseSeq16::ATTACH_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerT3 + 9 + offsetMediumLight, rowRulerT0 + offsetMediumLight), module, PhraseSeq16::ATTACH_LIGHT));		
+		addParam(ParamWidget::create<TL1105>(Vec(columnRulerT3 - 4, rowRulerT0 + offsetTL1105), module, PhraseSeq16::ATTACH_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerT3 + 12 + offsetMediumLight, rowRulerT0 + offsetMediumLight), module, PhraseSeq16::ATTACH_LIGHT));		
 
 		
 		
@@ -926,8 +930,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int rowRulerMK0 = 99;// Edit mode row
 		static const int rowRulerMK1 = rowRulerMK0 + 56; // Run row
 		static const int rowRulerMK2 = rowRulerMK1 + 56; // Reset row
-		static const int columnRulerMK0 = 275;// Edit mode column
-		static const int columnRulerMK1 = columnRulerMK0 + 67;// Display column
+		static const int columnRulerMK0 = 264;// Edit mode column
+		static const int columnRulerMK1 = columnRulerMK0 + 65;// Display column
 		static const int columnRulerMK2 = columnRulerT3;// Run mode column
 		
 		// Edit mode switch
@@ -966,13 +970,11 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int rowRulerMB0 = 214;
 		static const int rowRulerMB1 = rowRulerMB0 + 51;
 		static const int columnRulerMB0 = 22;// Autostep
-		static const int columnRulerMBspacing = 62;
+		static const int columnRulerMBspacing = 54;
 		static const int columnRulerMB1 = columnRulerMB0 + 54;// Gate1
 		static const int columnRulerMB2 = columnRulerMB1 + columnRulerMBspacing;// Gate2
 		static const int columnRulerMB3 = columnRulerMB2 + columnRulerMBspacing;// Slide
 		
-		// Autostep
-		addParam(ParamWidget::create<CKSS>(Vec(columnRulerMB0 + 2 + hOffsetCKSS, rowRulerMB1 + vOffsetCKSS), module, PhraseSeq16::AUTOSTEP_PARAM, 0.0f, 1.0f, 0.0f));		
 		// Gate 1 light and button
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 + 25 + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::GATE1_LIGHT));		
 		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB1 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::GATE1_PARAM, 0.0f, 1.0f, 0.0f));
@@ -998,35 +1000,40 @@ struct PhraseSeq16Widget : ModuleWidget {
 		
 						
 		
-		// ****** Inputs located above outputs ******
+		// ****** Inputs located above outputs, and some other penultimate row ******
 		
-		static const int columnRulerB7 = columnRulerMK1 + 60;
 		static const int outputJackSpacingX = 54;
-		static const int columnRulerB6 = columnRulerB7 - outputJackSpacingX;
-		static const int columnRulerB5 = columnRulerB6 - outputJackSpacingX;
-
-		// Inputs (CV IN, reset, clock)
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB5, 265), Port::INPUT, module, PhraseSeq16::CV_INPUT));
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB6, 265), Port::INPUT, module, PhraseSeq16::RESET_INPUT));
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB7, 265), Port::INPUT, module, PhraseSeq16::CLOCK_INPUT));
-
-		
-
-		// ****** Bottom row (all aligned) ******
-
-		static const int rowRulerB0 = 320;
+		static const int rowRulerB0 = 322;
+		static const int rowRulerB1 = 267;
 		static const int columnRulerB0 = columnRulerMB0;
 		static const int columnRulerB1 = columnRulerB0 + outputJackSpacingX;
 		static const int columnRulerB2 = columnRulerB1 + outputJackSpacingX;
 		static const int columnRulerB3 = columnRulerB2 + outputJackSpacingX;
 		static const int columnRulerB4 = columnRulerB3 + outputJackSpacingX;
+		static const int columnRulerB7 = columnRulerMK2 + 1;
+		static const int columnRulerB6 = columnRulerB7 - outputJackSpacingX;
+		static const int columnRulerB5 = columnRulerB6 - outputJackSpacingX;
+
+		// Seq CV inpuot
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerMB0, rowRulerB1), Port::INPUT, module, PhraseSeq16::SEQCV_INPUT));
+		// Autostep
+		addParam(ParamWidget::create<CKSS>(Vec(columnRulerB4 + hOffsetCKSS, rowRulerB1 + vOffsetCKSS), module, PhraseSeq16::AUTOSTEP_PARAM, 0.0f, 1.0f, 0.0f));		
+		// Inputs (CV IN, reset, clock)
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, PhraseSeq16::CV_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB6, rowRulerB1), Port::INPUT, module, PhraseSeq16::RESET_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, PhraseSeq16::CLOCK_INPUT));
+
+		
+
+		// ****** Bottom row (all aligned) ******
+
 	
 		// CV control Inputs 
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq16::WRITE_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq16::RUNCV_INPUT));
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, PhraseSeq16::LEFTCV_INPUT));
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, PhraseSeq16::RIGHTCV_INPUT));
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq16::RUNCV_INPUT));
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, PhraseSeq16::SEQCV_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq16::RUNMODECV_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, PhraseSeq16::WRITE_INPUT));
 		// Outputs
 		addOutput(Port::create<PJ301MPortS>(Vec(columnRulerB5, rowRulerB0), Port::OUTPUT, module, PhraseSeq16::CV_OUTPUT));
 		addOutput(Port::create<PJ301MPortS>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, PhraseSeq16::GATE1_OUTPUT));

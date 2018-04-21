@@ -561,7 +561,7 @@ struct WriteSeq32Widget : ModuleWidget {
 		static const int chanLEDoffsetX = 25;
 		static const int chanLEDoffsetY[4] = {-20, -8, 4, 16};
 		for (int i = 0; i < 4; i++) {
-			addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(columnRuler0 + chanLEDoffsetX + offsetMediumLight, rowRuler0 + chanLEDoffsetY[i] + offsetMediumLight), module, WriteSeq32::CHANNEL_LIGHTS + (i*3)));
+			addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(columnRuler0 + chanLEDoffsetX + offsetMediumLight, rowRuler0 - 4 + chanLEDoffsetY[i] + offsetMediumLight), module, WriteSeq32::CHANNEL_LIGHTS + (i*3)));
 		}
 		// Copy/paste switches
 		addParam(ParamWidget::create<TL1105>(Vec(columnRuler0-10, rowRuler1+offsetTL1105), module, WriteSeq32::COPY_PARAM, 0.0f, 1.0f, 0.0f));
