@@ -32,7 +32,7 @@ struct WriteSeq32 : Module {
 		NUM_PARAMS
 	};
 	enum InputIds {
-		CHANNEL_INPUT,
+		CHANNEL_INPUT,// no longer used
 		CV_INPUT,	
 		GATE_INPUT,
 		WRITE_INPUT,
@@ -40,6 +40,8 @@ struct WriteSeq32 : Module {
 		STEPR_INPUT,
 		CLOCK_INPUT,
 		RESET_INPUT,
+		// -- first release
+		RUNCV_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -202,7 +204,7 @@ struct WriteSeq32 : Module {
 		int numSteps = (int) clamp(roundf(params[STEPS_PARAM].value), 1.0f, 32.0f);	
 		
 		// Run state and light
-		if (runningTrigger.process(params[RUN_PARAM].value)) {
+		if (runningTrigger.process(params[RUN_PARAM].value + inputs[CHANNEL_INPUT].value)) {
 			running = !running;
 			//pendingPaste = 0;// no pending pastes across run state toggles
 		}
@@ -232,7 +234,7 @@ struct WriteSeq32 : Module {
 		}
 		
 		// Channel selection
-		if (channelTrigger.process(params[CHANNEL_PARAM].value + inputs[CHANNEL_INPUT].value)) {
+		if (channelTrigger.process(params[CHANNEL_PARAM].value)) {
 			indexChannel++;
 			if (indexChannel >= 4)
 				indexChannel = 0;
@@ -569,8 +571,8 @@ struct WriteSeq32Widget : ModuleWidget {
 		// Paste sync (and light)
 		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRuler0+hOffsetCKSS, rowRuler2+vOffsetCKSSThree), module, WriteSeq32::PASTESYNC_PARAM, 0.0f, 2.0f, 0.0f));	
 		addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(columnRuler0 + 41, rowRuler2 + 14), module, WriteSeq32::PENDING_LIGHT));		
-		// Channel input
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler0, rowRuler3), Port::INPUT, module, WriteSeq32::CHANNEL_INPUT));
+		// Run CV input
+		addInput(Port::create<PJ301MPortS>(Vec(columnRuler0, rowRuler3), Port::INPUT, module, WriteSeq32::RUNCV_INPUT));
 		
 		
 		// Column 1

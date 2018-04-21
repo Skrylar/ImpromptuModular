@@ -33,7 +33,7 @@ struct WriteSeq64 : Module {
 		NUM_PARAMS
 	};
 	enum InputIds {
-		CHANNEL_INPUT,
+		CHANNEL_INPUT,// no longer used
 		CV_INPUT,
 		GATE_INPUT,
 		WRITE_INPUT,
@@ -42,6 +42,8 @@ struct WriteSeq64 : Module {
 		CLOCK12_INPUT,
 		CLOCK34_INPUT,
 		RESET_INPUT,
+		// -- first release
+		RUNCV_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -252,7 +254,7 @@ struct WriteSeq64 : Module {
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		// Run state and light
-		if (runningTrigger.process(params[RUN_PARAM].value)) {
+		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			//pendingPaste = 0;// no pending pastes across run state toggles
 		}
@@ -286,7 +288,7 @@ struct WriteSeq64 : Module {
 		}
 			
 		// Channel selection
-		if (channelTrigger.process(params[CHANNEL_PARAM].value + inputs[CHANNEL_INPUT].value)) {
+		if (channelTrigger.process(params[CHANNEL_PARAM].value)) {
 			indexChannel++;
 			if (indexChannel >= 5)
 				indexChannel = 0;
@@ -665,8 +667,8 @@ struct WriteSeq64Widget : ModuleWidget {
 		addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(columnRuler0 + 41, rowRuler1 + 14), module, WriteSeq64::PENDING_LIGHT));
 		// Reset
 		addInput(Port::create<PJ301MPortS>(Vec(columnRuler0, rowRuler2), Port::INPUT, module, WriteSeq64::RESET_INPUT));		
-		// Channel input
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler0, rowRuler3), Port::INPUT, module, WriteSeq64::CHANNEL_INPUT));
+		// Run CV input
+		addInput(Port::create<PJ301MPortS>(Vec(columnRuler0, rowRuler3), Port::INPUT, module, WriteSeq64::RUNCV_INPUT));
 		
 		
 		// Column 1
