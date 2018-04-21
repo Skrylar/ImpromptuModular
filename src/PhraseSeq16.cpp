@@ -595,13 +595,50 @@ struct PhraseSeq16 : Module {
 					transposeOffset += newSequenceKnob - sequenceKnob;
 					if (transposeOffset > 99) transposeOffset = 99;
 					if (transposeOffset < -99) transposeOffset = -99;						
-					// TODO tranpose by this amount: newSequenceKnob - sequenceKnob
+					// Tranpose by this number of semi-tones: newSequenceKnob - sequenceKnob
+                    float transposeOffsetCV = ((float)(newSequenceKnob - sequenceKnob))/12.0f;
+                    if (transposeOffsetCV != 0.0f && editingSequence) {
+                        for (int s = 0; s < 16; s++) {
+                            cv[sequence][s] += transposeOffset;
+                        }
+                    }
 				}
 				else if (displayState == DISP_ROTATE) {
 					rotateOffset += newSequenceKnob - sequenceKnob;
 					if (rotateOffset > 99) rotateOffset = 99;
 					if (rotateOffset < -99) rotateOffset = -99;						
-					// TODO rotate by this amount: newSequenceKnob - sequenceKnob
+					// Rotate by this number of steps: newSequenceKnob - sequenceKnob
+                    // TODO implememnt rotate by n in one shot (now only rotates by 1 step)
+                    // TODO right now this rotate code may not be in sync with display
+                    float rotCV;
+                    bool rotGate1, rotGate2, rotSlide;
+                    int iRot = 0;
+                    int iDelta = 0;
+                    if (newSequenceKnob - sequenceKnob > 0) {
+                        iDelta = 1;
+                    }
+                    if (newSequenceKnob - sequenceKnob < 0) {
+                        iRot = steps - 1;
+                        iDelta = -1;
+                    }
+                    if (iDelta != 0 && editingSequence) {
+                        rotCV = cv[sequence][iRot];
+                        rotGate1 = gate1[sequence][iRot];
+                        rotGate2 = gate2[sequence][iRot];
+                        rotSlide = slide[sequence][iRot];
+                        for ( ; ; iRot += iDelta) {
+                            if (iDelta == 1 && iRot >= steps - 1) break;
+                            if (iDelta == -1 && iRot <= 0) break;
+                            cv[sequence][iRot] = cv[sequence][iRot + iDelta];
+                            gate1[sequence][iRot] = gate1[sequence][iRot + iDelta];
+                            gate2[sequence][iRot] = gate2[sequence][iRot + iDelta];
+                            slide[sequence][iRot] = slide[sequence][iRot + iDelta];
+                        }
+                        cv[sequence][iRot] = rotCV;
+                        gate1[sequence][iRot] = rotGate1;
+                        gate2[sequence][iRot] = rotGate2;
+                        slide[sequence][iRot] = rotSlide;
+                     }
 				}
 				else {// DISP_NORMAL
 					if (editingSequence) {
@@ -646,53 +683,7 @@ struct PhraseSeq16 : Module {
 				}
 			}
 		}
-		
-
-		// Rotate left, right buttons
-		/* float rotCV;
-		bool rotGate1, rotGate2, rotSlide;
-		int iRot = 0;
-		int iDelta = 0;
-		if (rotateLeftTrigger.process(params[ROTATEL_PARAM].value)) {
-			iDelta = 1;
-		}
-		if (rotateRightTrigger.process(params[ROTATER_PARAM].value)) {
-			iRot = steps - 1;
-			iDelta = -1;
-		}
-		if (iDelta != 0 && editingSequence) {	
-			rotCV = cv[sequence][iRot];
-			rotGate1 = gate1[sequence][iRot];
-			rotGate2 = gate2[sequence][iRot];
-			rotSlide = slide[sequence][iRot];		
-			for ( ; ; iRot += iDelta) {
-				if (iDelta == 1 && iRot >= steps - 1) break;
-				if (iDelta == -1 && iRot <= 0) break;				
-				cv[sequence][iRot] = cv[sequence][iRot + iDelta];
-				gate1[sequence][iRot] = gate1[sequence][iRot + iDelta];
-				gate2[sequence][iRot] = gate2[sequence][iRot + iDelta];
-				slide[sequence][iRot] = slide[sequence][iRot + iDelta];
-			}
-			cv[sequence][iRot] = rotCV;
-			gate1[sequence][iRot] = rotGate1;
-			gate2[sequence][iRot] = rotGate2;
-			slide[sequence][iRot] = rotSlide;				
-		} */
-		
-		// Transpose
-		/* float transposeOffset = 0.0f;
-		if (transposeDTrigger.process(params[TRANSPOSED_PARAM].value)) {
-			transposeOffset = -1.0f/12.0f;
-		}
-		if (transposeUTrigger.process(params[TRANSPOSEU_PARAM].value)) {
-			transposeOffset = 1.0f/12.0f;
-		}
-		if (transposeOffset != 0.0f && editingSequence) {
-			for (int s = 0; s < 16; s++) {
-				cv[sequence][s] += transposeOffset;
-			}
-		} */
-
+				
 		// Gate1, Gate2 and slide buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingSequence)
@@ -879,7 +870,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		
 		void runModeToStr(int num) {
 			if (num >= 0 && num < 5)
-				snprintf(displayStr, 4, modeLabels[num].c_str());
+				snprintf(displayStr, 4, "%s", modeLabels[num].c_str());
 		}
 
 		void draw(NVGcontext *vg) override {
