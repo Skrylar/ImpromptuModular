@@ -56,7 +56,7 @@ struct PhraseSeq16 : Module {
 		RIGHTCV_INPUT,
 		RUNCV_INPUT,
 		SEQCV_INPUT,
-		RUNMODECV_INPUT,
+		MODECV_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -80,10 +80,13 @@ struct PhraseSeq16 : Module {
 		// -- first release
 		NUM_LIGHTS
 	};
+	
+	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_TRANSPOSE, DISP_ROTATE};
 
 	// Need to save
 	bool running;
-	int runMode; // 0 = forward, 1 = reverse, 2 = ping-pong, 3 = random walk (brownian), 4 = random seq, 5 = random song
+	int runModeSeq; // 0 = forward, 1 = reverse, 2 = ping-pong, 3 = random walk (brownian), 4 = random
+	int runModeSong; // 0 = forward, 1 = reverse, 2 = ping-pong, 3 = random walk (brownian), 4 = random
 	//
 	int sequence;
 	int steps;//1 to 16
@@ -108,7 +111,7 @@ struct PhraseSeq16 : Module {
 	int stepIndexPhraseRun;
 	unsigned long editingLength;// 0 when not editing length, downward step counter timer when editing length
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
-	unsigned long editingRunMode;// 0 when not editing play mode, downward step counter timer when editing play mode
+	int displayState;
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta;// no need to initialize, this is a companion to slideStepsRemain
 	float cvCPbuffer[16];// copy paste buffer for CVs
@@ -116,6 +119,11 @@ struct PhraseSeq16 : Module {
 	bool gate2CPbuffer[16];// copy paste buffer for gate2
 	bool slideCPbuffer[16];// copy paste buffer for slide
 	//int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq, destination seq in next msbits
+	bool gate1RandomEnable; 
+	bool gate2RandomEnable;
+	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
+	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
+
 
 	SchmittTrigger resetTrigger;
 	SchmittTrigger leftTrigger;
@@ -137,7 +145,9 @@ struct PhraseSeq16 : Module {
 	SchmittTrigger pasteTrigger;
 	//SchmittTrigger transposeDTrigger;
 	//SchmittTrigger transposeUTrigger;
-	SchmittTrigger runModeTrigger;
+	SchmittTrigger modeTrigger;
+	SchmittTrigger rotateTrigger;
+	SchmittTrigger transposeTrigger;
 	
 		
 	PhraseSeq16() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -146,7 +156,8 @@ struct PhraseSeq16 : Module {
 
 	void onReset() override {
 		running = false;
-		runMode = 0;
+		runModeSeq = 0;
+		runModeSong = 0;
 		stepIndexEdit = 0;
 		stepIndexRun = 0;
 		sequence = 0;
@@ -171,15 +182,18 @@ struct PhraseSeq16 : Module {
 		sequenceKnob = 0;
 		editingLength = 0ul;
 		editingGate = 0ul;
-		editingRunMode = 0ul;
+		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
 		attach = 1.0f;
 		//pendingPaste = 0;
+		gate1RandomEnable = false;
+		gate2RandomEnable = false;
 	}
 
 	void onRandomize() override {
 		running = false;
-		runMode = randomu32() % 6;
+		runModeSeq = randomu32() % 5;
+		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
 		stepIndexRun = 0;
 		sequence = randomu32() % 16;
@@ -204,10 +218,12 @@ struct PhraseSeq16 : Module {
 		sequenceKnob = 0;
 		editingLength = 0ul;
 		editingGate = 0ul;
-		editingRunMode = 0ul;
+		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
 		attach = 1.0f;
 		//pendingPaste = 0;
+		gate1RandomEnable = false;
+		gate2RandomEnable = false;
 	}
 
 	json_t *toJson() override {
@@ -216,8 +232,11 @@ struct PhraseSeq16 : Module {
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
 		
-		// runMode
-		json_object_set_new(rootJ, "runMode", json_integer(runMode));
+		// runModeSeq
+		json_object_set_new(rootJ, "runModeSeq", json_integer(runModeSeq));
+
+		// runModeSong
+		json_object_set_new(rootJ, "runModeSong", json_integer(runModeSong));
 
 		// stepIndexEdit
 		//json_object_set_new(rootJ, "stepIndexEdit", json_integer(stepIndexEdit));
@@ -296,10 +315,15 @@ struct PhraseSeq16 : Module {
 		if (runningJ)
 			running = json_is_true(runningJ);
 
-		// runMode
-		json_t *runModeJ = json_object_get(rootJ, "runMode");
-		if (runModeJ)
-			runMode = json_integer_value(runModeJ);
+		// runModeSeq
+		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq");
+		if (runModeSeqJ)
+			runModeSeq = json_integer_value(runModeSeqJ);
+		
+		// runModeSong
+		json_t *runModeSongJ = json_object_get(rootJ, "runModeSong");
+		if (runModeSongJ)
+			runModeSong = json_integer_value(runModeSongJ);
 		
 		// stepIndexEdit
 		/*json_t *stepIndexEditJ = json_object_get(rootJ, "stepIndexEdit");
@@ -411,9 +435,16 @@ struct PhraseSeq16 : Module {
 	void step() override {
 		static const float gateTime = 0.3f;// seconds
 		static const float editLengthTime = 1.6f;// seconds
-		static const float editRunModeTime = 1.6f;// seconds
 
 		bool editingSequence = params[EDIT_PARAM].value > 0.5f;// true = editing sequence, false = editing song
+		
+		// Seq and Mode CV inputs
+		if (inputs[SEQCV_INPUT].active) {
+			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * 15.0f / 10.0f), 0.0f, 15.0f );
+		}
+		if (inputs[MODECV_INPUT].active) {
+			runModeSeq = (int) clamp( round(inputs[MODECV_INPUT].value * 4.0f / 10.0f), 0.0f, 4.0f );
+		}
 		
 		// Run state and light
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
@@ -474,7 +505,17 @@ struct PhraseSeq16 : Module {
 				editingLength = (unsigned long) (editLengthTime * engineGetSampleRate());
 		}
 		
-		// Left and right buttons
+		// Write (must be before Left and Right in case route gate simultaneously to Right and Write for example)
+		//  (write must be to correct step)
+		if (writeTrigger.process(inputs[WRITE_INPUT].value)) {
+			if (editingSequence) {
+				cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
+				editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+				if (params[AUTOSTEP_PARAM].value > 0.5f)
+					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, steps);
+			}
+		}
+		// Left and Right buttons
 		int delta = 0;
 		if (leftTrigger.process(inputs[LEFTCV_INPUT].value + params[LEFT_PARAM].value)) 
 			delta = -1;
@@ -508,32 +549,67 @@ struct PhraseSeq16 : Module {
 			}
 		}
 		
-		// RunMode button
-		if (runModeTrigger.process(params[RUNMODE_PARAM].value)) {
-			if (editingRunMode > 0ul)
-				editingRunMode = 0ul;// allow user to quickly leave editing mode when re-press
+		// Mode/Transpose/Rotate buttons
+		if (modeTrigger.process(params[RUNMODE_PARAM].value)) {
+			if (displayState != DISP_MODE)
+				displayState = DISP_MODE;
 			else
-				editingRunMode = (unsigned long) (editRunModeTime * engineGetSampleRate());
+				displayState = DISP_NORMAL;
+		}
+		if (transposeTrigger.process(params[TRANSPOSE_PARAM].value)) {
+			if (displayState != DISP_TRANSPOSE) {
+				displayState = DISP_TRANSPOSE;
+				transposeOffset = 0;
+			}
+			else
+				displayState = DISP_NORMAL;
+		}
+		if (rotateTrigger.process(params[ROTATE_PARAM].value)) {
+			if (displayState != DISP_ROTATE) {
+				displayState = DISP_ROTATE;
+				rotateOffset = 0;
+			}
+			else
+				displayState = DISP_NORMAL;
 		}
 		
 		// Sequence knob  
-		//TODO implement alternative modes (run mode, transpose, rotate)
-		//TODO implement SEQCV_INPUT
-		//TODO make it such that move float dust will restart editing runMode timer, if not, when stay clicked and not move enough count reaches 0
 		int newSequenceKnob = (int)roundf(params[SEQUENCE_PARAM].value*7.0f);
 		if (newSequenceKnob != sequenceKnob) {
 			if (abs(newSequenceKnob - sequenceKnob) <= 1) {// avoid discontinuous step (initialize for example)
-				if (editingRunMode > 0ul) {
-					editingRunMode = (unsigned long) (editRunModeTime * engineGetSampleRate());// restart editing runMode timer
-					runMode += newSequenceKnob - sequenceKnob;
-					if (runMode < 0) runMode = 0;
-					if (runMode > 5) runMode = 5;
-				}
-				else {
+				if (displayState == DISP_MODE) {
 					if (editingSequence) {
-						sequence += newSequenceKnob - sequenceKnob;
-						if (sequence < 0) sequence = 0;
-						if (sequence > 15) sequence = 15;
+						if (!inputs[MODECV_INPUT].active) {
+							runModeSeq += newSequenceKnob - sequenceKnob;
+							if (runModeSeq < 0) runModeSeq = 0;
+							if (runModeSeq > 4) runModeSeq = 4;
+						}
+					}
+					else {
+						runModeSong += newSequenceKnob - sequenceKnob;
+						if (runModeSong < 0) runModeSong = 0;
+						if (runModeSong > 4) runModeSong = 4;
+					}
+				}
+				else if (displayState == DISP_TRANSPOSE) {
+					transposeOffset += newSequenceKnob - sequenceKnob;
+					if (transposeOffset > 99) transposeOffset = 99;
+					if (transposeOffset < -99) transposeOffset = -99;						
+					// TODO tranpose by this amount: newSequenceKnob - sequenceKnob
+				}
+				else if (displayState == DISP_ROTATE) {
+					rotateOffset += newSequenceKnob - sequenceKnob;
+					if (rotateOffset > 99) rotateOffset = 99;
+					if (rotateOffset < -99) rotateOffset = -99;						
+					// TODO rotate by this amount: newSequenceKnob - sequenceKnob
+				}
+				else {// DISP_NORMAL
+					if (editingSequence) {
+						if (!inputs[SEQCV_INPUT].active) {
+							sequence += newSequenceKnob - sequenceKnob;
+							if (sequence < 0) sequence = 0;
+							if (sequence > 15) sequence = 15;
+						}
 					}
 					else {
 						phrase[phraseIndexEdit] += newSequenceKnob - sequenceKnob;
@@ -561,7 +637,7 @@ struct PhraseSeq16 : Module {
 			}
 		}		
 		
-		// Keyboard and cv input 
+		// Keyboard
 		for (int i = 0; i < 12; i++) {
 			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 				if (editingSequence) {
@@ -570,14 +646,7 @@ struct PhraseSeq16 : Module {
 				}
 			}
 		}
-		if (writeTrigger.process(inputs[WRITE_INPUT].value)) {//TODO place this so that if wire into RIGHTCV_INPUT and WRITE_INPUT, the write goes to proper place
-			if (editingSequence) {
-				cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
-				editingGate = (unsigned long) (gateTime * engineGetSampleRate());
-				if (params[AUTOSTEP_PARAM].value > 0.5f)
-					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, steps);
-			}
-		}
+		
 
 		// Rotate left, right buttons
 		/* float rotCV;
@@ -645,7 +714,7 @@ struct PhraseSeq16 : Module {
 				float slideToCV = 0.0f;
 				if (editingSequence) {
 					slideFromCV = cv[sequence][stepIndexRun];
-					stepIndexRun++;//TODO step to the next proper step according to runMode (only for modes 0 to 4)
+					stepIndexRun++;// TODO step to the next proper step according to runModeSeq (make function)
 					if (stepIndexRun >= steps) stepIndexRun = 0;
 					slideToCV = cv[sequence][stepIndexRun];
 				}
@@ -654,7 +723,7 @@ struct PhraseSeq16 : Module {
 					stepIndexPhraseRun++;
 					if (stepIndexPhraseRun >= steps) {
 						stepIndexPhraseRun = 0;
-						phraseIndexRun++;//TODO step to the next proper step according to runMode (only for mode 5)
+						phraseIndexRun++;// TODO step to the next proper step according to runModeSong and runModeSeq (make function)
 						if (phraseIndexRun >= phrases) 
 							phraseIndexRun = 0;
 					}
@@ -680,24 +749,24 @@ struct PhraseSeq16 : Module {
 						pendingPaste = 0;
 					}
 				}*/
+				
+				gate1RandomEnable = randomUniform() < params[GATE1_KNOB_PARAM].value;// randomUniform is [0.0, 1.0), see include/util/common.hpp
+				gate2RandomEnable = randomUniform() < params[GATE2_KNOB_PARAM].value;// randomUniform is [0.0, 1.0), see include/util/common.hpp
 			}
 		}	
 		
 		// CV and gates outputs
 		if (running) {
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
-			//TODO two lines below don't work since called each step() !! (move to clock section and make bools global)
-			//bool gate1RandomEnable = randomUniform() < params[GATE1_KNOB_PARAM].value;// randomUniform is [0.0, 1.0), see include/util/common.hpp
-			//bool gate2RandomEnable = randomUniform() < params[GATE2_KNOB_PARAM].value;// randomUniform is [0.0, 1.0), see include/util/common.hpp
 			if (editingSequence) {// editing sequence while running
 				outputs[CV_OUTPUT].value = cv[sequence][stepIndexRun] - slideOffset;
-				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() /*&& gate1RandomEnable*/ && gate1[sequence][stepIndexRun]) ? 10.0f : 0.0f;
-				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() /*&& gate2RandomEnable*/ && gate2[sequence][stepIndexRun]) ? 10.0f : 0.0f;
+				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && gate1[sequence][stepIndexRun]) ? 10.0f : 0.0f;
+				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2RandomEnable && gate2[sequence][stepIndexRun]) ? 10.0f : 0.0f;
 			}
 			else {// editing song while running
 				outputs[CV_OUTPUT].value = cv[phrase[phraseIndexRun]][stepIndexPhraseRun] - slideOffset;
-				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() /*&& gate1RandomEnable*/ && gate1[phrase[phraseIndexRun]][stepIndexPhraseRun]) ? 10.0f : 0.0f;
-				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() /*&& gate2RandomEnable*/ && gate2[phrase[phraseIndexRun]][stepIndexPhraseRun]) ? 10.0f : 0.0f;
+				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && gate1[phrase[phraseIndexRun]][stepIndexPhraseRun]) ? 10.0f : 0.0f;
+				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2RandomEnable && gate2[phrase[phraseIndexRun]][stepIndexPhraseRun]) ? 10.0f : 0.0f;
 			}
 		}
 		else {// not running 
@@ -727,7 +796,6 @@ struct PhraseSeq16 : Module {
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
 	
 		// Step/phrase lights
-		// TODO implement some sort of pale green light to show the progression of stepIndexPhraseRun
 		for (int i = 0; i < 16; i++) {
 			if (editingLength > 0ul) {
 				// Length (green)
@@ -742,8 +810,11 @@ struct PhraseSeq16 : Module {
 				// Run cursor (green)
 				if (editingSequence)
 					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == stepIndexRun)) ? 1.0f : 0.0f);
-				else
-					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
+				else {
+					float green = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
+					green += ((running && (i == stepIndexPhraseRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
+					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = clamp(green, 0.0f, 1.0f);
+				}
 				// Edit cursor (red)
 				if (editingSequence)
 					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexEdit ? 1.0f : 0.0f);
@@ -788,8 +859,6 @@ struct PhraseSeq16 : Module {
 			editingGate--;
 		if (editingLength > 0ul)
 			editingLength--;
-		if (editingRunMode > 0ul)
-			editingRunMode--;
 		if (slideStepsRemain > 0ul)
 			slideStepsRemain--;
 	}
@@ -802,25 +871,15 @@ struct PhraseSeq16Widget : ModuleWidget {
 		PhraseSeq16 *module;
 		std::shared_ptr<Font> font;
 		char displayStr[4];
+		std::string modeLabels[5]={"FWD","REV","PPG","BRN","RND"};
 		
 		SequenceDisplayWidget() {
 			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
 		}
 		
 		void runModeToStr(int num) {
-			if(num == 0) {
-				snprintf(displayStr, 4, "FWD");
-			} else if (num == 1) {
-				snprintf(displayStr, 4, "REV");
-			} else if (num == 2) {
-				snprintf(displayStr, 4, "PPG");
-			} else if (num == 3) {
-				snprintf(displayStr, 4, "BRN");
-			} else if (num == 4) {
-				snprintf(displayStr, 4, "RSQ");
-			} else { // num == 5
-				snprintf(displayStr, 4, "RSG");
-			}
+			if (num >= 0 && num < 5)
+				snprintf(displayStr, 4, modeLabels[num].c_str());
 		}
 
 		void draw(NVGcontext *vg) override {
@@ -832,13 +891,27 @@ struct PhraseSeq16Widget : ModuleWidget {
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
-			if (module->editingRunMode > 0ul) {
-				runModeToStr(module->runMode);
+			if (module->displayState == PhraseSeq16::DISP_MODE) {
+				if (module->params[PhraseSeq16::EDIT_PARAM].value > 0.5f)// if editing sequence
+					runModeToStr(module->runModeSeq);
+				else
+					runModeToStr(module->runModeSong);
 			}
-			else {
+			else if (module->displayState == PhraseSeq16::DISP_TRANSPOSE) {
+				snprintf(displayStr, 4, "+%2u", abs(module->transposeOffset));
+				if (module->transposeOffset < 0)
+					displayStr[0] = '-';
+			}
+			else if (module->displayState == PhraseSeq16::DISP_ROTATE) {
+				snprintf(displayStr, 4, ">%2u", abs(module->rotateOffset));
+				if (module->rotateOffset < 0)
+					displayStr[0] = '<';
+			}
+			else {// DISP_NORMAL
 				snprintf(displayStr, 4, " %2u", (unsigned) (module->params[PhraseSeq16::EDIT_PARAM].value > 0.5f ? 
 					module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
 			}
+			displayStr[3] = 0;// more safety
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};		
@@ -961,7 +1034,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 - 10, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq16::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 + 20, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq16::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
 		// Rotate button
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMK2 + offsetCKD6, rowRulerMK2 + 2 + offsetCKD6), module, PhraseSeq16::TRANSPOSE_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMK2 + offsetCKD6, rowRulerMK2 + 2 + offsetCKD6), module, PhraseSeq16::ROTATE_PARAM, 0.0f, 1.0f, 0.0f));
 
 		
 		
@@ -1029,7 +1102,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 
 	
 		// CV control Inputs 
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq16::RUNMODECV_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq16::MODECV_INPUT));
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, PhraseSeq16::LEFTCV_INPUT));
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, PhraseSeq16::RIGHTCV_INPUT));
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq16::RUNCV_INPUT));

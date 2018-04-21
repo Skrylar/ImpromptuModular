@@ -274,7 +274,7 @@ struct WriteSeq32 : Module {
 			}
 		}
 		
-		// Write (must be before StepL and StepR in case route gate simultaneously to Step R and Write for example
+		// Write (must be before StepL and StepR in case route gate simultaneously to Step R and Write for example)
 		//  (write must be to correct step)
 		if (writeTrigger.process(params[WRITE_PARAM].value + inputs[WRITE_INPUT].value)) {
 			if (canEdit) {		
