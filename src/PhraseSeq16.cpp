@@ -82,11 +82,12 @@ struct PhraseSeq16 : Module {
 	};
 	
 	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_TRANSPOSE, DISP_ROTATE};
+	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, NUM_MODES};
 
 	// Need to save
 	bool running;
-	int runModeSeq; // 0 = forward, 1 = reverse, 2 = ping-pong, 3 = random walk (brownian), 4 = random
-	int runModeSong; // 0 = forward, 1 = reverse, 2 = ping-pong, 3 = random walk (brownian), 4 = random
+	int runModeSeq; 
+	int runModeSong; 
 	//
 	int sequence;
 	int steps;//1 to 16
@@ -111,6 +112,10 @@ struct PhraseSeq16 : Module {
 	int stepIndexPhraseRun;
 	unsigned long editingLength;// 0 when not editing length, downward step counter timer when editing length
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
+	int stepIndexRunHistory;// no need to initialize
+	int stepIndexPhraseRunHistory;// no need to initialize
+	int phraseIndexRunHistory;// no need to initialize
+	
 	int displayState;
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta;// no need to initialize, this is a companion to slideStepsRemain
@@ -430,6 +435,77 @@ struct PhraseSeq16 : Module {
 			attach = json_real_value(attachJ);
 	}
 
+	void rotateSeq(int sequenceNum, bool directionRight, int numSteps) {
+		float rotCV;
+		bool rotGate1, rotGate2, rotSlide;
+		int iRot = 0;
+		int iDelta = 0;
+		if (directionRight) {
+			iRot = numSteps - 1;
+			iDelta = -1;
+		}
+		else {
+			iDelta = 1;
+		}
+		rotCV = cv[sequenceNum][iRot];
+		rotGate1 = gate1[sequenceNum][iRot];
+		rotGate2 = gate2[sequenceNum][iRot];
+		rotSlide = slide[sequenceNum][iRot];
+		for ( ; ; iRot += iDelta) {
+			if (iDelta == 1 && iRot >= numSteps - 1) break;
+			if (iDelta == -1 && iRot <= 0) break;
+			cv[sequenceNum][iRot] = cv[sequenceNum][iRot + iDelta];
+			gate1[sequenceNum][iRot] = gate1[sequenceNum][iRot + iDelta];
+			gate2[sequenceNum][iRot] = gate2[sequenceNum][iRot + iDelta];
+			slide[sequenceNum][iRot] = slide[sequenceNum][iRot + iDelta];
+		}
+		cv[sequenceNum][iRot] = rotCV;
+		gate1[sequenceNum][iRot] = rotGate1;
+		gate2[sequenceNum][iRot] = rotGate2;
+		slide[sequenceNum][iRot] = rotSlide;
+	}
+	
+	bool stepIndex(int* index, int numSteps, int runMode, int* stepIndexHistory) {		
+		bool crossBoundary = false;
+		
+		if (runMode == MODE_REV) {// reverse; history base is 1000 (not needed)
+			(*stepIndexHistory) = 1000;
+			(*index)--;
+			if ((*index) < 0) {
+				(*index) = numSteps - 1;
+				crossBoundary = true;
+			}
+		}
+		else if (runMode == MODE_PPG) {// forward-reverse; history base is 2000
+			if ((*stepIndexHistory) != 2000 && (*stepIndexHistory) != 2001) // 2000 means going forward, 2001 means going reverse
+				(*stepIndexHistory) = 2000;
+			if ((*stepIndexHistory) == 2000) {// forward phase
+				(*index)++;
+				if ((*index) >= numSteps) {
+					(*index) = numSteps - 1;
+					(*stepIndexHistory) = 2001;
+				}
+			}
+			else {// it is 2001; reverse phase
+				(*index)--;
+				if ((*index) < 0) {
+					(*index) = 0;
+					(*stepIndexHistory) = 2000;
+					crossBoundary = true;
+				}
+			}
+		}
+		else {// MODE_FWD  forward; history base is 0 (not needed)
+			(*stepIndexHistory) = 0;
+			(*index)++;
+			if ((*index) >= numSteps) {
+				(*index) = 0;
+				crossBoundary = true;
+			}
+		}
+
+		return crossBoundary;
+	}
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
@@ -450,6 +526,7 @@ struct PhraseSeq16 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			//pendingPaste = 0;// no pending pastes across run state toggles
+			displayState = DISP_NORMAL;
 		}
 		lights[RUN_LIGHT].value = (running);
 
@@ -457,7 +534,8 @@ struct PhraseSeq16 : Module {
 		if (attachTrigger.process(params[ATTACH_PARAM].value)) {
 			if (running) {
 				attach = 1.0f - attach;// toggle
-			}			
+			}	
+			displayState = DISP_NORMAL;			
 		}
 		if (running && attach > 0.5f) {
 			if (editingSequence)
@@ -476,6 +554,7 @@ struct PhraseSeq16 : Module {
 					slideCPbuffer[s] = slide[sequence][s];
 				}
 			}
+			displayState = DISP_NORMAL;
 		}
 		// Paste
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
@@ -495,6 +574,7 @@ struct PhraseSeq16 : Module {
 					pendingPaste |= sequence<<2; // add paste destination channel into pendingPaste				
 				}*/
 			}
+			displayState = DISP_NORMAL;
 		}
 
 		// Length button
@@ -503,6 +583,7 @@ struct PhraseSeq16 : Module {
 				editingLength = 0ul;// allow user to quickly leave editing mode when re-press
 			else
 				editingLength = (unsigned long) (editLengthTime * engineGetSampleRate());
+			displayState = DISP_NORMAL;
 		}
 		
 		// Write (must be before Left and Right in case route gate simultaneously to Right and Write for example)
@@ -514,13 +595,18 @@ struct PhraseSeq16 : Module {
 				if (params[AUTOSTEP_PARAM].value > 0.5f)
 					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, steps);
 			}
+			displayState = DISP_NORMAL;
 		}
 		// Left and Right buttons
 		int delta = 0;
-		if (leftTrigger.process(inputs[LEFTCV_INPUT].value + params[LEFT_PARAM].value)) 
+		if (leftTrigger.process(inputs[LEFTCV_INPUT].value + params[LEFT_PARAM].value)) { 
 			delta = -1;
-		if (rightTrigger.process(inputs[RIGHTCV_INPUT].value + params[RIGHT_PARAM].value))
+			displayState = DISP_NORMAL;
+		}
+		if (rightTrigger.process(inputs[RIGHTCV_INPUT].value + params[RIGHT_PARAM].value)) {
 			delta = +1;
+			displayState = DISP_NORMAL;
+		}
 		if (delta != 0) {
 			if (editingLength > 0ul) {
 				editingLength = (unsigned long) (editLengthTime * engineGetSampleRate());// restart editing length timer
@@ -575,81 +661,60 @@ struct PhraseSeq16 : Module {
 		
 		// Sequence knob  
 		int newSequenceKnob = (int)roundf(params[SEQUENCE_PARAM].value*7.0f);
-		if (newSequenceKnob != sequenceKnob) {
-			if (abs(newSequenceKnob - sequenceKnob) <= 1) {// avoid discontinuous step (initialize for example)
+		int deltaKnob = newSequenceKnob - sequenceKnob;
+		if (deltaKnob != 0) {
+			if (abs(deltaKnob) <= 1) {// avoid discontinuous step (initialize for example)
 				if (displayState == DISP_MODE) {
 					if (editingSequence) {
 						if (!inputs[MODECV_INPUT].active) {
-							runModeSeq += newSequenceKnob - sequenceKnob;
+							runModeSeq += deltaKnob;
 							if (runModeSeq < 0) runModeSeq = 0;
 							if (runModeSeq > 4) runModeSeq = 4;
 						}
 					}
 					else {
-						runModeSong += newSequenceKnob - sequenceKnob;
+						runModeSong += deltaKnob;
 						if (runModeSong < 0) runModeSong = 0;
 						if (runModeSong > 4) runModeSong = 4;
 					}
 				}
 				else if (displayState == DISP_TRANSPOSE) {
-					transposeOffset += newSequenceKnob - sequenceKnob;
-					if (transposeOffset > 99) transposeOffset = 99;
-					if (transposeOffset < -99) transposeOffset = -99;						
-					// Tranpose by this number of semi-tones: newSequenceKnob - sequenceKnob
-                    float transposeOffsetCV = ((float)(newSequenceKnob - sequenceKnob))/12.0f;
-                    if (transposeOffsetCV != 0.0f && editingSequence) {
-                        for (int s = 0; s < 16; s++) {
-                            cv[sequence][s] += transposeOffset;
-                        }
-                    }
+					if (editingSequence) {
+						transposeOffset += deltaKnob;
+						if (transposeOffset > 99) transposeOffset = 99;
+						if (transposeOffset < -99) transposeOffset = -99;						
+						// Tranpose by this number of semi-tones: deltaKnob
+						float transposeOffsetCV = ((float)(deltaKnob))/12.0f;
+						for (int s = 0; s < 16; s++) {
+							cv[sequence][s] += transposeOffsetCV;
+						}
+					}
 				}
 				else if (displayState == DISP_ROTATE) {
-					rotateOffset += newSequenceKnob - sequenceKnob;
-					if (rotateOffset > 99) rotateOffset = 99;
-					if (rotateOffset < -99) rotateOffset = -99;						
-					// Rotate by this number of steps: newSequenceKnob - sequenceKnob
-                    // TODO implememnt rotate by n in one shot (now only rotates by 1 step)
-                    // TODO right now this rotate code may not be in sync with display
-                    float rotCV;
-                    bool rotGate1, rotGate2, rotSlide;
-                    int iRot = 0;
-                    int iDelta = 0;
-                    if (newSequenceKnob - sequenceKnob > 0) {
-                        iDelta = 1;
-                    }
-                    if (newSequenceKnob - sequenceKnob < 0) {
-                        iRot = steps - 1;
-                        iDelta = -1;
-                    }
-                    if (iDelta != 0 && editingSequence) {
-                        rotCV = cv[sequence][iRot];
-                        rotGate1 = gate1[sequence][iRot];
-                        rotGate2 = gate2[sequence][iRot];
-                        rotSlide = slide[sequence][iRot];
-                        for ( ; ; iRot += iDelta) {
-                            if (iDelta == 1 && iRot >= steps - 1) break;
-                            if (iDelta == -1 && iRot <= 0) break;
-                            cv[sequence][iRot] = cv[sequence][iRot + iDelta];
-                            gate1[sequence][iRot] = gate1[sequence][iRot + iDelta];
-                            gate2[sequence][iRot] = gate2[sequence][iRot + iDelta];
-                            slide[sequence][iRot] = slide[sequence][iRot + iDelta];
-                        }
-                        cv[sequence][iRot] = rotCV;
-                        gate1[sequence][iRot] = rotGate1;
-                        gate2[sequence][iRot] = rotGate2;
-                        slide[sequence][iRot] = rotSlide;
-                     }
+					if (editingSequence) {
+						rotateOffset += deltaKnob;
+						if (rotateOffset > 99) rotateOffset = 99;
+						if (rotateOffset < -99) rotateOffset = -99;	
+						if (deltaKnob > 0 && deltaKnob < 99) {// Rotata right, 99 is safety
+							for (int i = deltaKnob; i > 0; i--)
+								rotateSeq(sequence, true, steps);
+						}
+						if (deltaKnob < 0 && deltaKnob > -99) {// Rotata left, 99 is safety
+							for (int i = deltaKnob; i < 0; i++)
+								rotateSeq(sequence, false, steps);
+						}
+					}						
 				}
 				else {// DISP_NORMAL
 					if (editingSequence) {
 						if (!inputs[SEQCV_INPUT].active) {
-							sequence += newSequenceKnob - sequenceKnob;
+							sequence += deltaKnob;
 							if (sequence < 0) sequence = 0;
 							if (sequence > 15) sequence = 15;
 						}
 					}
 					else {
-						phrase[phraseIndexEdit] += newSequenceKnob - sequenceKnob;
+						phrase[phraseIndexEdit] += deltaKnob;
 						if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
 						if (phrase[phraseIndexEdit] > 15) phrase[phraseIndexEdit] = 15;				
 					}
@@ -661,8 +726,10 @@ struct PhraseSeq16 : Module {
 		// Octave buttons
 		int newOct = -1;
 		for (int i = 0; i < 7; i++) {
-			if (octTriggers[i].process(params[OCTAVE_PARAM + i].value))
+			if (octTriggers[i].process(params[OCTAVE_PARAM + i].value)) {
 				newOct = 6 - i;
+				displayState = DISP_NORMAL;
+			}
 		}
 		if (newOct >=0 && newOct <=6) {
 			if (editingSequence) {
@@ -681,6 +748,7 @@ struct PhraseSeq16 : Module {
 					cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 				}
+				displayState = DISP_NORMAL;
 			}
 		}
 				
@@ -688,14 +756,17 @@ struct PhraseSeq16 : Module {
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingSequence)
 				gate1[sequence][stepIndexEdit] = !gate1[sequence][stepIndexEdit];
+			displayState = DISP_NORMAL;
 		}		
 		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
 			if (editingSequence)
 				gate2[sequence][stepIndexEdit] = !gate2[sequence][stepIndexEdit];
+			displayState = DISP_NORMAL;
 		}		
 		if (slideTrigger.process(params[SLIDE_BTN_PARAM].value)) {
 			if (editingSequence)
 				slide[sequence][stepIndexEdit] = !slide[sequence][stepIndexEdit];
+			displayState = DISP_NORMAL;
 		}		
 		
 		// Clock
@@ -705,18 +776,13 @@ struct PhraseSeq16 : Module {
 				float slideToCV = 0.0f;
 				if (editingSequence) {
 					slideFromCV = cv[sequence][stepIndexRun];
-					stepIndexRun++;// TODO step to the next proper step according to runModeSeq (make function)
-					if (stepIndexRun >= steps) stepIndexRun = 0;
+					stepIndex(&stepIndexRun, steps, runModeSeq, &stepIndexRunHistory);
 					slideToCV = cv[sequence][stepIndexRun];
 				}
 				else {
 					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
-					stepIndexPhraseRun++;
-					if (stepIndexPhraseRun >= steps) {
-						stepIndexPhraseRun = 0;
-						phraseIndexRun++;// TODO step to the next proper step according to runModeSong and runModeSeq (make function)
-						if (phraseIndexRun >= phrases) 
-							phraseIndexRun = 0;
+					if (stepIndex(&stepIndexPhraseRun, steps, runModeSeq, &stepIndexPhraseRunHistory)) {
+						stepIndex(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
 					}
 					slideToCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
 				}
@@ -782,6 +848,7 @@ struct PhraseSeq16 : Module {
 			stepIndexPhraseRun = 0;
 			resetLight = 1.0f;
 			//pendingPaste = 0;
+			displayState = DISP_NORMAL;
 		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
