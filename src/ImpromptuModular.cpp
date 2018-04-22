@@ -33,7 +33,11 @@ SVGScrewRot::SVGScrewRot() {
 	tw->addChild(sw);
 }
 ScrewSilverRandomRot::ScrewSilverRandomRot() {
-	sw->setSVG(SVG::load(assetPlugin(plugin, "res/Screw.svg")));
+	float angle0_90 = randomUniform()*M_PI/2.0f;
+	if ( angle0_90 > M_PI/6.0f && angle0_90 < 2.0f*M_PI/6.0f )
+		sw->setSVG(SVG::load(assetPlugin(plugin, "res/Screw45.svg")));
+	else
+		sw->setSVG(SVG::load(assetPlugin(plugin, "res/Screw0.svg")));
 	//sw->setSVG(SVG::load(assetGlobal("res/ComponentLibrary/ScrewSilver.svg")));
 	box.size = sw->box.size;
 	tw->box.size = sw->box.size; 
@@ -41,7 +45,7 @@ ScrewSilverRandomRot::ScrewSilverRandomRot() {
 	// Rotate SVG
 	Vec center = sw->box.getCenter();
 	tw->translate(center);
-	tw->rotate(randomUniform()*2.0f*M_PI);
+	tw->rotate(angle0_90);
 	tw->translate(center.neg());
 }
 

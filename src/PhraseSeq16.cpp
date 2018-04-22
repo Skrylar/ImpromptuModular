@@ -153,6 +153,7 @@ struct PhraseSeq16 : Module {
 	SchmittTrigger modeTrigger;
 	SchmittTrigger rotateTrigger;
 	SchmittTrigger transposeTrigger;
+	SchmittTrigger editTrigger;
 	
 		
 	PhraseSeq16() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -495,6 +496,32 @@ struct PhraseSeq16 : Module {
 				}
 			}
 		}
+		else if (runMode == MODE_BRN) {// brownian random; history base is 3000
+			if ( (*stepIndexHistory) < 3000 || ((*stepIndexHistory) > (3000 + numSteps)) ) 
+				(*stepIndexHistory) = 3000 + numSteps;
+			(*index) += (randomu32() % 3) - 1;
+			if ((*index) >= numSteps) {
+				(*index) = 0;
+			}
+			if ((*index) < 0) {
+				(*index) = numSteps - 1;
+			}
+			(*stepIndexHistory)--;
+			if ((*stepIndexHistory) <= 3000) {
+				(*stepIndexHistory) = 3000 + numSteps;
+				crossBoundary = true;
+			}
+		}
+		else if (runMode == MODE_RND) {// random; history base is 4000
+			if ( (*stepIndexHistory) < 4000 || ((*stepIndexHistory) > (4000 + numSteps)) ) 
+				(*stepIndexHistory) = 4000 + numSteps;
+			(*index) = (randomu32() % numSteps) ;
+			(*stepIndexHistory)--;
+			if ((*stepIndexHistory) <= 4000) {
+				(*stepIndexHistory) = 4000 + numSteps;
+				crossBoundary = true;
+			}
+		}
 		else {// MODE_FWD  forward; history base is 0 (not needed)
 			(*stepIndexHistory) = 0;
 			(*index)++;
@@ -513,6 +540,8 @@ struct PhraseSeq16 : Module {
 		static const float editLengthTime = 1.6f;// seconds
 
 		bool editingSequence = params[EDIT_PARAM].value > 0.5f;// true = editing sequence, false = editing song
+		if (editTrigger.process(params[EDIT_PARAM].value))
+			displayState = DISP_NORMAL;	
 		
 		// Seq and Mode CV inputs
 		if (inputs[SEQCV_INPUT].active) {
