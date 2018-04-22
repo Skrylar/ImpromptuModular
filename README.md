@@ -1,16 +1,24 @@
 # Impromptu Modular: Modules for [VCV Rack](https://vcvrack.com) by Marc Boulé
 
-Version 0.6.2
+Version 0.6.3*
+
+* The version in the plugin manager is 0.6.2, update pending. For the 0.6.2 documentation, please see [here](https://github.com/MarcBoule/ImpromptuModular/tree/8dd67d3e92ff506f09b5b2b2b2ac0cfe581ad7b7).
 
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!)
 
 Available in the VCV Rack [plugin manager](https://vcvrack.com/plugins.html).
+
 
 ## License
 
 Based on code from the Fundamental and Audible Instruments plugins by Andrew Belt and graphics from the Component Library by Wes Milholen.
 
 See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
+
+
+## Acknowledgements
+
+Thanks to Nigel Sixsmith, Alfredo Santamaria and Nay Seven for suggestions and discussions regarding improvements to Phrase-Seq-16.
 
 
 ## Modules
@@ -101,7 +109,7 @@ Here are some specific details on each element on the faceplate of the module. F
 
 * **Gate 1-3**: Gate signal outputs for each channel at the current step. The duration of the gates corresponds to the high time of the clock signal.
 
-* **Chan input**: control voltage for channel selection (CHAN button). A rising edge triggered at 1.0V will increment the channel selection by one.
+* **Run input**: control voltage starting and stopping the sequencer. A rising edge triggered at 1.0V will toggle the run mode.
 
 * **Write input**: control voltage for writing CVs into the sequencer (WRITE button). A rising edge triggered at 1.0V will perform the write action (see _Write_ above).
 
@@ -151,36 +159,44 @@ The following block diagram shows how sequences and phrases relate to each other
 
 Here are some specific details on elements of the faceplate. Familiarity with Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers. 
 
-* **Seq/Song**: This is the main switch that controls the two major modes of the sequencer. When in Seq mode with a running sequencer, the sequencer plays the currently selected sequence indicated by the Seq# knob. In this mode, all controls are available (transpose, rotate, copy-paste, gates, slide, octave, notes). When the sequencer is in Song mode and is running, the sequencer plays the sequences indexed by the series of phrases. In this mode, the aforementioned controls are unavailable.
+* **Seq/Song**: This is the main switch that controls the two major modes of the sequencer. Seq mode allows the currently selected sequence (Seq# knob and display) to be played/edited. In this mode, all controls are available (transpose, rotate, copy-paste, gates, slide, octave, notes) and the content of a sequence can be modified even when the sequencer is running. Song mode allows the creation of a series of sequence numbers (called phrases). In this mode, only the sequence index numbers themselves can be modified (whether the sequence is running or not); the aforementioned controls are unavailable and the actual contents of the sequences cannot be modified.
 
 * **Length**: When in SEQ mode, allows the arrow buttons to select the length of sequences (number of steps, the default is 16). All sequences have the same length. When in SONG mode, allows the arrow buttons to select the number of phrases in the song (the default is 4).
 
-* **Seq#**: In Seq mode, this number determines which sequence is being edited/played. In Song mode, this number determines the sequence index for the currently selected phrase; the selected phrase is shown in the 16 LEDs at the top of the module).
+* **Seq#**: In Seq mode, this number determines which sequence is being edited/played. In Song mode, this number determines the sequence index for the currently selected phrase; the selected phrase is shown in the 16 LEDs at the top of the module). When one of the Mode, Transpose, Rotate buttons is pressed, the display instead shows the current run mode, the amount of semi-tones to transpose, and the number of steps to rotate respectively. Clicking on any button returns the display to show the sequence number.
 
-* **Attach**: Allows the edit head to follow the run head (attach on). The position of the edit head is shown with a red LED, and the position of the run head is shown by a green LED. When in Sequence mode, the actual content of a step (i.e. note, oct, gates, slide) of the sequence can be modified in real time as the sequencer is advancing (_attach_ on), or manually by using the < and > buttons (_attach_ off).
+* **Attach**: Allows the edit head to follow the run head (attach on). The position of the edit head is shown with a red LED, and the position of the run head is shown by a green LED. When in Seq mode, the actual content of a step (i.e. note, oct, gates, slide) of the sequence can be modified in real time as the sequencer is advancing (_attach_ on), or manually by using the < and > buttons (_attach_ off).
 
-* **Oct and keyboard**: When in Sequence mode, the octave LED buttons and the keyboard can be used to set the notes of a sequence.
+* **Mode**: This controls the run mode of the sequences and the song (one setting for each). The modes are: FWD (forward), REV (reverse), PPG (ping-pong, also called forward-reverse), BRN (brownian random), RND (random). For example, setting the run mode to FWD for the Seq mode and to RND for the song mode will play the sequences that are part of a song randomly, and the probablility of a given sequence playing is proportional to the number of times it appears in the song.
 
-* **CV In**: This pitch CV is written into the current step of the selected sequence. Any voltage between -10.0V and 10.0V is supported. When a pitch is not quantized, the closest key is illuminated; octaves greater than 7 or smaller than 1 are not displayed by the octave LEDs.
+* **Transpose**: Transpose the currently selected sequence up or down by a given number of semi-tones. The main knob is used to set the transposition amount. Only available in Seq mode.
+
+* **Rotate**: Rotate the currently selected sequence left or right by a given number of steps. The main knob is used to set the rotation amount. Only available in Seq mode.
+
+* **Copy-Paste**: Copy and paste the CVs, gates and slide states of a sequence into another sequence. Press the left button to copy the channel into a buffer, then select another sequence and press the right button to paste. All 16 steps are copied irrespective of the length of the sequences. Only available in Seq mode.
+
+* **Oct and keyboard**: When in Sequence mode, the octave LED buttons and the keyboard can be used to set the notes of a sequence. The octave and keyboard LEDs are used for display purposes only in Song mode.
+
+* **CV In**: This CV is written into the current step of the selected sequence. Any voltage between -10.0V and 10.0V is supported. When a CV is not quantized, the closest key is illuminated; octaves greater than 7 or smaller than 1 are not displayed by the octave LEDs.
 
 * **Write input**: control voltage for writing CVs into the sequencer. A rising edge triggered at 1.0V will perform the write action.
 
 * **Autostep**: Will automatically step the sequencer one step right on each write. This works with the _Write input_ only, and has no effect when entering notes with the onboard keys.
 
-* **Gate 1, 2**: Gate signal outputs for each channel at the current step. The duration of the gates corresponds to the high time of the clock signal. Gates can be turned on/off using the Gate buttons. Gate 2 is perfect for using as an accent if desired.
+* **Run input**: control voltage for starting and stopping the sequencer. A rising edge triggered at 1.0V will toggle the run mode.
 
-* **Slide**: Typical portamento between CVs of successive steps. Slide can be activated for a given step using the slide button. The slide duration (0 to 2 seconds) can be set using the small knob below the slide button. This knob's setting is not memorized for each step, it applies to the sequencer as a whole.
+* **Seq input**: control voltage used to select the active sequence (Seq mode only). A 0 to 10V input is proportionnaly mapped to the 1 to 16 sequence numbers. This can be used to externally control the playing order of the sequences.
 
-* **Transpose**: Increase/decrease the CVs of the currently selected sequence by one semitone. Only available in Seq mode.
+* **Mode input**: control voltage used to select the run mode of sequences. A 0 to 10V input is proportionnaly mapped to the 5 run modes (see _Mode_ above).
 
-* **Rotate**: Rotate (left or right) the steps of the currently selected sequence by one step. Only available in Seq mode.
+* **Gate 1, 2 buttons and probability knobs**: The gate buttons control whether the gate of a current step is active or not. The probability knob controls the chance that when a gate is active it is actually sent to the output jack. In the leftmost position, no gates are output, and in the rightmost position, gates are output exactly as stored in a sequence. This knob's setting is not memorized for each step and applies to the sequencer as a whole.
 
-* **Copy-Paste**: Copy and paste the CVs, gates and slide states of a sequence into another sequence. Press the left button to copy the channel into a buffer, then select another sequence and press the right button to paste. All 16 steps are copied irrespective of the length of the sequences. Only available in Seq mode.
-
-* **Paste sync**: Determines whether to paste in real time (RT), on the next clock (CLK), or at the next sequence start (SEQ). Pending pastes are shown by a red LED beside CLK/SEQ, and if the selected sequence changes, the paste operation will be performed in the sequence that was selected when the paste button was pressed.
+* **Slide**: Portamento between CVs of successive steps. Slide can be activated for a given step using the slide button. The slide duration can be set using the small knob below the slide button (0 to 2 seconds, default 150ms). This knob's setting is not memorized for each step and applies to the sequencer as a whole.
 
 * **CV**: pitch CV output of the sequence/song the current step.
 
-* **Reset input/button**: repositions the run and edit heads of the sequence or song to the first step. A rising edge triggered at 1.0V will be detected as a reset. Pending pastes are also cleared.
+* **Gate 1, 2**: Gate signal outputs for each channel at the current step. The duration of the gates corresponds to the high time of the clock signal. Gates can be turned on/off using the Gate buttons. Gate 2 is perfect for using as an accent if desired.
+
+* **Reset input/button**: repositions the run and edit heads of the sequence or song to the first step. A rising edge triggered at 1.0V will be detected as a reset.
 
 * **Clock**: when the sequencer is running, each rising edge (1.0V threshold) will advance the sequencer by one step. The width (duration) of the high pulse of the clock is used as the width (duration) of the gate outputs. 

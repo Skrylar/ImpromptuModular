@@ -204,7 +204,7 @@ struct WriteSeq32 : Module {
 		int numSteps = (int) clamp(roundf(params[STEPS_PARAM].value), 1.0f, 32.0f);	
 		
 		// Run state and light
-		if (runningTrigger.process(params[RUN_PARAM].value + inputs[CHANNEL_INPUT].value)) {
+		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			//pendingPaste = 0;// no pending pastes across run state toggles
 		}

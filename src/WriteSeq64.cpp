@@ -665,8 +665,8 @@ struct WriteSeq64Widget : ModuleWidget {
 		// Paste sync (and light)
 		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRuler0+hOffsetCKSS, rowRuler1+vOffsetCKSSThree), module, WriteSeq64::PASTESYNC_PARAM, 0.0f, 2.0f, 0.0f));	
 		addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(columnRuler0 + 41, rowRuler1 + 14), module, WriteSeq64::PENDING_LIGHT));
-		// Reset
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler0, rowRuler2), Port::INPUT, module, WriteSeq64::RESET_INPUT));		
+		// Gate input
+		addInput(Port::create<PJ301MPortS>(Vec(columnRuler0, rowRuler2), Port::INPUT, module, WriteSeq64::GATE_INPUT));				
 		// Run CV input
 		addInput(Port::create<PJ301MPortS>(Vec(columnRuler0, rowRuler3), Port::INPUT, module, WriteSeq64::RUNCV_INPUT));
 		
@@ -677,8 +677,8 @@ struct WriteSeq64Widget : ModuleWidget {
 		// Run LED bezel and light
 		addParam(ParamWidget::create<LEDBezel>(Vec(columnRuler1+offsetLEDbezel, rowRuler1+offsetLEDbezel), module, WriteSeq64::RUN_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRuler1+offsetLEDbezel+offsetLEDbezelLight, rowRuler1+offsetLEDbezel+offsetLEDbezelLight), module, WriteSeq64::RUN_LIGHT));
-		// Gate input
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler1, rowRuler2), Port::INPUT, module, WriteSeq64::GATE_INPUT));				
+		// CV input
+		addInput(Port::create<PJ301MPortS>(Vec(columnRuler1, rowRuler2), Port::INPUT, module, WriteSeq64::CV_INPUT));
 		// Step L input
 		addInput(Port::create<PJ301MPortS>(Vec(columnRuler1, rowRuler3), Port::INPUT, module, WriteSeq64::STEPL_INPUT));
 		
@@ -689,8 +689,8 @@ struct WriteSeq64Widget : ModuleWidget {
 		// Write button and light
 		addParam(ParamWidget::create<CKD6>(Vec(columnRuler2+offsetCKD6, rowRuler1+offsetCKD6), module, WriteSeq64::WRITE_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<SmallLight<GreenRedLight>>(Vec(columnRuler2 -12, rowRuler1 - 13), module, WriteSeq64::WRITE_LIGHT));
-		// CV input
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler2, rowRuler2), Port::INPUT, module, WriteSeq64::CV_INPUT));
+		// Monitor
+		addParam(ParamWidget::create<CKSSH>(Vec(columnRuler2+hOffsetCKSSH, rowRuler2+vOffsetCKSSH), module, WriteSeq64::MONITOR_PARAM, 0.0f, 1.0f, 0.0f));
 		// Step R input
 		addInput(Port::create<PJ301MPortS>(Vec(columnRuler2, rowRuler3), Port::INPUT, module, WriteSeq64::STEPR_INPUT));
 		
@@ -699,8 +699,8 @@ struct WriteSeq64Widget : ModuleWidget {
 		// Clocks
 		addInput(Port::create<PJ301MPortS>(Vec(columnRuler3, rowRuler0), Port::INPUT, module, WriteSeq64::CLOCK12_INPUT));		
 		addInput(Port::create<PJ301MPortS>(Vec(columnRuler3, rowRuler1), Port::INPUT, module, WriteSeq64::CLOCK34_INPUT));		
-		// Monitor (temporary before delete)
-		addParam(ParamWidget::create<CKSSH>(Vec(columnRuler3+hOffsetCKSSH, rowRuler2+vOffsetCKSSH), module, WriteSeq64::MONITOR_PARAM, 0.0f, 1.0f, 0.0f));
+		// Reset
+		addInput(Port::create<PJ301MPortS>(Vec(columnRuler3, rowRuler2), Port::INPUT, module, WriteSeq64::RESET_INPUT));		
 		// Write input
 		addInput(Port::create<PJ301MPortS>(Vec(columnRuler3, rowRuler3), Port::INPUT, module, WriteSeq64::WRITE_INPUT));
 		

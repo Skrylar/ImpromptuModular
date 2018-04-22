@@ -7,6 +7,8 @@
 //See ./res/fonts/ for font licenses
 //
 //Module inspired by the SA-100 Stepper Acid sequencer by Transistor Sounds Labs
+//
+//Acknowledgements: Nigel Sixsmith, Alfredo Santamaria and Nay Seven for suggested improvements
 //***********************************************************************************************
 
 
@@ -911,27 +913,44 @@ struct PhraseSeq16 : Module {
 		}
 	
 		// Octave lights
-		int octLightIndex = -1;
+		float octCV = 0.0f;
 		if (editingSequence)
-			octLightIndex = (int) floor(cv[sequence][stepIndexEdit] + 3.0f);
+			octCV = cv[sequence][stepIndexEdit];
+		else
+			octCV = cv[phrase[phraseIndexEdit]][stepIndexPhraseRun];
+		int octLightIndex = (int) floor(octCV + 3.0f);
 		for (int i = 0; i < 7; i++) {
 			lights[OCTAVE_LIGHTS + i].value = (i == (6 - octLightIndex) ? 1.0f : 0.0f);
 		}
 		
 		// Keyboard lights
-		int keyLightIndex = -1;
-		if (editingSequence) {
-			float cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
-			keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
-		}
+		float cvValOffset;
+		if (editingSequence) 
+			cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
+		else	
+			cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexPhraseRun] + 10.0f;//to properly handle negative note voltages
+		int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
 		for (int i = 0; i < 12; i++) {
 			lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
 		}		
 		
 		// Gate1, Gate2 and Slide lights
-		lights[GATE1_LIGHT].value = (editingSequence && gate1[sequence][stepIndexEdit]) ? 1.0f : 0.0f;
-		lights[GATE2_LIGHT].value = (editingSequence && gate2[sequence][stepIndexEdit]) ? 1.0f : 0.0f;
-		lights[SLIDE_LIGHT].value = (editingSequence && slide[sequence][stepIndexEdit]) ? 1.0f : 0.0f;
+		bool gate1Val = true;
+		bool gate2Val = true;
+		bool slideVal = true;
+		if (editingSequence) {
+			gate1Val = gate1[sequence][stepIndexEdit];
+			gate2Val = gate2[sequence][stepIndexEdit];
+			slideVal = slide[sequence][stepIndexEdit];
+		}
+		else {
+			gate1Val = gate1[phrase[phraseIndexEdit]][stepIndexPhraseRun];
+			gate2Val = gate2[phrase[phraseIndexEdit]][stepIndexPhraseRun];
+			slideVal = slide[phrase[phraseIndexEdit]][stepIndexPhraseRun];
+		}
+		lights[GATE1_LIGHT].value = (gate1Val) ? 1.0f : 0.0f;
+		lights[GATE2_LIGHT].value = (gate2Val) ? 1.0f : 0.0f;
+		lights[SLIDE_LIGHT].value = (slideVal) ? 1.0f : 0.0f;
 
 		// Attach light
 		lights[ATTACH_LIGHT].value = running ? attach : 0.0f;
@@ -1040,7 +1059,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(columnRulerT2 + spLightsSpacing * i + offsetMediumLight, rowRulerT0 + offsetMediumLight), module, PhraseSeq16::STEP_PHRASE_LIGHTS + (i*2)));
 		}
 		// Attach button and light
-		addParam(ParamWidget::create<TL1105>(Vec(columnRulerT3 - 4, rowRulerT0 + offsetTL1105), module, PhraseSeq16::ATTACH_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<TL1105>(Vec(columnRulerT3 - 4, rowRulerT0 + 2 + offsetTL1105), module, PhraseSeq16::ATTACH_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerT3 + 12 + offsetMediumLight, rowRulerT0 + offsetMediumLight), module, PhraseSeq16::ATTACH_LIGHT));		
 
 		
@@ -1090,8 +1109,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int rowRulerMK0 = 99;// Edit mode row
 		static const int rowRulerMK1 = rowRulerMK0 + 56; // Run row
 		static const int rowRulerMK2 = rowRulerMK1 + 56; // Reset row
-		static const int columnRulerMK0 = 264;// Edit mode column
-		static const int columnRulerMK1 = columnRulerMK0 + 65;// Display column
+		static const int columnRulerMK0 = 266;// Edit mode column
+		static const int columnRulerMK1 = columnRulerMK0 + 64;// Display column
 		static const int columnRulerMK2 = columnRulerT3;// Run mode column
 		
 		// Edit mode switch
@@ -1146,14 +1165,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 		// Slide light, button and knob
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB3 + 25 + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::SLIDE_LIGHT));		
 		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB3 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(columnRulerMB3 + offsetRoundSmallBlackKnob, rowRulerMB1 + offsetRoundSmallBlackKnob), module, PhraseSeq16::SLIDE_KNOB_PARAM, 0.0f, 2.0f, 0.25f));// slide time in seconds		
+		addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(columnRulerMB3 + offsetRoundSmallBlackKnob, rowRulerMB1 + offsetRoundSmallBlackKnob), module, PhraseSeq16::SLIDE_KNOB_PARAM, 0.0f, 2.0f, 0.15f));// slide time in seconds		
 		
-		// Transpose
-		//addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB1 - 3 + offsetTL1105, rowRulerMB1 + 1 + offsetTL1105), module, PhraseSeq16::TRANSPOSED_PARAM, 0.0f, 1.0f, 0.0f));
-		//addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB2 + 22 + offsetTL1105, rowRulerMB1 + 1 + offsetTL1105), module, PhraseSeq16::TRANSPOSEU_PARAM, 0.0f, 1.0f, 0.0f));
-		// Rotate buttons
-		//addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB4 - 10, rowRulerMB1 - 1 + offsetTL1105), module, PhraseSeq16::ROTATEL_PARAM, 0.0f, 1.0f, 0.0f));
-		//addParam(ParamWidget::create<TL1105>(Vec(columnRulerMB4 + 20, rowRulerMB1 - 1 + offsetTL1105), module, PhraseSeq16::ROTATER_PARAM, 0.0f, 1.0f, 0.0f));
 		// Paste sync (and light)
 		//addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRulerMB5 - 6 + hOffsetCKSS, rowRulerMB1 - 1 + vOffsetCKSSThree), module, PhraseSeq16::PASTESYNC_PARAM, 0.0f, 2.0f, 0.0f));	
 		//addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(columnRulerMB5 - 6 + 41, rowRulerMB1 - 1 + 14), module, PhraseSeq16::PENDING_LIGHT));

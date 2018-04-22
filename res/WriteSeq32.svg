@@ -3161,8 +3161,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="6.0066862"
-     inkscape:cx="39.712841"
-     inkscape:cy="123.40752"
+     inkscape:cx="287.02058"
+     inkscape:cy="70.133553"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
@@ -3252,6 +3252,15 @@
        id="path33453"
        d="M 26.543497,161.30656 H 133.69975 V 261.84822 H 26.543497 Z m 0,0"
        style="fill:#dcdcdc;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.29276744" />
+    <rect
+       style="opacity:1;fill:#cccccc;fill-opacity:1;stroke-width:0.22008523;paint-order:stroke markers fill"
+       id="rect4826-8-5-2"
+       width="25.880613"
+       height="14.05363"
+       x="103.63694"
+       y="241.39539"
+       ry="2.339792"
+       rx="2.3397923" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:10.58333302px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
@@ -3264,7 +3273,7 @@
          y="230.05978"
          style="stroke-width:0.26458332" /></text>
     <rect
-       style="opacity:1;fill:#b4b4b4;fill-opacity:1;stroke-width:0.22008523;paint-order:stroke markers fill"
+       style="opacity:1;fill:#999999;fill-opacity:1;stroke-width:0.22008523;paint-order:stroke markers fill"
        id="rect4826-8-5"
        width="25.880613"
        height="40.596771"
