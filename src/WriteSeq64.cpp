@@ -42,7 +42,7 @@ struct WriteSeq64 : Module {
 		CLOCK12_INPUT,
 		CLOCK34_INPUT,
 		RESET_INPUT,
-		// -- first release
+		// -- 0.6.2
 		RUNCV_INPUT,
 		NUM_INPUTS
 	};
