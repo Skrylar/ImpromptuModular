@@ -2,11 +2,11 @@
 
 Version 0.6.3\*
 
-\* The version in the plugin manager is 0.6.2, update pending. For the 0.6.2 documentation, please see [here](https://github.com/MarcBoule/ImpromptuModular/tree/8dd67d3e92ff506f09b5b2b2b2ac0cfe581ad7b7).
-
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!)
 
 Available in the VCV Rack [plugin manager](https://vcvrack.com/plugins.html).
+
+\* The current version in the plugin manager is 0.6.2, an update is pending. For the 0.6.2 documentation, please see [here](https://github.com/MarcBoule/ImpromptuModular/tree/8dd67d3e92ff506f09b5b2b2b2ac0cfe581ad7b7).
 
 
 ## License
@@ -69,13 +69,13 @@ Although the display shows note names (ex. C4#, D5, etc.), any voltage within th
 
 Ideas: send the midi keyboard's CV into the sequencer's CV in, and send the keyboard's gate signal into the sequencer's _write_ input. With autostep activated, each key-press will automatically be entered in sequence. Gate states and window selection can be done by pressing the 8 and 4 LED buttons respectively, located below and above the main display. 
 
-Here are some specific details on each element on the faceplate of the module. Familiarity with Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers.
+Here are some specific details on each element on the faceplate of the module. Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers.
 
-* **Autostep**: Will automatically step the sequencer one step right on each write. No effect on channels 1 to 3 when the sequencer is running.
+* **Autostep**: Will automatically step the sequencer one step right on each write. No effect on channels 1 to 3 when the sequencer is running. An alternative way of automatically stepping the sequencer each time a note is entered is to send the gate signal of the keyboard to both the write and StepR inputs.
 
 * **Window**: LED buttons to display the active 8-step window from the 32 step sequence (hence four windows). No effect on channels 1 to 3 when the sequencer is running.
 
-* **Sharp / flat**: determines whether to display notes corresponding to black keys using either the sharp or flat symbols used in music notation. See _Notes display_ below for more information.
+* **Sharp / flat**: Determines whether to display notes corresponding to black keys using either the sharp or flat symbols used in music notation. See _Notes display_ below for more information.
 
 * **Quantize**: Quantizes the CV IN input to a regular 12 semi-tone equal temperament scale. Since this quantizes the CV IN, some channels can have quantized pitches while others do not. 
 
@@ -93,31 +93,31 @@ Here are some specific details on each element on the faceplate of the module. F
 
 * **Step L/R**: Steps the sequencer one step left or right. No effect on channels 1 to 3 when the sequencer is running.
 
-* **Run 1-3**: When running, the sequencer responds to rising edges of the CLOCK input and will step all channels except the staging area (channel 4).
+* **Run 1-3**: When running, the sequencer responds to rising edges of the clock input and will step all channels except the staging area (channel 4).
 
-* **Write**: This writes the pitch CV connected to the CV IN jack into the CV of the current step of the selected channel. If a wire is connected to GATE IN, this gate input is also written into the gate enable of the current step/channel. An enabled gate corresponds to a voltage of 1.0V or higher. The small LED indicates if writing via the write button is possible (green) or not (red).
+* **Write**: This writes the CV connected to the CV IN jack into the CV of the current step of the selected channel. If a wire is connected to GATE IN, this gate input is also written into the gate enable of the current step/channel. An enabled gate corresponds to a voltage of 1V or higher. The small LED indicates if writing via the write button is possible (green) or not (red).
 
-* **CV In**: This pitch CV is written into the current step of the selected channel. Any voltage between -10.0V and 10.0V is supported. See _Notes display_ and _Quantize_ above for more related information. No effect on channels 1 to 3 when the sequencer is running.
+* **CV In**: This CV is written into the current step of the selected channel. Any voltage between -10V and 10V is supported. See _Notes display_ and _Quantize_ above for more related information. No effect on channels 1 to 3 when the sequencer is running.
 
 * **Gate In**: Allows the state of the gate of the current step/channel to be written. If no wire is connected, input is ignored and the currently stored gate is unaffected. No effect on channels 1 to 3 when the sequencer is running.
 
 * **Steps**: Sets the number of steps in all the sequences (sequence length). Since all channels are synchronized to the same clock, this applies to all sequences (i.e. sequences are all of the same length).
 
-* **Monitor**: this switch determines which pitch CV will be routed to the currently selected channel's CV output. When the switch is in the right position, the pitch CV stored in the sequencer at that step is output, whereas in the left position the pitch CV applied to the CV IN jack is output. Has no effect when the sequencer is running.
+* **Monitor**: This switch determines which CV will be routed to the currently selected channel's CV output. When the switch is in the right position, the CV stored in the sequencer at that step is output, whereas in the left position the CV applied to the CV IN jack is output. Has no effect when the sequencer is running.
 
-* **CV 1-3**: pitch CV outputs of each channel at the current step.
+* **CV 1-3**: CV outputs of each channel at the current step.
 
 * **Gate 1-3**: Gate signal outputs for each channel at the current step. The duration of the gates corresponds to the high time of the clock signal.
 
-* **Run input**: control voltage starting and stopping the sequencer. A rising edge triggered at 1.0V will toggle the run mode.
+* **Run input**: Control voltage starting and stopping the sequencer. A rising edge triggered at 1V will toggle the run mode.
 
-* **Write input**: control voltage for writing CVs into the sequencer (WRITE button). A rising edge triggered at 1.0V will perform the write action (see _Write_ above).
+* **Write input**: Control voltage for writing CVs into the sequencer (WRITE button). A rising edge triggered at 1V will perform the write action (see _Write_ above).
 
-* **Step L/R inputs**: control voltages for step selection (STEP L/R buttons). A rising edge triggered at 1.0V will step the sequencer left/right by one step.
+* **Step L/R inputs**: Control voltages for step selection (STEP L/R buttons). A rising edge triggered at 1V will step the sequencer left/right by one step.
 
-* **Reset input**: repositions the sequencer at the first step. A rising edge triggered at 1.0V will be detected as a reset. Pending pastes are also cleared.
+* **Reset input**: Repositions the sequencer at the first step. A rising edge triggered at 1V will be detected as a reset. Pending pastes are also cleared.
 
-* **Clock**: when the sequencer is running, each rising edge (1.0V threshold) will advance the sequencer by one step. The width (duration) of the high pulse of the clock is used as the width (duration) of the gate outputs. 
+* **Clock**: When the sequencer is running, each rising edge (1V threshold) will advance the sequencer by one step. The width (duration) of the high pulse of the clock is used as the width (duration) of the gate outputs. 
 
 
 
@@ -137,7 +137,7 @@ Here are some specific details on elements of the faceplate which differ compare
 
 * **Steps**: Sets the number of steps of the currently selected sequence (sequence length). Each channel can have different lengths. This value is included as part of a copy-paste operation.
 
-* **Reset input/button**: repositions all channels to their first step. A rising edge triggered at 1.0V will be detected as a reset. Pending pastes are also cleared.
+* **Reset input/button**: Repositions all channels to their first step. A rising edge triggered at 1V will be detected as a reset. Pending pastes are also cleared.
 
 * **Clock 1,2**: Clock signal for channels 1 and 2.
 
@@ -157,7 +157,7 @@ The following block diagram shows how sequences and phrases relate to each other
 
 ![IM](res/img/PhraseSeq16BlockDiag.jpg)
 
-Here are some specific details on elements of the faceplate. Familiarity with Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers. 
+Here are some specific details on elements of the faceplate. Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers. 
 
 * **Seq/Song**: This is the main switch that controls the two major modes of the sequencer. Seq mode allows the currently selected sequence (Seq# knob and display) to be played/edited. In this mode, all controls are available (transpose, rotate, copy-paste, gates, slide, octave, notes) and the content of a sequence can be modified even when the sequencer is running. Song mode allows the creation of a series of sequence numbers (called phrases). In this mode, only the sequence index numbers themselves can be modified (whether the sequence is running or not); the aforementioned controls are unavailable and the actual contents of the sequences cannot be modified.
 
@@ -175,28 +175,28 @@ Here are some specific details on elements of the faceplate. Familiarity with Fu
 
 * **Copy-Paste**: Copy and paste the CVs, gates and slide states of a sequence into another sequence. Press the left button to copy the channel into a buffer, then select another sequence and press the right button to paste. All 16 steps are copied irrespective of the length of the sequences. Only available in Seq mode.
 
-* **Oct and keyboard**: When in Sequence mode, the octave LED buttons and the keyboard can be used to set the notes of a sequence. The octave and keyboard LEDs are used for display purposes only in Song mode.
+* **Oct and keyboard**: When in Seq mode, the octave LED buttons and the keyboard can be used to set the notes of a sequence. The octave and keyboard LEDs are used for display purposes only in Song mode.
 
-* **CV In**: This CV is written into the current step of the selected sequence. Any voltage between -10.0V and 10.0V is supported. When a CV is not quantized, the closest key is illuminated; octaves greater than 7 or smaller than 1 are not displayed by the octave LEDs.
+* **CV In**: This CV is written into the current step of the selected sequence. Any voltage between -10V and 10V is supported. When a CV is not quantized, the closest key is illuminated; octaves greater than 7 or smaller than 1 are not displayed by the octave LEDs. The write operation is perfomed using the write input CV (explained below).
 
-* **Write input**: control voltage for writing CVs into the sequencer. A rising edge triggered at 1.0V will perform the write action.
+* **Write input**: Control voltage for writing CVs into the sequencer. A rising edge triggered at 1V will perform the write action.
 
 * **Autostep**: Will automatically step the sequencer one step right on each write. This works with the _Write input_ only, and has no effect when entering notes with the onboard keys.
 
-* **Run input**: control voltage for starting and stopping the sequencer. A rising edge triggered at 1.0V will toggle the run mode.
+* **Run input**: Control voltage for starting and stopping the sequencer. A rising edge triggered at 1V will toggle the run mode.
 
-* **Seq input**: control voltage used to select the active sequence (Seq mode only). A 0 to 10V input is proportionnaly mapped to the 1 to 16 sequence numbers. This can be used to externally control the playing order of the sequences.
+* **Seq input**: Control voltage used to select the active sequence (Seq mode only). A 0 to 10V input is proportionnaly mapped to the 1 to 16 sequence numbers. This can be used to externally control the playing order of the sequences.
 
-* **Mode input**: control voltage used to select the run mode of sequences. A 0 to 10V input is proportionnaly mapped to the 5 run modes (see _Mode_ above).
+* **Mode input**: Control voltage used to select the run mode of sequences. A 0 to 10V input is proportionnaly mapped to the 5 run modes (see _Mode_ above).
 
 * **Gate 1, 2 buttons and probability knobs**: The gate buttons control whether the gate of a current step is active or not. The probability knob controls the chance that when a gate is active it is actually sent to the output jack. In the leftmost position, no gates are output, and in the rightmost position, gates are output exactly as stored in a sequence. This knob's setting is not memorized for each step and applies to the sequencer as a whole.
 
 * **Slide**: Portamento between CVs of successive steps. Slide can be activated for a given step using the slide button. The slide duration can be set using the small knob below the slide button (0 to 2 seconds, default 150ms). This knob's setting is not memorized for each step and applies to the sequencer as a whole.
 
-* **CV**: pitch CV output of the sequence/song the current step.
+* **CV**: CV output of the sequence/song the current step.
 
 * **Gate 1, 2**: Gate signal outputs for each channel at the current step. The duration of the gates corresponds to the high time of the clock signal. Gates can be turned on/off using the Gate buttons. Gate 2 is perfect for using as an accent if desired.
 
-* **Reset input/button**: repositions the run and edit heads of the sequence or song to the first step. A rising edge triggered at 1.0V will be detected as a reset.
+* **Reset input/button**: Repositions the run and edit heads of the sequence or song to the first step. A rising edge triggered at 1.0V will be detected as a reset.
 
-* **Clock**: when the sequencer is running, each rising edge (1.0V threshold) will advance the sequencer by one step. The width (duration) of the high pulse of the clock is used as the width (duration) of the gate outputs. 
+* **Clock**: When the sequencer is running, each rising edge (1V threshold) will advance the sequencer by one step. The width (duration) of the high pulse of the clock is used as the width (duration) of the gate outputs. 
