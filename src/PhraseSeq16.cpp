@@ -938,12 +938,12 @@ struct PhraseSeq16Widget : ModuleWidget {
 					runModeToStr(module->runModeSong);
 			}
 			else if (module->displayState == PhraseSeq16::DISP_TRANSPOSE) {
-				snprintf(displayStr, 4, "+%2u", abs(module->transposeOffset));
+				snprintf(displayStr, 4, " %2u", (unsigned) abs(module->transposeOffset));
 				if (module->transposeOffset < 0)
 					displayStr[0] = '-';
 			}
 			else if (module->displayState == PhraseSeq16::DISP_ROTATE) {
-				snprintf(displayStr, 4, ">%2u", abs(module->rotateOffset));
+				snprintf(displayStr, 4, ">%2u", (unsigned) abs(module->rotateOffset));
 				if (module->rotateOffset < 0)
 					displayStr[0] = '<';
 			}
