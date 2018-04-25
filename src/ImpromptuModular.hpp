@@ -46,6 +46,7 @@ static const int vOffsetCKSSThree = -2;
 static const int hOffsetCKSSH = 2;
 static const int vOffsetCKSSH = 5;
 static const int offsetCKD6 = -1;//does both h and v
+static const int offsetCKD6b = 0;//does both h and v
 static const int vOffsetDisplay = -2;
 static const int offsetDavies1900 = -6;//does both h and v
 static const int offsetRoundSmallBlackKnob = 1;//does both h and v
@@ -110,6 +111,13 @@ struct CKSSH : SVGSwitch, ToggleSwitch {
 		addFrame(SVG::load(assetPlugin(plugin, "res/CKSSH_1.svg")));
 		sw->wrap();
 		box.size = sw->box.size;
+	}
+};
+
+struct CKD6b : SVGSwitch, MomentarySwitch {
+	CKD6b() {
+		addFrame(SVG::load(assetPlugin(plugin, "res/CKD6b_0.svg")));
+		addFrame(SVG::load(assetPlugin(plugin, "res/CKD6b_1.svg")));
 	}
 };
 

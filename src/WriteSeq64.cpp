@@ -74,6 +74,7 @@ struct WriteSeq64 : Module {
 	float cvCPbuffer[64];// copy paste buffer for CVs
 	float gateCPbuffer[64];// copy paste buffer for gates
 	int stepsCPbuffer;
+	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	float resetLight = 0.0f;
 	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq, destination channel in next msbits
 
@@ -110,6 +111,7 @@ struct WriteSeq64 : Module {
 			gateCPbuffer[s] = true;
 		}
 		stepsCPbuffer = 64;
+		infoCopyPaste = 0l;
 		stepKnob = 0;
 		stepsKnob = 0;
 		pendingPaste = 0;
@@ -131,6 +133,7 @@ struct WriteSeq64 : Module {
 			gateCPbuffer[s] = true;
 		}
 		stepsCPbuffer = 64;
+		infoCopyPaste = 0l;
 		stepKnob = 0;
 		stepsKnob = 0;
 		pendingPaste = 0;
@@ -253,6 +256,8 @@ struct WriteSeq64 : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
+		static const float copyPasteInfoTime = 0.3f;// seconds
+
 		// Run state and light
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
@@ -266,6 +271,7 @@ struct WriteSeq64 : Module {
 	
 		// Copy
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
+			infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
 			for (int i = 0; i < 64; i++) {
 				cvCPbuffer[i] = cv[indexChannel][i];
 				gateCPbuffer[i] = gates[indexChannel][i];
@@ -276,6 +282,7 @@ struct WriteSeq64 : Module {
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 			if (params[PASTESYNC_PARAM].value < 0.5f || indexChannel == 4) {
 				// Paste realtime, no pending to schedule
+				infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
 				for (int s = 0; s < 64; s++) {
 					cv[indexChannel][s] = cvCPbuffer[s];
 					gates[indexChannel][s] = gateCPbuffer[s];
@@ -431,6 +438,13 @@ struct WriteSeq64 : Module {
 		
 		// Pending paste light
 		lights[PENDING_LIGHT].value = (pendingPaste == 0 ? 0.0f : 1.0f);
+		
+		if (infoCopyPaste != 0ul) {
+			if (infoCopyPaste > 0l)
+				infoCopyPaste --;
+			if (infoCopyPaste < 0l)
+				infoCopyPaste ++;
+		}
 	}
 };
 
@@ -448,37 +462,47 @@ struct WriteSeq64Widget : ModuleWidget {
 		
 		void cvToStr(void) {
 			float cvVal = module->cv[module->indexChannel][module->indexStep[module->indexChannel]];
-			if (module->params[WriteSeq64::SHARP_PARAM].value > 0.5f) {// show notes
-				float cvValOffset = cvVal +10.0f;// to properly handle negative note voltages
-				int indexNote =  clamp(  (int)roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0,  11);
-				bool sharp = (module->params[WriteSeq64::SHARP_PARAM].value < 1.5f) ? true : false;
-				
-				text[0] = ' ';
-				
-				// note letter
-				text[1] = sharp ? noteLettersSharp[indexNote] : noteLettersFlat[indexNote];
-				
-				// octave number
-				int octave = (int) roundf(floorf(cvVal)+4.0f);
-				if (octave < 0 || octave > 9)
-					text[2] = (octave > 9) ? ':' : '_';
-				else
-					text[2] = (char) ( 0x30 + octave);
-				
-				// sharp/flat
-				text[3] = ' ';
-				if (isBlackKey[indexNote] == 1)
-					text[3] = (sharp ? '\"' : '^' );
-				
-				// end of string
-				text[4] = 0;
+			if (module->infoCopyPaste != 0l) {
+				if (module->infoCopyPaste > 0l) {// if copy then display "Copy"
+					snprintf(text, 7, "COPY");
+				}
+				else {// paste then display "Paste"
+					snprintf(text, 7, "PASTE");
+				}
 			}
-			else  {// show volts
-				float cvValPrint = fabs(cvVal);
-				cvValPrint = (cvValPrint > 9.999f) ? 9.999f : cvValPrint;
-				snprintf(text, 7, " %4.3f", cvValPrint);// Four-wide, three positions after the decimal, left-justified
-				text[0] = (cvVal<0.0f) ? '-' : ' ';
-				text[2] = ',';
+			else {			
+				if (module->params[WriteSeq64::SHARP_PARAM].value > 0.5f) {// show notes
+					float cvValOffset = cvVal +10.0f;// to properly handle negative note voltages
+					int indexNote =  clamp(  (int)roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0,  11);
+					bool sharp = (module->params[WriteSeq64::SHARP_PARAM].value < 1.5f) ? true : false;
+					
+					text[0] = ' ';
+					
+					// note letter
+					text[1] = sharp ? noteLettersSharp[indexNote] : noteLettersFlat[indexNote];
+					
+					// octave number
+					int octave = (int) roundf(floorf(cvVal)+4.0f);
+					if (octave < 0 || octave > 9)
+						text[2] = (octave > 9) ? ':' : '_';
+					else
+						text[2] = (char) ( 0x30 + octave);
+					
+					// sharp/flat
+					text[3] = ' ';
+					if (isBlackKey[indexNote] == 1)
+						text[3] = (sharp ? '\"' : '^' );
+					
+					// end of string
+					text[4] = 0;
+				}
+				else  {// show volts
+					float cvValPrint = fabs(cvVal);
+					cvValPrint = (cvValPrint > 9.999f) ? 9.999f : cvValPrint;
+					snprintf(text, 7, " %4.3f", cvValPrint);// Four-wide, three positions after the decimal, left-justified
+					text[0] = (cvVal<0.0f) ? '-' : ' ';
+					text[2] = ',';
+				}
 			}
 		}
 
@@ -628,11 +652,11 @@ struct WriteSeq64Widget : ModuleWidget {
 		static const int rowRulerT1 = 105;
 		
 		// Channel button
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerT0+offsetCKD6, rowRulerT1+offsetCKD6), module, WriteSeq64::CHANNEL_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerT0+offsetCKD6b, rowRulerT1+offsetCKD6b), module, WriteSeq64::CHANNEL_PARAM, 0.0f, 1.0f, 0.0f));
 		// Step knob
 		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(columnRulerT1+offsetDavies1900, rowRulerT1+offsetDavies1900), module, WriteSeq64::STEP_PARAM, -INFINITY, INFINITY, 0.0f));		
 		// Gate button
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerT2-1+offsetCKD6, rowRulerT1+offsetCKD6), module, WriteSeq64::GATE_PARAM , 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerT2-1+offsetCKD6b, rowRulerT1+offsetCKD6b), module, WriteSeq64::GATE_PARAM , 0.0f, 1.0f, 0.0f));
 		// Autostep	
 		addParam(ParamWidget::create<CKSS>(Vec(columnRulerT2+53+hOffsetCKSS, rowRulerT1+6+vOffsetCKSS), module, WriteSeq64::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));
 		// Quantize switch
@@ -677,7 +701,7 @@ struct WriteSeq64Widget : ModuleWidget {
 		
 		// Column 1
 		// Step L button
-		addParam(ParamWidget::create<CKD6>(Vec(columnRuler1+offsetCKD6, rowRuler0+offsetCKD6), module, WriteSeq64::STEPL_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRuler1+offsetCKD6b, rowRuler0+offsetCKD6b), module, WriteSeq64::STEPL_PARAM, 0.0f, 1.0f, 0.0f));
 		// Run LED bezel and light
 		addParam(ParamWidget::create<LEDBezel>(Vec(columnRuler1+offsetLEDbezel, rowRuler1+offsetLEDbezel), module, WriteSeq64::RUN_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRuler1+offsetLEDbezel+offsetLEDbezelLight, rowRuler1+offsetLEDbezel+offsetLEDbezelLight), module, WriteSeq64::RUN_LIGHT));
@@ -689,10 +713,10 @@ struct WriteSeq64Widget : ModuleWidget {
 		
 		// Column 2
 		// Step R button
-		addParam(ParamWidget::create<CKD6>(Vec(columnRuler2+offsetCKD6, rowRuler0+offsetCKD6), module, WriteSeq64::STEPR_PARAM, 0.0f, 1.0f, 0.0f));	
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRuler2+offsetCKD6b, rowRuler0+offsetCKD6b), module, WriteSeq64::STEPR_PARAM, 0.0f, 1.0f, 0.0f));	
 		// Write button and light
-		addParam(ParamWidget::create<CKD6>(Vec(columnRuler2+offsetCKD6, rowRuler1+offsetCKD6), module, WriteSeq64::WRITE_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<SmallLight<GreenRedLight>>(Vec(columnRuler2 -12, rowRuler1 - 13), module, WriteSeq64::WRITE_LIGHT));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRuler2+offsetCKD6b, rowRuler1+offsetCKD6b), module, WriteSeq64::WRITE_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<SmallLight<GreenRedLight>>(Vec(columnRuler2 -12, rowRuler1 - 12), module, WriteSeq64::WRITE_LIGHT));
 		// Monitor
 		addParam(ParamWidget::create<CKSSH>(Vec(columnRuler2+hOffsetCKSSH, rowRuler2+vOffsetCKSSH), module, WriteSeq64::MONITOR_PARAM, 0.0f, 1.0f, 0.0f));
 		// Step R input

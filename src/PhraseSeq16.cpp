@@ -570,8 +570,8 @@ struct PhraseSeq16 : Module {
 		// Copy
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
 			if (editingSequence) {
+				infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
 				for (int s = 0; s < 16; s++) {
-					infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
 					cvCPbuffer[s] = cv[sequence][s];
 					gate1CPbuffer[s] = gate1[sequence][s];
 					gate1ProbCPbuffer[s] = gate1Prob[sequence][s];
@@ -584,8 +584,8 @@ struct PhraseSeq16 : Module {
 		// Paste
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 			if (editingSequence) {
+				infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
 				for (int s = 0; s < 16; s++) {
-					infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
 					cv[sequence][s] = cvCPbuffer[s];
 					gate1[sequence][s] = gate1CPbuffer[s];
 					gate1Prob[sequence][s] = gate1ProbCPbuffer[s];
@@ -607,6 +607,7 @@ struct PhraseSeq16 : Module {
 				gate2[sequence][stepIndexEdit] = false;
 				slide[sequence][stepIndexEdit] = false;		
 			}
+			displayState = DISP_NORMAL;
 		}
 
 
@@ -1073,10 +1074,10 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int columnRulerT3 = columnRulerT2 + 263;// Attach (also used to align rest of right side of module)
 
 		// Length button
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerT0 + offsetCKD6, rowRulerT0 + offsetCKD6), module, PhraseSeq16::LENGTH_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerT0 + offsetCKD6b, rowRulerT0 + offsetCKD6b), module, PhraseSeq16::LENGTH_PARAM, 0.0f, 1.0f, 0.0f));
 		// Left/Right buttons
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerT1 + offsetCKD6, rowRulerT0 + offsetCKD6), module, PhraseSeq16::LEFT_PARAM, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerT1 + 38 + offsetCKD6, rowRulerT0 + offsetCKD6), module, PhraseSeq16::RIGHT_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerT1 + offsetCKD6b, rowRulerT0 + offsetCKD6b), module, PhraseSeq16::LEFT_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerT1 + 38 + offsetCKD6b, rowRulerT0 + offsetCKD6b), module, PhraseSeq16::RIGHT_PARAM, 0.0f, 1.0f, 0.0f));
 		// Step/Phrase lights
 		static const int spLightsSpacing = 15;
 		for (int i = 0; i < 16; i++) {
@@ -1147,7 +1148,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		displaySequence->module = module;
 		addChild(displaySequence);
 		// Run mode button
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMK2 + offsetCKD6, rowRulerMK0 + 2 + offsetCKD6), module, PhraseSeq16::RUNMODE_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK0 + 0 + offsetCKD6b), module, PhraseSeq16::RUNMODE_PARAM, 0.0f, 1.0f, 0.0f));
 
 		// Reset LED bezel and light
 		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 + offsetLEDbezel, rowRulerMK1 + 7 + offsetLEDbezel), module, PhraseSeq16::RESET_PARAM, 0.0f, 1.0f, 0.0f));
@@ -1155,7 +1156,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		// Sequence knob
 		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(columnRulerMK1 + 1 + offsetDavies1900, rowRulerMK0 + 55 + offsetDavies1900), module, PhraseSeq16::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f));		
 		// Transpose button
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMK2 + offsetCKD6, rowRulerMK1 + 2 + offsetCKD6), module, PhraseSeq16::TRANSPOSE_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK1 + 0 + offsetCKD6b), module, PhraseSeq16::TRANSPOSE_PARAM, 0.0f, 1.0f, 0.0f));
 		
 		
 		// Run LED bezel and light
@@ -1165,7 +1166,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 - 10, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq16::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 + 20, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq16::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
 		// Rotate button
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMK2 + offsetCKD6, rowRulerMK2 + 2 + offsetCKD6), module, PhraseSeq16::ROTATE_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK2 + 0 + offsetCKD6b), module, PhraseSeq16::ROTATE_PARAM, 0.0f, 1.0f, 0.0f));
 
 		
 		
@@ -1182,21 +1183,21 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int posLEDvsButton = + 25;
 		
 		// Gate 1 light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 - 24 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::GATE1_LIGHT));		
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB1 - 24 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::GATE1_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 - 24 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, PhraseSeq16::GATE1_LIGHT));		
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB1 - 24 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq16::GATE1_PARAM, 0.0f, 1.0f, 0.0f));
 		// Gate 2 light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB2 - 20 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::GATE2_LIGHT));		
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB2 - 20 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::GATE2_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB2 - 20 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, PhraseSeq16::GATE2_LIGHT));		
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB2 - 20 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq16::GATE2_PARAM, 0.0f, 1.0f, 0.0f));
 		// Slide light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB3 - 16 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::SLIDE_LIGHT));		
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB3 - 16 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB3 - 16 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, PhraseSeq16::SLIDE_LIGHT));		
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB3 - 16 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq16::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f));
 		// Tie step
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB4 - 12 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::TIE_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB4 - 12 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq16::TIE_PARAM, 0.0f, 1.0f, 0.0f));
 
 		
 		// Gate 1 probability light and button
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 + posLEDvsButton + offsetMediumLight, rowRulerMB1 + offsetMediumLight), module, PhraseSeq16::GATE1_PROB_LIGHT));		
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB1 + offsetCKD6, rowRulerMB1 + offsetCKD6), module, PhraseSeq16::GATE1_PROB_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB1 + offsetCKD6b, rowRulerMB1 + offsetCKD6b), module, PhraseSeq16::GATE1_PROB_PARAM, 0.0f, 1.0f, 0.0f));
 		// Gate 1 probability knob
 		addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(columnRulerMB2 + offsetRoundSmallBlackKnob, rowRulerMB1 + offsetRoundSmallBlackKnob), module, PhraseSeq16::GATE1_KNOB_PARAM, 0.0f, 1.0f, 1.0f));
 		// Slide knob

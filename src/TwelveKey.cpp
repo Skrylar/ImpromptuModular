@@ -252,8 +252,8 @@ struct TwelveKeyWidget : ModuleWidget {
 		octaveNumDisplay->octaveNum = &module->octaveNum;
 		addChild(octaveNumDisplay);
 		// Octave buttons
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerM - 20 + offsetCKD6, rowRuler2 - 10 + offsetCKD6), module, TwelveKey::OCTDEC_PARAM, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerM + 22 + offsetCKD6, rowRuler2 - 10 + offsetCKD6), module, TwelveKey::OCTINC_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerM - 20 + offsetCKD6b, rowRuler2 - 10 + offsetCKD6b), module, TwelveKey::OCTDEC_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerM + 22 + offsetCKD6b, rowRuler2 - 10 + offsetCKD6b), module, TwelveKey::OCTINC_PARAM, 0.0f, 1.0f, 0.0f));
 		
 		// Right side outputs
 		addOutput(Port::create<PJ301MPortS>(Vec(columnRulerR, rowRuler0), Port::OUTPUT, module, TwelveKey::CV_OUTPUT));
