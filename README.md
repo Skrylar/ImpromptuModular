@@ -1,12 +1,10 @@
 # Impromptu Modular: Modules for [VCV Rack](https://vcvrack.com) by Marc Boulé
 
-Version 0.6.3\*
+Version 0.6.3
 
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!)
 
 Available in the VCV Rack [plugin manager](https://vcvrack.com/plugins.html).
-
-\* The current version in the plugin manager is 0.6.2, an update is pending. For the 0.6.2 documentation, please see [here](https://github.com/MarcBoule/ImpromptuModular/tree/8dd67d3e92ff506f09b5b2b2b2ac0cfe581ad7b7).
 
 
 ## License
