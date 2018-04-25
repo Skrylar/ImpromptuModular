@@ -256,9 +256,9 @@ struct WriteSeq64 : Module {
 		// Copy
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
 			infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
-			for (int i = 0; i < 64; i++) {
-				cvCPbuffer[i] = cv[indexChannel][i];
-				gateCPbuffer[i] = gates[indexChannel][i];
+			for (int s = 0; s < 64; s++) {
+				cvCPbuffer[s] = cv[indexChannel][s];
+				gateCPbuffer[s] = gates[indexChannel][s];
 			}
 			stepsCPbuffer = indexSteps[indexChannel];
 			pendingPaste = 0;
