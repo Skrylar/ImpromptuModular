@@ -87,7 +87,6 @@ struct Davies1900hBlackKnobNoTick : Davies1900hKnob {
 		shadow->blurRadius = 10.0;
 		shadow->opacity = 0.8;
 	}
-	//void reset() override {} // called when initialize module (right click)
 };
 
 struct CKSSThreeInv : SVGSwitch, ToggleSwitch {

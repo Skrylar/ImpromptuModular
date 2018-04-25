@@ -72,6 +72,7 @@ struct WriteSeq32 : Module {
 	int notesPos[8]; // used for rendering notes in LCD_24, 8 gate and 8 step LEDs 
 	float cvCPbuffer[32];// copy paste buffer for CVs
 	bool gateCPbuffer[32];// copy paste buffer for gates
+	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq, destination channel in next msbits
 
 	SchmittTrigger clockTrigger;
@@ -104,6 +105,7 @@ struct WriteSeq32 : Module {
 			cvCPbuffer[s] = 0.0f;
 			gateCPbuffer[s] = true;
 		}
+		infoCopyPaste = 0l;
 		pendingPaste = 0;
 	}
 
@@ -120,6 +122,7 @@ struct WriteSeq32 : Module {
 			cvCPbuffer[s] = 0.0f;
 			gateCPbuffer[s] = true;
 		}
+		infoCopyPaste = 0l;
 		pendingPaste = 0;
 	}
 
@@ -129,9 +132,7 @@ struct WriteSeq32 : Module {
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
 
-		// indexStep, indexStepStage, indexChannel
-		//json_object_set_new(rootJ, "indexStep", json_integer(indexStep));
-		//json_object_set_new(rootJ, "indexStepStage", json_integer(indexStepStage));
+		// indexChannel
 		json_object_set_new(rootJ, "indexChannel", json_integer(indexChannel));
 
 		// CV
@@ -159,13 +160,7 @@ struct WriteSeq32 : Module {
 		if (runningJ)
 			running = json_is_true(runningJ);
 		
-		// indexStep, indexStepStage, indexChannel
-		/*json_t *indexStepJ = json_object_get(rootJ, "indexStep");
-		if (indexStepJ)
-			indexStep = json_integer_value(indexStepJ);
-		json_t *indexStepStageJ = json_object_get(rootJ, "indexStepStage");
-		if (indexStepStageJ)
-			indexStepStage = json_integer_value(indexStepStageJ);*/
+		// indexChannel
 		json_t *indexChannelJ = json_object_get(rootJ, "indexChannel");
 		if (indexChannelJ)
 			indexChannel = json_integer_value(indexChannelJ);
@@ -201,6 +196,8 @@ struct WriteSeq32 : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
+		static const float copyPasteInfoTime = 0.4f;// seconds
+
 		int numSteps = (int) clamp(roundf(params[STEPS_PARAM].value), 1.0f, 32.0f);	
 		
 		// Run state and light
@@ -216,15 +213,18 @@ struct WriteSeq32 : Module {
 		
 		// Copy
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
+			infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
 			for (int s = 0; s < 32; s++) {
 				cvCPbuffer[s] = cv[indexChannel][s];
 				gateCPbuffer[s] = gates[indexChannel][s];
 			}
+			pendingPaste = 0;
 		}
 		// Paste
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 			if (params[PASTESYNC_PARAM].value < 0.5f || indexChannel == 3) {
 				// Paste realtime, no pending to schedule
+				infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
 				for (int s = 0; s < 32; s++) {
 					cv[indexChannel][s] = cvCPbuffer[s];
 					gates[indexChannel][s] = gateCPbuffer[s];
@@ -269,6 +269,7 @@ struct WriteSeq32 : Module {
 				// Pending paste on clock or end of seq
 				if ( ((pendingPaste&0x3) == 1) || ((pendingPaste&0x3) == 2 && indexStep == 0) ) {
 					int pasteChannel = pendingPaste>>2;
+					infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
 					for (int s = 0; s < 32; s++) {
 						cv[pasteChannel][s] = cvCPbuffer[s];
 						gates[pasteChannel][s] = gateCPbuffer[s];
@@ -370,12 +371,26 @@ struct WriteSeq32 : Module {
 		}
 			
 		// Channel lights
-		setRGBLight(CHANNEL_LIGHTS + 0, 0.0f, 1.0f, 0.0f, (indexChannel == 0));// green
-		setRGBLight(CHANNEL_LIGHTS + 3, 0.4f, 0.5f, 0.0f, (indexChannel == 1));// orange
-		setRGBLight(CHANNEL_LIGHTS + 6, 0.0f, 0.5f, 0.4f, (indexChannel == 2));// turquoise
-		setRGBLight(CHANNEL_LIGHTS + 9, 0.0f, 0.0f, 0.8f, (indexChannel == 3));// blue
-		//if (pendingPaste != 0)
-			//setRGBLight(CHANNEL_LIGHTS + (pendingPaste>>2)*3, 1.0f, 0.0f, 0.0f, true);
+		if (infoCopyPaste != 0l) {
+			if (infoCopyPaste > 0l) {// if copy then display "Copy"
+				setRGBLight(CHANNEL_LIGHTS + 0, 0.0f, 1.0f, 0.0f, true);// green
+				setRGBLight(CHANNEL_LIGHTS + 3, 0.0f, 1.0f, 0.0f, true);// green
+				setRGBLight(CHANNEL_LIGHTS + 6, 0.0f, 1.0f, 0.0f, true);// green
+				setRGBLight(CHANNEL_LIGHTS + 9, 0.0f, 1.0f, 0.0f, true);// green
+			}
+			else {// paste then display "Paste"
+				setRGBLight(CHANNEL_LIGHTS + 0, 1.0f, 0.0f, 0.0f, true);// red
+				setRGBLight(CHANNEL_LIGHTS + 3, 1.0f, 0.0f, 0.0f, true);// red
+				setRGBLight(CHANNEL_LIGHTS + 6, 1.0f, 0.0f, 0.0f, true);// red
+				setRGBLight(CHANNEL_LIGHTS + 9, 1.0f, 0.0f, 0.0f, true);// red
+			}
+		}
+		else {			
+			setRGBLight(CHANNEL_LIGHTS + 0, 0.0f, 1.0f, 0.0f, (indexChannel == 0));// green
+			setRGBLight(CHANNEL_LIGHTS + 3, 0.4f, 0.5f, 0.0f, (indexChannel == 1));// orange
+			setRGBLight(CHANNEL_LIGHTS + 6, 0.0f, 0.5f, 0.4f, (indexChannel == 2));// turquoise
+			setRGBLight(CHANNEL_LIGHTS + 9, 0.0f, 0.0f, 0.8f, (indexChannel == 3));// blue
+		}
 		
 		// Write allowed light
 		lights[WRITE_LIGHT + 0].value = (canEdit)?1.0f:0.0f;
@@ -383,6 +398,13 @@ struct WriteSeq32 : Module {
 		
 		// Pending paste light
 		lights[PENDING_LIGHT].value = (pendingPaste == 0 ? 0.0f : 1.0f);
+		
+		if (infoCopyPaste != 0ul) {
+			if (infoCopyPaste > 0l)
+				infoCopyPaste --;
+			if (infoCopyPaste < 0l)
+				infoCopyPaste ++;
+		}
 	}
 	
 	void setRGBLight(int id, float red, float green, float blue, bool enable) {

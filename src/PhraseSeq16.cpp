@@ -8,7 +8,9 @@
 //
 //Module inspired by the SA-100 Stepper Acid sequencer by Transistor Sounds Labs
 //
-//Acknowledgements: Nigel Sixsmith, Alfredo Santamaria and Nay Seven for suggested improvements
+//Acknowledgements: Thanks to Alfredo Santamaria and Nay Seven for suggestions regarding 
+//  improvements. A very special thank you to Nigel Sixsmith for the many fruitful discussions 
+//  and numerous design improvements that were suggested.
 //***********************************************************************************************
 
 
@@ -524,7 +526,7 @@ struct PhraseSeq16 : Module {
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		static const float gateTime = 0.3f;// seconds
-		static const float copyPasteInfoTime = 0.3f;// seconds
+		static const float copyPasteInfoTime = 0.4f;// seconds
 		static const float editLengthTime = 1.6f;// seconds
 
 		bool editingSequence = params[EDIT_PARAM].value > 0.5f;// true = editing sequence, false = editing song

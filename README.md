@@ -18,7 +18,7 @@ See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
 
 ## Acknowledgements
 
-Thanks to Nigel Sixsmith, Alfredo Santamaria and Nay Seven for suggestions and discussions regarding improvements.
+Thanks to Alfredo Santamaria and Nay Seven for suggestions regarding improvements to Phrase-Seq-16. A very special thank you to Nigel Sixsmith for the many fruitful discussions and numerous design improvements that were suggested to Phrase-Seq-16.
 
 
 ## Modules
@@ -89,7 +89,7 @@ Here are some specific details on each element on the faceplate of the module. F
 
 * **Copy-Paste**: Copy and paste the CVs and gates of a channel into another channel. In a given channel, press the left button to copy the channel into a buffer, then select another channel and press the right button to paste. All 32 steps are copied irrespective of the STPES knob setting.
 
-* **Paste sync**: Determines whether to paste in real time (RT), on the next clock (CLK), or at the next sequence start (SEQ). Pending pastes are shown by a red LED beside CLK/SEQ, and if the selected channel changes, the paste operation will be performed in the channel that was selected when the paste button was pressed. Pending pastes into the staging area (channel 4) are always done in real time, irrespective of the state of the paste sync switch.
+* **Paste sync**: Determines whether to paste in real time (RT), on the next clock (CLK), or at the next sequence start (SEQ). Pending pastes are shown by a red LED beside CLK/SEQ, and if the selected channel changes, the paste operation will be performed in the channel that was selected when the paste button was pressed. Pending pastes into the staging area (channel 4) are always done in real time, irrespective of the state of the paste sync switch. To cancel a pending paste, press the copy button again.
 
 * **Step L/R**: Steps the sequencer one step left or right. No effect on channels 1 to 3 when the sequencer is running.
 

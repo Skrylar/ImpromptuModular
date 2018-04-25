@@ -147,12 +147,6 @@ struct WriteSeq64 : Module {
 
 		// indexChannel
 		json_object_set_new(rootJ, "indexChannel", json_integer(indexChannel));
-
-		// indexStep 
-		/*json_t *indexStepJ = json_array();
-		for (int c = 0; c < 5; c++)
-			json_array_insert_new(indexStepJ, c, json_integer(indexStep[c]));
-		json_object_set_new(rootJ, "indexStep", indexStepJ);*/
 		
 		// indexSteps 
 		json_t *indexStepsJ = json_array();
@@ -195,16 +189,6 @@ struct WriteSeq64 : Module {
 		json_t *indexChannelJ = json_object_get(rootJ, "indexChannel");
 		if (indexChannelJ)
 			indexChannel = json_integer_value(indexChannelJ);
-		
-		// indexStep
-		/*json_t *indexStepJ = json_object_get(rootJ, "indexStep");
-		if (indexStepJ)
-			for (int c = 0; c < 5; c++)
-			{
-				json_t *indexStepArrayJ = json_array_get(indexStepJ, c);
-				if (indexStepArrayJ)
-					indexStep[c] = json_integer_value(indexStepArrayJ);
-			}*/
 		
 		// indexSteps
 		json_t *indexStepsJ = json_object_get(rootJ, "indexSteps");
@@ -256,7 +240,7 @@ struct WriteSeq64 : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
-		static const float copyPasteInfoTime = 0.3f;// seconds
+		static const float copyPasteInfoTime = 0.4f;// seconds
 
 		// Run state and light
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
@@ -277,6 +261,7 @@ struct WriteSeq64 : Module {
 				gateCPbuffer[i] = gates[indexChannel][i];
 			}
 			stepsCPbuffer = indexSteps[indexChannel];
+			pendingPaste = 0;
 		}
 		// Paste
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
@@ -350,6 +335,7 @@ struct WriteSeq64 : Module {
 			if ( ((pendingPaste&0x3) == 1) || ((pendingPaste&0x3) == 2 && indexStep[indexChannel] == 0) ) {
 				if ( (clk12step && (indexChannel == 0 || indexChannel == 1)) ||
 					 (clk34step && (indexChannel == 2 || indexChannel == 3)) ) {
+					infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
 					int pasteChannel = pendingPaste>>2;
 					for (int s = 0; s < 64; s++) {
 						cv[pasteChannel][s] = cvCPbuffer[s];
