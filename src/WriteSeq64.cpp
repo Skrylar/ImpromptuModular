@@ -257,6 +257,10 @@ struct WriteSeq64 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			//pendingPaste = 0;// no pending pastes across run state toggles
+			if (running) {
+				for (int c = 0; c < 5; c++) 
+					indexStep[c] = 0;
+			}
 		}
 		lights[RUN_LIGHT].value = (running);
 	

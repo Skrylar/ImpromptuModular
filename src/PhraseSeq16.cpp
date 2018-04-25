@@ -47,6 +47,7 @@ struct PhraseSeq16 : Module {
 		GATE1_KNOB_PARAM,
 		GATE2_KNOB_PARAM,// no longer used
 		GATE1_PROB_PARAM,
+		TIE_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -60,7 +61,6 @@ struct PhraseSeq16 : Module {
 		RUNCV_INPUT,
 		SEQCV_INPUT,
 		MODECV_INPUT,
-		PROBCV_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -118,6 +118,7 @@ struct PhraseSeq16 : Module {
 	int stepIndexPhraseRun;
 	unsigned long editingLength;// 0 when not editing length, downward step counter timer when editing length
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
+	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	float editingGateCV;// no need to initialize, this is a companion to editingGate
 	int stepIndexRunHistory;// no need to initialize
 	int stepIndexPhraseRunHistory;// no need to initialize
@@ -193,6 +194,7 @@ struct PhraseSeq16 : Module {
 		sequenceKnob = 0;
 		editingLength = 0ul;
 		editingGate = 0ul;
+		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
 		attach = 1.0f;
@@ -228,6 +230,7 @@ struct PhraseSeq16 : Module {
 		sequenceKnob = 0;
 		editingLength = 0ul;
 		editingGate = 0ul;
+		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
 		attach = 1.0f;
@@ -521,6 +524,7 @@ struct PhraseSeq16 : Module {
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		static const float gateTime = 0.3f;// seconds
+		static const float copyPasteInfoTime = 0.3f;// seconds
 		static const float editLengthTime = 1.6f;// seconds
 
 		bool editingSequence = params[EDIT_PARAM].value > 0.5f;// true = editing sequence, false = editing song
@@ -567,6 +571,7 @@ struct PhraseSeq16 : Module {
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
 			if (editingSequence) {
 				for (int s = 0; s < 16; s++) {
+					infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
 					cvCPbuffer[s] = cv[sequence][s];
 					gate1CPbuffer[s] = gate1[sequence][s];
 					gate1ProbCPbuffer[s] = gate1Prob[sequence][s];
@@ -580,6 +585,7 @@ struct PhraseSeq16 : Module {
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 			if (editingSequence) {
 				for (int s = 0; s < 16; s++) {
+					infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
 					cv[sequence][s] = cvCPbuffer[s];
 					gate1[sequence][s] = gate1CPbuffer[s];
 					gate1Prob[sequence][s] = gate1ProbCPbuffer[s];
@@ -589,6 +595,20 @@ struct PhraseSeq16 : Module {
 			}
 			displayState = DISP_NORMAL;
 		}
+		// Tie
+		if (pasteTrigger.process(params[TIE_PARAM].value)) {
+			if (editingSequence) {
+				int prevIndex = stepIndexEdit - 1;
+				if (prevIndex < 0)
+					prevIndex = steps - 1;
+				cv[sequence][stepIndexEdit] = cv[sequence][prevIndex];
+				gate1[sequence][stepIndexEdit] = false;
+				gate1Prob[sequence][stepIndexEdit] = false;
+				gate2[sequence][stepIndexEdit] = false;
+				slide[sequence][stepIndexEdit] = false;		
+			}
+		}
+
 
 		// Length button
 		if (lengthTrigger.process(params[LENGTH_PARAM].value)) {
@@ -820,8 +840,7 @@ struct PhraseSeq16 : Module {
 				}
 
 				if (gate1RandomEnable)
-					// Prob knob must be at 0 to use probcv input, which ranges from 0 to 1 V
-					gate1RandomEnable = randomUniform() < (params[GATE1_KNOB_PARAM].value + inputs[PROBCV_INPUT].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
+					gate1RandomEnable = randomUniform() < (params[GATE1_KNOB_PARAM].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
 				else 
 					gate1RandomEnable = true;
 			}
@@ -858,6 +877,7 @@ struct PhraseSeq16 : Module {
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			stepIndexEdit = 0;
 			stepIndexRun = 0;
+			sequence = 0;
 			phraseIndexEdit = 0;
 			phraseIndexRun = 0;
 			stepIndexPhraseRun = 0;
@@ -908,13 +928,27 @@ struct PhraseSeq16 : Module {
 		
 		// Keyboard lights
 		float cvValOffset;
-		if (editingSequence) 
-			cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
-		else	
-			cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexPhraseRun] + 10.0f;//to properly handle negative note voltages
-		int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
-		for (int i = 0; i < 12; i++) {
-			lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+		if (infoCopyPaste != 0l) {
+			if (infoCopyPaste > 0l) {// if copy (light black keys)
+				for (int i = 0; i < 12; i++) {
+					lights[KEY_LIGHTS + i].value = (i == 1 || i == 3 || i == 6 || i == 8 || i == 10) ? 1.0f : 0.0f;
+				}	
+			}
+			else {// paste (light white keys)
+				for (int i = 0; i < 12; i++) {
+					lights[KEY_LIGHTS + i].value = (i == 1 || i == 3 || i == 6 || i == 8 || i == 10) ? 0.0f : 1.0f;
+				}	
+			}
+		}
+		else {
+			if (editingSequence) 
+				cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
+			else	
+				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexPhraseRun] + 10.0f;//to properly handle negative note voltages
+			int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
+			for (int i = 0; i < 12; i++) {
+				lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+			}	
 		}		
 		
 		// Gate1, Gate1Prob, Gate2 and Slide lights
@@ -945,10 +979,16 @@ struct PhraseSeq16 : Module {
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
 
-		if (editingGate > 0ul)
-			editingGate--;
 		if (editingLength > 0ul)
 			editingLength--;
+		if (editingGate > 0ul)
+			editingGate--;
+		if (infoCopyPaste != 0ul) {
+			if (infoCopyPaste > 0l)
+				infoCopyPaste --;
+			if (infoCopyPaste < 0l)
+				infoCopyPaste ++;
+		}
 		if (slideStepsRemain > 0ul)
 			slideStepsRemain--;
 	}
@@ -1057,34 +1097,35 @@ struct PhraseSeq16Widget : ModuleWidget {
 			addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(15 + 3 + 4.4f, 82 + 6 + i * octLightsIntY), module, PhraseSeq16::OCTAVE_LIGHTS + i));
 		}
 		// Keys and Key lights
+		static const int keyNudgeX = 7;
 		static const int offsetKeyLEDx = 6;
 		static const int offsetKeyLEDy = 28;
 		// Black keys and lights
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(65, 89), module, PhraseSeq16::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(65+offsetKeyLEDx, 89+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 1));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(93, 89), module, PhraseSeq16::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(93+offsetKeyLEDx, 89+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 3));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(150, 89), module, PhraseSeq16::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(150+offsetKeyLEDx, 89+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 6));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(178, 89), module, PhraseSeq16::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(178+offsetKeyLEDx, 89+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 8));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(206, 89), module, PhraseSeq16::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(206+offsetKeyLEDx, 89+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 10));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(65+keyNudgeX, 89), module, PhraseSeq16::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(65+keyNudgeX+offsetKeyLEDx, 89+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 1));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(93+keyNudgeX, 89), module, PhraseSeq16::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(93+keyNudgeX+offsetKeyLEDx, 89+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 3));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(150+keyNudgeX, 89), module, PhraseSeq16::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(150+keyNudgeX+offsetKeyLEDx, 89+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 6));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(178+keyNudgeX, 89), module, PhraseSeq16::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(178+keyNudgeX+offsetKeyLEDx, 89+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 8));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(206+keyNudgeX, 89), module, PhraseSeq16::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(206+keyNudgeX+offsetKeyLEDx, 89+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 10));
 		// White keys and lights
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(51, 139), module, PhraseSeq16::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(51+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 0));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(79, 139), module, PhraseSeq16::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(79+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 2));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(107, 139), module, PhraseSeq16::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(107+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 4));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(136, 139), module, PhraseSeq16::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(136+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 5));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(164, 139), module, PhraseSeq16::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(164+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 7));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(192, 139), module, PhraseSeq16::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(192+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 9));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(220, 139), module, PhraseSeq16::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(220+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 11));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(51+keyNudgeX, 139), module, PhraseSeq16::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(51+keyNudgeX+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 0));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(79+keyNudgeX, 139), module, PhraseSeq16::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(79+keyNudgeX+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 2));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(107+keyNudgeX, 139), module, PhraseSeq16::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(107+keyNudgeX+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 4));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(136+keyNudgeX, 139), module, PhraseSeq16::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(136+keyNudgeX+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 5));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(164+keyNudgeX, 139), module, PhraseSeq16::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(164+keyNudgeX+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 7));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(192+keyNudgeX, 139), module, PhraseSeq16::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(192+keyNudgeX+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 9));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(220+keyNudgeX, 139), module, PhraseSeq16::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(220+keyNudgeX+offsetKeyLEDx, 139+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 11));
 		
 		
 		
@@ -1093,8 +1134,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int rowRulerMK0 = 99;// Edit mode row
 		static const int rowRulerMK1 = rowRulerMK0 + 56; // Run row
 		static const int rowRulerMK2 = rowRulerMK1 + 56; // Reset row
-		static const int columnRulerMK0 = 270;// Edit mode column
-		static const int columnRulerMK1 = columnRulerMK0 + 62;// Display column
+		static const int columnRulerMK0 = 276;// Edit mode column
+		static const int columnRulerMK1 = columnRulerMK0 + 59;// Display column
 		static const int columnRulerMK2 = columnRulerT3;// Run mode column
 		
 		// Edit mode switch
@@ -1108,8 +1149,9 @@ struct PhraseSeq16Widget : ModuleWidget {
 		// Run mode button
 		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMK2 + offsetCKD6, rowRulerMK0 + 2 + offsetCKD6), module, PhraseSeq16::RUNMODE_PARAM, 0.0f, 1.0f, 0.0f));
 
-		// Autostep
-		addParam(ParamWidget::create<CKSS>(Vec(columnRulerMK0 + hOffsetCKSS, rowRulerMK1 + 5 + vOffsetCKSS), module, PhraseSeq16::AUTOSTEP_PARAM, 0.0f, 1.0f, 0.0f));		
+		// Reset LED bezel and light
+		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 + offsetLEDbezel, rowRulerMK1 + 7 + offsetLEDbezel), module, PhraseSeq16::RESET_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK1 + 7 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq16::RESET_LIGHT));
 		// Sequence knob
 		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(columnRulerMK1 + 1 + offsetDavies1900, rowRulerMK0 + 55 + offsetDavies1900), module, PhraseSeq16::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f));		
 		// Transpose button
@@ -1117,11 +1159,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 		
 		
 		// Run LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 - 31 + offsetLEDbezel, rowRulerMK2 + 5 + offsetLEDbezel), module, PhraseSeq16::RUN_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 - 31 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK2 + 5 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq16::RUN_LIGHT));
-		// Reset LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 + 3 + offsetLEDbezel, rowRulerMK2 + 5 + offsetLEDbezel), module, PhraseSeq16::RESET_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 + 3 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK2 + 5 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq16::RESET_LIGHT));
+		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 + offsetLEDbezel, rowRulerMK2 + 5 + offsetLEDbezel), module, PhraseSeq16::RUN_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK2 + 5 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq16::RUN_LIGHT));
 		// Copy/paste buttons
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 - 10, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq16::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 + 20, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq16::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
@@ -1134,22 +1173,26 @@ struct PhraseSeq16Widget : ModuleWidget {
 		
 		static const int rowRulerMB0 = 214;
 		static const int rowRulerMB1 = rowRulerMB0 + 55;
-		static const int columnRulerMB0 = 22;// Autostep
+		static const int columnRulerMB0 = 22;
 		static const int columnRulerMBspacing = 54;
 		static const int columnRulerMB1 = columnRulerMB0 + 54;// Gate1 
 		static const int columnRulerMB2 = columnRulerMB1 + columnRulerMBspacing;// Gate2
 		static const int columnRulerMB3 = columnRulerMB2 + columnRulerMBspacing;// Slide
+		static const int columnRulerMB4 = columnRulerMB3 + columnRulerMBspacing;// Tie
 		static const int posLEDvsButton = + 25;
 		
 		// Gate 1 light and button
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 - 24 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::GATE1_LIGHT));		
 		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB1 - 24 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::GATE1_PARAM, 0.0f, 1.0f, 0.0f));
 		// Gate 2 light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB2 - 16 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::GATE2_LIGHT));		
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB2 - 16 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::GATE2_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB2 - 20 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::GATE2_LIGHT));		
+		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB2 - 20 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::GATE2_PARAM, 0.0f, 1.0f, 0.0f));
 		// Slide light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB3 - 8 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::SLIDE_LIGHT));		
-		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB3 - 8 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB3 - 16 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 5 + offsetMediumLight), module, PhraseSeq16::SLIDE_LIGHT));		
+		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB3 - 16 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f));
+		// Tie step
+		addParam(ParamWidget::create<CKD6>(Vec(columnRulerMB4 - 12 + offsetCKD6, rowRulerMB0 + 5 + offsetCKD6), module, PhraseSeq16::TIE_PARAM, 0.0f, 1.0f, 0.0f));
+
 		
 		// Gate 1 probability light and button
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 + posLEDvsButton + offsetMediumLight, rowRulerMB1 + offsetMediumLight), module, PhraseSeq16::GATE1_PROB_LIGHT));		
@@ -1161,7 +1204,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		
 						
 		
-		// ****** All jacks ******
+		// ****** All jacks and autostep ******
 		
 		static const int outputJackSpacingX = 54;
 		static const int rowRulerB0 = 323;
@@ -1176,7 +1219,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int columnRulerB5 = columnRulerB6 - outputJackSpacingX;
 
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerMB0, rowRulerB1), Port::INPUT, module, PhraseSeq16::SEQCV_INPUT));
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB4, rowRulerB1), Port::INPUT, module, PhraseSeq16::RUNCV_INPUT));
+		addParam(ParamWidget::create<CKSS>(Vec(columnRulerB4 + hOffsetCKSS, rowRulerB1 + vOffsetCKSS), module, PhraseSeq16::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, PhraseSeq16::CV_INPUT));
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB6, rowRulerB1), Port::INPUT, module, PhraseSeq16::RESET_INPUT));
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, PhraseSeq16::CLOCK_INPUT));
@@ -1188,10 +1231,10 @@ struct PhraseSeq16Widget : ModuleWidget {
 	
 		// CV control Inputs 
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq16::MODECV_INPUT));
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, PhraseSeq16::WRITE_INPUT));
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, PhraseSeq16::PROBCV_INPUT));		
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq16::LEFTCV_INPUT));
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, PhraseSeq16::RIGHTCV_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, PhraseSeq16::LEFTCV_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, PhraseSeq16::RIGHTCV_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq16::RUNCV_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, PhraseSeq16::WRITE_INPUT));
 		// Outputs
 		addOutput(Port::create<PJ301MPortS>(Vec(columnRulerB5, rowRulerB0), Port::OUTPUT, module, PhraseSeq16::CV_OUTPUT));
 		addOutput(Port::create<PJ301MPortS>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, PhraseSeq16::GATE1_OUTPUT));
