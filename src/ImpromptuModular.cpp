@@ -8,7 +8,6 @@
 //***********************************************************************************************
 
 
-
 #include "ImpromptuModular.hpp"
 
 
@@ -52,7 +51,7 @@ ScrewSilverRandomRot::ScrewSilverRandomRot() {
 
 ScrewHole::ScrewHole(Vec posGiven) {
 	box.size = Vec(16, 7);
-	box.pos = Vec(posGiven.x, posGiven.y + 4);// nudgeX for realism 0 = no nudge
+	box.pos = Vec(posGiven.x, posGiven.y + 4);// nudgeX for realism, 0 = no nudge
 }
 void ScrewHole::draw(NVGcontext *vg) {
 	NVGcolor backgroundColor = nvgRGB(0x10, 0x10, 0x10); 

@@ -130,7 +130,6 @@ struct TwelveKey : Module {
 			cv = inputs[CV_INPUT].value;			
 			stateInternal = false;
 		}
-			
 		
 		// Gate keypress LED (with fade)
 		int pressed = 0;
@@ -142,7 +141,6 @@ struct TwelveKey : Module {
 		else
 			gateLight -= (gateLight / lightLambda) * engineGetSampleTime();
 		lights[PRESS_LIGHT].value = gateLight;
-		
 		
 		// cv output
 		outputs[CV_OUTPUT].value = cv;

@@ -125,7 +125,6 @@ struct PhraseSeq16 : Module {
 	int stepIndexRunHistory;// no need to initialize
 	int stepIndexPhraseRunHistory;// no need to initialize
 	int phraseIndexRunHistory;// no need to initialize
-	
 	int displayState;
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta;// no need to initialize, this is a companion to slideStepsRemain
@@ -932,12 +931,12 @@ struct PhraseSeq16 : Module {
 		// Keyboard lights
 		float cvValOffset;
 		if (infoCopyPaste != 0l) {
-			if (infoCopyPaste > 0l) {// if copy (light black keys)
+			if (infoCopyPaste > 0l) {// if copy (light-up black keys)
 				for (int i = 0; i < 12; i++) {
 					lights[KEY_LIGHTS + i].value = (i == 1 || i == 3 || i == 6 || i == 8 || i == 10) ? 1.0f : 0.0f;
 				}	
 			}
-			else {// paste (light white keys)
+			else {// paste (light-up white keys)
 				for (int i = 0; i < 12; i++) {
 					lights[KEY_LIGHTS + i].value = (i == 1 || i == 3 || i == 6 || i == 8 || i == 10) ? 0.0f : 1.0f;
 				}	
