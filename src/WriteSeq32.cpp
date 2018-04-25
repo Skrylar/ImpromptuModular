@@ -355,7 +355,8 @@ struct WriteSeq32 : Module {
 		if (resetTrigger.process(inputs[RESET_INPUT].value)) {
 			indexStep = 0;
 			indexStepStage = 0;	
-			//pendingPaste = 0;
+			pendingPaste = 0;
+			indexChannel = 0;
 		}
 
 		int index = (indexChannel == 3 ? indexStepStage : indexStep);

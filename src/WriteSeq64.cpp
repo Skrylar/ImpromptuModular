@@ -407,7 +407,8 @@ struct WriteSeq64 : Module {
 			for (int t = 0; t < 5; t++)
 				indexStep[t] = 0;
 			resetLight = 1.0f;
-			//pendingPaste = 0;
+			pendingPaste = 0;
+			indexChannel = 0;
 		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
