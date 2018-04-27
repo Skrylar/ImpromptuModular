@@ -16,7 +16,7 @@
 
 struct GateSeq : Module {
 	enum ParamIds {
-		ENUMS(STEPS_PARAMS, 64),
+		ENUMS(STEP_PARAMS, 64),
 		GATE_PARAM,
 		LENGTH_PARAM,
 		GATEP_PARAM,
@@ -43,7 +43,7 @@ struct GateSeq : Module {
 		NUM_OUTPUTS
 	};
 	enum LightIds {
-		ENUMS(STEPS_LIGHTS, 64),
+		ENUMS(STEP_LIGHTS, 64 * 3),// room for GreenRedBlue
 		ENUMS(GATE_LIGHT, 3),// room for GreenRedBlue
 		ENUMS(LENGTH_LIGHT, 3),// room for GreenRedBlue
 		ENUMS(GATEP_LIGHT, 3),// room for GreenRedBlue
@@ -53,35 +53,59 @@ struct GateSeq : Module {
 		NUM_LIGHTS
 	};
 	
+	enum DisplayStateIds {DISP_GATE, DISP_LENGTH, DISP_GATEP, DISP_MODE, DISP_GATETRIG};
+	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, NUM_MODES};
+	
 	// Need to save
-
+	bool gate[64] = {};
+	int length[4] = {};
+	bool gatep[64] = {};
+	int mode[4] = {};
+	bool trig[4] = {};
 
 	// No need to save
+	int displayState;
 
 
-	//SchmittTrigger x
-	
+	SchmittTrigger gateTrigger;
+	SchmittTrigger lengthTrigger;
+	SchmittTrigger gatePTrigger;
+	SchmittTrigger modeTrigger;
+	SchmittTrigger gateTrigTrigger;
+	SchmittTrigger stepTriggers[64];
+
 		
 	GateSeq() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
 	}
 
 	void onReset() override {
-
+		displayState = DISP_GATE;
+		for (int i = 0; i < 4; i++) {
+			length[i] = 16;
+			mode[i] = MODE_FWD;
+			trig[i] = false;
+		}
+		for (int i = 0; i < 64; i++) {
+			gate[i] = false;
+			gatep[i] = false;
+		}
 	}
 
 	void onRandomize() override {
-
+		// TODO
 	}
 
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
+		// TODO
+		
 		return rootJ;
 	}
 
 	void fromJson(json_t *rootJ) override {
-
+		// TODO
 	}
 
 
@@ -89,7 +113,59 @@ struct GateSeq : Module {
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		
+		// Gate button
+		if (gateTrigger.process(params[GATE_PARAM].value)) {
+			displayState = DISP_GATE;
+		}
+		
+		// Length button
+		if (lengthTrigger.process(params[LENGTH_PARAM].value)) {
+			displayState = DISP_LENGTH;
+		}
+
+		// GateP button
+		if (gatePTrigger.process(params[GATEP_PARAM].value)) {
+			displayState = DISP_GATEP;
+		}
+		
+		// Mode button
+		if (modeTrigger.process(params[MODE_PARAM].value)) {
+			displayState = DISP_MODE;
+		}
+
+		// GateTrig button
+		if (gateTrigTrigger.process(params[GATETRIG_PARAM].value)) {
+			displayState = DISP_GATETRIG;
+		}
+
+		// Step LED buttons
+		for (int i = 0; i < 64; i++) {
+			if (stepTriggers[i].process(params[STEP_PARAMS + i].value)) {
+				gate[i] = !gate[i];
+			}
+		}
+		
+		
+		// Step lights
+		for (int i = 0; i < 64; i++) {
+			setRGBLight(STEP_LIGHTS + i * 3,     1.0f, 0.0f, 0.0f, gate[i]);// red
+		}
+		
+		// Main button lights
+		setRGBLight(GATE_LIGHT,     1.0f, 0.0f, 0.0f, displayState == DISP_GATE);// red
+		setRGBLight(LENGTH_LIGHT,   0.4f, 0.5f, 0.0f, displayState == DISP_LENGTH);// orange
+		setRGBLight(GATEP_LIGHT,    0.0f, 0.5f, 0.4f, displayState == DISP_GATEP);// turquoise
+		setRGBLight(MODE_LIGHT,     0.0f, 0.0f, 0.8f, displayState == DISP_MODE);// blue		
+		setRGBLight(GATETRIG_LIGHT, 0.0f, 1.0f, 0.0f, displayState == DISP_GATETRIG);// green
+		
 	}
+	
+	void setRGBLight(int id, float red, float green, float blue, bool enable) {
+		lights[id + 0].value = enable? red : 0.0f;
+		lights[id + 1].value = enable? green : 0.0f;
+		lights[id + 2].value = enable? blue : 0.0f;
+	}
+
 };
 
 
@@ -145,8 +221,8 @@ struct GateSeqWidget : ModuleWidget {
 		for (int y = 0; y < 4; y++) {
 			int posX = colRulerSteps;
 			for (int x = 0; x < 16; x++) {
-				addParam(ParamWidget::create<LEDButton>(Vec(posX, rowRuler0 + 8 + y * rowSpacingOutputs - 4.4f), module, GateSeq::STEPS_PARAMS + y * 16 + x, 0.0f, 1.0f, 0.0f));
-				addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(posX + 4.4f, rowRuler0 + 8 + y * rowSpacingOutputs), module, GateSeq::STEPS_LIGHTS + y * 16 + x));
+				addParam(ParamWidget::create<LEDButton>(Vec(posX, rowRuler0 + 8 + y * rowSpacingOutputs - 4.4f), module, GateSeq::STEP_PARAMS + y * 16 + x, 0.0f, 1.0f, 0.0f));
+				addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(posX + 4.4f, rowRuler0 + 8 + y * rowSpacingOutputs), module, GateSeq::STEP_LIGHTS + (y * 16 + x) * 3));
 				posX += spacingSteps;
 				if ((x + 1) % 4 == 0)
 					posX += spacingSteps4;
@@ -169,23 +245,23 @@ struct GateSeqWidget : ModuleWidget {
 		addInput(Port::create<PJ301MPortS>(Vec(colRuler0, rowRuler4 ), Port::INPUT, module, GateSeq::RESET_INPUT));
 		
 		// Gate light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRuler1 + posLEDvsButton + offsetMediumLight, rowRuler4 + offsetMediumLight), module, GateSeq::GATE_LIGHT));		
+		addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(colRuler1 + posLEDvsButton + offsetMediumLight, rowRuler4 + offsetMediumLight), module, GateSeq::GATE_LIGHT));		
 		addParam(ParamWidget::create<CKD6b>(Vec(colRuler1 + offsetCKD6b, rowRuler4 + offsetCKD6b), module, GateSeq::GATE_PARAM, 0.0f, 1.0f, 0.0f));
 		
 		// Length light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRuler2 + posLEDvsButton + offsetMediumLight, rowRuler4 + offsetMediumLight), module, GateSeq::LENGTH_LIGHT));		
+		addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(colRuler2 + posLEDvsButton + offsetMediumLight, rowRuler4 + offsetMediumLight), module, GateSeq::LENGTH_LIGHT));		
 		addParam(ParamWidget::create<CKD6b>(Vec(colRuler2 + offsetCKD6b, rowRuler4 + offsetCKD6b), module, GateSeq::LENGTH_PARAM, 0.0f, 1.0f, 0.0f));
 
 		// Gate p light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRuler3 + posLEDvsButton + offsetMediumLight, rowRuler4 + offsetMediumLight), module, GateSeq::GATEP_LIGHT));		
+		addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(colRuler3 + posLEDvsButton + offsetMediumLight, rowRuler4 + offsetMediumLight), module, GateSeq::GATEP_LIGHT));		
 		addParam(ParamWidget::create<CKD6b>(Vec(colRuler3 + offsetCKD6b, rowRuler4 + offsetCKD6b), module, GateSeq::GATEP_PARAM, 0.0f, 1.0f, 0.0f));
 
 		// Mode light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRuler4 + posLEDvsButton + offsetMediumLight, rowRuler4 + offsetMediumLight), module, GateSeq::MODE_LIGHT));		
+		addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(colRuler4 + posLEDvsButton + offsetMediumLight, rowRuler4 + offsetMediumLight), module, GateSeq::MODE_LIGHT));		
 		addParam(ParamWidget::create<CKD6b>(Vec(colRuler4 + offsetCKD6b, rowRuler4 + offsetCKD6b), module, GateSeq::MODE_PARAM, 0.0f, 1.0f, 0.0f));
 
 		// GateTrig light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRuler5 + posLEDvsButton + offsetMediumLight, rowRuler4 + offsetMediumLight), module, GateSeq::GATETRIG_LIGHT));		
+		addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(colRuler5 + posLEDvsButton + offsetMediumLight, rowRuler4 + offsetMediumLight), module, GateSeq::GATETRIG_LIGHT));		
 		addParam(ParamWidget::create<CKD6b>(Vec(colRuler5 + offsetCKD6b, rowRuler4 + offsetCKD6b), module, GateSeq::GATETRIG_PARAM, 0.0f, 1.0f, 0.0f));
 		
 		
