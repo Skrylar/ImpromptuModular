@@ -65,6 +65,12 @@ struct GateSeq16 : Module {
 
 	// No need to save
 	int displayState;
+	bool gateCP[16] = {};// copy-paste only one row
+	int lengthCP;// copy-paste only one row; values are 1 to 16
+	bool gatepCP[16] = {};// copy-paste only one row
+	int modeCP;// copy-paste only one row
+	bool trigCP;// copy-paste only one row
+	long feedbackCP;// downward step counter for CP feedback
 
 
 	SchmittTrigger gateTrigger;
@@ -83,15 +89,23 @@ struct GateSeq16 : Module {
 
 	void onReset() override {
 		displayState = DISP_GATE;
+		for (int i = 0; i < 64; i++) {
+			gate[i] = false;
+			gatep[i] = false;
+		}
 		for (int i = 0; i < 4; i++) {
 			length[i] = 16;
 			mode[i] = MODE_FWD;
 			trig[i] = false;
 		}
-		for (int i = 0; i < 64; i++) {
-			gate[i] = false;
-			gatep[i] = false;
+		for (int i = 0; i < 16; i++) {
+			gateCP[i] = 0;
+			gatepCP[i] = 0;
 		}
+		lengthCP = 0;
+		modeCP = 0;
+		trigCP = false;
+		feedbackCP = 0l;
 	}
 
 	void onRandomize() override {
@@ -101,19 +115,98 @@ struct GateSeq16 : Module {
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
-		// TODO
+		// gate
+		json_t *gateJ = json_array();
+		for (int i = 0; i < 64; i++)
+			json_array_insert_new(gateJ, i, json_integer((int) gate[i]));
+		json_object_set_new(rootJ, "gate", gateJ);
+		
+		// length
+		json_t *lengthJ = json_array();
+		for (int i = 0; i < 4; i++)
+			json_array_insert_new(lengthJ, i, json_integer(length[i]));
+		json_object_set_new(rootJ, "length", lengthJ);
+		
+		// gatep
+		json_t *gatepJ = json_array();
+		for (int i = 0; i < 64; i++)
+			json_array_insert_new(gatepJ, i, json_integer((int) gatep[i]));
+		json_object_set_new(rootJ, "gatep", gatepJ);
+		
+		// mode
+		json_t *modeJ = json_array();
+		for (int i = 0; i < 4; i++)
+			json_array_insert_new(modeJ, i, json_integer(mode[i]));
+		json_object_set_new(rootJ, "mode", modeJ);
+		
+		// trig
+		json_t *trigJ = json_array();
+		for (int i = 0; i < 4; i++)
+			json_array_insert_new(trigJ, i, json_integer((int) trig[i]));
+		json_object_set_new(rootJ, "trig", trigJ);
 		
 		return rootJ;
 	}
 
 	void fromJson(json_t *rootJ) override {
-		// TODO
+		// gate
+		json_t *gateJ = json_object_get(rootJ, "gate");
+		if (gateJ) {
+			for (int i = 0; i < 64; i++) {
+				json_t *gateArrayJ = json_array_get(gateJ, i);
+				if (gateArrayJ)
+					gate[i] = !!json_integer_value(gateArrayJ);
+			}
+		}
+		
+		// length
+		json_t *lengthJ = json_object_get(rootJ, "length");
+		if (lengthJ)
+			for (int i = 0; i < 4; i++)
+			{
+				json_t *lengthArrayJ = json_array_get(lengthJ, i);
+				if (lengthArrayJ)
+					length[i] = json_integer_value(lengthArrayJ);
+			}
+		
+		// gatep
+		json_t *gatepJ = json_object_get(rootJ, "gatep");
+		if (gatepJ) {
+			for (int i = 0; i < 64; i++) {
+				json_t *gatepArrayJ = json_array_get(gatepJ, i);
+				if (gatepArrayJ)
+					gatep[i] = !!json_integer_value(gatepArrayJ);
+			}
+		}
+		
+		// mode
+		json_t *modeJ = json_object_get(rootJ, "mode");
+		if (modeJ)
+			for (int i = 0; i < 4; i++)
+			{
+				json_t *modeArrayJ = json_array_get(modeJ, i);
+				if (modeArrayJ)
+					mode[i] = json_integer_value(modeArrayJ);
+			}
+		
+		// trig
+		json_t *trigJ = json_object_get(rootJ, "trig");
+		if (trigJ) {
+			for (int i = 0; i < 4; i++) {
+				json_t *trigArrayJ = json_array_get(trigJ, i);
+				if (trigArrayJ)
+					trig[i] = !!json_integer_value(trigArrayJ);
+			}
+		}
+		
 	}
 
 
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
+		static const float copyPasteInfoTime = 0.5f;// seconds
+		static long feedbackCPinit = (long) (copyPasteInfoTime * engineGetSampleRate());
 		
 		// Gate button
 		if (gateTrigger.process(params[GATE_PARAM].value)) {
@@ -129,6 +222,7 @@ struct GateSeq16 : Module {
 		}
 		// GateP button
 		if (gatePTrigger.process(params[GATEP_PARAM].value)) {
+			info("gatep trigged");
 			if (displayState != DISP_GATEP)
 				displayState = DISP_GATEP;
 			else
@@ -150,15 +244,19 @@ struct GateSeq16 : Module {
 		}
 		// Copy button
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
-			if (displayState != DISP_COPY)
+			if (displayState != DISP_COPY) {
 				displayState = DISP_COPY;
+				//feedbackCP = 0l;
+			}
 			else
 				displayState = DISP_GATE;
 		}
 		// Paste button
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
-			if (displayState != DISP_PASTE)
+			if (displayState != DISP_PASTE) {
 				displayState = DISP_PASTE;
+				//feedbackCP = 0l;
+			}
 			else
 				displayState = DISP_GATE;
 		}
@@ -166,26 +264,46 @@ struct GateSeq16 : Module {
 		// Step LED buttons
 		for (int i = 0; i < 64; i++) {
 			if (stepTriggers[i].process(params[STEP_PARAMS + i].value)) {
+				int row = i / 16;
+				int col = i % 16;
 				if (displayState == DISP_GATE) {
 					gate[i] = !gate[i];
 				}
 				if (displayState == DISP_LENGTH) {
-					length[i / 16] = (i % 16) + 1;
+					length[row] = col + 1;
 				}
 				if (displayState == DISP_GATEP) {
 					gatep[i] = !gatep[i];
 				}
 				if (displayState == DISP_MODE) {
-					// TODO
+					if (col >= 8 && col <= 12)
+						mode[row] = col - 8;
 				}
 				if (displayState == DISP_GATETRIG) {
-					// TODO
+					if (col == 14)
+						trig[row] = false;
+					else if (col == 15)
+						trig[row] = true;
 				}
 				if (displayState == DISP_COPY) {
-					// TODO
+					for (int i = 0; i < 16; i++) {
+						gateCP[i] = gate[row * 16 + i];
+						gatepCP[i] = gatep[row * 16 + i];
+					}
+					lengthCP = length[row];
+					modeCP = mode[row];
+					trigCP = trig[row];
+					displayState = DISP_GATE;
 				}
 				if (displayState == DISP_PASTE) {
-					// TODO
+					for (int i = 0; i < 16; i++) {
+						gate[row * 16 + i] = gateCP[i];
+						gatep[row * 16 + i] = gatepCP[i];
+					}
+					length[row]= lengthCP;
+					mode[row] = modeCP;
+					trig[row] = trigCP;
+					displayState = DISP_GATE;
 				}
 
 			}
@@ -193,15 +311,13 @@ struct GateSeq16 : Module {
 		
 		
 		// Step lights
-		if (displayState == DISP_GATE) {
-			for (int i = 0; i < 64; i++) {
-				setRGBLight(STEP_LIGHTS + i * 3, 1.0f, 0.0f, 0.0f, gate[i]);// red
+		for (int i = 0; i < 64; i++) {
+			int row = i / 16;
+			int col = i % 16;
+			if (displayState == DISP_GATE) {
+				setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 1.0f, 0.0f, gate[i]);// green
 			}
-		}
-		else if (displayState == DISP_LENGTH) {
-			for (int i = 0; i < 64; i++) {
-				int row = i / 16;
-				int col = i % 16;
+			else if (displayState == DISP_LENGTH) {
 				if (col < (length[row] - 1))
 					setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.1f, 0.0f, true);// pale green
 				else if (col == (length[row] - 1))
@@ -209,43 +325,73 @@ struct GateSeq16 : Module {
 				else 
 					setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.0f, true);// off
 			}
-		}
-		else if (displayState == DISP_GATEP) {
-			for (int i = 0; i < 64; i++) {
-				setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 1.0f, 0.0f, gatep[i]);// green
+			else if (displayState == DISP_GATEP) {
+				setRGBLight(STEP_LIGHTS + i * 3, 1.0f, 0.0f, 0.0f, gatep[i]);// red
 			}
-		}
-		else if (displayState == DISP_MODE) {
-			for (int i = 0; i < 64; i++) {
+			else if (displayState == DISP_MODE) {
+				if (col < 8 || col > 12) {
+					setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.0f, true);// off
+				}
+				else { 
+					if (col - 8 == mode[row])
+						setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 1.0f, true);// blue
+					else
+						setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.1f, true);// pale blue
+				}
+			}
+			else if (displayState == DISP_GATETRIG) {
+				if (col < 14) {
+					setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.0f, true);// off
+				}
+				else {
+					if (col - 14 == (trig[row] ? 1 : 0))
+						setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 1.0f, true);// blue
+					else
+						setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.1f, true);// pale blue
+				}
+			}
+			else if (displayState == DISP_COPY) {
+				int rowToLight = 3;
+				if (feedbackCP < (feedbackCPinit * 1 / 4))
+					rowToLight = 0;
+				else if (feedbackCP < (feedbackCPinit * 2 / 4))
+					rowToLight = 1;
+				else if (feedbackCP < (feedbackCPinit * 3 / 4))
+					rowToLight = 2;
+				setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 1.0f, 0.0f, row == rowToLight);// green
+				
+				/*if (row == (int)(feedbackCP / (feedbackCPinit / 4)))
+					setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 1.0f, 0.0f, true);// green
+				else
+					
+				*/
+			}
+			else if (displayState == DISP_PASTE) {
 				// TODO
 			}
-		}
-		else if (displayState == DISP_GATETRIG) {
-			for (int i = 0; i < 64; i++) {
-				// TODO
+			else {
+				setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.0f, true);// should never happen
 			}
-		}
-		else if (displayState == DISP_COPY) {
-			for (int i = 0; i < 64; i++) {
-				// TODO
+			
+			if (feedbackCP > 0l) {
+				
+				feedbackCP--;
+				//if (feedbackCP % 1000l == 0l)
+					//info("fcp dec, fcp = %i", feedbackCP);
 			}
-		}
-		else if (displayState == DISP_PASTE) {
-			for (int i = 0; i < 64; i++) {
-				// TODO
+			else {
+				feedbackCP = feedbackCPinit;// roll over
+				info("fcp init, fcp = %i", feedbackCP);
 			}
-		}
-		else {
-			setRGBLight(GATE_LIGHT,     0.0f, 0.0f, 0.0f, true);// should never happen
 		}
 		
 		
 		// Main button lights
-		setRGBLight(GATE_LIGHT,     0.0f, 1.0f, 0.0f, displayState == DISP_GATE);
-		setRGBLight(LENGTH_LIGHT,   0.0f, 1.0f, 0.0f, displayState == DISP_LENGTH);
-		setRGBLight(GATEP_LIGHT,    1.0f, 0.0f, 0.0f, displayState == DISP_GATEP);
-		setRGBLight(MODE_LIGHT,     0.0f, 0.0f, 0.8f, displayState == DISP_MODE);// blue		
-		setRGBLight(GATETRIG_LIGHT, 0.0f, 0.5f, 0.4f, displayState == DISP_GATETRIG);// turquoise
+		setRGBLight(GATE_LIGHT,     0.0f, 1.0f, 0.0f, displayState == DISP_GATE);// green
+		setRGBLight(LENGTH_LIGHT,   0.0f, 1.0f, 0.0f, displayState == DISP_LENGTH);// green
+		setRGBLight(GATEP_LIGHT,    1.0f, 0.0f, 0.0f, displayState == DISP_GATEP);// red
+		setRGBLight(MODE_LIGHT,     0.0f, 0.0f, 1.0f, displayState == DISP_MODE);// blue		
+		setRGBLight(GATETRIG_LIGHT, 0.0f, 0.5f, 1.0f, displayState == DISP_GATETRIG);// blue
 		
 	}
 	
@@ -366,7 +512,7 @@ struct GateSeq16Widget : ModuleWidget {
 			addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRuler0 + i * runSpacingX + offsetLEDbezel + offsetLEDbezelLight, rowRuler5 + 5 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq16::RUN_LIGHTS + i));
 		}
 		// Prob knob
-		addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(colRuler3 + offsetRoundSmallBlackKnob, rowRuler5 + offsetRoundSmallBlackKnob), module, GateSeq16::GATEP_PARAM, 0.0f, 1.0f, 1.0f));
+		addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(colRuler3 + offsetRoundSmallBlackKnob, rowRuler5 + offsetRoundSmallBlackKnob), module, GateSeq16::PROB_PARAM, 0.0f, 1.0f, 1.0f));
 		// Config switch (3 position)
 		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRuler4 + hOffsetCKSS, rowRuler5 + vOffsetCKSSThree), module, GateSeq16::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
 		// Copy button

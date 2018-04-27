@@ -985,7 +985,7 @@ struct PhraseSeq16 : Module {
 			editingLength--;
 		if (editingGate > 0ul)
 			editingGate--;
-		if (infoCopyPaste != 0ul) {
+		if (infoCopyPaste != 0l) {
 			if (infoCopyPaste > 0l)
 				infoCopyPaste --;
 			if (infoCopyPaste < 0l)

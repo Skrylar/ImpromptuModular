@@ -426,7 +426,7 @@ struct WriteSeq64 : Module {
 		// Pending paste light
 		lights[PENDING_LIGHT].value = (pendingPaste == 0 ? 0.0f : 1.0f);
 		
-		if (infoCopyPaste != 0ul) {
+		if (infoCopyPaste != 0l) {
 			if (infoCopyPaste > 0l)
 				infoCopyPaste --;
 			if (infoCopyPaste < 0l)
