@@ -105,3 +105,70 @@ int moveIndex(int index, int indexNext, int numSteps) {
 }
 
 
+bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {		
+	bool crossBoundary = false;
+	
+	if (runMode == MODE_REV) {// reverse; history base is 1000 (not needed)
+		(*history) = 1000;
+		(*index)--;
+		if ((*index) < 0) {
+			(*index) = numSteps - 1;
+			crossBoundary = true;
+		}
+	}
+	else if (runMode == MODE_PPG) {// forward-reverse; history base is 2000
+		if ((*history) != 2000 && (*history) != 2001) // 2000 means going forward, 2001 means going reverse
+			(*history) = 2000;
+		if ((*history) == 2000) {// forward phase
+			(*index)++;
+			if ((*index) >= numSteps) {
+				(*index) = numSteps - 1;
+				(*history) = 2001;
+			}
+		}
+		else {// it is 2001; reverse phase
+			(*index)--;
+			if ((*index) < 0) {
+				(*index) = 0;
+				(*history) = 2000;
+				crossBoundary = true;
+			}
+		}
+	}
+	else if (runMode == MODE_BRN) {// brownian random; history base is 3000
+		if ( (*history) < 3000 || ((*history) > (3000 + numSteps)) ) 
+			(*history) = 3000 + numSteps;
+		(*index) += (randomu32() % 3) - 1;
+		if ((*index) >= numSteps) {
+			(*index) = 0;
+		}
+		if ((*index) < 0) {
+			(*index) = numSteps - 1;
+		}
+		(*history)--;
+		if ((*history) <= 3000) {
+			(*history) = 3000 + numSteps;
+			crossBoundary = true;
+		}
+	}
+	else if (runMode == MODE_RND) {// random; history base is 4000
+		if ( (*history) < 4000 || ((*history) > (4000 + numSteps)) ) 
+			(*history) = 4000 + numSteps;
+		(*index) = (randomu32() % numSteps) ;
+		(*history)--;
+		if ((*history) <= 4000) {
+			(*history) = 4000 + numSteps;
+			crossBoundary = true;
+		}
+	}
+	else {// MODE_FWD  forward; history base is 0 (not needed)
+		(*history) = 0;
+		(*index)++;
+		if ((*index) >= numSteps) {
+			(*index) = 0;
+			crossBoundary = true;
+		}
+	}
+
+	return crossBoundary;
+}

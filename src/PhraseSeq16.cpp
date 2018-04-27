@@ -89,7 +89,6 @@ struct PhraseSeq16 : Module {
 	};
 	
 	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_TRANSPOSE, DISP_ROTATE};
-	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, NUM_MODES};
 
 	// Need to save
 	bool running;
@@ -454,74 +453,6 @@ struct PhraseSeq16 : Module {
 		slide[sequenceNum][iRot] = rotSlide;
 	}
 	
-	bool stepIndex(int* index, int numSteps, int runMode, int* stepIndexHistory) {		
-		bool crossBoundary = false;
-		
-		if (runMode == MODE_REV) {// reverse; history base is 1000 (not needed)
-			(*stepIndexHistory) = 1000;
-			(*index)--;
-			if ((*index) < 0) {
-				(*index) = numSteps - 1;
-				crossBoundary = true;
-			}
-		}
-		else if (runMode == MODE_PPG) {// forward-reverse; history base is 2000
-			if ((*stepIndexHistory) != 2000 && (*stepIndexHistory) != 2001) // 2000 means going forward, 2001 means going reverse
-				(*stepIndexHistory) = 2000;
-			if ((*stepIndexHistory) == 2000) {// forward phase
-				(*index)++;
-				if ((*index) >= numSteps) {
-					(*index) = numSteps - 1;
-					(*stepIndexHistory) = 2001;
-				}
-			}
-			else {// it is 2001; reverse phase
-				(*index)--;
-				if ((*index) < 0) {
-					(*index) = 0;
-					(*stepIndexHistory) = 2000;
-					crossBoundary = true;
-				}
-			}
-		}
-		else if (runMode == MODE_BRN) {// brownian random; history base is 3000
-			if ( (*stepIndexHistory) < 3000 || ((*stepIndexHistory) > (3000 + numSteps)) ) 
-				(*stepIndexHistory) = 3000 + numSteps;
-			(*index) += (randomu32() % 3) - 1;
-			if ((*index) >= numSteps) {
-				(*index) = 0;
-			}
-			if ((*index) < 0) {
-				(*index) = numSteps - 1;
-			}
-			(*stepIndexHistory)--;
-			if ((*stepIndexHistory) <= 3000) {
-				(*stepIndexHistory) = 3000 + numSteps;
-				crossBoundary = true;
-			}
-		}
-		else if (runMode == MODE_RND) {// random; history base is 4000
-			if ( (*stepIndexHistory) < 4000 || ((*stepIndexHistory) > (4000 + numSteps)) ) 
-				(*stepIndexHistory) = 4000 + numSteps;
-			(*index) = (randomu32() % numSteps) ;
-			(*stepIndexHistory)--;
-			if ((*stepIndexHistory) <= 4000) {
-				(*stepIndexHistory) = 4000 + numSteps;
-				crossBoundary = true;
-			}
-		}
-		else {// MODE_FWD  forward; history base is 0 (not needed)
-			(*stepIndexHistory) = 0;
-			(*index)++;
-			if ((*index) >= numSteps) {
-				(*index) = 0;
-				crossBoundary = true;
-			}
-		}
-
-		return crossBoundary;
-	}
-	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		static const float gateTime = 0.3f;// seconds
@@ -822,14 +753,14 @@ struct PhraseSeq16 : Module {
 				float slideToCV = 0.0f;
 				if (editingSequence) {
 					slideFromCV = cv[sequence][stepIndexRun];
-					stepIndex(&stepIndexRun, steps, runModeSeq, &stepIndexRunHistory);
+					moveIndexRunMode(&stepIndexRun, steps, runModeSeq, &stepIndexRunHistory);
 					slideToCV = cv[sequence][stepIndexRun];
 					gate1RandomEnable = gate1Prob[sequence][stepIndexRun];// not random yet
 				}
 				else {
 					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
-					if (stepIndex(&stepIndexPhraseRun, steps, runModeSeq, &stepIndexPhraseRunHistory)) {
-						stepIndex(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
+					if (moveIndexRunMode(&stepIndexPhraseRun, steps, runModeSeq, &stepIndexPhraseRunHistory)) {
+						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
 					}
 					slideToCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
 					gate1RandomEnable = gate1Prob[phrase[phraseIndexRun]][stepIndexPhraseRun];// not random yet

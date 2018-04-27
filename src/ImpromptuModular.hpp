@@ -143,6 +143,8 @@ struct ScrewHole : TransparentWidget {
 	void draw(NVGcontext *vg) override;
 };	
 
+enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, NUM_MODES};
+
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box);
 int moveIndex(int index, int indexNext, int numSteps);
-
+bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history);
