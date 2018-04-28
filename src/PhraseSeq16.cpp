@@ -49,7 +49,7 @@ struct PhraseSeq16 : Module {
 		GATE1_KNOB_PARAM,
 		GATE2_KNOB_PARAM,// no longer used
 		GATE1_PROB_PARAM,
-		TIE_PARAM,
+		TIE_PARAM,// Legato
 		NUM_PARAMS
 	};
 	enum InputIds {
