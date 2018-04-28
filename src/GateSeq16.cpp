@@ -29,13 +29,13 @@ struct GateSeq16 : Module {
 		COPY_PARAM,
 		PASTE_PARAM,
 		RUNCV_MODE_PARAM,
+		RESET_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
 		ENUMS(CLOCK_INPUTS, 4),
 		RESET_INPUT,
 		ENUMS(RUNCV_INPUTS, 4),
-		PROBCV_INPUT,
 		RUNALLCV_INPUT,
 		NUM_INPUTS
 	};
@@ -51,6 +51,7 @@ struct GateSeq16 : Module {
 		ENUMS(MODE_LIGHT, 3),// room for GreenRedBlue
 		ENUMS(GATETRIG_LIGHT, 3),// room for GreenRedBlue
 		ENUMS(RUN_LIGHTS, 4),
+		RESET_LIGHT,
 		NUM_LIGHTS
 	};
 	
@@ -77,6 +78,7 @@ struct GateSeq16 : Module {
 	long feedbackCP;// downward step counter for CP feedback
 	long confirmCP;// downward positive step counter for Copy confirmation, up neg Paste, 0 when nothing to confirm
 	bool gateRandomEnable; 
+	float resetLight = 0.0f;
 	
 	SchmittTrigger gateTrigger;
 	SchmittTrigger lengthTrigger;
@@ -233,7 +235,7 @@ struct GateSeq16 : Module {
 
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
-	void step() override {/*
+	void step() override {
 		static const float copyPasteInfoTime = 3.0f;// seconds
 		static const float copyPasteConfirmTime = 0.4f;// seconds
 		static long feedbackCPinit = (long) (copyPasteInfoTime * engineGetSampleRate());
@@ -321,13 +323,13 @@ struct GateSeq16 : Module {
 					gatep[i] = !gatep[i];
 				}
 				if (displayState == DISP_MODE) {
-					if (col >= 8 && col <= 12)
-						mode[row] = col - 8;
+					if (col >= 4 && col <= 8)
+						mode[row] = col - 4;
 				}
 				if (displayState == DISP_GATETRIG) {
-					if (col == 14)
+					if (col == 10)
 						trig[row] = false;
-					else if (col == 15)
+					else if (col == 11)
 						trig[row] = true;
 				}
 				if (displayState == DISP_COPY) {
@@ -360,12 +362,12 @@ struct GateSeq16 : Module {
 		
 		// Clock
 		for (int i = 0; i < 4; i++) {
-			if (clockTriggers[i].process(inputs[CLOCK_INPUTS + i].value)) {
+			if (clockTriggers[i].process(inputs[CLOCK_INPUTS + i].value)) {// TODO replicate clock to unconnected inputs
 				if (running[i]) {
 					moveIndexRunMode(&indexStep[i], length[i], mode[i], &stepIndexRunHistory[i]);
 					gateRandomEnable = gatep[i * 16 + indexStep[i]];// not random yet
 					if (gateRandomEnable)
-						gateRandomEnable = randomUniform() < (params[PROB_PARAMS + i].value + inputs[PROBCV_INPUT].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
+						gateRandomEnable = randomUniform() < (params[PROB_PARAMS + i].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
 					else 
 						gateRandomEnable = true;
 				}
@@ -386,11 +388,13 @@ struct GateSeq16 : Module {
 		}
 		
 		// Reset
-		if (resetTrigger.process(inputs[RESET_INPUT].value)) {
+		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			for (int i = 0; i < 4; i++)
 				indexStep[i] = 0;
+			resetLight = 1.0f;
 		}
-		
+		else
+			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();		
 		
 		// Step LED button lights
 		if (confirmCP != 0l) {
@@ -443,11 +447,11 @@ struct GateSeq16 : Module {
 				for (int i = 0; i < 64; i++) {
 					int row = i / 16;
 					int col = i % 16;
-					if (col < 8 || col > 12) {
+					if (col < 4 || col > 8) {
 						setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.0f, true);// off
 					}
 					else { 
-						if (col - 8 == mode[row])
+						if (col - 4 == mode[row])
 							setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 1.0f, true);// blue
 						else
 							setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.1f, true);// pale blue
@@ -458,11 +462,11 @@ struct GateSeq16 : Module {
 				for (int i = 0; i < 64; i++) {
 					int row = i / 16;
 					int col = i % 16;
-					if (col < 14) {
+					if (col < 10 || col > 11) {
 						setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.0f, true);// off
 					}
 					else {
-						if (col - 14 == (trig[row] ? 1 : 0))
+						if (col - 10 == (trig[row] ? 1 : 0))
 							setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 1.0f, true);// blue
 						else
 							setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.1f, true);// pale blue
@@ -495,7 +499,10 @@ struct GateSeq16 : Module {
 		setRGBLight(GATEP_LIGHT,    1.0f, 0.0f, 0.0f, displayState == DISP_GATEP);// red
 		setRGBLight(MODE_LIGHT,     0.0f, 0.0f, 1.0f, displayState == DISP_MODE);// blue		
 		setRGBLight(GATETRIG_LIGHT, 0.0f, 0.0f, 1.0f, displayState == DISP_GATETRIG);// blue
-		
+
+		// Reset light
+		lights[RESET_LIGHT].value =	resetLight;	
+
 		
 		if (confirmCP != 0l) {
 			if (confirmCP > 0l)
@@ -507,7 +514,7 @@ struct GateSeq16 : Module {
 			feedbackCP--;	
 		else
 			feedbackCP = feedbackCPinit;// roll over
-		*/
+		
 	}// step()
 	
 	void setRGBLight(int id, float red, float green, float blue, bool enable) {
@@ -620,7 +627,7 @@ struct GateSeq16Widget : ModuleWidget {
 		// ****** 4x3 Main center bottom half Control section ******
 		
 		static int colRulerC0 = 110;
-		static int colRulerSpacing = 77;
+		static int colRulerSpacing = 72;
 		static int colRulerC1 = colRulerC0 + colRulerSpacing;
 		static int colRulerC2 = colRulerC1 + colRulerSpacing;
 		static int colRulerC3 = colRulerC2 + colRulerSpacing;
@@ -645,23 +652,24 @@ struct GateSeq16Widget : ModuleWidget {
 		
 		// Runall button
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC0 + offsetCKD6b, rowRulerC1 + offsetCKD6b), module, GateSeq16::RUNALL_PARAM, 0.0f, 1.0f, 0.0f));
-		// Config switch (3 position)
-		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC1 + hOffsetCKSS, rowRulerC1 + vOffsetCKSSThree), module, GateSeq16::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
-		// Run CV mode switch
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerC2 + hOffsetCKSS, rowRulerC1 + vOffsetCKSS), module, GateSeq16::RUNCV_MODE_PARAM, 0.0f, 1.0f, 1.0f)); // 1.0f is top position
+		// Reset LED bezel and light
+		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC1 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq16::RESET_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC1 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq16::RESET_LIGHT));
+		// Copy/paste switches
+		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 - 10, rowRulerC1 + offsetTL1105), module, GateSeq16::COPY_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 + 20, rowRulerC1 + offsetTL1105), module, GateSeq16::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
 		// Gate p light and button
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC3 + offsetCKD6b, rowRulerC1 + offsetCKD6b), module, GateSeq16::GATEP_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(colRulerC3 + posLEDvsButton + offsetMediumLight, rowRulerC1 + offsetMediumLight), module, GateSeq16::GATEP_LIGHT));		
 		
 		// Runall CV input
 		addInput(Port::create<PJ301MPortS>(Vec(colRulerC0, rowRulerC2), Port::INPUT, module, GateSeq16::RUNALLCV_INPUT));
-		// Copy/paste switches
-		addParam(ParamWidget::create<TL1105>(Vec(colRulerC1-10, rowRulerC2+offsetTL1105), module, GateSeq16::COPY_PARAM, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<TL1105>(Vec(colRulerC1+20, rowRulerC2+offsetTL1105), module, GateSeq16::PASTE_PARAM, 0.0f, 1.0f, 0.0f));		
 		// Reset
-		addInput(Port::create<PJ301MPortS>(Vec(colRulerC2, rowRulerC2 ), Port::INPUT, module, GateSeq16::RESET_INPUT));
-		// Prob CV 
-		addInput(Port::create<PJ301MPortS>(Vec(colRulerC3, rowRulerC2), Port::INPUT, module, GateSeq16::PROBCV_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(colRulerC1, rowRulerC2 ), Port::INPUT, module, GateSeq16::RESET_INPUT));
+		// Run CV mode switch
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerC2 + hOffsetCKSS, rowRulerC2 + vOffsetCKSS), module, GateSeq16::RUNCV_MODE_PARAM, 0.0f, 1.0f, 1.0f)); // 1.0f is top position
+		// Config switch (3 position)
+		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC3 + hOffsetCKSS, rowRulerC2 + vOffsetCKSSThree), module, GateSeq16::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
 	}
 };
 
