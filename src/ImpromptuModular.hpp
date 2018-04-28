@@ -143,6 +143,16 @@ struct ScrewHole : TransparentWidget {
 	void draw(NVGcontext *vg) override;
 };	
 
+
+struct RedYellowGreenBlueLight : GrayModuleLightWidget {
+	RedYellowGreenBlueLight() {
+		addBaseColor(COLOR_RED);
+		addBaseColor(COLOR_YELLOW);
+		addBaseColor(COLOR_GREEN);
+		addBaseColor(COLOR_BLUE);
+	}
+};
+
 enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, NUM_MODES};
 
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box);

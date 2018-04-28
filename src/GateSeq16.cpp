@@ -44,12 +44,12 @@ struct GateSeq16 : Module {
 		NUM_OUTPUTS
 	};
 	enum LightIds {
-		ENUMS(STEP_LIGHTS, 64 * 3),// room for GreenRedBlue
-		ENUMS(GATE_LIGHT, 3),// room for GreenRedBlue
-		ENUMS(LENGTH_LIGHT, 3),// room for GreenRedBlue
-		ENUMS(GATEP_LIGHT, 3),// room for GreenRedBlue
-		ENUMS(MODE_LIGHT, 3),// room for GreenRedBlue
-		ENUMS(GATETRIG_LIGHT, 3),// room for GreenRedBlue
+		ENUMS(STEP_LIGHTS, 64 * 4),// room for GreenYellowRedBlue
+		ENUMS(GATE_LIGHT, 1),
+		ENUMS(LENGTH_LIGHT, 1),
+		ENUMS(GATEP_LIGHT, 1),
+		ENUMS(MODE_LIGHT, 1),
+		ENUMS(GATETRIG_LIGHT, 1),
 		ENUMS(RUN_LIGHTS, 4),
 		RESET_LIGHT,
 		NUM_LIGHTS
@@ -79,6 +79,8 @@ struct GateSeq16 : Module {
 	long confirmCP;// downward positive step counter for Copy confirmation, up neg Paste, 0 when nothing to confirm
 	bool gateRandomEnable; 
 	float resetLight = 0.0f;
+	long feedbackCPinit;// no need to initialize
+	bool gatePulsesValue[4] = {};
 	
 	SchmittTrigger gateTrigger;
 	SchmittTrigger lengthTrigger;
@@ -238,7 +240,8 @@ struct GateSeq16 : Module {
 	void step() override {
 		static const float copyPasteInfoTime = 3.0f;// seconds
 		static const float copyPasteConfirmTime = 0.4f;// seconds
-		static long feedbackCPinit = (long) (copyPasteInfoTime * engineGetSampleRate());
+		float engineSampleRate = engineGetSampleRate();
+		feedbackCPinit = (long) (copyPasteInfoTime * engineSampleRate);
 		
 		// Run state and light
 		for (int i = 0; i < 4; i++) {
@@ -341,7 +344,7 @@ struct GateSeq16 : Module {
 					modeCP = mode[row];
 					trigCP = trig[row];
 					rowCP = row;
-					confirmCP = (long) (copyPasteConfirmTime * engineGetSampleRate());
+					confirmCP = (long) (copyPasteConfirmTime * engineSampleRate);
 					displayState = DISP_GATE;
 				}
 				if (displayState == DISP_PASTE) {
@@ -353,7 +356,7 @@ struct GateSeq16 : Module {
 					mode[row] = modeCP;
 					trig[row] = trigCP;
 					rowCP = row;
-					confirmCP = (long) (-1 * copyPasteConfirmTime * engineGetSampleRate());					
+					confirmCP = (long) (-1 * copyPasteConfirmTime * engineSampleRate);					
 					displayState = DISP_GATE;	
 				}
 
@@ -365,6 +368,7 @@ struct GateSeq16 : Module {
 			if (clockTriggers[i].process(inputs[CLOCK_INPUTS + i].value)) {// TODO replicate clock to unconnected inputs
 				if (running[i]) {
 					moveIndexRunMode(&indexStep[i], length[i], mode[i], &stepIndexRunHistory[i]);
+					gatePulses[i].trigger(0.001f);
 					gateRandomEnable = gatep[i * 16 + indexStep[i]];// not random yet
 					if (gateRandomEnable)
 						gateRandomEnable = randomUniform() < (params[PROB_PARAMS + i].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
@@ -374,11 +378,15 @@ struct GateSeq16 : Module {
 			}
 		}
 		
+		// Process PulseGenerators (even if may not use)
+		for (int i = 0; i < 4; i++)
+			gatePulsesValue[i] = gatePulses[i].process(1.0 / engineSampleRate);
+		
 		// gate outputs
 		for (int i = 0; i < 4; i++) {
 			if (running[i]) {
 				if (trig[i])
-					outputs[GATE_OUTPUTS + i].value = (clockTriggers[i].isHigh() && gateRandomEnable && gate[i * 16 + indexStep[i]]) ? 10.0f : 0.0f;// TODO use gatePulses[]
+					outputs[GATE_OUTPUTS + i].value = (gatePulsesValue[i] && gateRandomEnable && gate[i * 16 + indexStep[i]]) ? 10.0f : 0.0f;
 				else
 					outputs[GATE_OUTPUTS + i].value = (clockTriggers[i].isHigh() && gateRandomEnable && gate[i * 16 + indexStep[i]]) ? 10.0f : 0.0f;
 			}
@@ -400,11 +408,11 @@ struct GateSeq16 : Module {
 		if (confirmCP != 0l) {
 			if (confirmCP > 0l) {// copy confirm
 				for (int i = 0; i < 64; i++)
-					setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 1.0f, 0.0f, (i / 16) == rowCP);// green
+					setFourLightGreen(STEP_LIGHTS + i * 4, (i / 16) == rowCP ? 1.0f : 0.0f);
 			}
 			else {// paste confirm
 				for (int i = 0; i < 64; i++)
-					setRGBLight(STEP_LIGHTS + i * 3, 1.0f, 0.0f, 0.0f, (i / 16) == rowCP);// red
+					setFourLightGreen(STEP_LIGHTS + i * 4, (i / 16) == rowCP ? 1.0f : 0.0f);
 			}
 		}
 		else {
@@ -412,14 +420,14 @@ struct GateSeq16 : Module {
 				for (int i = 0; i < 64; i++) {
 					if (gate[i]) {
 						if (gatep[i])
-							setRGBLight(STEP_LIGHTS + i * 3, 1.0f, 1.0f, 0.0f, true);// orange
+							setFourLightYellow(STEP_LIGHTS + i * 4, 1.0f);
 						else
-							setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 1.0f, 0.0f, true);// green
+							setFourLightGreen(STEP_LIGHTS + i * 4, 1.0f);
 					}
 					else {
 						int row = i / 16;
 						int col = i % 16;
-						setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.1f, 0.0f, indexStep[row] == col);// green
+						setFourLightGreen(STEP_LIGHTS + i * 4, indexStep[row] == col ? 0.1f : 0.0f);
 					}
 				}
 			}
@@ -428,33 +436,32 @@ struct GateSeq16 : Module {
 					int row = i / 16;
 					int col = i % 16;
 					if (col < (length[row] - 1))
-						setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.1f, 0.0f, true);// pale green
+						setFourLightGreen(STEP_LIGHTS + i * 4, 0.1f);
 					else if (col == (length[row] - 1))
-						setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 1.0f, 0.0f, true);// green
+						setFourLightGreen(STEP_LIGHTS + i * 4, 1.0f);
 					else 
-						setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.0f, true);// off
+						setFourLightGreen(STEP_LIGHTS + i * 4, 0.0f);
 				}
 			}
 			else if (displayState == DISP_GATEP) {
 				for (int i = 0; i < 64; i++)
 					if (gatep[i])
-						setRGBLight(STEP_LIGHTS + i * 3, 1.0f, 0.0f, 0.0f, true);// red
+						setFourLightRed(STEP_LIGHTS + i * 4, 1.0f);
 					else 
-						setRGBLight(STEP_LIGHTS + i * 3, 0.1f, 0.0f, 0.0f, gate[i]);// light red
-						
+						setFourLightRed(STEP_LIGHTS + i * 4, gate[i] ? 0.1f : 0.0f);
 			}
 			else if (displayState == DISP_MODE) {
 				for (int i = 0; i < 64; i++) {
 					int row = i / 16;
 					int col = i % 16;
 					if (col < 4 || col > 8) {
-						setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.0f, true);// off
+						setFourLightRed(STEP_LIGHTS + i * 4, 0.0f);// off
 					}
 					else { 
 						if (col - 4 == mode[row])
-							setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 1.0f, true);// blue
+							setFourLightBlue(STEP_LIGHTS + i * 4, 1.0f);
 						else
-							setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.1f, true);// pale blue
+							setFourLightBlue(STEP_LIGHTS + i * 4, 0.05f);
 					}
 				}
 			}
@@ -463,13 +470,13 @@ struct GateSeq16 : Module {
 					int row = i / 16;
 					int col = i % 16;
 					if (col < 10 || col > 11) {
-						setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.0f, true);// off
+						setFourLightRed(STEP_LIGHTS + i * 4, 0.0f);// off
 					}
 					else {
 						if (col - 10 == (trig[row] ? 1 : 0))
-							setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 1.0f, true);// blue
+							setFourLightBlue(STEP_LIGHTS + i * 4, 1.0f);
 						else
-							setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.1f, true);// pale blue
+							setFourLightBlue(STEP_LIGHTS + i * 4, 0.05f);
 					}
 				}
 			}
@@ -477,28 +484,30 @@ struct GateSeq16 : Module {
 				int rowToLight = CalcRowToLight(feedbackCP, feedbackCPinit);
 				for (int i = 0; i < 64; i++) {
 					int row = i / 16;
-					setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.5f, 0.0f, row == rowToLight);// green half level
+					if (row == rowToLight)
+						setFourLightGreen(STEP_LIGHTS + i * 4, 0.5f);
 				}
 			}
 			else if (displayState == DISP_PASTE) {
 				int rowToLight = CalcRowToLight(feedbackCP, feedbackCPinit);
 				for (int i = 0; i < 64; i++) {
 					int row = i / 16;
-					setRGBLight(STEP_LIGHTS + i * 3, 0.5f, 0.0f, 0.0f, row == rowToLight);// red half level
+					if (row == rowToLight)
+						setFourLightGreen(STEP_LIGHTS + i * 4, 0.5f);
 				}
 			}
 			else {
 				for (int i = 0; i < 64; i++)
-					setRGBLight(STEP_LIGHTS + i * 3, 0.0f, 0.0f, 0.0f, true);// should never happen
+					setFourLightRed(STEP_LIGHTS + i * 4, 0.0f);// should never happen
 			}
 		}
 		
 		// Main button lights
-		setRGBLight(GATE_LIGHT,     0.0f, 1.0f, 0.0f, displayState == DISP_GATE);// green
-		setRGBLight(LENGTH_LIGHT,   0.0f, 1.0f, 0.0f, displayState == DISP_LENGTH);// green
-		setRGBLight(GATEP_LIGHT,    1.0f, 0.0f, 0.0f, displayState == DISP_GATEP);// red
-		setRGBLight(MODE_LIGHT,     0.0f, 0.0f, 1.0f, displayState == DISP_MODE);// blue		
-		setRGBLight(GATETRIG_LIGHT, 0.0f, 0.0f, 1.0f, displayState == DISP_GATETRIG);// blue
+		lights[GATE_LIGHT].value = displayState == DISP_GATE ? 1.0f : 0.0f;// green
+		lights[LENGTH_LIGHT].value = displayState == DISP_LENGTH ? 1.0f : 0.0f;// green
+		lights[GATEP_LIGHT].value = displayState == DISP_GATEP ? 1.0f : 0.0f;// red
+		lights[MODE_LIGHT].value = displayState == DISP_MODE ? 1.0f : 0.0f;// blue		
+		lights[GATETRIG_LIGHT].value = displayState == DISP_GATETRIG ? 1.0f : 0.0f;// blue
 
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
@@ -517,10 +526,29 @@ struct GateSeq16 : Module {
 		
 	}// step()
 	
-	void setRGBLight(int id, float red, float green, float blue, bool enable) {
-		lights[id + 0].value = enable? red : 0.0f;
-		lights[id + 1].value = enable? green : 0.0f;
-		lights[id + 2].value = enable? blue : 0.0f;
+	void setFourLightRed(int id, float value) {
+		lights[id + 0].value = value;
+		lights[id + 1].value = 0.0f;
+		lights[id + 2].value = 0.0f;
+		lights[id + 3].value = 0.0f;
+	}
+	void setFourLightYellow(int id, float value) {
+		lights[id + 0].value = 0.0f;
+		lights[id + 1].value = value;
+		lights[id + 2].value = 0.0f;
+		lights[id + 3].value = 0.0f;
+	}
+	void setFourLightGreen(int id, float value) {
+		lights[id + 0].value = 0.0f;
+		lights[id + 1].value = 0.0f;
+		lights[id + 2].value = value;
+		lights[id + 3].value = 0.0f;
+	}
+	void setFourLightBlue(int id, float value) {
+		lights[id + 0].value = 0.0f;
+		lights[id + 1].value = 0.0f;
+		lights[id + 2].value = 0.0f;
+		lights[id + 3].value = value;
 	}
 
 	int CalcRowToLight(long feedbackCP, long feedbackCPinit) {
@@ -615,7 +643,7 @@ struct GateSeq16Widget : ModuleWidget {
 			int posX = colRulerSteps;
 			for (int x = 0; x < 16; x++) {
 				addParam(ParamWidget::create<LEDButton>(Vec(posX, rowRuler0 + 8 + y * rowSpacingSides - 4.4f), module, GateSeq16::STEP_PARAMS + y * 16 + x, 0.0f, 1.0f, 0.0f));
-				addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(posX + 4.4f, rowRuler0 + 8 + y * rowSpacingSides), module, GateSeq16::STEP_LIGHTS + (y * 16 + x) * 3));
+				addChild(ModuleLightWidget::create<MediumLight<RedYellowGreenBlueLight>>(Vec(posX + 4.4f, rowRuler0 + 8 + y * rowSpacingSides), module, GateSeq16::STEP_LIGHTS + (y * 16 + x) * 4));
 				posX += spacingSteps;
 				if ((x + 1) % 4 == 0)
 					posX += spacingSteps4;
@@ -639,16 +667,16 @@ struct GateSeq16Widget : ModuleWidget {
 		
 		// Length light and button
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC0 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq16::LENGTH_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(colRulerC0 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq16::LENGTH_LIGHT));		
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerC0 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq16::LENGTH_LIGHT));		
 		// Mode light and button
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC1 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq16::MODE_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(colRulerC1 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq16::MODE_LIGHT));		
+		addChild(ModuleLightWidget::create<MediumLight<BlueLight>>(Vec(colRulerC1 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq16::MODE_LIGHT));		
 		// GateTrig light and button
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC2 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq16::GATETRIG_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(colRulerC2 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq16::GATETRIG_LIGHT));		
+		addChild(ModuleLightWidget::create<MediumLight<BlueLight>>(Vec(colRulerC2 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq16::GATETRIG_LIGHT));		
 		// Gate light and button
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC3 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq16::GATE_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(colRulerC3 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq16::GATE_LIGHT));		
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerC3 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq16::GATE_LIGHT));		
 		
 		// Runall button
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC0 + offsetCKD6b, rowRulerC1 + offsetCKD6b), module, GateSeq16::RUNALL_PARAM, 0.0f, 1.0f, 0.0f));
@@ -660,7 +688,7 @@ struct GateSeq16Widget : ModuleWidget {
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 + 20, rowRulerC1 + offsetTL1105), module, GateSeq16::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
 		// Gate p light and button
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC3 + offsetCKD6b, rowRulerC1 + offsetCKD6b), module, GateSeq16::GATEP_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(colRulerC3 + posLEDvsButton + offsetMediumLight, rowRulerC1 + offsetMediumLight), module, GateSeq16::GATEP_LIGHT));		
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerC3 + posLEDvsButton + offsetMediumLight, rowRulerC1 + offsetMediumLight), module, GateSeq16::GATEP_LIGHT));		
 		
 		// Runall CV input
 		addInput(Port::create<PJ301MPortS>(Vec(colRulerC0, rowRulerC2), Port::INPUT, module, GateSeq16::RUNALLCV_INPUT));
