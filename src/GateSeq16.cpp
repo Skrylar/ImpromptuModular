@@ -93,6 +93,8 @@ struct GateSeq16 : Module {
 	SchmittTrigger runningTriggers[4];
 	SchmittTrigger clockTriggers[4];
 	SchmittTrigger resetTrigger;
+	SchmittTrigger linkedTrigger;
+
 	PulseGenerator gatePulses[4];
 
 		
@@ -243,15 +245,54 @@ struct GateSeq16 : Module {
 		float engineSampleRate = engineGetSampleRate();
 		feedbackCPinit = (long) (copyPasteInfoTime * engineSampleRate);
 		
-		// Run state and light
+		// Run state and light 
+		// TODO bug in this block (when added level mode CVs)
+		bool runTrig[5] = {};
 		for (int i = 0; i < 4; i++) {
-			if (runningTriggers[i].process(params[RUN_PARAMS + i].value + inputs[RUNCV_INPUTS + i].value)) {
-				running[i] = !running[i];
-				if (running[i]) {
-					indexStep[i] = 0;
+			runTrig[i] = false;
+			if (runningTriggers[i].process(params[RUN_PARAMS + i].value + inputs[RUNCV_INPUTS + i].value)) 
+				runTrig[i] = true;
+		}
+		if (linkedTrigger.process(params[LINKED_PARAM].value))
+			runTrig[4] = true;
+		if (inputs[RUNCV_MODE_PARAM].value < 0.5f) {// Run cvs are in level mode
+			if (params[LINKED_PARAM].value > 0.5f) {// Linked run states
+				running[0] = inputs[RUNCV_INPUTS + 0].value > 1.0f;
+				running[1] = running[0];
+				running[2] = running[0];
+				running[3] = running[0];
+			}
+			else {
+				for (int i = 0; i < 4; i++) 
+					running[i] = inputs[RUNCV_INPUTS + i].value > 1.0f;
+			}
+		}
+		else { // Run cvs are in trig mode
+			if (runTrig[0] || runTrig[1] || runTrig[2] || runTrig[3] || runTrig[4]) {
+				if (params[LINKED_PARAM].value > 0.5f) {// Lingked run states
+					running[0] = runTrig[4] ? running[0] : !running[0];
+					running[1] = running[0];
+					running[2] = running[0];
+					running[3] = running[0];
+					if (running[0]) {
+						indexStep[0] = 0;
+						indexStep[1] = 0;
+						indexStep[2] = 0;
+						indexStep[3] = 0;
+					}
+				}
+
+				else {
+					for (int i = 0; i < 4; i++) {
+						if (runTrig[i]) {
+							running[i] = !running[i];
+							if (running[i]) {
+								indexStep[i] = 0;
+							}
+						}
+					}
 				}
 			}
-			lights[RUN_LIGHTS + i].value = (running[i]);
 		}
 		
 		// Gate button
@@ -513,6 +554,9 @@ struct GateSeq16 : Module {
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
 
+		// Run lights
+		for (int i = 0; i < 4; i++)
+			lights[RUN_LIGHTS + i].value = (running[i]);
 		
 		if (confirmCP != 0l) {
 			if (confirmCP > 0l)
@@ -635,7 +679,7 @@ struct GateSeq16Widget : ModuleWidget {
 		
 		// ****** 4x3 Main center bottom half Control section ******
 		
-		static int colRulerC0 = 110;
+		static int colRulerC0 = 112;
 		static int colRulerSpacing = 72;
 		static int colRulerC1 = colRulerC0 + colRulerSpacing;
 		static int colRulerC2 = colRulerC1 + colRulerSpacing;
