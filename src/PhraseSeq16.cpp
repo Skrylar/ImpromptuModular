@@ -73,7 +73,7 @@ struct PhraseSeq16 : Module {
 		NUM_OUTPUTS
 	};
 	enum LightIds {
-		ENUMS(STEP_PHRASE_LIGHTS, 16*2),// room for GreenRed
+		ENUMS(STEP_PHRASE_LIGHTS, 16 * 2),// room for GreenRed
 		ENUMS(OCTAVE_LIGHTS, 7),// octaves 1 to 7
 		ENUMS(KEY_LIGHTS, 12),
 		RUN_LIGHT,

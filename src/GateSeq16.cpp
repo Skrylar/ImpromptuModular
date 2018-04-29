@@ -23,7 +23,7 @@ struct GateSeq16 : Module {
 		MODE_PARAM,
 		GATETRIG_PARAM,
 		ENUMS(RUN_PARAMS, 4),
-		RUNALL_PARAM,
+		LINKED_PARAM,
 		ENUMS(PROB_PARAMS, 4),
 		CONFIG_PARAM,
 		COPY_PARAM,
@@ -36,7 +36,7 @@ struct GateSeq16 : Module {
 		ENUMS(CLOCK_INPUTS, 4),
 		RESET_INPUT,
 		ENUMS(RUNCV_INPUTS, 4),
-		RUNALLCV_INPUT,
+		PROBCV_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -371,7 +371,7 @@ struct GateSeq16 : Module {
 					gatePulses[i].trigger(0.001f);
 					gateRandomEnable = gatep[i * 16 + indexStep[i]];// not random yet
 					if (gateRandomEnable)
-						gateRandomEnable = randomUniform() < (params[PROB_PARAMS + i].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
+						gateRandomEnable = randomUniform() < (params[PROB_PARAMS + i].value + inputs[PROBCV_INPUT].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
 					else 
 						gateRandomEnable = true;
 				}
@@ -660,7 +660,7 @@ struct GateSeq16Widget : ModuleWidget {
 		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerC3 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq16::GATE_LIGHT));		
 		
 		// Runall button
-		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC0 + offsetCKD6b, rowRulerC1 + offsetCKD6b), module, GateSeq16::RUNALL_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerC0 + hOffsetCKSS, rowRulerC1 + vOffsetCKSS), module, GateSeq16::LINKED_PARAM, 0.0f, 1.0f, 0.0f)); // 1.0f is top position
 		// Reset LED bezel and light
 		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC1 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq16::RESET_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC1 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq16::RESET_LIGHT));
@@ -671,14 +671,14 @@ struct GateSeq16Widget : ModuleWidget {
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC3 + offsetCKD6b, rowRulerC1 + offsetCKD6b), module, GateSeq16::GATEP_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerC3 + posLEDvsButton + offsetMediumLight, rowRulerC1 + offsetMediumLight), module, GateSeq16::GATEP_LIGHT));		
 		
-		// Runall CV input
-		addInput(Port::create<PJ301MPortS>(Vec(colRulerC0, rowRulerC2), Port::INPUT, module, GateSeq16::RUNALLCV_INPUT));
+		// Run CV mode switch
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerC0 + hOffsetCKSS, rowRulerC2 + vOffsetCKSS), module, GateSeq16::RUNCV_MODE_PARAM, 0.0f, 1.0f, 1.0f)); // 1.0f is top position
 		// Reset
 		addInput(Port::create<PJ301MPortS>(Vec(colRulerC1, rowRulerC2 ), Port::INPUT, module, GateSeq16::RESET_INPUT));
-		// Run CV mode switch
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerC2 + hOffsetCKSS, rowRulerC2 + vOffsetCKSS), module, GateSeq16::RUNCV_MODE_PARAM, 0.0f, 1.0f, 1.0f)); // 1.0f is top position
 		// Config switch (3 position)
-		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC3 + hOffsetCKSS, rowRulerC2 + vOffsetCKSSThree), module, GateSeq16::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
+		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC2 + hOffsetCKSS, rowRulerC2 + vOffsetCKSSThree), module, GateSeq16::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
+		// Prob CV input
+		addInput(Port::create<PJ301MPortS>(Vec(colRulerC3, rowRulerC2), Port::INPUT, module, GateSeq16::PROBCV_INPUT));
 	}
 };
 
