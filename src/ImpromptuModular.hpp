@@ -86,6 +86,15 @@ struct Davies1900hBlackKnobNoTick : Davies1900hKnob {
 	}
 };
 
+struct RoundSmallBlackKnobB : RoundKnob {
+	RoundSmallBlackKnobB() {
+		setSVG(SVG::load(assetGlobal("res/ComponentLibrary/RoundSmallBlackKnob.svg")));
+		shadow->blurRadius = 10.0;
+		shadow->opacity = 0.8;
+		shadow->box.pos = Vec(0.0, box.size.y * 0.15);
+	}
+};
+
 struct CKSSThreeInv : SVGSwitch, ToggleSwitch {
 	CKSSThreeInv() {
 		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/CKSSThree_2.svg")));
@@ -143,15 +152,12 @@ struct ScrewHole : TransparentWidget {
 	void draw(NVGcontext *vg) override;
 };	
 
-
-struct RedYellowGreenBlueLight : GrayModuleLightWidget {
-	RedYellowGreenBlueLight() {
-		addBaseColor(COLOR_RED);
-		addBaseColor(COLOR_YELLOW);
-		addBaseColor(COLOR_GREEN);
-		addBaseColor(COLOR_BLUE);
+struct OrangeLight : GrayModuleLightWidget {
+	OrangeLight() {
+		addBaseColor(COLOR_ORANGE);
 	}
 };
+
 
 enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, NUM_MODES};
 

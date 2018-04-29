@@ -861,28 +861,14 @@ struct PhraseSeq16 : Module {
 		
 		// Keyboard lights
 		float cvValOffset;
-		if (infoCopyPaste != 0l) {
-			if (infoCopyPaste > 0l) {// if copy (light-up black keys)
-				for (int i = 0; i < 12; i++) {
-					lights[KEY_LIGHTS + i].value = (i == 1 || i == 3 || i == 6 || i == 8 || i == 10) ? 1.0f : 0.0f;
-				}	
-			}
-			else {// paste (light-up white keys)
-				for (int i = 0; i < 12; i++) {
-					lights[KEY_LIGHTS + i].value = (i == 1 || i == 3 || i == 6 || i == 8 || i == 10) ? 0.0f : 1.0f;
-				}	
-			}
-		}
-		else {
-			if (editingSequence) 
-				cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
-			else	
-				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexPhraseRun] + 10.0f;//to properly handle negative note voltages
-			int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
-			for (int i = 0; i < 12; i++) {
-				lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
-			}	
-		}		
+		if (editingSequence) 
+			cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
+		else	
+			cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexPhraseRun] + 10.0f;//to properly handle negative note voltages
+		int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
+		for (int i = 0; i < 12; i++) {
+			lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+		}			
 		
 		// Gate1, Gate1Prob, Gate2 and Slide lights
 		bool gate1Val = true;
@@ -954,25 +940,35 @@ struct PhraseSeq16Widget : ModuleWidget {
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
-			if (module->displayState == PhraseSeq16::DISP_MODE) {
-				if (module->params[PhraseSeq16::EDIT_PARAM].value > 0.5f)// if editing sequence
-					runModeToStr(module->runModeSeq);
-				else
-					runModeToStr(module->runModeSong);
+			if (module->infoCopyPaste != 0l) {
+				if (module->infoCopyPaste > 0l) {// if copy display "CPY"
+					snprintf(displayStr, 4, "CPY");
+				}
+				else {// if paste display "PST"
+					snprintf(displayStr, 4, "PST");
+				}
 			}
-			else if (module->displayState == PhraseSeq16::DISP_TRANSPOSE) {
-				snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffset));
-				if (module->transposeOffset < 0)
-					displayStr[0] = '-';
-			}
-			else if (module->displayState == PhraseSeq16::DISP_ROTATE) {
-				snprintf(displayStr, 4, ">%2u", (unsigned) abs(module->rotateOffset));
-				if (module->rotateOffset < 0)
-					displayStr[0] = '<';
-			}
-			else {// DISP_NORMAL
-				snprintf(displayStr, 4, " %2u", (unsigned) (module->params[PhraseSeq16::EDIT_PARAM].value > 0.5f ? 
-					module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
+			else {
+				if (module->displayState == PhraseSeq16::DISP_MODE) {
+					if (module->params[PhraseSeq16::EDIT_PARAM].value > 0.5f)// if editing sequence
+						runModeToStr(module->runModeSeq);
+					else
+						runModeToStr(module->runModeSong);
+				}
+				else if (module->displayState == PhraseSeq16::DISP_TRANSPOSE) {
+					snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffset));
+					if (module->transposeOffset < 0)
+						displayStr[0] = '-';
+				}
+				else if (module->displayState == PhraseSeq16::DISP_ROTATE) {
+					snprintf(displayStr, 4, ">%2u", (unsigned) abs(module->rotateOffset));
+					if (module->rotateOffset < 0)
+						displayStr[0] = '<';
+				}
+				else {// DISP_NORMAL
+					snprintf(displayStr, 4, " %2u", (unsigned) (module->params[PhraseSeq16::EDIT_PARAM].value > 0.5f ? 
+						module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
+				}
 			}
 			displayStr[3] = 0;// more safety
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
@@ -1131,9 +1127,9 @@ struct PhraseSeq16Widget : ModuleWidget {
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 + posLEDvsButton + offsetMediumLight, rowRulerMB1 + offsetMediumLight), module, PhraseSeq16::GATE1_PROB_LIGHT));		
 		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB1 + offsetCKD6b, rowRulerMB1 + offsetCKD6b), module, PhraseSeq16::GATE1_PROB_PARAM, 0.0f, 1.0f, 0.0f));
 		// Gate 1 probability knob
-		addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(columnRulerMB2 + offsetRoundSmallBlackKnob, rowRulerMB1 + offsetRoundSmallBlackKnob), module, PhraseSeq16::GATE1_KNOB_PARAM, 0.0f, 1.0f, 1.0f));
+		addParam(ParamWidget::create<RoundSmallBlackKnobB>(Vec(columnRulerMB2 + offsetRoundSmallBlackKnob, rowRulerMB1 + offsetRoundSmallBlackKnob), module, PhraseSeq16::GATE1_KNOB_PARAM, 0.0f, 1.0f, 1.0f));
 		// Slide knob
-		addParam(ParamWidget::create<RoundSmallBlackKnob>(Vec(columnRulerMB3 + offsetRoundSmallBlackKnob, rowRulerMB1 + offsetRoundSmallBlackKnob), module, PhraseSeq16::SLIDE_KNOB_PARAM, 0.0f, 2.0f, 0.15f));// slide time in seconds		
+		addParam(ParamWidget::create<RoundSmallBlackKnobB>(Vec(columnRulerMB3 + offsetRoundSmallBlackKnob, rowRulerMB1 + offsetRoundSmallBlackKnob), module, PhraseSeq16::SLIDE_KNOB_PARAM, 0.0f, 2.0f, 0.15f));// slide time in seconds		
 		
 						
 		

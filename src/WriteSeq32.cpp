@@ -53,7 +53,7 @@ struct WriteSeq32 : Module {
 		ENUMS(WINDOW_LIGHTS, 4),
 		ENUMS(STEP_LIGHTS, 8),
 		ENUMS(GATE_LIGHTS, 8),
-		ENUMS(CHANNEL_LIGHTS, 4 * 3),// room for GreenRedBlue
+		ENUMS(CHANNEL_LIGHTS, 4),
 		RUN_LIGHT,
 		ENUMS(WRITE_LIGHT, 2),// room for GreenRed
 		PENDING_LIGHT,
@@ -371,27 +371,11 @@ struct WriteSeq32 : Module {
 			lights[GATE_LIGHTS + index8].value = (gates[indexChannel][iGate] && iGate < numSteps) ? 1.0f : 0.0f;
 		}
 			
-		// Channel lights
-		if (infoCopyPaste != 0l) {
-			if (infoCopyPaste > 0l) {// if copy then display "Copy"
-				setRGBLight(CHANNEL_LIGHTS + 0, 0.0f, 1.0f, 0.0f, true);// green
-				setRGBLight(CHANNEL_LIGHTS + 3, 0.0f, 1.0f, 0.0f, true);// green
-				setRGBLight(CHANNEL_LIGHTS + 6, 0.0f, 1.0f, 0.0f, true);// green
-				setRGBLight(CHANNEL_LIGHTS + 9, 0.0f, 1.0f, 0.0f, true);// green
-			}
-			else {// paste then display "Paste"
-				setRGBLight(CHANNEL_LIGHTS + 0, 1.0f, 0.0f, 0.0f, true);// red
-				setRGBLight(CHANNEL_LIGHTS + 3, 1.0f, 0.0f, 0.0f, true);// red
-				setRGBLight(CHANNEL_LIGHTS + 6, 1.0f, 0.0f, 0.0f, true);// red
-				setRGBLight(CHANNEL_LIGHTS + 9, 1.0f, 0.0f, 0.0f, true);// red
-			}
-		}
-		else {			
-			setRGBLight(CHANNEL_LIGHTS + 0, 0.0f, 1.0f, 0.0f, (indexChannel == 0));// green
-			setRGBLight(CHANNEL_LIGHTS + 3, 0.4f, 0.5f, 0.0f, (indexChannel == 1));// orange
-			setRGBLight(CHANNEL_LIGHTS + 6, 0.0f, 0.5f, 0.4f, (indexChannel == 2));// turquoise
-			setRGBLight(CHANNEL_LIGHTS + 9, 0.0f, 0.0f, 0.8f, (indexChannel == 3));// blue
-		}
+		// Channel lights		
+		lights[CHANNEL_LIGHTS + 0].value = (indexChannel == 0) ? 1.0f : 0.0f;// green
+		lights[CHANNEL_LIGHTS + 1].value = (indexChannel == 1) ? 1.0f : 0.0f;// yellow
+		lights[CHANNEL_LIGHTS + 2].value = (indexChannel == 2) ? 1.0f : 0.0f;// orange
+		lights[CHANNEL_LIGHTS + 3].value = (indexChannel == 3) ? 1.0f : 0.0f;// blue
 		
 		// Write allowed light
 		lights[WRITE_LIGHT + 0].value = (canEdit)?1.0f:0.0f;
@@ -406,12 +390,6 @@ struct WriteSeq32 : Module {
 			if (infoCopyPaste < 0l)
 				infoCopyPaste ++;
 		}
-	}
-	
-	void setRGBLight(int id, float red, float green, float blue, bool enable) {
-		lights[id + 0].value = enable? red : 0.0f;
-		lights[id + 1].value = enable? green : 0.0f;
-		lights[id + 2].value = enable? blue : 0.0f;
 	}
 };
 
@@ -428,10 +406,29 @@ struct WriteSeq32Widget : ModuleWidget {
 		}
 		
 		void cvToStr(int index8) {
+		if (module->infoCopyPaste != 0l) {
+			if (index8 == 0) {
+				if (module->infoCopyPaste > 0l)
+					snprintf(text, 4, "COP");			
+				else 
+					snprintf(text, 4, "PAS");
+			}
+			else if (index8 == 1) {
+				if (module->infoCopyPaste > 0l)
+					snprintf(text, 4, "Y  ");			
+				else 
+					snprintf(text, 4, "TE ");
+			}
+			else {
+				snprintf(text, 4, "   ");
+			}
+		}
+		else {
 			int index = (module->indexChannel == 3 ? module->indexStepStage : module->indexStep);
 			if ( ( (index&0x18) |index8) >= (int) clamp(roundf(module->params[WriteSeq32::STEPS_PARAM].value), 1.0f, 32.0f) ) {
 				text[0] = ' ';
 				text[1] = ' ';
+				text[2] = ' ';
 			}
 			else {
 				float cvVal = module->cv[module->indexChannel][index8|(index&0x18)];
@@ -454,6 +451,7 @@ struct WriteSeq32Widget : ModuleWidget {
 				if (isBlackKey[indexNote] == 1)
 					text[2] = (sharp ? '\"' : '^' );
 			}
+		}
 			// end of string
 			text[3] = 0;
 		}
@@ -589,9 +587,10 @@ struct WriteSeq32Widget : ModuleWidget {
 		// Channel LEDS
 		static const int chanLEDoffsetX = 25;
 		static const int chanLEDoffsetY[4] = {-20, -8, 4, 16};
-		for (int i = 0; i < 4; i++) {
-			addChild(ModuleLightWidget::create<MediumLight<RedGreenBlueLight>>(Vec(columnRuler0 + chanLEDoffsetX + offsetMediumLight, rowRuler0 - 4 + chanLEDoffsetY[i] + offsetMediumLight), module, WriteSeq32::CHANNEL_LIGHTS + (i*3)));
-		}
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(columnRuler0 + chanLEDoffsetX + offsetMediumLight, rowRuler0 - 4 + chanLEDoffsetY[0] + offsetMediumLight), module, WriteSeq32::CHANNEL_LIGHTS + 0));
+		addChild(ModuleLightWidget::create<MediumLight<YellowLight>>(Vec(columnRuler0 + chanLEDoffsetX + offsetMediumLight, rowRuler0 - 4 + chanLEDoffsetY[1] + offsetMediumLight), module, WriteSeq32::CHANNEL_LIGHTS + 1));
+		addChild(ModuleLightWidget::create<MediumLight<OrangeLight>>(Vec(columnRuler0 + chanLEDoffsetX + offsetMediumLight, rowRuler0 - 4 + chanLEDoffsetY[2] + offsetMediumLight), module, WriteSeq32::CHANNEL_LIGHTS + 2));
+		addChild(ModuleLightWidget::create<MediumLight<BlueLight>>(Vec(columnRuler0 + chanLEDoffsetX + offsetMediumLight, rowRuler0 - 4 + chanLEDoffsetY[3] + offsetMediumLight), module, WriteSeq32::CHANNEL_LIGHTS + 3));
 		// Copy/paste switches
 		addParam(ParamWidget::create<TL1105>(Vec(columnRuler0-10, rowRuler1+offsetTL1105), module, WriteSeq32::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(columnRuler0+20, rowRuler1+offsetTL1105), module, WriteSeq32::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
