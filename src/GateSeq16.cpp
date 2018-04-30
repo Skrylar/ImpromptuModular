@@ -246,49 +246,51 @@ struct GateSeq16 : Module {
 		feedbackCPinit = (long) (copyPasteInfoTime * engineSampleRate);
 		
 		// Run state and light 
-		// TODO bug in this block (when added level mode CVs)
 		bool runTrig[5] = {};
-		for (int i = 0; i < 4; i++) {
-			runTrig[i] = false;
-			if (runningTriggers[i].process(params[RUN_PARAMS + i].value + inputs[RUNCV_INPUTS + i].value)) 
-				runTrig[i] = true;
-		}
-		if (linkedTrigger.process(params[LINKED_PARAM].value))
-			runTrig[4] = true;
-		if (inputs[RUNCV_MODE_PARAM].value < 0.5f) {// Run cvs are in level mode
+		for (int i = 0; i < 4; i++)
+			runTrig[i] = runningTriggers[i].process(params[RUN_PARAMS + i].value + inputs[RUNCV_INPUTS + i].value);
+		runTrig[4] = linkedTrigger.process(params[LINKED_PARAM].value);
+		if (params[RUNCV_MODE_PARAM].value < 0.5f) {// Run cvs are in level mode
 			if (params[LINKED_PARAM].value > 0.5f) {// Linked run states
-				running[0] = inputs[RUNCV_INPUTS + 0].value > 1.0f;
+				if (inputs[RUNCV_INPUTS + 0].active)
+					running[0] = inputs[RUNCV_INPUTS + 0].value > 1.0f;
+				else
+					running[0] = runTrig[0] ? !running[0] : running[0];
 				running[1] = running[0];
 				running[2] = running[0];
 				running[3] = running[0];
 			}
-			else {
-				for (int i = 0; i < 4; i++) 
-					running[i] = inputs[RUNCV_INPUTS + i].value > 1.0f;
+			else {// Not linked
+				for (int i = 0; i < 4; i++)  {
+					if (inputs[RUNCV_INPUTS + i].active)
+						running[i] = inputs[RUNCV_INPUTS + i].value > 1.0f;
+					else if (runTrig[i]) {
+						running[i] = !running[i];
+						if (running[i]) {
+							indexStep[i] = 0;
+						}
+					}
+				}
 			}
 		}
 		else { // Run cvs are in trig mode
-			if (runTrig[0] || runTrig[1] || runTrig[2] || runTrig[3] || runTrig[4]) {
-				if (params[LINKED_PARAM].value > 0.5f) {// Lingked run states
+			if (params[LINKED_PARAM].value > 0.5f) {// Linked run states
+				if (runTrig[0] || runTrig[1] || runTrig[2] || runTrig[3] || runTrig[4]) {
 					running[0] = runTrig[4] ? running[0] : !running[0];
 					running[1] = running[0];
 					running[2] = running[0];
 					running[3] = running[0];
-					if (running[0]) {
-						indexStep[0] = 0;
-						indexStep[1] = 0;
-						indexStep[2] = 0;
-						indexStep[3] = 0;
-					}
+					if (running[0])
+						for (int i = 0; i < 4; i++)
+							indexStep[i] = 0;
 				}
-
-				else {
-					for (int i = 0; i < 4; i++) {
-						if (runTrig[i]) {
-							running[i] = !running[i];
-							if (running[i]) {
-								indexStep[i] = 0;
-							}
+			}
+			else {// Not linked
+				for (int i = 0; i < 4; i++) {
+					if (runTrig[i]) {
+						running[i] = !running[i];
+						if (running[i]) {
+							indexStep[i] = 0;
 						}
 					}
 				}
@@ -405,8 +407,9 @@ struct GateSeq16 : Module {
 		}
 		
 		// Clock
+		// TODO replicate clock to unconnected inputs
 		for (int i = 0; i < 4; i++) {
-			if (clockTriggers[i].process(inputs[CLOCK_INPUTS + i].value)) {// TODO replicate clock to unconnected inputs
+			if (clockTriggers[i].process(inputs[CLOCK_INPUTS + i].value)) {
 				if (running[i]) {
 					moveIndexRunMode(&indexStep[i], length[i], mode[i], &stepIndexRunHistory[i]);
 					gatePulses[i].trigger(0.001f);
