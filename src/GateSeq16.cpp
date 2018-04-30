@@ -28,7 +28,8 @@ struct GateSeq16 : Module {
 		CONFIG_PARAM,
 		COPY_PARAM,
 		PASTE_PARAM,
-		RUNCV_MODE_PARAM,
+		CLEAR_PARAM,
+		FILL_PARAM,
 		RESET_PARAM,
 		NUM_PARAMS
 	};
@@ -94,6 +95,8 @@ struct GateSeq16 : Module {
 	SchmittTrigger clockTriggers[4];
 	SchmittTrigger resetTrigger;
 	SchmittTrigger linkedTrigger;
+	SchmittTrigger clearTrigger;
+	SchmittTrigger fillTrigger;
 
 	PulseGenerator gatePulses[4];
 
@@ -250,48 +253,23 @@ struct GateSeq16 : Module {
 		for (int i = 0; i < 4; i++)
 			runTrig[i] = runningTriggers[i].process(params[RUN_PARAMS + i].value + inputs[RUNCV_INPUTS + i].value);
 		runTrig[4] = linkedTrigger.process(params[LINKED_PARAM].value);
-		if (params[RUNCV_MODE_PARAM].value < 0.5f) {// Run cvs are in level mode
-			if (params[LINKED_PARAM].value > 0.5f) {// Linked run states
-				if (inputs[RUNCV_INPUTS + 0].active)
-					running[0] = inputs[RUNCV_INPUTS + 0].value > 1.0f;
-				else
-					running[0] = runTrig[0] ? !running[0] : running[0];
+		if (params[LINKED_PARAM].value > 0.5f) {// Linked run states
+			if (runTrig[0] || runTrig[1] || runTrig[2] || runTrig[3] || runTrig[4]) {
+				running[0] = runTrig[4] ? running[0] : !running[0];
 				running[1] = running[0];
 				running[2] = running[0];
 				running[3] = running[0];
-			}
-			else {// Not linked
-				for (int i = 0; i < 4; i++)  {
-					if (inputs[RUNCV_INPUTS + i].active)
-						running[i] = inputs[RUNCV_INPUTS + i].value > 1.0f;
-					else if (runTrig[i]) {
-						running[i] = !running[i];
-						if (running[i]) {
-							indexStep[i] = 0;
-						}
-					}
-				}
+				if (running[0])
+					for (int i = 0; i < 4; i++)
+						indexStep[i] = 0;
 			}
 		}
-		else { // Run cvs are in trig mode
-			if (params[LINKED_PARAM].value > 0.5f) {// Linked run states
-				if (runTrig[0] || runTrig[1] || runTrig[2] || runTrig[3] || runTrig[4]) {
-					running[0] = runTrig[4] ? running[0] : !running[0];
-					running[1] = running[0];
-					running[2] = running[0];
-					running[3] = running[0];
-					if (running[0])
-						for (int i = 0; i < 4; i++)
-							indexStep[i] = 0;
-				}
-			}
-			else {// Not linked
-				for (int i = 0; i < 4; i++) {
-					if (runTrig[i]) {
-						running[i] = !running[i];
-						if (running[i]) {
-							indexStep[i] = 0;
-						}
+		else {// Not linked
+			for (int i = 0; i < 4; i++) {
+				if (runTrig[i]) {
+					running[i] = !running[i];
+					if (running[i]) {
+						indexStep[i] = 0;
 					}
 				}
 			}
@@ -347,7 +325,7 @@ struct GateSeq16 : Module {
 			if (displayState != DISP_PASTE) {
 				displayState = DISP_PASTE;
 				feedbackCP = feedbackCPinit;
-				rowCP = -1;// used for confirmCP, and to tell when aborted copy so that no confirmCP
+				rowCP = -1;// used for confirmCP, and to tell when aborted paste so that no confirmCP
 			}
 			else {
 				displayState = DISP_GATE;
@@ -718,12 +696,13 @@ struct GateSeq16Widget : ModuleWidget {
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC3 + offsetCKD6b, rowRulerC1 + offsetCKD6b), module, GateSeq16::GATEP_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerC3 + posLEDvsButton + offsetMediumLight, rowRulerC1 + offsetMediumLight), module, GateSeq16::GATEP_LIGHT));		
 		
-		// Run CV mode switch
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerC0 + hOffsetCKSS, rowRulerC2 + vOffsetCKSS), module, GateSeq16::RUNCV_MODE_PARAM, 0.0f, 1.0f, 1.0f)); // 1.0f is top position
+		// Config switch (3 position)
+		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC0 + hOffsetCKSS, rowRulerC2 + vOffsetCKSSThree), module, GateSeq16::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
 		// Reset
 		addInput(Port::create<PJ301MPortS>(Vec(colRulerC1, rowRulerC2 ), Port::INPUT, module, GateSeq16::RESET_INPUT));
-		// Config switch (3 position)
-		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC2 + hOffsetCKSS, rowRulerC2 + vOffsetCKSSThree), module, GateSeq16::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
+		// Clear/fill switches
+		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 - 10, rowRulerC2 + offsetTL1105), module, GateSeq16::CLEAR_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 + 20, rowRulerC2 + offsetTL1105), module, GateSeq16::FILL_PARAM, 0.0f, 1.0f, 0.0f));
 		// Prob CV input
 		addInput(Port::create<PJ301MPortS>(Vec(colRulerC3, rowRulerC2), Port::INPUT, module, GateSeq16::PROBCV_INPUT));
 	}
