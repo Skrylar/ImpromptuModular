@@ -78,7 +78,7 @@ struct GateSeq64 : Module {
 	int rowCP;// row selected for copy or paste operation
 	long feedbackCP;// downward step counter for CP feedback
 	long confirmCP;// downward positive step counter for Copy confirmation, up neg Paste, 0 when nothing to confirm
-	bool gateRandomEnable; 
+	bool gateRandomEnable[4];// no need to initialize
 	float resetLight = 0.0f;
 	long feedbackCPinit;// no need to initialize
 	bool gatePulsesValue[4] = {};
@@ -101,6 +101,8 @@ struct GateSeq64 : Module {
 	SchmittTrigger linkedTrigger;
 	SchmittTrigger clearTrigger;
 	SchmittTrigger fillTrigger;
+	SchmittTrigger configTrigger;
+	SchmittTrigger configTriggerInv;
 
 	PulseGenerator gatePulses[4];
 
@@ -121,6 +123,7 @@ struct GateSeq64 : Module {
 			length[i] = 16;
 			mode[i] = MODE_FWD;
 			trig[i] = false;
+			gateRandomEnable[i] = true;
 		}
 		for (int i = 0; i < 16; i++) {
 			gateCP[i] = 0;
@@ -132,7 +135,6 @@ struct GateSeq64 : Module {
 		rowCP = -1;
 		feedbackCP = 0l;
 		confirmCP = 0l;
-		gateRandomEnable = false;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
@@ -148,6 +150,7 @@ struct GateSeq64 : Module {
 			length[i] = 1 + (randomu32() % 16);
 			mode[i] = randomu32() % 5;
 			trig[i] = (randomUniform() > 0.5f);
+			gateRandomEnable[i] = true;
 		}
 		if (params[LINKED_PARAM].value > 0.5f) {
 			running[1] = running[0];
@@ -164,7 +167,6 @@ struct GateSeq64 : Module {
 		rowCP = -1;
 		feedbackCP = 0l;
 		confirmCP = 0l;
-		gateRandomEnable = false;	
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
@@ -276,12 +278,10 @@ struct GateSeq64 : Module {
 	// Find lowest active clock (takes given index to start from, retruns the index found)
 	// Returns 0 if not found (use clock 0 by default, do not return an error code)
 	int findClock(int clkIndex, bool* clkActive) {
-		int foundClock = 0;
-		for (int i = clkIndex; i > 0; i--) {
-			if (clkActive[i]) 
-				break;
-		}
-		return foundClock;
+		for (int i = clkIndex; i > 0; i--)
+			if (clkActive[i])
+				return i;
+		return 0;
 	}
 
 	
@@ -292,11 +292,20 @@ struct GateSeq64 : Module {
 		float engineSampleRate = engineGetSampleRate();
 		feedbackCPinit = (long) (copyPasteInfoTime * engineSampleRate);
 		
+		// Config
 		int stepConfig = 1;// 4x16
 		if (params[CONFIG_PARAM].value > 1.5f)// 1x64
 			stepConfig = 4;
 		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
 			stepConfig = 2;
+		if (configTrigger.process(params[CONFIG_PARAM].value*10.0f - 10.0f) || configTriggerInv.process(10.0f - fabs(params[CONFIG_PARAM].value*10.0f - 10.0f))) {
+			if (stepConfig == 4)
+				length[0] = 64;
+			else if (stepConfig == 2) {
+				length[0] = 32;
+				length[2] = 32;
+			}
+		}
 		
 		// Run state
 		bool runTrig[5] = {};
@@ -342,7 +351,7 @@ struct GateSeq64 : Module {
 			if (length[i] > (16 * stepConfig))
 				length[i] = 16 * stepConfig;
 		}
-		
+		// TODO when switch configs, set lengths to their max
 		
 		// Gate button
 		if (gateTrigger.process(params[GATE_PARAM].value)) {
@@ -518,22 +527,20 @@ struct GateSeq64 : Module {
 			if (running[i] && clockIgnoreOnReset == 0l && clkTrig[findClock(i, clkActive)]) {
 				moveIndexRunMode(&indexStep[i], length[i], mode[i], &stepIndexRunHistory[i]);
 				gatePulses[i].trigger(0.001f);
-				gateRandomEnable = gatep[i * 16 + indexStep[i]];// not random yet
-				if (gateRandomEnable)
-					gateRandomEnable = randomUniform() < (params[PROB_PARAMS + i].value + inputs[PROBCV_INPUT].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
-				else
-					gateRandomEnable = true;
+				gateRandomEnable[i] = !gatep[i * 16 + indexStep[i]];// not random yet
+				gateRandomEnable[i] |= randomUniform() < (params[PROB_PARAMS + i].value + inputs[PROBCV_INPUT].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
 			}
-		}// TODO possible bug, gateRandomEnable should be per channel, and could be used without init in gate_outputs
+		}
 		
 		// gate outputs
 		for (int i = 0; i < 4; i += stepConfig) {
 			if (running[i]) {
-				bool gateOut = gate[i * 16 + indexStep[i]];
+				bool gateOut = gate[i * 16 + indexStep[i]] && gateRandomEnable[i];
 				if (trig[i])
-					outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = (gatePulsesValue[i] && gateRandomEnable && gateOut) ? 10.0f : 0.0f;
+					gateOut &= gatePulsesValue[findClock(i, clkActive)];
 				else
-					outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = (clockTriggers[findClock(i, clkActive)].isHigh() && gateRandomEnable && gateOut) ? 10.0f : 0.0f;
+					gateOut &= clockTriggers[findClock(i, clkActive)].isHigh();
+				outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = gateOut ? 10.0f : 0.0f;
 			}
 			else {// not running 
 				outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = 0.0f;
@@ -545,6 +552,7 @@ struct GateSeq64 : Module {
 			for (int i = 0; i < 4; i++) {
 				indexStep[i] = 0;
 				clockTriggers[i].reset();
+				gateRandomEnable[i] = true;
 			}
 			resetLight = 1.0f;
 			displayState = DISP_GATE;
