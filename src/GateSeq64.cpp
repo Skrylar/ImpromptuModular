@@ -298,6 +298,7 @@ struct GateSeq64 : Module {
 			stepConfig = 4;
 		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
 			stepConfig = 2;
+		// Set lengths to their max when move to 2x32 or 1x64
 		if (configTrigger.process(params[CONFIG_PARAM].value*10.0f - 10.0f) || configTriggerInv.process(10.0f - fabs(params[CONFIG_PARAM].value*10.0f - 10.0f))) {
 			if (stepConfig == 4)
 				length[0] = 64;
@@ -306,7 +307,11 @@ struct GateSeq64 : Module {
 				length[2] = 32;
 			}
 		}
-		
+		// Verify lengths upperbounds (in case toggle params[CONFIG_PARAM])
+		for (int i = 0; i < 4; i += stepConfig) {
+			if (length[i] > (16 * stepConfig))
+				length[i] = 16 * stepConfig;
+		}		
 		// Run state
 		bool runTrig[5] = {};
 		for (int i = 0; i < 4; i++)
@@ -345,13 +350,6 @@ struct GateSeq64 : Module {
 		}
 		if (stepConfig == 4) // 1x64
 			running[2] = 0;
-			
-		// Verify lengths upperbounds (in case toggle params[CONFIG_PARAM])
-		for (int i = 0; i < 4; i += stepConfig) {
-			if (length[i] > (16 * stepConfig))
-				length[i] = 16 * stepConfig;
-		}
-		// TODO when switch configs, set lengths to their max
 		
 		// Gate button
 		if (gateTrigger.process(params[GATE_PARAM].value)) {
