@@ -816,6 +816,7 @@ struct PhraseSeq16 : Module {
 			stepIndexPhraseRun = 0;
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
+			clockTrigger.reset();
 		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();

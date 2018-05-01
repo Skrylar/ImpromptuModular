@@ -409,6 +409,8 @@ struct WriteSeq64 : Module {
 			resetLight = 1.0f;
 			pendingPaste = 0;
 			indexChannel = 0;
+			clock12Trigger.reset();
+			clock34Trigger.reset();
 		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();

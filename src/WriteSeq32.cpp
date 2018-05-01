@@ -357,6 +357,7 @@ struct WriteSeq32 : Module {
 			indexStepStage = 0;	
 			pendingPaste = 0;
 			indexChannel = 0;
+			clockTrigger.reset();
 		}
 
 		int index = (indexChannel == 3 ? indexStepStage : indexStep);

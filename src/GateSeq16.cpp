@@ -82,6 +82,7 @@ struct GateSeq16 : Module {
 	float resetLight = 0.0f;
 	long feedbackCPinit;// no need to initialize
 	bool gatePulsesValue[4] = {};
+	int pasteModifier;// for clear/fill, must set anytime setting displayState to DISP_PASTE;
 	
 	SchmittTrigger gateTrigger;
 	SchmittTrigger lengthTrigger;
@@ -132,7 +133,34 @@ struct GateSeq16 : Module {
 	}
 
 	void onRandomize() override {
-		// TODO
+		displayState = DISP_GATE;
+		for (int i = 0; i < 64; i++) {
+			gate[i] = (randomUniform() > 0.5f);
+			gatep[i] = (randomUniform() > 0.5f);
+		}
+		for (int i = 0; i < 4; i++) {
+			running[i] = (randomUniform() > 0.5f);
+			indexStep[i] = 0;
+			length[i] = 1 + (randomu32() % 16);
+			mode[i] = randomu32() % 5;
+			trig[i] = (randomUniform() > 0.5f);
+		}
+		if (params[LINKED_PARAM].value > 0.5f) {
+			running[1] = running[0];
+			running[2] = running[0];
+			running[3] = running[0];
+		}	
+		for (int i = 0; i < 16; i++) {
+			gateCP[i] = 0;
+			gatepCP[i] = 0;
+		}
+		lengthCP = 0;
+		modeCP = 0;
+		trigCP = false;
+		rowCP = -1;
+		feedbackCP = 0l;
+		confirmCP = 0l;
+		gateRandomEnable = false;	
 	}
 
 	json_t *toJson() override {
@@ -239,6 +267,17 @@ struct GateSeq16 : Module {
 		}
 	}
 
+	
+	bool findClkEdge(int chan, bool* clkTrig, bool* clkActive) {
+		bool foundEdge = false;
+		for (int i = chan; i >= 0; i--) {
+			if (!clkActive[i]) 
+				continue;
+			foundEdge = clkTrig[i];
+			break;
+		}
+		return foundEdge;
+	}
 
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
@@ -289,7 +328,6 @@ struct GateSeq16 : Module {
 		}
 		// GateP button
 		if (gatePTrigger.process(params[GATEP_PARAM].value)) {
-			info("gatep trigged");
 			if (displayState != DISP_GATEP)
 				displayState = DISP_GATEP;
 			else
@@ -323,6 +361,7 @@ struct GateSeq16 : Module {
 		// Paste button
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 			if (displayState != DISP_PASTE) {
+				pasteModifier = 0;
 				displayState = DISP_PASTE;
 				feedbackCP = feedbackCPinit;
 				rowCP = -1;// used for confirmCP, and to tell when aborted paste so that no confirmCP
@@ -330,8 +369,32 @@ struct GateSeq16 : Module {
 			else {
 				displayState = DISP_GATE;
 			}
+		}		
+		// Clear button (works only in DISP_GATE and DISP_GATEP)
+		if (clearTrigger.process(params[CLEAR_PARAM].value)) {
+			if (displayState == DISP_GATE || displayState == DISP_GATEP) {
+				if (displayState == DISP_GATE)
+					pasteModifier = 1;// clear gate
+				else // implicitly DISP_GATEP
+					pasteModifier = -1;// clear gatep
+				displayState = DISP_PASTE;
+				feedbackCP = feedbackCPinit;
+				rowCP = -1;// used for confirmCP, and to tell when aborted paste so that no confirmCP
+			}
 		}
-	
+		// Fill button (works only in DISP_GATE and DISP_GATEP)
+		if (fillTrigger.process(params[FILL_PARAM].value)) {
+			if (displayState == DISP_GATE || displayState == DISP_GATEP) {
+				if (displayState == DISP_GATE)
+					pasteModifier = 2;// fill gate
+				else // implicitly DISP_GATEP
+					pasteModifier = -2;// fill gatep
+				displayState = DISP_PASTE;
+				feedbackCP = feedbackCPinit;
+				rowCP = -1;// used for confirmCP, and to tell when aborted paste so that no confirmCP
+			}
+		}
+		
 		// Step LED button presses
 		for (int i = 0; i < 64; i++) {
 			if (stepTriggers[i].process(params[STEP_PARAMS + i].value)) {
@@ -369,34 +432,47 @@ struct GateSeq16 : Module {
 					displayState = DISP_GATE;
 				}
 				if (displayState == DISP_PASTE) {
-					for (int i = 0; i < 16; i++) {
-						gate[row * 16 + i] = gateCP[i];
-						gatep[row * 16 + i] = gatepCP[i];
-					}
-					length[row]= lengthCP;
-					mode[row] = modeCP;
-					trig[row] = trigCP;
-					rowCP = row;
-					confirmCP = (long) (-1 * copyPasteConfirmTime * engineSampleRate);					
 					displayState = DISP_GATE;	
+					if (pasteModifier == 0) {
+						for (int i = 0; i < 16; i++) {
+							gate[row * 16 + i] = gateCP[i];
+							gatep[row * 16 + i] = gatepCP[i];
+						}
+						length[row]= lengthCP;
+						mode[row] = modeCP;
+						trig[row] = trigCP;
+						rowCP = row;
+					}
+					else {
+						if (pasteModifier > 0) {// clear/fill gate
+							for (int i = 0; i < 16; i++)
+								gate[row * 16 + i] = pasteModifier == 1 ? false : true;							
+						}
+						else {// clear/fill gatep
+							for (int i = 0; i < 16; i++)
+								gatep[row * 16 + i] = pasteModifier == -1 ? false : true;
+							displayState = DISP_GATEP;							
+						}
+					}
+					confirmCP = (long) (-1 * copyPasteConfirmTime * engineSampleRate);					
 				}
-
 			}
 		}
 		
 		// Clock
-		// TODO replicate clock to unconnected inputs
+		bool clkTrig[4] = {};
+		bool clkActive[4] = {};
 		for (int i = 0; i < 4; i++) {
-			if (clockTriggers[i].process(inputs[CLOCK_INPUTS + i].value)) {
-				if (running[i]) {
-					moveIndexRunMode(&indexStep[i], length[i], mode[i], &stepIndexRunHistory[i]);
-					gatePulses[i].trigger(0.001f);
-					gateRandomEnable = gatep[i * 16 + indexStep[i]];// not random yet
-					if (gateRandomEnable)
-						gateRandomEnable = randomUniform() < (params[PROB_PARAMS + i].value + inputs[PROBCV_INPUT].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
-					else 
-						gateRandomEnable = true;
-				}
+			clkTrig[i] = clockTriggers[i].process(inputs[CLOCK_INPUTS + i].value);
+			clkActive[i] = inputs[CLOCK_INPUTS + i].active;
+			if (running[i] && findClkEdge(i, clkTrig, clkActive)) {
+				moveIndexRunMode(&indexStep[i], length[i], mode[i], &stepIndexRunHistory[i]);
+				gatePulses[i].trigger(0.001f);
+				gateRandomEnable = gatep[i * 16 + indexStep[i]];// not random yet
+				if (gateRandomEnable)
+					gateRandomEnable = randomUniform() < (params[PROB_PARAMS + i].value + inputs[PROBCV_INPUT].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
+				else 
+					gateRandomEnable = true;
 			}
 		}
 		
@@ -419,9 +495,12 @@ struct GateSeq16 : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			for (int i = 0; i < 4; i++)
+			for (int i = 0; i < 4; i++) {
 				indexStep[i] = 0;
+				clockTriggers[i].reset();
+			}
 			resetLight = 1.0f;
+			displayState = DISP_GATE;
 		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();		
@@ -440,13 +519,14 @@ struct GateSeq16 : Module {
 		else {
 			if (displayState == DISP_GATE) {
 				for (int i = 0; i < 64; i++) {
+					int row = i / 16;
+					int col = i % 16;
+					float stepHereOffset =  (indexStep[row] == col && running[row]) ? 0.5f : 0.0f;
 					if (gate[i]) {
-						setGreenRed(STEP_LIGHTS + i * 2, 1.0f, gatep[i] ? 1.0f : 0.0f);
+						setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, gatep[i] ? (1.0f - stepHereOffset) : 0.0f);
 					}
 					else {
-						int row = i / 16;
-						int col = i % 16;
-						setGreenRed(STEP_LIGHTS + i * 2, indexStep[row] == col ? 0.1f : 0.0f, 0.0f);
+						setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset / 5.0f, 0.0f);
 					}
 				}
 			}
@@ -467,7 +547,7 @@ struct GateSeq16 : Module {
 					if (gatep[i])
 						setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 1.0f);
 					else 
-						setGreenRed(STEP_LIGHTS + i * 2, 0.0f, gate[i] ? 0.1f : 0.0f);
+						setGreenRed(STEP_LIGHTS + i * 2, gate[i] ? 0.1f : 0.0f, 0.0f);
 			}
 			else if (displayState == DISP_MODE) {
 				for (int i = 0; i < 64; i++) {
