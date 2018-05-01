@@ -247,7 +247,7 @@ struct WriteSeq64 : Module {
 	void step() override {
 		static const float copyPasteInfoTime = 0.4f;// seconds
 
-		// Run state and light
+		// Run state
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			//pendingPaste = 0;// no pending pastes across run state toggles
@@ -256,7 +256,6 @@ struct WriteSeq64 : Module {
 					indexStep[c] = 0;
 			}
 		}
-		lights[RUN_LIGHT].value = (running);
 	
 		// Copy
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
@@ -426,6 +425,9 @@ struct WriteSeq64 : Module {
 		
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
+
+		// Run light
+		lights[RUN_LIGHT].value = running;
 		
 		// Write allowed light
 		lights[WRITE_LIGHT + 0].value = (canEdit)?1.0f:0.0f;

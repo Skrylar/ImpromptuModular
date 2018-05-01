@@ -475,7 +475,7 @@ struct PhraseSeq16 : Module {
 			runModeSeq = (int) clamp( round(inputs[MODECV_INPUT].value * 4.0f / 10.0f), 0.0f, 4.0f );
 		}
 		
-		// Run state and light
+		// Run state
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			displayState = DISP_NORMAL;
@@ -487,7 +487,6 @@ struct PhraseSeq16 : Module {
 				stepIndexPhraseRun = 0;
 			}
 		}
-		lights[RUN_LIGHT].value = (running);
 
 		// Attach button and behavior
 		if (attachTrigger.process(params[ATTACH_PARAM].value)) {
@@ -903,6 +902,9 @@ struct PhraseSeq16 : Module {
 		
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
+		
+		// Run light
+		lights[RUN_LIGHT].value = running;
 
 		if (editingLength > 0ul)
 			editingLength--;

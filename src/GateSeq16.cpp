@@ -292,12 +292,24 @@ struct GateSeq16 : Module {
 		float engineSampleRate = engineGetSampleRate();
 		feedbackCPinit = (long) (copyPasteInfoTime * engineSampleRate);
 		
-		// Run state and light 
+		int stepConfig = 1;// 4x16
+		if (params[CONFIG_PARAM].value > 1.5f)// 1x64
+			stepConfig = 4;
+		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
+			stepConfig = 2;
+		
+		// Run state
 		bool runTrig[5] = {};
 		for (int i = 0; i < 4; i++)
 			runTrig[i] = runningTriggers[i].process(params[RUN_PARAMS + i].value + inputs[RUNCV_INPUTS + i].value);
 		runTrig[4] = linkedTrigger.process(params[LINKED_PARAM].value);
 		if (params[LINKED_PARAM].value > 0.5f) {// Linked run states
+			if (stepConfig >= 2) {// 2x32
+				runTrig[1] = false;
+				runTrig[3] = false;
+			}
+			if (stepConfig == 4) //1x64
+				runTrig[2] = false;
 			if (runTrig[0] || runTrig[1] || runTrig[2] || runTrig[3] || runTrig[4]) {
 				running[0] = runTrig[4] ? running[0] : !running[0];
 				running[1] = running[0];
@@ -309,7 +321,7 @@ struct GateSeq16 : Module {
 			}
 		}
 		else {// Not linked
-			for (int i = 0; i < 4; i++) {
+			for (int i = 0; i < 4; i += stepConfig) {
 				if (runTrig[i]) {
 					running[i] = !running[i];
 					if (running[i]) {
@@ -318,7 +330,13 @@ struct GateSeq16 : Module {
 				}
 			}
 		}
-		
+		if (stepConfig >= 2) {// 2x32
+			running[1] = 0;
+			running[3] = 0;
+		}
+		if (stepConfig == 4) //1x64
+			running[2] = 0;
+
 		// Gate button
 		if (gateTrigger.process(params[GATE_PARAM].value)) {
 			displayState = DISP_GATE;
@@ -409,7 +427,12 @@ struct GateSeq16 : Module {
 					gate[i] = !gate[i];
 				}
 				if (displayState == DISP_LENGTH) {
-					length[row] = col + 1;
+					if (stepConfig == 4)
+						length[0] = i + 1;
+					else if (stepConfig == 2)
+						length[(i / 32) * 2] = i % 32;
+					else 
+						length[row] = col + 1;// TODO reached HERE for config, but next step is length in "step LED button lights"
 				}
 				if (displayState == DISP_GATEP) {
 					gatep[i] = !gatep[i];
@@ -623,7 +646,7 @@ struct GateSeq16 : Module {
 
 		// Run lights
 		for (int i = 0; i < 4; i++)
-			lights[RUN_LIGHTS + i].value = (running[i]);
+			lights[RUN_LIGHTS + i].value = running[i];
 		
 		if (confirmCP != 0l) {
 			if (confirmCP > 0l)

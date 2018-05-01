@@ -205,7 +205,7 @@ struct WriteSeq32 : Module {
 
 		int numSteps = (int) clamp(roundf(params[STEPS_PARAM].value), 1.0f, 32.0f);	
 		
-		// Run state and light
+		// Run state
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			//pendingPaste = 0;// no pending pastes across run state toggles
@@ -214,7 +214,6 @@ struct WriteSeq32 : Module {
 				indexStepStage = 0;
 			}
 		}
-		lights[RUN_LIGHT].value = (running);
 		
 		// Copy
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
@@ -383,6 +382,9 @@ struct WriteSeq32 : Module {
 		lights[CHANNEL_LIGHTS + 1].value = (indexChannel == 1) ? 1.0f : 0.0f;// yellow
 		lights[CHANNEL_LIGHTS + 2].value = (indexChannel == 2) ? 1.0f : 0.0f;// orange
 		lights[CHANNEL_LIGHTS + 3].value = (indexChannel == 3) ? 1.0f : 0.0f;// blue
+		
+		// Run light
+		lights[RUN_LIGHT].value = running;
 		
 		// Write allowed light
 		lights[WRITE_LIGHT + 0].value = (canEdit)?1.0f:0.0f;
