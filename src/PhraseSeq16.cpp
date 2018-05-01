@@ -135,6 +135,8 @@ struct PhraseSeq16 : Module {
 	bool gate1RandomEnable; 
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
 	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
+	long clockIgnoreOnReset;
+	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 
 
 	SchmittTrigger resetTrigger;
@@ -199,6 +201,7 @@ struct PhraseSeq16 : Module {
 		slideStepsRemain = 0ul;
 		attach = 1.0f;
 		gate1RandomEnable = false;
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
 	void onRandomize() override {
@@ -235,6 +238,7 @@ struct PhraseSeq16 : Module {
 		slideStepsRemain = 0ul;
 		attach = 1.0f;
 		gate1RandomEnable = false;
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
 	json_t *toJson() override {
@@ -748,7 +752,7 @@ struct PhraseSeq16 : Module {
 		
 		// Clock
 		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
-			if (running) {
+			if (running && clockIgnoreOnReset == 0l) {
 				float slideFromCV = 0.0f;
 				float slideToCV = 0.0f;
 				if (editingSequence) {
@@ -817,6 +821,7 @@ struct PhraseSeq16 : Module {
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
 			clockTrigger.reset();
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
@@ -911,6 +916,8 @@ struct PhraseSeq16 : Module {
 		}
 		if (slideStepsRemain > 0ul)
 			slideStepsRemain--;
+		if (clockIgnoreOnReset > 0l)
+			clockIgnoreOnReset--;
 	}
 };
 

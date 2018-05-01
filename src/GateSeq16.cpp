@@ -83,6 +83,9 @@ struct GateSeq16 : Module {
 	long feedbackCPinit;// no need to initialize
 	bool gatePulsesValue[4] = {};
 	int pasteModifier;// for clear/fill, must set anytime setting displayState to DISP_PASTE;
+	long clockIgnoreOnReset;
+	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
+
 	
 	SchmittTrigger gateTrigger;
 	SchmittTrigger lengthTrigger;
@@ -130,6 +133,7 @@ struct GateSeq16 : Module {
 		feedbackCP = 0l;
 		confirmCP = 0l;
 		gateRandomEnable = false;
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
 	void onRandomize() override {
@@ -161,6 +165,7 @@ struct GateSeq16 : Module {
 		feedbackCP = 0l;
 		confirmCP = 0l;
 		gateRandomEnable = false;	
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
 	json_t *toJson() override {
@@ -465,7 +470,7 @@ struct GateSeq16 : Module {
 		for (int i = 0; i < 4; i++) {
 			clkTrig[i] = clockTriggers[i].process(inputs[CLOCK_INPUTS + i].value);
 			clkActive[i] = inputs[CLOCK_INPUTS + i].active;
-			if (running[i] && findClkEdge(i, clkTrig, clkActive)) {
+			if (running[i]  && clockIgnoreOnReset == 0l && findClkEdge(i, clkTrig, clkActive)) {
 				moveIndexRunMode(&indexStep[i], length[i], mode[i], &stepIndexRunHistory[i]);
 				gatePulses[i].trigger(0.001f);
 				gateRandomEnable = gatep[i * 16 + indexStep[i]];// not random yet
@@ -501,6 +506,7 @@ struct GateSeq16 : Module {
 			}
 			resetLight = 1.0f;
 			displayState = DISP_GATE;
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();		
@@ -630,6 +636,8 @@ struct GateSeq16 : Module {
 		else
 			feedbackCP = feedbackCPinit;// roll over
 		
+		if (clockIgnoreOnReset > 0l)
+			clockIgnoreOnReset--;
 	}// step()
 	
 	void setGreenRed(int id, float green, float red) {

@@ -77,7 +77,10 @@ struct WriteSeq64 : Module {
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	float resetLight = 0.0f;
 	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq, destination channel in next msbits
+	long clockIgnoreOnReset;
+	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 
+	
 	SchmittTrigger clock12Trigger;
 	SchmittTrigger clock34Trigger;
 	SchmittTrigger resetTrigger;
@@ -115,6 +118,7 @@ struct WriteSeq64 : Module {
 		stepKnob = 0;
 		stepsKnob = 0;
 		pendingPaste = 0;
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
 	void onRandomize() override {
@@ -137,6 +141,7 @@ struct WriteSeq64 : Module {
 		stepKnob = 0;
 		stepsKnob = 0;
 		pendingPaste = 0;
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
 	json_t *toJson() override {
@@ -321,7 +326,7 @@ struct WriteSeq64 : Module {
 		bool clk12step = clock12Trigger.process(inputs[CLOCK12_INPUT].value);
 		bool clk34step = ((!inputs[CLOCK34_INPUT].active) && clk12step) || 
 						  clock34Trigger.process(inputs[CLOCK34_INPUT].value);
-		if (running) {
+		if (running && clockIgnoreOnReset == 0l) {
 			if (clk12step) {
 				indexStep[0] = moveIndex(indexStep[0], indexStep[0] + 1, indexSteps[0]);
 				indexStep[1] = moveIndex(indexStep[1], indexStep[1] + 1, indexSteps[1]);
@@ -411,6 +416,7 @@ struct WriteSeq64 : Module {
 			indexChannel = 0;
 			clock12Trigger.reset();
 			clock34Trigger.reset();
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
@@ -434,6 +440,8 @@ struct WriteSeq64 : Module {
 			if (infoCopyPaste < 0l)
 				infoCopyPaste ++;
 		}
+		if (clockIgnoreOnReset > 0l)
+			clockIgnoreOnReset--;
 	}
 };
 

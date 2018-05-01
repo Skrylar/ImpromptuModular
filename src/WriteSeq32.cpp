@@ -74,7 +74,10 @@ struct WriteSeq32 : Module {
 	bool gateCPbuffer[32];// copy paste buffer for gates
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq, destination channel in next msbits
+	long clockIgnoreOnReset;
+	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 
+	
 	SchmittTrigger clockTrigger;
 	SchmittTrigger resetTrigger;
 	SchmittTrigger runningTrigger;
@@ -107,6 +110,7 @@ struct WriteSeq32 : Module {
 		}
 		infoCopyPaste = 0l;
 		pendingPaste = 0;
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
 	void onRandomize() override {
@@ -124,6 +128,7 @@ struct WriteSeq32 : Module {
 		}
 		infoCopyPaste = 0l;
 		pendingPaste = 0;
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
 	json_t *toJson() override {
@@ -263,7 +268,7 @@ struct WriteSeq32 : Module {
 		
 		// Clock
 		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
-			if (running) {
+			if (running && clockIgnoreOnReset == 0l) {
 				indexStep = moveIndex(indexStep, indexStep + 1, numSteps);
 				
 				// Pending paste on clock or end of seq
@@ -358,6 +363,7 @@ struct WriteSeq32 : Module {
 			pendingPaste = 0;
 			indexChannel = 0;
 			clockTrigger.reset();
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 
 		int index = (indexChannel == 3 ? indexStepStage : indexStep);
@@ -391,6 +397,8 @@ struct WriteSeq32 : Module {
 			if (infoCopyPaste < 0l)
 				infoCopyPaste ++;
 		}
+		if (clockIgnoreOnReset > 0l)
+			clockIgnoreOnReset--;
 	}
 };
 
