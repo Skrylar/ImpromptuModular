@@ -273,15 +273,15 @@ struct GateSeq64 : Module {
 	}
 
 	
-	bool findClkEdge(int chan, bool* clkTrig, bool* clkActive) {
-		bool foundEdge = false;
-		for (int i = chan; i >= 0; i--) {
-			if (!clkActive[i]) 
-				continue;
-			foundEdge = clkTrig[i];
-			break;
+	// Find lowest active clock (takes given index to start from, retruns the index found)
+	// Returns 0 if not found (use clock 0 by default, do not return an error code)
+	int findClock(int clkIndex, bool* clkActive) {
+		int foundClock = 0;
+		for (int i = clkIndex; i > 0; i--) {
+			if (clkActive[i]) 
+				break;
 		}
-		return foundEdge;
+		return foundClock;
 	}
 
 	
@@ -308,7 +308,7 @@ struct GateSeq64 : Module {
 				runTrig[1] = false;
 				runTrig[3] = false;
 			}
-			if (stepConfig == 4) //1x64
+			if (stepConfig == 4) // 1x64
 				runTrig[2] = false;
 			if (runTrig[0] || runTrig[1] || runTrig[2] || runTrig[3] || runTrig[4]) {
 				running[0] = runTrig[4] ? running[0] : !running[0];
@@ -334,16 +334,16 @@ struct GateSeq64 : Module {
 			running[1] = 0;
 			running[3] = 0;
 		}
-		if (stepConfig == 4) //1x64
+		if (stepConfig == 4) // 1x64
 			running[2] = 0;
-		// stuff running array when 2x32
-		/*if (stepConfig == 2) {
-			running[1] = running[2];
-			running[2] = 0;
-		}*/
 			
-		// TODO, when change config mode that reduce lengths, cap lengths at 16 or 32
-
+		// Verify lengths upperbounds (in case toggle params[CONFIG_PARAM])
+		for (int i = 0; i < 4; i += stepConfig) {
+			if (length[i] > (16 * stepConfig))
+				length[i] = 16 * stepConfig;
+		}
+		
+		
 		// Gate button
 		if (gateTrigger.process(params[GATE_PARAM].value)) {
 			displayState = DISP_GATE;
@@ -435,6 +435,8 @@ struct GateSeq64 : Module {
 				}
 				if (displayState == DISP_LENGTH) {
 					row = i / (16 * stepConfig);
+					if (stepConfig == 2 && row == 1) 
+						row++;
 					col = i % (16 * stepConfig);
 					length[row] = col + 1;
 				}
@@ -443,12 +445,16 @@ struct GateSeq64 : Module {
 				}
 				if (displayState == DISP_MODE) {
 					row = i / (16 * stepConfig);
+					if (stepConfig == 2 && row == 1) 
+						row++;
 					col = i % (16 * stepConfig);
 					if (col >= 4 && col <= 8)
 						mode[row] = col - 4;
 				}
 				if (displayState == DISP_GATETRIG) {
 					row = i / (16 * stepConfig);
+					if (stepConfig == 2 && row == 1) 
+						row++;
 					col = i % (16 * stepConfig);
 					if (col == 10)
 						trig[row] = false;
@@ -497,37 +503,40 @@ struct GateSeq64 : Module {
 			}
 		}
 		
+		// Process PulseGenerators (even if may not use)
+		for (int i = 0; i < 4; i++)
+			gatePulsesValue[i] = gatePulses[i].process(1.0 / engineSampleRate);
+		
 		// Clock
 		bool clkTrig[4] = {};
 		bool clkActive[4] = {};
 		for (int i = 0; i < 4; i++) {
 			clkTrig[i] = clockTriggers[i].process(inputs[CLOCK_INPUTS + i].value);
 			clkActive[i] = inputs[CLOCK_INPUTS + i].active;
-			if (running[i]  && clockIgnoreOnReset == 0l && findClkEdge(i, clkTrig, clkActive)) {
+		}
+		for (int i = 0; i < 4; i += stepConfig) {
+			if (running[i] && clockIgnoreOnReset == 0l && clkTrig[findClock(i, clkActive)]) {
 				moveIndexRunMode(&indexStep[i], length[i], mode[i], &stepIndexRunHistory[i]);
 				gatePulses[i].trigger(0.001f);
 				gateRandomEnable = gatep[i * 16 + indexStep[i]];// not random yet
 				if (gateRandomEnable)
 					gateRandomEnable = randomUniform() < (params[PROB_PARAMS + i].value + inputs[PROBCV_INPUT].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
-				else 
+				else
 					gateRandomEnable = true;
 			}
-		}
-		
-		// Process PulseGenerators (even if may not use)
-		for (int i = 0; i < 4; i++)
-			gatePulsesValue[i] = gatePulses[i].process(1.0 / engineSampleRate);
+		}// TODO possible bug, gateRandomEnable should be per channel, and could be used without init in gate_outputs
 		
 		// gate outputs
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < 4; i += stepConfig) {
 			if (running[i]) {
+				bool gateOut = gate[i * 16 + indexStep[i]];
 				if (trig[i])
-					outputs[GATE_OUTPUTS + i].value = (gatePulsesValue[i] && gateRandomEnable && gate[i * 16 + indexStep[i]]) ? 10.0f : 0.0f;
+					outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = (gatePulsesValue[i] && gateRandomEnable && gateOut) ? 10.0f : 0.0f;
 				else
-					outputs[GATE_OUTPUTS + i].value = (clockTriggers[i].isHigh() && gateRandomEnable && gate[i * 16 + indexStep[i]]) ? 10.0f : 0.0f;
+					outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = (clockTriggers[findClock(i, clkActive)].isHigh() && gateRandomEnable && gateOut) ? 10.0f : 0.0f;
 			}
 			else {// not running 
-				outputs[GATE_OUTPUTS + i].value = 0.0f;
+				outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = 0.0f;
 			}		
 		}
 		
@@ -558,8 +567,10 @@ struct GateSeq64 : Module {
 		else {
 			if (displayState == DISP_GATE) {
 				for (int i = 0; i < 64; i++) {
-					int row = i / 16;
-					int col = i % 16;
+					row = i / (16 * stepConfig);
+					if (stepConfig == 2 && row == 1) 
+						row++;
+					col = i % (16 * stepConfig);
 					float stepHereOffset =  (indexStep[row] == col && running[row]) ? 0.5f : 0.0f;
 					if (gate[i]) {
 						setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, gatep[i] ? (1.0f - stepHereOffset) : 0.0f);
@@ -571,8 +582,10 @@ struct GateSeq64 : Module {
 			}
 			else if (displayState == DISP_LENGTH) {
 				for (int i = 0; i < 64; i++) {
-					int row = i / (16 * stepConfig);
-					int col = i % (16 * stepConfig);
+					row = i / (16 * stepConfig);
+					if (stepConfig == 2 && row == 1) 
+						row++;
+					col = i % (16 * stepConfig);
 					if (col < (length[row] - 1))
 						setGreenRed(STEP_LIGHTS + i * 2, 0.1f, 0.0f);
 					else if (col == (length[row] - 1))
@@ -590,8 +603,10 @@ struct GateSeq64 : Module {
 			}
 			else if (displayState == DISP_MODE) {
 				for (int i = 0; i < 64; i++) {
-					int row = i / 16;
-					int col = i % 16;
+					row = i / (16 * stepConfig);
+					if (stepConfig == 2 && row == 1) 
+						row++;
+					col = i % (16 * stepConfig);
 					if (col < 4 || col > 8) {
 						setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
 					}
@@ -605,8 +620,10 @@ struct GateSeq64 : Module {
 			}
 			else if (displayState == DISP_GATETRIG) {
 				for (int i = 0; i < 64; i++) {
-					int row = i / 16;
-					int col = i % 16;
+					row = i / (16 * stepConfig);
+					if (stepConfig == 2 && row == 1) 
+						row++;
+					col = i % (16 * stepConfig);
 					if (col < 10 || col > 11) {
 						setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
 					}
@@ -655,14 +672,8 @@ struct GateSeq64 : Module {
 		lights[RESET_LIGHT].value =	resetLight;	
 
 		// Run lights
-		for (int i = 0; i < 4; i++) {
-			/*if (stepConfig == 2 && i == 1)// un-stuff running array when 2x32
-				lights[RUN_LIGHTS + i].value = 0.0f;
-			else if (stepConfig == 2 && i == 2)// un-stuff running array when 2x32
-				lights[RUN_LIGHTS + i].value = running[1] ? 1.0f : 0.0f;
-			else */
-				lights[RUN_LIGHTS + i].value = running[i] ? 1.0f : 0.0f;
-		}
+		for (int i = 0; i < 4; i++)
+			lights[RUN_LIGHTS + i].value = running[i] ? 1.0f : 0.0f;
 		
 		if (confirmCP != 0l) {
 			if (confirmCP > 0l)
@@ -678,6 +689,7 @@ struct GateSeq64 : Module {
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
 	}// step()
+	
 	
 	void setGreenRed(int id, float green, float red) {
 		lights[id + 0].value = green;
