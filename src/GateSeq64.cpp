@@ -52,11 +52,14 @@ struct GateSeq64 : Module {
 		ENUMS(MODE_LIGHT, 1),
 		ENUMS(GATETRIG_LIGHT, 1),
 		ENUMS(RUN_LIGHTS, 4),
+		ENUMS(CLOCKIN_LIGHTS, 4),
+		ENUMS(GATEOUT_LIGHTS, 4),
+		ENUMS(PROBKNOB_LIGHTS, 4),
 		RESET_LIGHT,
 		NUM_LIGHTS
 	};
 	
-	enum DisplayStateIds {DISP_GATE, DISP_LENGTH, DISP_GATEP, DISP_MODE, DISP_GATETRIG, DISP_COPY, DISP_PASTE};
+	enum DisplayStateIds {DISP_GATE, DISP_LENGTH, DISP_GATEP, DISP_MODE, DISP_GATETRIG, DISP_ROW_SEL};
 	
 	// Need to save
 	bool running[4] = {};
@@ -70,11 +73,7 @@ struct GateSeq64 : Module {
 	int displayState;
 	int indexStep[4] = {};
 	int stepIndexRunHistory[4] = {};// no need to initialize
-	bool gateCP[16] = {};// copy-paste only one row
-	int lengthCP;// copy-paste only one row; values are 1 to 16
-	bool gatepCP[16] = {};// copy-paste only one row
-	int modeCP;// copy-paste only one row
-	bool trigCP;// copy-paste only one row
+	bool copyPasteBuf[16] = {};// copy-paste only one row
 	int rowCP;// row selected for copy or paste operation
 	long feedbackCP;// downward step counter for CP feedback
 	long confirmCP;// downward positive step counter for Copy confirmation, up neg Paste, 0 when nothing to confirm
@@ -82,7 +81,7 @@ struct GateSeq64 : Module {
 	float resetLight = 0.0f;
 	long feedbackCPinit;// no need to initialize
 	bool gatePulsesValue[4] = {};
-	int pasteModifier;// for clear/fill, must set anytime setting displayState to DISP_PASTE;
+	int cpcfInfo;// copy = 1, paste = 2, clear = 3, fill = 4; on gate (positive) or gatep (negative)
 	long clockIgnoreOnReset;
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 
@@ -126,12 +125,8 @@ struct GateSeq64 : Module {
 			gateRandomEnable[i] = true;
 		}
 		for (int i = 0; i < 16; i++) {
-			gateCP[i] = 0;
-			gatepCP[i] = 0;
+			copyPasteBuf[i] = 0;
 		}
-		lengthCP = 0;
-		modeCP = 0;
-		trigCP = false;
 		rowCP = -1;
 		feedbackCP = 0l;
 		confirmCP = 0l;
@@ -158,12 +153,8 @@ struct GateSeq64 : Module {
 			running[3] = running[0];
 		}	
 		for (int i = 0; i < 16; i++) {
-			gateCP[i] = 0;
-			gatepCP[i] = 0;
+			copyPasteBuf[i] = 0;
 		}
-		lengthCP = 0;
-		modeCP = 0;
-		trigCP = false;
 		rowCP = -1;
 		feedbackCP = 0l;
 		confirmCP = 0l;
@@ -386,18 +377,30 @@ struct GateSeq64 : Module {
 		}
 		// Copy button
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
-			if (displayState != DISP_COPY) {
+			/*if (displayState != DISP_COPY) {
 				displayState = DISP_COPY;
 				feedbackCP = feedbackCPinit;
 				rowCP = -1;// used for confirmCP, and to tell when aborted copy so that no confirmCP
 			}
 			else {
 				displayState = DISP_GATE;
+			}*/
+			if (displayState == DISP_GATE || displayState == DISP_GATEP) {
+				if (displayState == DISP_GATE)
+					cpcfInfo = 1;// copy gate
+				else // implicitly DISP_GATEP
+					cpcfInfo = -1;// copy gatep
+				displayState = DISP_ROW_SEL;
+				feedbackCP = feedbackCPinit;
+				rowCP = -1;// used for confirmCP, and to tell when aborted paste so that no confirmCP
 			}
+			else if (displayState == DISP_ROW_SEL)// abort copy
+				displayState = cpcfInfo > 0 ? DISP_GATE : DISP_GATEP;
+				
 		}
 		// Paste button
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
-			if (displayState != DISP_PASTE) {
+			/*if (displayState != DISP_PASTE) {
 				pasteModifier = 0;
 				displayState = DISP_PASTE;
 				feedbackCP = feedbackCPinit;
@@ -405,31 +408,46 @@ struct GateSeq64 : Module {
 			}
 			else {
 				displayState = DISP_GATE;
+			}*/
+			if (displayState == DISP_GATE || displayState == DISP_GATEP) {
+				if (displayState == DISP_GATE)
+					cpcfInfo = 2;// paste gate
+				else // implicitly DISP_GATEP
+					cpcfInfo = -2;// paste gatep
+				displayState = DISP_ROW_SEL;
+				feedbackCP = feedbackCPinit;
+				rowCP = -1;// used for confirmCP, and to tell when aborted paste so that no confirmCP
 			}
+			else if (displayState == DISP_ROW_SEL)// abort paste
+				displayState = cpcfInfo > 0 ? DISP_GATE : DISP_GATEP;
 		}		
 		// Clear button (works only in DISP_GATE and DISP_GATEP)
 		if (clearTrigger.process(params[CLEAR_PARAM].value)) {
 			if (displayState == DISP_GATE || displayState == DISP_GATEP) {
 				if (displayState == DISP_GATE)
-					pasteModifier = 1;// clear gate
+					cpcfInfo = 3;// clear gate
 				else // implicitly DISP_GATEP
-					pasteModifier = -1;// clear gatep
-				displayState = DISP_PASTE;
+					cpcfInfo = -3;// clear gatep
+				displayState = DISP_ROW_SEL;
 				feedbackCP = feedbackCPinit;
 				rowCP = -1;// used for confirmCP, and to tell when aborted paste so that no confirmCP
 			}
+			else if (displayState == DISP_ROW_SEL)// abort clear
+				displayState = cpcfInfo > 0 ? DISP_GATE : DISP_GATEP;
 		}
 		// Fill button (works only in DISP_GATE and DISP_GATEP)
 		if (fillTrigger.process(params[FILL_PARAM].value)) {
 			if (displayState == DISP_GATE || displayState == DISP_GATEP) {
 				if (displayState == DISP_GATE)
-					pasteModifier = 2;// fill gate
+					cpcfInfo = 4;// fill gate
 				else // implicitly DISP_GATEP
-					pasteModifier = -2;// fill gatep
-				displayState = DISP_PASTE;
+					cpcfInfo = -4;// fill gatep
+				displayState = DISP_ROW_SEL;
 				feedbackCP = feedbackCPinit;
 				rowCP = -1;// used for confirmCP, and to tell when aborted paste so that no confirmCP
 			}
+			else if (displayState == DISP_ROW_SEL)// abort fill
+				displayState = cpcfInfo > 0 ? DISP_GATE : DISP_GATEP;
 		}
 		
 		// Step LED button presses
@@ -468,7 +486,7 @@ struct GateSeq64 : Module {
 					else if (col == 11)
 						trig[row] = true;
 				}
-				if (displayState == DISP_COPY) {
+				/*if (displayState == DISP_COPY) {
 					row = i / 16;// copy-paste done on blocks of 16 even when in 2x32 or 1x64 config
 					for (int j = 0; j < 16; j++) {
 						gateCP[j] = gate[row * 16 + j];
@@ -506,6 +524,58 @@ struct GateSeq64 : Module {
 						}
 					}
 					confirmCP = (long) (-1 * copyPasteConfirmTime * engineSampleRate);					
+				}*/
+				if (displayState == DISP_ROW_SEL) {
+					row = i / 16;// copy-paste done on blocks of 16 even when in 2x32 or 1x64 config
+					displayState = DISP_GATE;	
+					if (abs(cpcfInfo) == 1) {// copy
+						if (cpcfInfo > 0) {// copy gate
+							for (int j = 0; j < 16; j++)
+								 copyPasteBuf[j] = gate[row * 16 + j];			
+						}
+						else {// copy gatep
+							for (int j = 0; j < 16; j++)
+								copyPasteBuf[j] = gatep[row * 16 + j];
+							displayState = DISP_GATEP;							
+						}
+						rowCP = row;
+						confirmCP = (long) (-1 * copyPasteConfirmTime * engineSampleRate);
+					}					
+					else if (abs(cpcfInfo) == 2) {// paste
+						if (cpcfInfo > 0) {// paste gate
+							for (int j = 0; j < 16; j++)
+								gate[row * 16 + j] = copyPasteBuf[j];			
+						}
+						else {// fill gatep
+							for (int j = 0; j < 16; j++)
+								gatep[row * 16 + j] = copyPasteBuf[j];
+							displayState = DISP_GATEP;							
+						}
+						rowCP = row;
+						confirmCP = (long) (-1 * copyPasteConfirmTime * engineSampleRate);
+					}					
+					else if (abs(cpcfInfo) == 3) {// clear
+						if (cpcfInfo > 0) {// clear gate
+							for (int j = 0; j < 16; j++)
+								gate[row * 16 + j] = false;							
+						}
+						else {// clear gatep
+							for (int j = 0; j < 16; j++)
+								gatep[row * 16 + j] = false;
+							displayState = DISP_GATEP;							
+						}
+					}
+					else if (abs(cpcfInfo) == 4) {// fill
+						if (cpcfInfo > 0) {// fill gate
+							for (int j = 0; j < 16; j++)
+								gate[row * 16 + j] = true;							
+						}
+						else {// fill gatep
+							for (int j = 0; j < 16; j++)
+								gatep[row * 16 + j] = true;
+							displayState = DISP_GATEP;							
+						}
+					}					
 				}
 			}
 		}
@@ -641,17 +711,7 @@ struct GateSeq64 : Module {
 					}
 				}
 			}
-			else if (displayState == DISP_COPY) {
-				int rowToLight = CalcRowToLight(feedbackCP, feedbackCPinit);
-				for (int i = 0; i < 64; i++) {
-					int row = i / 16;
-					if (row == rowToLight)
-						setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
-					else
-						setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
-				}
-			}
-			else if (displayState == DISP_PASTE) {
+			else if (displayState == DISP_ROW_SEL) {
 				int rowToLight = CalcRowToLight(feedbackCP, feedbackCPinit);
 				for (int i = 0; i < 64; i++) {
 					int row = i / 16;
@@ -680,6 +740,13 @@ struct GateSeq64 : Module {
 		// Run lights
 		for (int i = 0; i < 4; i++)
 			lights[RUN_LIGHTS + i].value = running[i] ? 1.0f : 0.0f;
+		
+		// ClockIn, GateOut and ProbKnob lights
+		for (int i = 0; i < 4; i++) {
+			lights[CLOCKIN_LIGHTS + i].value = ((i % stepConfig) == 0 ? 1.0f : 0.0f);
+			lights[GATEOUT_LIGHTS + 3 - i].value = ((i % stepConfig) == 0 ? 1.0f : 0.0f);
+			lights[PROBKNOB_LIGHTS + i].value = ((i % stepConfig) == 0 ? 1.0f : 0.0f);
+		}
 		
 		if (confirmCP != 0l) {
 			if (confirmCP > 0l)
@@ -755,11 +822,13 @@ struct GateSeq64Widget : ModuleWidget {
 		static const int colRuler0 = 20;
 		static const int colRuler6 = 406;
 		static const int rowSpacingSides = 40;
+		static int offsetTinyLight = 22;
 		
 		// Clock inputs
 		int iSides = 0;
 		for (; iSides < 4; iSides++) {
 			addInput(Port::create<PJ301MPortS>(Vec(colRuler0, rowRuler0 + iSides * rowSpacingSides), Port::INPUT, module, GateSeq64::CLOCK_INPUTS + iSides));
+			addChild(ModuleLightWidget::create<TinyLight<GreenLight>>(Vec(colRuler0 + offsetTinyLight, rowRuler0 + iSides * rowSpacingSides), module, GateSeq64::CLOCKIN_LIGHTS + iSides));
 		}
 		// Run CVs
 		for (; iSides < 8; iSides++) {
@@ -776,10 +845,12 @@ struct GateSeq64Widget : ModuleWidget {
 		iSides = 0;
 		for (; iSides < 4; iSides++) {
 			addOutput(Port::create<PJ301MPortS>(Vec(colRuler6, rowRuler0 + iSides * rowSpacingSides), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides));
+			addChild(ModuleLightWidget::create<TinyLight<GreenLight>>(Vec(colRuler6 + offsetTinyLight, rowRuler0 + iSides * rowSpacingSides), module, GateSeq64::GATEOUT_LIGHTS + iSides));
 		}
 		// Prob knobs
 		for (; iSides < 8; iSides++) {
 			addParam(ParamWidget::create<RoundSmallBlackKnobB>(Vec(colRuler6 + offsetRoundSmallBlackKnob, rowRuler0 + 5 + iSides * rowSpacingSides + offsetRoundSmallBlackKnob), module, GateSeq64::PROB_PARAMS + iSides - 4, 0.0f, 1.0f, 1.0f));
+			addChild(ModuleLightWidget::create<TinyLight<GreenLight>>(Vec(colRuler6 + offsetTinyLight, rowRuler0 + 5 + iSides * rowSpacingSides), module, GateSeq64::PROBKNOB_LIGHTS + iSides - 4));
 		}
 		
 		
