@@ -16,7 +16,7 @@ See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
 
 ## Acknowledgements
 
-Thanks to Alfredo Santamaria and Nay Seven for suggestions regarding improvements to Phrase-Seq-16. A very special thank you to Nigel Sixsmith for the many fruitful discussions and numerous design improvements that were suggested to Phrase-Seq-16.
+Thanks to Alfredo Santamaria and Nay Seven for suggestions regarding improvements to Phrase-Seq-16. A very special thank you to Nigel Sixsmith for the many fruitful discussions and numerous design improvements that were suggested to Phrase-Seq-16, and also for the in-depth presentation of Phrase-Seq-16 and Twelve-Key in [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg).
 
 
 # Modules
@@ -39,7 +39,7 @@ Details about each module are given below. Feedback and bug reports are always a
 
 A chainable keyboard controller for your virtual Rack. When multiple Twelve-Key modules are connected in series from left to right, only the octave of the left-most module needs to be set, all other down-chain modules' octaves are set automatically. The aggregate output is that of the right-most module. To set up a chain of Twelve-Key modules, simply connect the three outputs on the right side of a module to the three inputs of the next module beside it (typically to the right).
 
-Here are some specific details on each element on the faceplate of the module.
+Here are some specific details on each element on the faceplate of the module. For a brief tutorial on seting up the controller, please see [this segment](https://www.youtube.com/watch?v=KOpo2oUPTjg&t=874s) of Nigel Sixsmith's Talking Rackheads episode 8.
 
 * **CV output**: Outputs the CV from the keyboard or its CV input, depending on which key was last pressed (an up-chain key or a key of the given keyboard module).
 
@@ -155,7 +155,7 @@ The following block diagram shows how sequences and phrases relate to each other
 
 ![IM](res/img/PhraseSeq16BlockDiag.jpg)
 
-Here are some specific details on elements of the faceplate. Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers. 
+Here are some specific details on elements of the faceplate. Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers. For an in depth review of the sequencer's capabilities, please see Nigel Sixsmith's [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg).
 
 * **Seq/Song**: This is the main switch that controls the two major modes of the sequencer. Seq mode allows the currently selected sequence to be played/edited. In this mode, all controls are available (run mode, transpose, rotate, copy-paste, gates, slide, octave, notes) and the content of a sequence can be modified even when the sequencer is running. Song mode allows the creation of a series of sequence numbers (called phrases). In this mode, only the run mode and the sequence index numbers themselves can be modified (whether the sequence is running or not); the other aforementioned controls are unavailable and the actual contents of the sequences cannot be modified.
 
