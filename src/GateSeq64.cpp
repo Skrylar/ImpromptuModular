@@ -130,7 +130,7 @@ struct GateSeq64 : Module {
 			copyPasteBufProb[i] = 100;			
 		}
 		feedbackCP = 0l;
-		displayProb = 100;
+		displayProb = 50;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
@@ -681,7 +681,12 @@ struct GateSeq64Widget : ModuleWidget {
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
 			
-			// display module->displayProb;
+			if (module->displayProb >= 100)
+				snprintf(displayStr, 4, "  1");
+			else if (module->displayProb <= 0)
+				snprintf(displayStr, 4, "  0");
+			else
+				snprintf(displayStr, 4, ",%d", module->displayProb);
 			displayStr[3] = 0;// more safety
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
@@ -796,15 +801,14 @@ struct GateSeq64Widget : ModuleWidget {
 		// Copy/paste switches
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 - 10, rowRulerC1 + offsetTL1105), module, GateSeq64::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 + 20, rowRulerC1 + offsetTL1105), module, GateSeq64::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
-		
-		// Sequence display
+		// Write prob buttons
+		// TODO
+		// Probability display
 		ProbDisplayWidget *probDisplay = new ProbDisplayWidget();
 		probDisplay->box.pos = Vec(colRulerC4-15, rowRulerC1 + 3 + vOffsetDisplay);
 		probDisplay->box.size = Vec(55, 30);// 3 characters
 		probDisplay->module = module;
 		addChild(probDisplay);
-		// Run mode button
-		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC4 + offsetCKD6b, rowRulerC1 + 0 + offsetCKD6b), module, GateSeq64::PROB_KNOB_PARAM, 0.0f, 1.0f, 0.0f));
 		
 		// Config switch (3 position)
 		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC0 + hOffsetCKSS, rowRulerC2 + vOffsetCKSSThree), module, GateSeq64::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
@@ -813,6 +817,8 @@ struct GateSeq64Widget : ModuleWidget {
 		// Clear/fill switches
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 - 10, rowRulerC2 + offsetTL1105), module, GateSeq64::CLEAR_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 + 20, rowRulerC2 + offsetTL1105), module, GateSeq64::FILL_PARAM, 0.0f, 1.0f, 0.0f));
+		// Probability knob
+		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC4 + 1 + offsetDavies1900, rowRulerC1 + 55 + offsetDavies1900), module, GateSeq64::PROB_KNOB_PARAM, -INFINITY, INFINITY, 0.0f));		
 	}
 };
 
