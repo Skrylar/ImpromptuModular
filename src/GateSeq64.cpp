@@ -20,8 +20,8 @@ struct GateSeq64 : Module {
 		GATE_PARAM,
 		LENGTH_PARAM,
 		GATEP_PARAM,
-		MODE_PARAM,
-		GATETRIG_PARAM,
+		P_PARAM,
+		MODES_PARAM,
 		ENUMS(RUN_PARAMS, 4),
 		LINKED_PARAM,
 		CONFIG_PARAM,
@@ -45,11 +45,11 @@ struct GateSeq64 : Module {
 	};
 	enum LightIds {
 		ENUMS(STEP_LIGHTS, 64 * 2),// room for GreenRed
-		ENUMS(GATE_LIGHT, 1),
-		ENUMS(LENGTH_LIGHT, 1),
-		ENUMS(GATEP_LIGHT, 1),
-		ENUMS(MODE_LIGHT, 1),
-		ENUMS(GATETRIG_LIGHT, 1),
+		GATE_LIGHT,
+		LENGTH_LIGHT,
+		GATEP_LIGHT,
+		P_LIGHT,
+		MODES_LIGHT,
 		ENUMS(RUN_LIGHTS, 4),
 		ENUMS(CLOCKIN_LIGHTS, 4),
 		ENUMS(GATEOUT_LIGHTS, 4),
@@ -57,7 +57,7 @@ struct GateSeq64 : Module {
 		NUM_LIGHTS
 	};
 	
-	enum DisplayStateIds {DISP_GATE, DISP_LENGTH, DISP_GATEP, DISP_MODE, DISP_GATETRIG, DISP_ROW_SEL};
+	enum DisplayStateIds {DISP_GATE, DISP_LENGTH, DISP_GATEP, DISP_P, DISP_MODES, DISP_ROW_SEL};
 	
 	// Need to save
 	bool running[4] = {};
@@ -67,6 +67,7 @@ struct GateSeq64 : Module {
 	int gatepval[64] = {};// values are 0 to 100
 	int mode[4] = {};
 	bool trig[4] = {};
+	int probKnob = 0;// save this so no delta triggered when close/open Rack
 
 	// No need to save
 	int displayState;
@@ -82,14 +83,14 @@ struct GateSeq64 : Module {
 	int cpcfInfo;// copy = 1, paste = 2, clear = 3, fill = 4; on gate (positive) or gatep (negative)
 	long clockIgnoreOnReset;
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
-	int displayProb;
+	int displayProb;// -1 when no step was clicked (when moving to DISP_P mode), 0 to 63 when a step was selected and its prob can be changed.
 
 	
 	SchmittTrigger gateTrigger;
 	SchmittTrigger lengthTrigger;
 	SchmittTrigger gatePTrigger;
-	SchmittTrigger modeTrigger;
-	SchmittTrigger gateTrigTrigger;
+	SchmittTrigger pTrigger;
+	SchmittTrigger modesTrigger;
 	SchmittTrigger stepTriggers[64];
 	SchmittTrigger copyTrigger;
 	SchmittTrigger pasteTrigger;
@@ -130,7 +131,8 @@ struct GateSeq64 : Module {
 			copyPasteBufProb[i] = 100;			
 		}
 		feedbackCP = 0l;
-		displayProb = 50;
+		displayProb = -1;
+		probKnob = 0;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
@@ -167,7 +169,8 @@ struct GateSeq64 : Module {
 			copyPasteBufProb[i] = 100;			
 		}
 		feedbackCP = 0l;
-		displayProb = (randomu32() % 101);
+		displayProb = -1;
+		probKnob = 0;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
@@ -215,6 +218,9 @@ struct GateSeq64 : Module {
 		for (int i = 0; i < 4; i++)
 			json_array_insert_new(trigJ, i, json_integer((int) trig[i]));
 		json_object_set_new(rootJ, "trig", trigJ);
+		
+		// probKnob
+		json_object_set_new(rootJ, "probKnob", json_integer(probKnob));
 		
 		return rootJ;
 	}
@@ -289,6 +295,12 @@ struct GateSeq64 : Module {
 					trig[i] = !!json_integer_value(trigArrayJ);
 			}
 		}
+		
+		// probKnob
+		json_t *probKnobJ = json_object_get(rootJ, "probKnob");
+		if (probKnobJ)
+			probKnob = json_integer_value(probKnobJ);
+
 	}
 
 	
@@ -381,28 +393,43 @@ struct GateSeq64 : Module {
 				displayState = DISP_GATEP;
 			else
 				displayState = DISP_GATE;
-		}
-		// Mode button
-		if (modeTrigger.process(params[MODE_PARAM].value)) {
-			if (displayState != DISP_MODE)
-				displayState = DISP_MODE;
+		}		
+		// p button
+		if (pTrigger.process(params[P_PARAM].value)) {
+			if (displayState != DISP_P) {
+				displayState = DISP_P;
+				displayProb = -1;
+			}
 			else
 				displayState = DISP_GATE;
 		}
-		// GateTrig button
-		if (gateTrigTrigger.process(params[GATETRIG_PARAM].value)) {
-			if (displayState != DISP_GATETRIG)
-				displayState = DISP_GATETRIG;
+		// Prob knob
+		int newProbKnob = (int)roundf(params[PROB_KNOB_PARAM].value*19.0f);
+		if (newProbKnob != probKnob) {
+			if (displayState == DISP_P && (abs(newProbKnob - probKnob) <= 2) && displayProb != -1 ) {// avoid discontinuous step (initialize for example)
+				gatepval[displayProb] += (newProbKnob - probKnob) * 2;
+				if (gatepval[displayProb] > 100)
+					gatepval[displayProb] = 100;
+				if (gatepval[displayProb] < 0)
+					gatepval[displayProb] = 0;
+			}
+			probKnob = newProbKnob;// must do this step whether running or not
+		}	
+		// Modes button
+		if (modesTrigger.process(params[MODES_PARAM].value)) {
+			if (displayState != DISP_MODES)
+				displayState = DISP_MODES;
 			else
 				displayState = DISP_GATE;
 		}
+
 		// Copy, paste, clear, fill (cpcf) buttons
 		bool copyTrigged = copyTrigger.process(params[COPY_PARAM].value);
 		bool pasteTrigged = pasteTrigger.process(params[PASTE_PARAM].value);
 		bool clearTrigged = clearTrigger.process(params[CLEAR_PARAM].value);
 		bool fillTrigged = fillTrigger.process(params[FILL_PARAM].value);
 		if (copyTrigged || pasteTrigged || clearTrigged || fillTrigged) {
-			if (displayState == DISP_GATE || displayState == DISP_GATEP) {
+			if (displayState == DISP_GATE || displayState == DISP_GATEP/* || displayState == DISP_P*/) { // TODO
 				cpcfInfo = 0;
 				if (copyTrigged) cpcfInfo = 1;
 				if (pasteTrigged) cpcfInfo = 2;
@@ -434,22 +461,19 @@ struct GateSeq64 : Module {
 				if (displayState == DISP_GATEP) {
 					gatep[i] = !gatep[i];
 				}
-				if (displayState == DISP_MODE) {
-					row = i / (16 * stepConfig);
-					if (stepConfig == 2 && row == 1) 
-						row++;
-					col = i % (16 * stepConfig);
-					if (col >= 4 && col <= 8)
-						mode[row] = col - 4;
+				if (displayState == DISP_P) {
+					displayProb = i;
 				}
-				if (displayState == DISP_GATETRIG) {
+				if (displayState == DISP_MODES) {
 					row = i / (16 * stepConfig);
 					if (stepConfig == 2 && row == 1) 
 						row++;
 					col = i % (16 * stepConfig);
-					if (col == 10)
+					if (col >= 0 && col <= 4)
+						mode[row] = col - 0;
+					if (col == 12)
 						trig[row] = false;
-					else if (col == 11)
+					else if (col == 13)
 						trig[row] = true;
 				}
 				if (displayState == DISP_ROW_SEL) {
@@ -564,27 +588,28 @@ struct GateSeq64 : Module {
 					setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 1.0f);
 				else 
 					setGreenRed(STEP_LIGHTS + i * 2, gate[i] ? 0.1f : 0.0f, 0.0f);
+			}			
+			else if (displayState == DISP_P) {
+				if (i == displayProb)
+					setGreenRed(STEP_LIGHTS + i * 2, 0.0f, ((float)gatepval[i])/10.0f);
+				else
+					setGreenRed(STEP_LIGHTS + i * 2, 0.0f, gatep[i] ? 0.1f : 0.0f);
 			}
-			else if (displayState == DISP_MODE) {
-				if (col < 4 || col > 8) {
-					setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
-				}
-				else { 
-					if (col - 4 == mode[row])
+			else if (displayState == DISP_MODES) {
+				if (col >= 0 && col <= 4) { 
+					if (col - 0 == mode[row])
 						setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
 					else
 						setGreenRed(STEP_LIGHTS + i * 2, 0.1f, 0.0f);
 				}
-			}
-			else if (displayState == DISP_GATETRIG) {
-				if (col < 10 || col > 11) {
-					setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
+				else if (col >= 12 && col <= 13) {
+					if (col - 12 == (trig[row] ? 1 : 0))
+						setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
+					else
+						setGreenRed(STEP_LIGHTS + i * 2, 0.1f, 0.0f);
 				}
 				else {
-					if (col - 10 == (trig[row] ? 1 : 0))
-						setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
-					else
-						setGreenRed(STEP_LIGHTS + i * 2, 0.1f, 0.0f);
+					setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
 				}
 			}
 			else if (displayState == DISP_ROW_SEL) {
@@ -599,11 +624,11 @@ struct GateSeq64 : Module {
 		}
 		
 		// Main button lights
-		lights[GATE_LIGHT].value = displayState == DISP_GATE ? 1.0f : 0.0f;// green
-		lights[LENGTH_LIGHT].value = displayState == DISP_LENGTH ? 1.0f : 0.0f;// green
-		lights[GATEP_LIGHT].value = displayState == DISP_GATEP ? 1.0f : 0.0f;// red
-		lights[MODE_LIGHT].value = displayState == DISP_MODE ? 1.0f : 0.0f;// blue		
-		lights[GATETRIG_LIGHT].value = displayState == DISP_GATETRIG ? 1.0f : 0.0f;// blue
+		lights[GATE_LIGHT].value = displayState == DISP_GATE ? 1.0f : 0.0f;
+		lights[LENGTH_LIGHT].value = displayState == DISP_LENGTH ? 1.0f : 0.0f;
+		lights[GATEP_LIGHT].value = displayState == DISP_GATEP ? 1.0f : 0.0f;
+		lights[P_LIGHT].value = displayState == DISP_P ? 1.0f : 0.0f;
+		lights[MODES_LIGHT].value = displayState == DISP_MODES ? 1.0f : 0.0f;		
 
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
@@ -681,12 +706,21 @@ struct GateSeq64Widget : ModuleWidget {
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
 			
-			if (module->displayProb >= 100)
-				snprintf(displayStr, 4, "  1");
-			else if (module->displayProb <= 0)
-				snprintf(displayStr, 4, "  0");
+			if (module->displayState == GateSeq64::DISP_P) {
+				if (module->displayProb != -1) {
+					int prob = module->gatepval[module->displayProb];
+					if ( prob>= 100)
+						snprintf(displayStr, 4, "  1");
+					else if (prob >= 1)
+						snprintf(displayStr, 4, ",%02d", prob);
+					else
+						snprintf(displayStr, 4, "  0");
+				}
+				else
+					snprintf(displayStr, 4, "---");
+			}
 			else
-				snprintf(displayStr, 4, ",%d", module->displayProb);
+				displayStr[0] = 0;
 			displayStr[3] = 0;// more safety
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
@@ -780,18 +814,18 @@ struct GateSeq64Widget : ModuleWidget {
 		// Length light and button
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC0 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq64::LENGTH_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerC0 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq64::LENGTH_LIGHT));		
-		// Mode light and button
-		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC1 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq64::MODE_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerC1 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq64::MODE_LIGHT));		
-		// GateTrig light and button
-		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC2 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq64::GATETRIG_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerC2 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq64::GATETRIG_LIGHT));		
+		// Modes light and button
+		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC1 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq64::MODES_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerC1 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq64::MODES_LIGHT));		
 		// Gate light and button
-		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC3 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq64::GATE_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerC3 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq64::GATE_LIGHT));		
+		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC2 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq64::GATE_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerC2 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq64::GATE_LIGHT));		
 		// Gate p light and button
-		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC4 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq64::GATEP_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerC4 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq64::GATEP_LIGHT));		
+		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC3 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq64::GATEP_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerC3 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq64::GATEP_LIGHT));		
+		// p light and button
+		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC4 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq64::P_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerC4 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq64::P_LIGHT));		
 		
 		// Linked button
 		addParam(ParamWidget::create<CKSS>(Vec(colRulerC0 + hOffsetCKSS, rowRulerC1 + vOffsetCKSS), module, GateSeq64::LINKED_PARAM, 0.0f, 1.0f, 0.0f)); // 1.0f is top position

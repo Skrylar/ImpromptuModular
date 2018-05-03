@@ -42,7 +42,7 @@ struct PhraseSeq16 : Module {
 		ENUMS(KEY_PARAMS, 12),
 		TRANSPOSEU_PARAM,// no longer used
 		TRANSPOSED_PARAM,// no longer used
-		// -- 0.6.2
+		// -- 0.6.2 ^^
 		RUNMODE_PARAM,
 		TRANSPOSE_PARAM,
 		ROTATE_PARAM,
@@ -50,6 +50,7 @@ struct PhraseSeq16 : Module {
 		GATE2_KNOB_PARAM,// no longer used
 		GATE1_PROB_PARAM,
 		TIE_PARAM,// Legato
+		// -- 0.6.3 ^^
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -57,19 +58,21 @@ struct PhraseSeq16 : Module {
 		CV_INPUT,
 		RESET_INPUT,
 		CLOCK_INPUT,
-		// -- 0.6.2
+		// -- 0.6.2 ^^
 		LEFTCV_INPUT,
 		RIGHTCV_INPUT,
 		RUNCV_INPUT,
 		SEQCV_INPUT,
 		MODECV_INPUT,
+		// -- 0.6.3 ^^
 		NUM_INPUTS
 	};
 	enum OutputIds {
 		CV_OUTPUT,
 		GATE1_OUTPUT,
 		GATE2_OUTPUT,
-		// -- 0.6.2
+		// -- 0.6.2 ^^
+		// -- 0.6.3 ^^
 		NUM_OUTPUTS
 	};
 	enum LightIds {
@@ -83,8 +86,9 @@ struct PhraseSeq16 : Module {
 		SLIDE_LIGHT,
 		ATTACH_LIGHT,
 		PENDING_LIGHT,// no longer used
-		// -- 0.6.2
+		// -- 0.6.2 ^^
 		GATE1_PROB_LIGHT,
+		// -- 0.6.3 ^^
 		NUM_LIGHTS
 	};
 	
