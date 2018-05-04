@@ -145,6 +145,7 @@ struct PhraseSeq16 : Module {
 	long clockIgnoreOnReset;
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
+	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
 
 
 	SchmittTrigger resetTrigger;
@@ -214,6 +215,7 @@ struct PhraseSeq16 : Module {
 		gate1RandomEnable = false;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
+		tiedWarning = 0ul;
 	}
 
 	void onRandomize() override {
@@ -254,6 +256,7 @@ struct PhraseSeq16 : Module {
 		gate1RandomEnable = false;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
+		tiedWarning = 0ul;
 	}
 
 	json_t *toJson() override {
@@ -499,10 +502,15 @@ struct PhraseSeq16 : Module {
 		static const float gateTime = 0.3f;// seconds
 		static const float copyPasteInfoTime = 0.4f;// seconds
 		static const float editLengthTime = 1.6f;// seconds
-
+		static const float tiedWarningTime = 0.4f;// seconds
+		long tiedWarningInit = (long) (tiedWarningTime * engineGetSampleRate());
+		
+		
+		//********** Buttons, knobs, switches and inputs **********
+		
 		bool editingSequence = params[EDIT_PARAM].value > 0.5f;// true = editing sequence, false = editing song
 		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) )
-			displayState = DISP_NORMAL;	
+			displayState = DISP_NORMAL;
 		
 		// Seq and Mode CV inputs
 		if (inputs[SEQCV_INPUT].active) {
@@ -512,7 +520,7 @@ struct PhraseSeq16 : Module {
 			runModeSeq = (int) clamp( round(inputs[MODECV_INPUT].value * 4.0f / 10.0f), 0.0f, 4.0f );
 		}
 		
-		// Run state
+		// Run button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			displayState = DISP_NORMAL;
@@ -525,7 +533,7 @@ struct PhraseSeq16 : Module {
 			}
 		}
 
-		// Attach button and behavior
+		// Attach button
 		if (attachTrigger.process(params[ATTACH_PARAM].value)) {
 			if (running) {
 				attach = 1.0f - attach;// toggle
@@ -539,7 +547,7 @@ struct PhraseSeq16 : Module {
 				phraseIndexEdit = phraseIndexRun;
 		}
 		
-		// Copy
+		// Copy button
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
 			if (editingSequence) {
 				infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
@@ -554,7 +562,7 @@ struct PhraseSeq16 : Module {
 			}
 			displayState = DISP_NORMAL;
 		}
-		// Paste
+		// Paste button
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 			if (editingSequence) {
 				infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
@@ -579,7 +587,7 @@ struct PhraseSeq16 : Module {
 			displayState = DISP_NORMAL;
 		}
 		
-		// Write (must be before Left and Right in case route gate simultaneously to Right and Write for example)
+		// Write input (must be before Left and Right in case route gate simultaneously to Right and Write for example)
 		//  (write must be to correct step)
 		bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 		if (writeTrig) {
@@ -690,11 +698,11 @@ struct PhraseSeq16 : Module {
 						rotateOffset += deltaKnob;
 						if (rotateOffset > 99) rotateOffset = 99;
 						if (rotateOffset < -99) rotateOffset = -99;	
-						if (deltaKnob > 0 && deltaKnob < 99) {// Rotata right, 99 is safety
+						if (deltaKnob > 0 && deltaKnob < 99) {// Rotate right, 99 is safety
 							for (int i = deltaKnob; i > 0; i--)
 								rotateSeq(sequence, true, steps);
 						}
-						if (deltaKnob < 0 && deltaKnob > -99) {// Rotata left, 99 is safety
+						if (deltaKnob < 0 && deltaKnob > -99) {// Rotate left, 99 is safety
 							for (int i = deltaKnob; i < 0; i++)
 								rotateSeq(sequence, false, steps);
 						}
@@ -726,24 +734,32 @@ struct PhraseSeq16 : Module {
 				displayState = DISP_NORMAL;
 			}
 		}
-		if (newOct >=0 && newOct <=6) {
+		if (newOct >= 0 && newOct <= 6) {
 			if (editingSequence) {
-				float newCV = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
-				newCV = newCV - floor(newCV) + (float) (newOct - 3);
-				if (newCV >= -3.0f && newCV < 4.0f)
-					cv[sequence][stepIndexEdit] = newCV;
-				editingGate = (unsigned long) (gateTime * engineGetSampleRate());
-				editingGateCV = cv[sequence][stepIndexEdit];
+				if (tied[sequence][stepIndexEdit])
+					tiedWarning = tiedWarningInit;
+				else {			
+					float newCV = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
+					newCV = newCV - floor(newCV) + (float) (newOct - 3);
+					if (newCV >= -3.0f && newCV < 4.0f)
+						cv[sequence][stepIndexEdit] = newCV;
+					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+					editingGateCV = cv[sequence][stepIndexEdit];
+				}
 			}
 		}		
 		
-		// Keyboard
+		// Keyboard buttons
 		for (int i = 0; i < 12; i++) {
 			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 				if (editingSequence) {
-					cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
-					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
-					editingGateCV = cv[sequence][stepIndexEdit];	
+					if (tied[sequence][stepIndexEdit])
+						tiedWarning = tiedWarningInit;
+					else {			
+						cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
+						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+						editingGateCV = cv[sequence][stepIndexEdit];
+					}						
 				}
 				displayState = DISP_NORMAL;
 			}
@@ -751,30 +767,56 @@ struct PhraseSeq16 : Module {
 				
 		// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
-			if (editingSequence)
-				gate1[sequence][stepIndexEdit] = !gate1[sequence][stepIndexEdit];
+			if (editingSequence) {
+				if (tied[sequence][stepIndexEdit])
+					tiedWarning = tiedWarningInit;
+				else
+					gate1[sequence][stepIndexEdit] = !gate1[sequence][stepIndexEdit];
+			}
 			displayState = DISP_NORMAL;
 		}		
 		if (gate1ProbTrigger.process(params[GATE1_PROB_PARAM].value)) {
-			if (editingSequence)
-				gate1Prob[sequence][stepIndexEdit] = !gate1Prob[sequence][stepIndexEdit];
+			if (editingSequence) {
+				if (tied[sequence][stepIndexEdit])
+					tiedWarning = tiedWarningInit;
+				else
+					gate1Prob[sequence][stepIndexEdit] = !gate1Prob[sequence][stepIndexEdit];
+			}
 			displayState = DISP_NORMAL;
 		}		
 		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
-			if (editingSequence)
-				gate2[sequence][stepIndexEdit] = !gate2[sequence][stepIndexEdit];
+			if (editingSequence) {
+				if (tied[sequence][stepIndexEdit])
+					tiedWarning = tiedWarningInit;
+				else
+					gate2[sequence][stepIndexEdit] = !gate2[sequence][stepIndexEdit];
+			}
 			displayState = DISP_NORMAL;
 		}		
 		if (slideTrigger.process(params[SLIDE_BTN_PARAM].value)) {
-			if (editingSequence)
-				slide[sequence][stepIndexEdit] = !slide[sequence][stepIndexEdit];
+			if (editingSequence) {
+				if (tied[sequence][stepIndexEdit])
+					tiedWarning = tiedWarningInit;
+				else
+					slide[sequence][stepIndexEdit] = !slide[sequence][stepIndexEdit];
+			}
 			displayState = DISP_NORMAL;
 		}		
 		if (tiedTrigger.process(params[TIE_PARAM].value)) {
-			if (editingSequence)
+			if (editingSequence) {
 				tied[sequence][stepIndexEdit] = !tied[sequence][stepIndexEdit];
+				if (tied[sequence][stepIndexEdit]) {
+					gate1[sequence][stepIndexEdit] = false;
+					gate1Prob[sequence][stepIndexEdit] = false;
+					gate2[sequence][stepIndexEdit] = false;
+					slide[sequence][stepIndexEdit] = false;					
+				}
+			}
 			displayState = DISP_NORMAL;
 		}		
+		
+		
+		//********** Clock and reset **********
 		
 		// Clock
 		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
@@ -813,6 +855,30 @@ struct PhraseSeq16 : Module {
 		}	
 		clockPeriod++;
 		
+		// Reset
+		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
+			stepIndexEdit = 0;
+			stepIndexRun = 0;
+			sequence = 0;
+			phraseIndexEdit = 0;
+			phraseIndexRun = 0;
+			stepIndexPhraseRun = 0;
+			resetLight = 1.0f;
+			displayState = DISP_NORMAL;
+			clockTrigger.reset();
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		}
+		else
+			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
+		
+		
+		//********** Outputs and lights **********
+		
+		// Prepare the CV that will actually be used for all outputs and lights that depend on CV
+		//  given the tied state of the current step.
+		
+		
+		
 		// CV and gates outputs
 		if (running) {
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
@@ -840,22 +906,6 @@ struct PhraseSeq16 : Module {
 			}
 		}
 		
-		// Reset
-		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			stepIndexEdit = 0;
-			stepIndexRun = 0;
-			sequence = 0;
-			phraseIndexEdit = 0;
-			phraseIndexRun = 0;
-			stepIndexPhraseRun = 0;
-			resetLight = 1.0f;
-			displayState = DISP_NORMAL;
-			clockTrigger.reset();
-			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		}
-		else
-			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
-	
 		// Step/phrase lights
 		for (int i = 0; i < 16; i++) {
 			if (editingLength > 0ul) {
@@ -930,7 +980,12 @@ struct PhraseSeq16 : Module {
 		lights[GATE1_PROB_LIGHT].value = (gate1ProbVal) ? 1.0f : 0.0f;
 		lights[GATE2_LIGHT].value = (gate2Val) ? 1.0f : 0.0f;
 		lights[SLIDE_LIGHT].value = (slideVal) ? 1.0f : 0.0f;
-		lights[TIE_LIGHT].value = (tiedVal) ? 1.0f : 0.0f;
+		if (tiedWarning > 0l) {
+			bool warningFlashState = calcTiedWarning(tiedWarning, tiedWarningInit);
+			lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
+		}
+		else
+			lights[TIE_LIGHT].value = (tiedVal) ? 1.0f : 0.0f;
 
 		// Attach light
 		lights[ATTACH_LIGHT].value = running ? attach : 0.0f;
@@ -955,8 +1010,21 @@ struct PhraseSeq16 : Module {
 			slideStepsRemain--;
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
-	}
+		if (tiedWarning > 0l)
+			tiedWarning--;
+
+	}// step()
+	
+	bool calcTiedWarning(long tiedWarning, long tiedWarningInit) {
+		bool warningFlashState = true;
+		if (tiedWarning > (tiedWarningInit * 2l / 4l) && tiedWarning < (tiedWarningInit * 3l / 4l))
+			warningFlashState = false;
+		else if (tiedWarning < (tiedWarningInit * 1l / 4l))
+			warningFlashState = false;
+		return warningFlashState;
+	}	
 };
+
 
 
 struct PhraseSeq16Widget : ModuleWidget {

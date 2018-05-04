@@ -246,8 +246,11 @@ struct WriteSeq64 : Module {
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		static const float copyPasteInfoTime = 0.4f;// seconds
-
-		// Run state
+		
+		
+		//********** Buttons, knobs, switches and inputs **********
+		
+		// Run state button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			//pendingPaste = 0;// no pending pastes across run state toggles
@@ -257,7 +260,7 @@ struct WriteSeq64 : Module {
 			}
 		}
 	
-		// Copy
+		// Copy button
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
 			infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
 			for (int s = 0; s < 64; s++) {
@@ -267,7 +270,7 @@ struct WriteSeq64 : Module {
 			stepsCPbuffer = indexSteps[indexChannel];
 			pendingPaste = 0;
 		}
-		// Paste
+		// Paste button
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 			if (params[PASTESYNC_PARAM].value < 0.5f || indexChannel == 4) {
 				// Paste realtime, no pending to schedule
@@ -287,7 +290,7 @@ struct WriteSeq64 : Module {
 			}
 		}
 			
-		// Channel selection
+		// Channel selection button
 		if (channelTrigger.process(params[CHANNEL_PARAM].value)) {
 			indexChannel++;
 			if (indexChannel >= 5)
@@ -319,8 +322,37 @@ struct WriteSeq64 : Module {
 		for (int c = 0; c < 5; c++)
 			if (indexStep[c] >= indexSteps[c])
 				indexStep[c] = indexSteps[c] - 1;
-
-
+		
+		// Write button and input (must be before StepL and StepR in case route gate simultaneously to Step R and Write for example)
+		//  (write must be to correct step)
+		if (writeTrigger.process(params[WRITE_PARAM].value + inputs[WRITE_INPUT].value)) {
+			if (canEdit) {		
+				// CV
+				cv[indexChannel][indexStep[indexChannel]] = quantize(inputs[CV_INPUT].value, params[QUANTIZE_PARAM].value > 0.5f);
+				// Gate
+				if (inputs[GATE_INPUT].active)
+					gates[indexChannel][indexStep[indexChannel]] = (inputs[GATE_INPUT].value >= 1.0f) ? true : false;
+				// Autostep
+				if (params[AUTOSTEP_PARAM].value > 0.5f)
+					indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + 1, indexSteps[indexChannel]);
+			}
+		}
+		// Step L button
+		if (stepLTrigger.process(params[STEPL_PARAM].value + inputs[STEPL_INPUT].value)) {
+			if (canEdit) {		
+				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] - 1, indexSteps[indexChannel]); 
+			}
+		}
+		// Step R button
+		if (stepRTrigger.process(params[STEPR_PARAM].value + inputs[STEPR_INPUT].value)) {
+			if (canEdit) {		
+				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + 1, indexSteps[indexChannel]); 
+			}
+		}
+		
+		
+		//********** Clock and reset **********
+		
 		// Clock
 		bool clk12step = clock12Trigger.process(inputs[CLOCK12_INPUT].value);
 		bool clk34step = ((!inputs[CLOCK34_INPUT].active) && clk12step) || 
@@ -353,32 +385,22 @@ struct WriteSeq64 : Module {
 			}
 		}
 		
-		// Write (must be before StepL and StepR in case route gate simultaneously to Step R and Write for example)
-		//  (write must be to correct step)
-		if (writeTrigger.process(params[WRITE_PARAM].value + inputs[WRITE_INPUT].value)) {
-			if (canEdit) {		
-				// CV
-				cv[indexChannel][indexStep[indexChannel]] = quantize(inputs[CV_INPUT].value, params[QUANTIZE_PARAM].value > 0.5f);
-				// Gate
-				if (inputs[GATE_INPUT].active)
-					gates[indexChannel][indexStep[indexChannel]] = (inputs[GATE_INPUT].value >= 1.0f) ? true : false;
-				// Autostep
-				if (params[AUTOSTEP_PARAM].value > 0.5f)
-					indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + 1, indexSteps[indexChannel]);
-			}
+		// Reset
+		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
+			for (int t = 0; t < 5; t++)
+				indexStep[t] = 0;
+			resetLight = 1.0f;
+			pendingPaste = 0;
+			indexChannel = 0;
+			clock12Trigger.reset();
+			clock34Trigger.reset();
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
-		// Step L
-		if (stepLTrigger.process(params[STEPL_PARAM].value + inputs[STEPL_INPUT].value)) {
-			if (canEdit) {		
-				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] - 1, indexSteps[indexChannel]); 
-			}
-		}
-		// Step R
-		if (stepRTrigger.process(params[STEPR_PARAM].value + inputs[STEPR_INPUT].value)) {
-			if (canEdit) {		
-				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + 1, indexSteps[indexChannel]); 
-			}
-		}
+		else
+			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
+		
+		
+		//********** Outputs and lights **********
 		
 		// CV and gate outputs (staging area not used)
 		if (running) {
@@ -405,20 +427,6 @@ struct WriteSeq64 : Module {
 				outputs[GATE_OUTPUTS + i].value = ((i == indexChannel) && !muteGate) ? 10.0f : 0.0f;
 			}
 		}
-		
-		// Reset
-		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			for (int t = 0; t < 5; t++)
-				indexStep[t] = 0;
-			resetLight = 1.0f;
-			pendingPaste = 0;
-			indexChannel = 0;
-			clock12Trigger.reset();
-			clock34Trigger.reset();
-			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		}
-		else
-			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
 		
 		// Gate light
 		lights[GATE_LIGHT].value = gates[indexChannel][indexStep[indexChannel]] ? 1.0f : 0.0f;			

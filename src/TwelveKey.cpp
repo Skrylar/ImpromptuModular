@@ -112,8 +112,11 @@ struct TwelveKey : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
-
-		// set octaveNum
+		
+		
+		//********** Buttons, knobs, switches and inputs **********
+		
+		// Octave buttons and input
 		if (octIncTrigger.process(params[OCTINC_PARAM].value))
 			octaveNum++;
 		if (octDecTrigger.process(params[OCTDEC_PARAM].value))
@@ -123,7 +126,7 @@ struct TwelveKey : Module {
 		if (octaveNum > 9) octaveNum = 9;
 		if (octaveNum < 0) octaveNum = 0;
 		
-		// set stateInternal and memorize cv 
+		// Keyboard buttons and gate input
 		for (int i = 0; i < 12; i++) {
 			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 				cv = ((float)(octaveNum - 4)) + ((float) i) / 12.0f;
@@ -135,7 +138,10 @@ struct TwelveKey : Module {
 			stateInternal = false;
 		}
 		
-		// Gate keypress LED (with fade)
+		
+		//********** Outputs and lights **********
+		
+		// Gate light (with fade)
 		int pressed = 0;
 		for (int i = 0; i < 12; i++)
 			if (params[KEY_PARAMS + i].value > 0.5f)

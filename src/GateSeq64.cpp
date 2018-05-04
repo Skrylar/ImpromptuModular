@@ -320,7 +320,10 @@ struct GateSeq64 : Module {
 		float engineSampleRate = engineGetSampleRate();
 		feedbackCPinit = (long) (copyPasteInfoTime * engineSampleRate);
 		
-		// Config
+		
+		//********** Buttons, knobs, switches and inputs **********
+		
+		// Config switch
 		int stepConfig = 1;// 4x16
 		if (params[CONFIG_PARAM].value > 1.5f)// 1x64
 			stepConfig = 4;
@@ -334,7 +337,7 @@ struct GateSeq64 : Module {
 				length[i] = 16 * stepConfig;
 		}
 		
-		// Run state
+		// Run state buttons
 		bool runTrig[5] = {};
 		for (int i = 0; i < 4; i++) {
 			runTrig[i] = runningTriggers[i].process(params[RUN_PARAMS + i].value + inputs[RUNCV_INPUTS + i].value);
@@ -443,7 +446,7 @@ struct GateSeq64 : Module {
 				displayState = cpcfInfo > 0 ? DISP_GATE : DISP_GATEP;
 		}
 		
-		// Step LED button presses
+		// Step LED buttons
 		int row = -1;
 		int col = -1;
 		for (int i = 0; i < 64; i++) {
@@ -508,9 +511,8 @@ struct GateSeq64 : Module {
 			}
 		}
 		
-		// Process PulseGenerators (even if may not use)
-		for (int i = 0; i < 4; i++)
-			gatePulsesValue[i] = gatePulses[i].process(1.0 / engineSampleRate);
+		
+		//********** Clock and reset **********
 		
 		// Clock
 		bool clkTrig[4] = {};
@@ -528,6 +530,27 @@ struct GateSeq64 : Module {
 			}
 		}
 		
+		// Reset
+		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
+			for (int i = 0; i < 4; i++) {
+				indexStep[i] = 0;
+				clockTriggers[i].reset();
+				gateRandomEnable[i] = true;
+			}
+			resetLight = 1.0f;
+			displayState = DISP_GATE;
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		}
+		else
+			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();		
+		
+		
+		//********** Outputs and lights **********
+		
+		// Process PulseGenerators (even if may not use)
+		for (int i = 0; i < 4; i++)
+			gatePulsesValue[i] = gatePulses[i].process(1.0 / engineSampleRate);
+		
 		// Gate outputs
 		for (int i = 0; i < 4; i += stepConfig) {
 			if (running[i]) {
@@ -542,20 +565,6 @@ struct GateSeq64 : Module {
 				outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = 0.0f;
 			}		
 		}
-		
-		// Reset
-		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			for (int i = 0; i < 4; i++) {
-				indexStep[i] = 0;
-				clockTriggers[i].reset();
-				gateRandomEnable[i] = true;
-			}
-			resetLight = 1.0f;
-			displayState = DISP_GATE;
-			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		}
-		else
-			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();		
 		
 		// Step LED button lights
 		int rowToLight = -1;
