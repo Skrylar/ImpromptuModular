@@ -111,6 +111,7 @@ struct PhraseSeq16 : Module {
 	bool gate1Prob[16][16] = {};// First index is patten number, 2nd index is step
 	bool gate2[16][16] = {};// First index is patten number, 2nd index is step
 	bool slide[16][16] = {};// First index is patten number, 2nd index is step
+	bool tied[16][16] = {};// First index is patten number, 2nd index is step
 	//
 	int sequenceKnob;// save this so no delta triggered when close/open Rack
 	float attach;
@@ -137,6 +138,7 @@ struct PhraseSeq16 : Module {
 	bool gate1ProbCPbuffer[16];// copy paste buffer for gate1Prob
 	bool gate2CPbuffer[16];// copy paste buffer for gate2
 	bool slideCPbuffer[16];// copy paste buffer for slide
+	bool tiedCPbuffer[16];// copy paste buffer for slide
 	bool gate1RandomEnable; 
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
 	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
@@ -167,6 +169,7 @@ struct PhraseSeq16 : Module {
 	SchmittTrigger transposeTrigger;
 	SchmittTrigger editTrigger;
 	SchmittTrigger editTriggerInv;
+	SchmittTrigger tiedTrigger;
 	
 		
 	PhraseSeq16() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -192,12 +195,14 @@ struct PhraseSeq16 : Module {
 				gate1Prob[i][s] = false;
 				gate2[i][s] = true;
 				slide[i][s] = false;
+				tied[i][s] = false;
 			}
 			phrase[i] = 0;
 			cvCPbuffer[i] = 0.0f;
 			gate1CPbuffer[i] = true;
 			gate2CPbuffer[i] = true;
-			slideCPbuffer[i] = true;
+			slideCPbuffer[i] = false;
+			tiedCPbuffer[i] = false;
 		}
 		sequenceKnob = 0;
 		editingLength = 0ul;
@@ -230,12 +235,14 @@ struct PhraseSeq16 : Module {
 				gate1Prob[i][s] = (randomUniform() > 0.5f);
 				gate2[i][s] = (randomUniform() > 0.5f);
 				slide[i][s] = (randomUniform() > 0.5f);
+				tied[i][s] = (randomUniform() > 0.5f);
 			}
 			phrase[i] = randomu32() % 16;
 			cvCPbuffer[i] = 0.0f;
 			gate1CPbuffer[i] = true;
 			gate2CPbuffer[i] = true;
-			slideCPbuffer[i] = true;
+			slideCPbuffer[i] = false;
+			tiedCPbuffer[i] = false;
 		}
 		sequenceKnob = 0;
 		editingLength = 0ul;
@@ -309,6 +316,14 @@ struct PhraseSeq16 : Module {
 				json_array_insert_new(slideJ, s + (i<<4), json_integer((int) slide[i][s]));
 			}
 		json_object_set_new(rootJ, "slide", slideJ);
+
+		// tied
+		json_t *tiedJ = json_array();
+		for (int i = 0; i < 16; i++)
+			for (int s = 0; s < 16; s++) {
+				json_array_insert_new(tiedJ, s + (i<<4), json_integer((int) tied[i][s]));
+			}
+		json_object_set_new(rootJ, "tied", tiedJ);
 
 		// phrase 
 		json_t *phraseJ = json_array();
@@ -411,6 +426,17 @@ struct PhraseSeq16 : Module {
 				}
 		}
 		
+		// tied
+		json_t *tiedJ = json_object_get(rootJ, "tied");
+		if (tiedJ) {
+			for (int i = 0; i < 16; i++)
+				for (int s = 0; s < 16; s++) {
+					json_t *tiedArrayJ = json_array_get(tiedJ, s + (i<<4));
+					if (tiedArrayJ)
+						tied[i][s] = !!json_integer_value(tiedArrayJ);
+				}
+		}
+		
 		// phrase
 		json_t *phraseJ = json_object_get(rootJ, "phrase");
 		if (phraseJ)
@@ -434,7 +460,7 @@ struct PhraseSeq16 : Module {
 
 	void rotateSeq(int sequenceNum, bool directionRight, int numSteps) {
 		float rotCV;
-		bool rotGate1, rotGate1Prob, rotGate2, rotSlide;
+		bool rotGate1, rotGate1Prob, rotGate2, rotSlide, rotTied;
 		int iRot = 0;
 		int iDelta = 0;
 		if (directionRight) {
@@ -449,6 +475,7 @@ struct PhraseSeq16 : Module {
 		rotGate1Prob = gate1Prob[sequenceNum][iRot];
 		rotGate2 = gate2[sequenceNum][iRot];
 		rotSlide = slide[sequenceNum][iRot];
+		rotTied = tied[sequenceNum][iRot];
 		for ( ; ; iRot += iDelta) {
 			if (iDelta == 1 && iRot >= numSteps - 1) break;
 			if (iDelta == -1 && iRot <= 0) break;
@@ -457,12 +484,14 @@ struct PhraseSeq16 : Module {
 			gate1Prob[sequenceNum][iRot] = gate1Prob[sequenceNum][iRot + iDelta];
 			gate2[sequenceNum][iRot] = gate2[sequenceNum][iRot + iDelta];
 			slide[sequenceNum][iRot] = slide[sequenceNum][iRot + iDelta];
+			tied[sequenceNum][iRot] = tied[sequenceNum][iRot + iDelta];
 		}
 		cv[sequenceNum][iRot] = rotCV;
 		gate1[sequenceNum][iRot] = rotGate1;
 		gate1Prob[sequenceNum][iRot] = rotGate1Prob;
 		gate2[sequenceNum][iRot] = rotGate2;
 		slide[sequenceNum][iRot] = rotSlide;
+		tied[sequenceNum][iRot] = rotTied;
 	}
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
@@ -520,6 +549,7 @@ struct PhraseSeq16 : Module {
 					gate1ProbCPbuffer[s] = gate1Prob[sequence][s];
 					gate2CPbuffer[s] = gate2[sequence][s];
 					slideCPbuffer[s] = slide[sequence][s];
+					tiedCPbuffer[s] = tied[sequence][s];
 				}
 			}
 			displayState = DISP_NORMAL;
@@ -534,25 +564,11 @@ struct PhraseSeq16 : Module {
 					gate1Prob[sequence][s] = gate1ProbCPbuffer[s];
 					gate2[sequence][s] = gate2CPbuffer[s];
 					slide[sequence][s] = slideCPbuffer[s];
+					tied[sequence][s] = tiedCPbuffer[s];
 				}
 			}
 			displayState = DISP_NORMAL;
 		}
-		// Tie
-		if (pasteTrigger.process(params[TIE_PARAM].value)) {
-			if (editingSequence) {
-				int prevIndex = stepIndexEdit - 1;
-				if (prevIndex < 0)
-					prevIndex = steps - 1;
-				cv[sequence][stepIndexEdit] = cv[sequence][prevIndex];
-				gate1[sequence][stepIndexEdit] = false;
-				gate1Prob[sequence][stepIndexEdit] = false;
-				gate2[sequence][stepIndexEdit] = false;
-				slide[sequence][stepIndexEdit] = false;		
-			}
-			displayState = DISP_NORMAL;
-		}
-
 
 		// Length button
 		if (lengthTrigger.process(params[LENGTH_PARAM].value)) {
@@ -616,7 +632,7 @@ struct PhraseSeq16 : Module {
 			}
 		}
 		
-		// Mode/Transpose/Rotate buttons
+		// Mode and Transpose/Rotate buttons
 		if (modeTrigger.process(params[RUNMODE_PARAM].value)) {
 			if (displayState != DISP_MODE)
 				displayState = DISP_MODE;
@@ -625,7 +641,7 @@ struct PhraseSeq16 : Module {
 		}
 		if (transposeTrigger.process(params[TRAN_ROT_PARAM].value)) {
 			if (editingSequence) {
-				if (displayState == DISP_NORMAL) {
+				if (displayState == DISP_NORMAL || displayState == DISP_MODE) {
 					displayState = DISP_TRANSPOSE;
 					transposeOffset = 0;
 				}
@@ -733,7 +749,7 @@ struct PhraseSeq16 : Module {
 			}
 		}
 				
-		// Gate1, Gate1Prob, Gate2 and slide buttons
+		// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingSequence)
 				gate1[sequence][stepIndexEdit] = !gate1[sequence][stepIndexEdit];
@@ -752,6 +768,11 @@ struct PhraseSeq16 : Module {
 		if (slideTrigger.process(params[SLIDE_BTN_PARAM].value)) {
 			if (editingSequence)
 				slide[sequence][stepIndexEdit] = !slide[sequence][stepIndexEdit];
+			displayState = DISP_NORMAL;
+		}		
+		if (tiedTrigger.process(params[TIE_PARAM].value)) {
+			if (editingSequence)
+				tied[sequence][stepIndexEdit] = !tied[sequence][stepIndexEdit];
 			displayState = DISP_NORMAL;
 		}		
 		
@@ -885,27 +906,31 @@ struct PhraseSeq16 : Module {
 			lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
 		}			
 		
-		// Gate1, Gate1Prob, Gate2 and Slide lights
+		// Gate1, Gate1Prob, Gate2, Slide and Tied lights
 		bool gate1Val = true;
 		bool gate1ProbVal = true;
 		bool gate2Val = true;
 		bool slideVal = true;
+		bool tiedVal = true;
 		if (editingSequence) {
 			gate1Val = gate1[sequence][stepIndexEdit];
 			gate1ProbVal = gate1Prob[sequence][stepIndexEdit];
 			gate2Val = gate2[sequence][stepIndexEdit];
 			slideVal = slide[sequence][stepIndexEdit];
+			tiedVal = tied[sequence][stepIndexEdit];
 		}
 		else {
 			gate1Val = gate1[phrase[phraseIndexEdit]][stepIndexPhraseRun];
 			gate1ProbVal = gate1Prob[phrase[phraseIndexEdit]][stepIndexPhraseRun];
 			gate2Val = gate2[phrase[phraseIndexEdit]][stepIndexPhraseRun];
 			slideVal = slide[phrase[phraseIndexEdit]][stepIndexPhraseRun];
+			tiedVal = tied[phrase[phraseIndexEdit]][stepIndexPhraseRun];
 		}
 		lights[GATE1_LIGHT].value = (gate1Val) ? 1.0f : 0.0f;
 		lights[GATE1_PROB_LIGHT].value = (gate1ProbVal) ? 1.0f : 0.0f;
 		lights[GATE2_LIGHT].value = (gate2Val) ? 1.0f : 0.0f;
 		lights[SLIDE_LIGHT].value = (slideVal) ? 1.0f : 0.0f;
+		lights[TIE_LIGHT].value = (tiedVal) ? 1.0f : 0.0f;
 
 		// Attach light
 		lights[ATTACH_LIGHT].value = running ? attach : 0.0f;
