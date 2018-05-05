@@ -508,9 +508,11 @@ struct PhraseSeq16 : Module {
 		
 		//********** Buttons, knobs, switches and inputs **********
 		
-		// Notes: a tied step's attributes can not be modified by any of the following: 
-		//  write input, oct and keyboard buttons, gate1, gate1Prob, gate2 and slide buttons
-		//  however, paste, transpose, rotate obviously can.
+		// Notes: 
+		// * a tied step's attributes can not be modified by any of the following: 
+		//   write input, oct and keyboard buttons, gate1, gate1Prob, gate2 and slide buttons
+		//   however, paste, transpose, rotate obviously can.
+		// * Whenever cv[][] is modified or tied[] is activated for a step, call applyTiedStep(sequence,stepIndexEdit,steps)
 		
 		bool editingSequence = params[EDIT_PARAM].value > 0.5f;// true = editing sequence, false = editing song
 		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) )
@@ -602,6 +604,7 @@ struct PhraseSeq16 : Module {
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = inputs[CV_INPUT].value;
 					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
+					applyTiedStep(sequence, stepIndexEdit, steps);
 					if (params[AUTOSTEP_PARAM].value > 0.5f)
 						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, steps);
 				}
@@ -751,8 +754,10 @@ struct PhraseSeq16 : Module {
 				else {			
 					float newCV = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
 					newCV = newCV - floor(newCV) + (float) (newOct - 3);
-					if (newCV >= -3.0f && newCV < 4.0f)
+					if (newCV >= -3.0f && newCV < 4.0f) {
 						cv[sequence][stepIndexEdit] = newCV;
+						applyTiedStep(sequence, stepIndexEdit, steps);
+					}
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = cv[sequence][stepIndexEdit];
 				}
@@ -767,6 +772,7 @@ struct PhraseSeq16 : Module {
 						tiedWarning = tiedWarningInit;
 					else {			
 						cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
+						applyTiedStep(sequence, stepIndexEdit, steps);
 						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 						editingGateCV = cv[sequence][stepIndexEdit];
 					}						
@@ -819,8 +825,11 @@ struct PhraseSeq16 : Module {
 					gate1[sequence][stepIndexEdit] = false;
 					gate1Prob[sequence][stepIndexEdit] = false;
 					gate2[sequence][stepIndexEdit] = false;
-					slide[sequence][stepIndexEdit] = false;					
+					slide[sequence][stepIndexEdit] = false;
+					applyTiedStep(sequence, stepIndexEdit, steps);
 				}
+				else
+					gate1[sequence][stepIndexEdit] = true;
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -883,12 +892,7 @@ struct PhraseSeq16 : Module {
 		
 		
 		//********** Outputs and lights **********
-		
-		// Prepare the CV that will actually be used for all outputs and lights that depend on CV
-		//  given the tied state of the current step.
-		// TODO implement tied here or in first bloc, which is best?
-		
-		
+				
 		// CV and gates outputs
 		if (running) {
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
@@ -1033,6 +1037,32 @@ struct PhraseSeq16 : Module {
 			warningFlashState = false;
 		return warningFlashState;
 	}	
+	
+	void applyTiedStep(int seqNum, int indexTied, int numSteps) {
+		// Called because either:
+		//   case A: tied was activated for given step
+		//   case B: the give step's CV was modified
+		// These cases are mutually exclusive
+		
+		if (tied[seqNum][indexTied]) {
+			// copy previous CV over to current step
+			int iSrc = indexTied - 1;
+			if (iSrc < 0) 
+				iSrc = numSteps -1;
+			cv[seqNum][indexTied] = cv[seqNum][iSrc];
+		}
+		// Affect downstream CVs of subsequent tied note chain (can be 0 length if next note is not tied)
+		int iDest = indexTied + 1;
+		for (int i = 0; i < 16; i++) {// i is a safety counter in case all notes are tied (avoir infinite loop)
+			if (iDest > numSteps - 1) 
+				iDest = 0;
+			if (!tied[seqNum][iDest])
+				break;
+			// iDest is tied, so set its CV
+			cv[seqNum][iDest] = cv[seqNum][indexTied];
+			iDest++;
+		}
+	}
 };
 
 

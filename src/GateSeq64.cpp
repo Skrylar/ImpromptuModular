@@ -51,8 +51,8 @@ struct GateSeq64 : Module {
 		P_LIGHT,
 		MODES_LIGHT,
 		ENUMS(RUN_LIGHTS, 4),
-		ENUMS(CLOCKIN_LIGHTS, 4),
-		ENUMS(GATEOUT_LIGHTS, 4),
+		//ENUMS(CLOCKIN_LIGHTS, 4),
+		//ENUMS(GATEOUT_LIGHTS, 4),
 		RESET_LIGHT,
 		NUM_LIGHTS
 	};
@@ -116,7 +116,7 @@ struct GateSeq64 : Module {
 		for (int i = 0; i < 64; i++) {
 			gate[i] = false;
 			gatep[i] = false;
-			gatepval[i] = 100;
+			gatepval[i] = 50;
 		}
 		for (int i = 0; i < 4; i++) {
 			running[i] = false;
@@ -128,7 +128,7 @@ struct GateSeq64 : Module {
 		}
 		for (int i = 0; i < 16; i++) {
 			copyPasteBuf[i] = 0;
-			copyPasteBufProb[i] = 100;			
+			copyPasteBufProb[i] = 50;			
 		}
 		feedbackCP = 0l;
 		displayProb = -1;
@@ -600,7 +600,7 @@ struct GateSeq64 : Module {
 			}			
 			else if (displayState == DISP_P) {
 				if (i == displayProb)
-					setGreenRed(STEP_LIGHTS + i * 2, 0.0f, ((float)gatepval[i])/10.0f);
+					setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 1.0f);//((float)gatepval[i])/100.0f);
 				else
 					setGreenRed(STEP_LIGHTS + i * 2, 0.0f, gatep[i] ? 0.1f : 0.0f);
 			}
@@ -647,10 +647,10 @@ struct GateSeq64 : Module {
 			lights[RUN_LIGHTS + i].value = running[i] ? 1.0f : 0.0f;
 		
 		// ClockIn and GateOut tiny lights
-		for (int i = 0; i < 4; i++) {
+		/*for (int i = 0; i < 4; i++) {
 			lights[CLOCKIN_LIGHTS + i].value = ((i % stepConfig) == 0 ? 1.0f : 0.0f);
 			lights[GATEOUT_LIGHTS + 3 - i].value = ((i % stepConfig) == 0 ? 1.0f : 0.0f);
-		}
+		}*/
 		
 		if (feedbackCP > 0l)			
 			feedbackCP--;	
@@ -759,13 +759,13 @@ struct GateSeq64Widget : ModuleWidget {
 		static const int colRuler0 = 20;
 		static const int colRuler6 = 406;
 		static const int rowSpacingSides = 40;
-		static int offsetTinyLight = 22;
+		//static int offsetTinyLight = 22;
 		
 		// Clock inputs
 		int iSides = 0;
 		for (; iSides < 4; iSides++) {
 			addInput(Port::create<PJ301MPortS>(Vec(colRuler0, rowRuler0 + iSides * rowSpacingSides), Port::INPUT, module, GateSeq64::CLOCK_INPUTS + iSides));
-			addChild(ModuleLightWidget::create<TinyLight<GreenLight>>(Vec(colRuler0 + offsetTinyLight, rowRuler0 + iSides * rowSpacingSides), module, GateSeq64::CLOCKIN_LIGHTS + iSides));
+			//addChild(ModuleLightWidget::create<TinyLight<GreenLight>>(Vec(colRuler0 + offsetTinyLight, rowRuler0 + iSides * rowSpacingSides), module, GateSeq64::CLOCKIN_LIGHTS + iSides));
 		}
 		// Run CVs
 		for (; iSides < 8; iSides++) {
@@ -782,7 +782,7 @@ struct GateSeq64Widget : ModuleWidget {
 		iSides = 0;
 		for (; iSides < 4; iSides++) {
 			addOutput(Port::create<PJ301MPortS>(Vec(colRuler6, rowRuler0 + iSides * rowSpacingSides), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides));
-			addChild(ModuleLightWidget::create<TinyLight<GreenLight>>(Vec(colRuler6 + offsetTinyLight, rowRuler0 + iSides * rowSpacingSides), module, GateSeq64::GATEOUT_LIGHTS + iSides));
+			//addChild(ModuleLightWidget::create<TinyLight<GreenLight>>(Vec(colRuler6 + offsetTinyLight, rowRuler0 + iSides * rowSpacingSides), module, GateSeq64::GATEOUT_LIGHTS + iSides));
 		}
 		
 		
