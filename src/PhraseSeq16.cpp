@@ -508,6 +508,10 @@ struct PhraseSeq16 : Module {
 		
 		//********** Buttons, knobs, switches and inputs **********
 		
+		// Notes: a tied step's attributes can not be modified by any of the following: 
+		//  write input, oct and keyboard buttons, gate1, gate1Prob, gate2 and slide buttons
+		//  however, paste, transpose, rotate obviously can.
+		
 		bool editingSequence = params[EDIT_PARAM].value > 0.5f;// true = editing sequence, false = editing song
 		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) )
 			displayState = DISP_NORMAL;
@@ -592,11 +596,15 @@ struct PhraseSeq16 : Module {
 		bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 		if (writeTrig) {
 			if (editingSequence) {
-				editingGate = (unsigned long) (gateTime * engineGetSampleRate());
-				editingGateCV = inputs[CV_INPUT].value;
-				cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
-				if (params[AUTOSTEP_PARAM].value > 0.5f)
-					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, steps);
+				if (tied[sequence][stepIndexEdit])
+					tiedWarning = tiedWarningInit;
+				else {			
+					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+					editingGateCV = inputs[CV_INPUT].value;
+					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
+					if (params[AUTOSTEP_PARAM].value > 0.5f)
+						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, steps);
+				}
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -630,9 +638,11 @@ struct PhraseSeq16 : Module {
 				if (!running || attach < 0.5f) {// don't move heads when attach and running
 					if (editingSequence) {
 						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, steps);
-						if (!writeTrig)
-							editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
-						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+						if (!tied[sequence][stepIndexEdit]) {// don't play tied step
+							if (!writeTrig)
+								editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
+							editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+						}
 					}
 					else
 						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, phrases);
@@ -876,7 +886,7 @@ struct PhraseSeq16 : Module {
 		
 		// Prepare the CV that will actually be used for all outputs and lights that depend on CV
 		//  given the tied state of the current step.
-		
+		// TODO implement tied here or in first bloc, which is best?
 		
 		
 		// CV and gates outputs
