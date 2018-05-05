@@ -31,6 +31,7 @@ struct GateSeq64 : Module {
 		FILL_PARAM,
 		RESET_PARAM,
 		PROB_KNOB_PARAM,
+		PROBWRITE_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -103,6 +104,7 @@ struct GateSeq64 : Module {
 	SchmittTrigger configTrigger;
 	SchmittTrigger configTrigger2;
 	SchmittTrigger configTrigger3;
+	SchmittTrigger probWriteTrigger;
 
 	PulseGenerator gatePulses[4];
 
@@ -379,10 +381,6 @@ struct GateSeq64 : Module {
 		if (stepConfig == 4) // 1x64
 			running[2] = 0;
 		
-		// Gate button
-		if (gateTrigger.process(params[GATE_PARAM].value)) {
-			displayState = DISP_GATE;
-		}		
 		// Length button
 		if (lengthTrigger.process(params[LENGTH_PARAM].value)) {
 			if (displayState != DISP_LENGTH)
@@ -390,13 +388,28 @@ struct GateSeq64 : Module {
 			else
 				displayState = DISP_GATE;
 		}
+		
+		// Modes button
+		if (modesTrigger.process(params[MODES_PARAM].value)) {
+			if (displayState != DISP_MODES)
+				displayState = DISP_MODES;
+			else
+				displayState = DISP_GATE;
+		}
+		
+		// Gate button
+		if (gateTrigger.process(params[GATE_PARAM].value)) {
+			displayState = DISP_GATE;
+		}	
+		
 		// GateP button
 		if (gatePTrigger.process(params[GATEP_PARAM].value)) {
 			if (displayState != DISP_GATEP)
 				displayState = DISP_GATEP;
 			else
 				displayState = DISP_GATE;
-		}		
+		}	
+		
 		// p button
 		if (pTrigger.process(params[P_PARAM].value)) {
 			if (displayState != DISP_P) {
@@ -406,6 +419,7 @@ struct GateSeq64 : Module {
 			else
 				displayState = DISP_GATE;
 		}
+		
 		// Prob knob
 		int newProbKnob = (int)roundf(params[PROB_KNOB_PARAM].value*19.0f);
 		if (newProbKnob != probKnob) {
@@ -415,16 +429,14 @@ struct GateSeq64 : Module {
 					gatepval[displayProb] = 100;
 				if (gatepval[displayProb] < 0)
 					gatepval[displayProb] = 0;
+				if (params[PROBWRITE_PARAM].value < 0.5f) {// if write prob to whole row, not just step
+					int row = displayProb / 16;
+					for (int i = 0; i < 16; i++)
+						gatepval[row * 16 + i] = gatepval[displayProb];
+				}
 			}
 			probKnob = newProbKnob;// must do this step whether running or not
 		}	
-		// Modes button
-		if (modesTrigger.process(params[MODES_PARAM].value)) {
-			if (displayState != DISP_MODES)
-				displayState = DISP_MODES;
-			else
-				displayState = DISP_GATE;
-		}
 
 		// Copy, paste, clear, fill (cpcf) buttons
 		bool copyTrigged = copyTrigger.process(params[COPY_PARAM].value);
@@ -444,6 +456,16 @@ struct GateSeq64 : Module {
 			}
 			else if (displayState == DISP_ROW_SEL)// abort copy
 				displayState = cpcfInfo > 0 ? DISP_GATE : DISP_GATEP;
+		}
+		
+		// ProbWrite step/row switch
+		if (probWriteTrigger.process(1.0f - params[PROBWRITE_PARAM].value)) {
+			// set all prob value of row to current display when toggle switch to row
+			if (displayProb != -1) {
+				int row = displayProb / 16;
+				for (int i = 0; i < 16; i++)
+					gatepval[row * 16 + i] = gatepval[displayProb];	
+			}
 		}
 		
 		// Step LED buttons
@@ -836,16 +858,16 @@ struct GateSeq64Widget : ModuleWidget {
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC4 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq64::P_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerC4 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq64::P_LIGHT));		
 		
-		// Linked button
+		// Linked switch
 		addParam(ParamWidget::create<CKSS>(Vec(colRulerC0 + hOffsetCKSS, rowRulerC1 + vOffsetCKSS), module, GateSeq64::LINKED_PARAM, 0.0f, 1.0f, 0.0f)); // 1.0f is top position
 		// Reset LED bezel and light
 		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC1 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq64::RESET_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC1 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RESET_LIGHT));
-		// Copy/paste switches
+		// Copy/paste buttons
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 - 10, rowRulerC1 + offsetTL1105), module, GateSeq64::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 + 20, rowRulerC1 + offsetTL1105), module, GateSeq64::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
-		// Write prob buttons
-		// TODO
+		// Write prob step/row switch
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerC3 + hOffsetCKSS, rowRulerC1 + 3 + vOffsetCKSS), module, GateSeq64::PROBWRITE_PARAM, 0.0f, 1.0f, 1.0f)); // 1.0f is top position
 		// Probability display
 		ProbDisplayWidget *probDisplay = new ProbDisplayWidget();
 		probDisplay->box.pos = Vec(colRulerC4-15, rowRulerC1 + 3 + vOffsetDisplay);
@@ -857,7 +879,7 @@ struct GateSeq64Widget : ModuleWidget {
 		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC0 + hOffsetCKSS, rowRulerC2 + vOffsetCKSSThree), module, GateSeq64::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
 		// Reset
 		addInput(Port::create<PJ301MPortS>(Vec(colRulerC1, rowRulerC2 ), Port::INPUT, module, GateSeq64::RESET_INPUT));
-		// Clear/fill switches
+		// Clear/fill buttons
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 - 10, rowRulerC2 + offsetTL1105), module, GateSeq64::CLEAR_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 + 20, rowRulerC2 + offsetTL1105), module, GateSeq64::FILL_PARAM, 0.0f, 1.0f, 0.0f));
 		// Probability knob

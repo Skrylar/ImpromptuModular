@@ -1329,8 +1329,16 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 
 /*CHANGE LOG
 
-For 0.6.4:
+0.6.4:
 merged functionalities of transpose and rotate into one knob
-TODO implement tied notes state bit for each step, and add light to tied step (no tied allowed on first step however)
-implementd 0-T slide as opposed to 0-2s slide, where T is clock period
+implemented tied notes state bit for each step, and added light to tied steps
+implemented 0-T slide as opposed to 0-2s slide, where T is clock period
+
+0.6.3: 
+added tie step macro button
+added gate probabilities (one prob setting for all steps)
+removed paste-sync
+
+0.6.2:
+initial release of PS16
 */
