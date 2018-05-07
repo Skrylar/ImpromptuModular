@@ -11,9 +11,6 @@
 //  * the cf mixer by Clément Foulc
 //  * Twisted Electrons' KeyChain 
 //
-//Possible improvements:
-//  * drag across keys see issue 935 for ideas on how to implement 
-//    "void onDragMove(EventDragMove &) override;"
 //***********************************************************************************************
 
 

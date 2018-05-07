@@ -307,14 +307,14 @@ struct WriteSeq64 : Module {
 		// Steps knob
 		int newStepsKnob = (int)roundf(params[STEPS_PARAM].value*10.0f);
 		if (newStepsKnob != stepsKnob) {
-			if (abs(newStepsKnob - stepsKnob) <= 2) // avoid discontinuous step (initialize for example)
+			if (abs(newStepsKnob - stepsKnob) <= 3) // avoid discontinuous step (initialize for example)
 				indexSteps[indexChannel] = clamp( indexSteps[indexChannel] + newStepsKnob - stepsKnob, 1, 64); 
 			stepsKnob = newStepsKnob;
 		}	
 		// Step knob
-		int newStepKnob = (int)roundf(params[STEP_PARAM].value*19.0f);
+		int newStepKnob = (int)roundf(params[STEP_PARAM].value*10.0f);
 		if (newStepKnob != stepKnob) {
-			if (canEdit && (abs(newStepKnob - stepKnob) <= 2) ) // avoid discontinuous step (initialize for example)
+			if (canEdit && (abs(newStepKnob - stepKnob) <= 3) ) // avoid discontinuous step (initialize for example)
 				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + newStepKnob - stepKnob, indexSteps[indexChannel]);
 			stepKnob = newStepKnob;// must do this step whether running or not
 		}	

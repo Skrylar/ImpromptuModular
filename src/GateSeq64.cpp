@@ -427,9 +427,9 @@ struct GateSeq64 : Module {
 		}
 		
 		// Prob knob
-		int newProbKnob = (int)roundf(params[PROB_KNOB_PARAM].value*19.0f);
+		int newProbKnob = (int)roundf(params[PROB_KNOB_PARAM].value*10.0f);
 		if (newProbKnob != probKnob) {
-			if (displayState == DISP_P && (abs(newProbKnob - probKnob) <= 2) && displayProb != -1 ) {// avoid discontinuous step (initialize for example)
+			if (displayState == DISP_P && (abs(newProbKnob - probKnob) <= 3) && displayProb != -1 ) {// avoid discontinuous step (initialize for example)
 				gatepval[displayProb] += (newProbKnob - probKnob) * 2;
 				if (gatepval[displayProb] > 100)
 					gatepval[displayProb] = 100;

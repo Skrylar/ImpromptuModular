@@ -16,7 +16,7 @@ See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
 
 ## Acknowledgements
 
-Thanks to Alfredo Santamaria and Nay Seven for suggestions regarding improvements to Phrase-Seq-16. A very special thank you to Nigel Sixsmith for the many fruitful discussions and numerous design improvements that were suggested to Phrase-Seq-16, and also for the in-depth presentation of Phrase-Seq-16 and Twelve-Key in [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg).
+Thanks to Alfredo Santamaria, Xavier Belmont and Nay Seven for suggestions regarding improvements to Phrase-Seq-16. A very special thank you to Nigel Sixsmith for the many fruitful discussions and numerous design improvements that were suggested to Phrase-Seq-16, and also for the in-depth presentation of Phrase-Seq-16 and Twelve-Key in [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg).
 
 
 # Modules

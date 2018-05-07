@@ -21,6 +21,7 @@ extern Model *modelTwelveKey;
 extern Model *modelWriteSeq32;
 extern Model *modelWriteSeq64;
 extern Model *modelPhraseSeq16;
+extern Model *modelPhraseSeq32;
 extern Model *modelGateSeq64;
 
 
