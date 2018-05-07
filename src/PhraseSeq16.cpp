@@ -8,9 +8,7 @@
 //
 //Module inspired by the SA-100 Stepper Acid sequencer by Transistor Sounds Labs
 //
-//Acknowledgements: Thanks to Alfredo Santamaria and Nay Seven for suggestions regarding 
-//  improvements. A very special thank you to Nigel Sixsmith for the many fruitful discussions 
-//  and numerous design improvements that were suggested.
+//Acknowledgements: please see README.md
 //***********************************************************************************************
 
 
@@ -1303,8 +1301,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerMB0, rowRulerB1), Port::INPUT, module, PhraseSeq16::SEQCV_INPUT));
 		addParam(ParamWidget::create<CKSS>(Vec(columnRulerB4 + hOffsetCKSS, rowRulerB1 + vOffsetCKSS), module, PhraseSeq16::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, PhraseSeq16::CV_INPUT));
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB6, rowRulerB1), Port::INPUT, module, PhraseSeq16::RESET_INPUT));
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, PhraseSeq16::CLOCK_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, PhraseSeq16::RESET_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB6, rowRulerB1), Port::INPUT, module, PhraseSeq16::CLOCK_INPUT));
 
 		
 
@@ -1333,6 +1331,7 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 merged functionalities of transpose and rotate into one knob
 implemented tied notes state bit for each step, and added light to tied steps
 implemented 0-T slide as opposed to 0-2s slide, where T is clock period
+changed copy-paste indication, now uses display rather than keyboard lights
 
 0.6.3: 
 added tie step macro button

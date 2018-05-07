@@ -7,6 +7,8 @@
 //See ./res/fonts/ for font licenses
 //
 //Module concept by Nigel Sixsmith and Marc Boulé
+//
+//Acknowledgements: please see README.md
 //***********************************************************************************************
 
 
