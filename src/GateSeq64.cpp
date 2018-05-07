@@ -816,8 +816,8 @@ struct GateSeq64Widget : ModuleWidget {
 		}
 		// Run LED bezel and light, four times
 		for (iSides = 4; iSides < 8; iSides++) {
-			addParam(ParamWidget::create<LEDBezel>(Vec(colRuler0 + 43 + offsetLEDbezel, rowRuler0 + 5 + iSides * rowSpacingSides + offsetLEDbezel), module, GateSeq64::RUN_PARAMS + iSides - 4, 0.0f, 1.0f, 0.0f));
-			addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRuler0 + 43 + offsetLEDbezel + offsetLEDbezelLight, rowRuler0 + 5 + iSides * rowSpacingSides + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RUN_LIGHTS + iSides - 4));
+			addParam(ParamWidget::create<LEDBezel>(Vec(colRuler0 + 38 + offsetLEDbezel, rowRuler0 + 5 + iSides * rowSpacingSides + offsetLEDbezel), module, GateSeq64::RUN_PARAMS + iSides - 4, 0.0f, 1.0f, 0.0f));
+			addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRuler0 + 38 + offsetLEDbezel + offsetLEDbezelLight, rowRuler0 + 5 + iSides * rowSpacingSides + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RUN_LIGHTS + iSides - 4));
 		}
 
 		// Outputs
@@ -879,7 +879,7 @@ struct GateSeq64Widget : ModuleWidget {
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerC4 + posLEDvsButton + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq64::P_LIGHT));		
 		
 		// Linked switch
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerC0 + hOffsetCKSS, rowRulerC1 + vOffsetCKSS), module, GateSeq64::LINKED_PARAM, 0.0f, 1.0f, 1.0f)); // 1.0f is top position
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerC0 + hOffsetCKSS + 1, rowRulerC1 + vOffsetCKSS), module, GateSeq64::LINKED_PARAM, 0.0f, 1.0f, 1.0f)); // 1.0f is top position
 		// Reset LED bezel and light
 		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC1 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq64::RESET_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC1 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RESET_LIGHT));
@@ -887,25 +887,25 @@ struct GateSeq64Widget : ModuleWidget {
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 - 10, rowRulerC1 + offsetTL1105), module, GateSeq64::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 + 20, rowRulerC1 + offsetTL1105), module, GateSeq64::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
 		// CopyPasteAll
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerC3 + hOffsetCKSS, rowRulerC1 + 0 + vOffsetCKSS), module, GateSeq64::CP_ALL_PARAM, 0.0f, 1.0f, 0.0f)); // 1.0f is top position
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerC3 + hOffsetCKSS + 1, rowRulerC1 + 0 + vOffsetCKSS), module, GateSeq64::CP_ALL_PARAM, 0.0f, 1.0f, 0.0f)); // 1.0f is top position
 		// Probability display
 		ProbDisplayWidget *probDisplay = new ProbDisplayWidget();
-		probDisplay->box.pos = Vec(colRulerC4-15, rowRulerC1 + 3 + vOffsetDisplay);
+		probDisplay->box.pos = Vec(colRulerC4-15, rowRulerC1 + vOffsetDisplay);
 		probDisplay->box.size = Vec(55, 30);// 3 characters
 		probDisplay->module = module;
 		addChild(probDisplay);
 		
 		// Config switch (3 position)
-		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC0 + hOffsetCKSS, rowRulerC2 + vOffsetCKSSThree), module, GateSeq64::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
+		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC0 + hOffsetCKSS + 1, rowRulerC2 + vOffsetCKSSThree), module, GateSeq64::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
 		// Reset
 		addInput(Port::create<PJ301MPortS>(Vec(colRulerC1, rowRulerC2 ), Port::INPUT, module, GateSeq64::RESET_INPUT));
 		// Clear/fill buttons
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 - 10, rowRulerC2 + offsetTL1105), module, GateSeq64::CLEAR_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2 + 20, rowRulerC2 + offsetTL1105), module, GateSeq64::FILL_PARAM, 0.0f, 1.0f, 0.0f));
 		// Write prob step/row switch
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerC3 + hOffsetCKSS, rowRulerC2 + 0 + vOffsetCKSS), module, GateSeq64::PROBWRITE_PARAM, 0.0f, 1.0f, 1.0f)); // 1.0f is top position
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerC3 + hOffsetCKSS + 1, rowRulerC2 + 3 + vOffsetCKSS), module, GateSeq64::PROBWRITE_PARAM, 0.0f, 1.0f, 1.0f)); // 1.0f is top position
 		// Probability knob
-		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC4 + 1 + offsetDavies1900, rowRulerC1 + 55 + offsetDavies1900), module, GateSeq64::PROB_KNOB_PARAM, -INFINITY, INFINITY, 0.0f));		
+		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC4 + 1 + offsetDavies1900, rowRulerC1 + 50 + offsetDavies1900), module, GateSeq64::PROB_KNOB_PARAM, -INFINITY, INFINITY, 0.0f));		
 	}
 };
 
