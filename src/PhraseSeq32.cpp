@@ -40,6 +40,7 @@ struct PhraseSeq32 : Module {
 		GATE1_KNOB_PARAM,
 		GATE1_PROB_PARAM,
 		TIE_PARAM,// Legato
+		CPMODE_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -120,6 +121,7 @@ struct PhraseSeq32 : Module {
 	bool gate2CPbuffer[32];// copy paste buffer for gate2
 	bool slideCPbuffer[32];// copy paste buffer for slide
 	bool tiedCPbuffer[32];// copy paste buffer for slide
+	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
 	bool gate1RandomEnable; 
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
 	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
@@ -187,6 +189,7 @@ struct PhraseSeq32 : Module {
 			slideCPbuffer[i] = false;
 			tiedCPbuffer[i] = false;
 		}
+		countCP = 32;
 		sequenceKnob = INT_MAX;
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
@@ -227,6 +230,7 @@ struct PhraseSeq32 : Module {
 			slideCPbuffer[i] = false;
 			tiedCPbuffer[i] = false;
 		}
+		countCP = 32;
 		sequenceKnob = INT_MAX;
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
@@ -525,13 +529,26 @@ struct PhraseSeq32 : Module {
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
 			if (editingSequence) {
 				infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
-				for (int s = 0; s < 32; s++) {
-					cvCPbuffer[s] = cv[sequence][s];
-					gate1CPbuffer[s] = gate1[sequence][s];
-					gate1ProbCPbuffer[s] = gate1Prob[sequence][s];
-					gate2CPbuffer[s] = gate2[sequence][s];
-					slideCPbuffer[s] = slide[sequence][s];
-					tiedCPbuffer[s] = tied[sequence][s];
+				//CPinfo must be set to 0 for copy/paste all, and 0x1ii for copy/paste 8 at pos ii, 0x2ii for copy/paste 16 at 0xii
+				int sStart = stepIndexEdit;
+				int sCount = 32;
+				if (params[CPMODE_PARAM].value > 1.5f)// all
+					sStart = 0;
+				else if (params[CPMODE_PARAM].value < 0.5f)// 8
+					sCount = 8;
+				else// 16
+					sCount = 16;
+				countCP = sCount;
+				for (int i = 0, s = sStart; i < countCP; i++, s++) {// TODO may copy less than 8 or 16 if start too far
+					if (s >= 32) s = 0;
+					cvCPbuffer[i] = cv[sequence][s];
+					gate1CPbuffer[i] = gate1[sequence][s];
+					gate1ProbCPbuffer[i] = gate1Prob[sequence][s];
+					gate2CPbuffer[i] = gate2[sequence][s];
+					slideCPbuffer[i] = slide[sequence][s];
+					tiedCPbuffer[i] = tied[sequence][s];
+					if ((--sCount) <= 0)
+						break;
 				}
 			}
 			displayState = DISP_NORMAL;
@@ -540,14 +557,19 @@ struct PhraseSeq32 : Module {
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 			if (editingSequence) {
 				infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
-				for (int s = 0; s < 32; s++) {
-					cv[sequence][s] = cvCPbuffer[s];
-					gate1[sequence][s] = gate1CPbuffer[s];
-					gate1Prob[sequence][s] = gate1ProbCPbuffer[s];
-					gate2[sequence][s] = gate2CPbuffer[s];
-					slide[sequence][s] = slideCPbuffer[s];
-					tied[sequence][s] = tiedCPbuffer[s];
-				}
+				int sStart = ((countCP == 32) ? 0 : stepIndexEdit);
+				int sCount = countCP;
+				for (int i = 0, s = sStart; i < countCP; i++, s++) {
+					if (s >= 32) s = 0;
+					cv[sequence][s] = cvCPbuffer[i];
+					gate1[sequence][s] = gate1CPbuffer[i];
+					gate1Prob[sequence][s] = gate1ProbCPbuffer[i];
+					gate2[sequence][s] = gate2CPbuffer[i];
+					slide[sequence][s] = slideCPbuffer[i];
+					tied[sequence][s] = tiedCPbuffer[i];
+					if ((--sCount) <= 0)
+						break;
+				}	
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -1210,6 +1232,8 @@ struct PhraseSeq32Widget : ModuleWidget {
 		// Copy/paste buttons
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 - 10, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq32::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 + 20, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq32::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
+		// Copy-paste mode switch (3 position)
+		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRulerMK2 - 3 + hOffsetCKSS + 1, rowRulerMK2 - 1 + vOffsetCKSSThree), module, PhraseSeq32::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));	// 0.0f is top position
 
 		
 		
