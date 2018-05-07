@@ -71,7 +71,6 @@ struct GateSeq64 : Module {
 	int gatepval[64] = {};// values are 0 to 100
 	int mode[4] = {};
 	bool trig[4] = {};
-	int probKnob = 0;// save this so no delta triggered when close/open Rack
 
 	// No need to save
 	int displayState;
@@ -89,6 +88,7 @@ struct GateSeq64 : Module {
 	long clockIgnoreOnReset;
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 	int displayProb;// -1 when no step was clicked (when moving to DISP_P mode), 0 to 63 when a step was selected and its prob can be changed.
+	int probKnob;// INT_MAX when knob not seen yet
 
 	
 	SchmittTrigger gateTrigger;
@@ -139,7 +139,7 @@ struct GateSeq64 : Module {
 		}
 		feedbackCP = 0l;
 		displayProb = -1;
-		probKnob = 0;
+		probKnob = INT_MAX;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
@@ -178,7 +178,7 @@ struct GateSeq64 : Module {
 		}
 		feedbackCP = 0l;
 		displayProb = -1;
-		probKnob = 0;
+		probKnob = INT_MAX;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
@@ -226,9 +226,6 @@ struct GateSeq64 : Module {
 		for (int i = 0; i < 4; i++)
 			json_array_insert_new(trigJ, i, json_integer((int) trig[i]));
 		json_object_set_new(rootJ, "trig", trigJ);
-		
-		// probKnob
-		json_object_set_new(rootJ, "probKnob", json_integer(probKnob));
 		
 		return rootJ;
 	}
@@ -304,11 +301,6 @@ struct GateSeq64 : Module {
 			}
 		}
 		
-		// probKnob
-		json_t *probKnobJ = json_object_get(rootJ, "probKnob");
-		if (probKnobJ)
-			probKnob = json_integer_value(probKnobJ);
-
 	}
 
 	
@@ -428,6 +420,8 @@ struct GateSeq64 : Module {
 		
 		// Prob knob
 		int newProbKnob = (int)roundf(params[PROB_KNOB_PARAM].value*10.0f);
+		if (probKnob == INT_MAX)
+			probKnob = newProbKnob;
 		if (newProbKnob != probKnob) {
 			if (displayState == DISP_P && (abs(newProbKnob - probKnob) <= 3) && displayProb != -1 ) {// avoid discontinuous step (initialize for example)
 				gatepval[displayProb] += (newProbKnob - probKnob) * 2;

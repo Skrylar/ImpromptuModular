@@ -66,8 +66,6 @@ struct WriteSeq64 : Module {
 	int indexSteps[5];// [1;64] each
 	float cv[5][64] = {};
 	bool gates[5][64] = {};
-	int stepKnob = 0;// save this so no delta triggered when close/open Rack
-	int stepsKnob = 0;// save this so no delta triggered when close/open Rack
 
 	// No need to save
 	int indexStep[5];// [0;63] each
@@ -79,6 +77,8 @@ struct WriteSeq64 : Module {
 	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq, destination channel in next msbits
 	long clockIgnoreOnReset;
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
+	int stepKnob = 0;// INT_MAX when knob not seen yet
+	int stepsKnob = 0;// INT_MAX when knob not seen yet
 
 	
 	SchmittTrigger clock12Trigger;
@@ -115,8 +115,8 @@ struct WriteSeq64 : Module {
 		}
 		stepsCPbuffer = 64;
 		infoCopyPaste = 0l;
-		stepKnob = 0;
-		stepsKnob = 0;
+		stepKnob = INT_MAX;
+		stepsKnob = INT_MAX;
 		pendingPaste = 0;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
@@ -138,8 +138,8 @@ struct WriteSeq64 : Module {
 		}
 		stepsCPbuffer = 64;
 		infoCopyPaste = 0l;
-		stepKnob = 0;
-		stepsKnob = 0;
+		stepKnob = INT_MAX;
+		stepsKnob = INT_MAX;
 		pendingPaste = 0;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
@@ -174,12 +174,6 @@ struct WriteSeq64 : Module {
 				json_array_insert_new(gatesJ, s + (c<<6), json_integer((int) gates[c][s]));
 			}
 		json_object_set_new(rootJ, "gates", gatesJ);
-
-		// stepKnob
-		json_object_set_new(rootJ, "stepKnob", json_integer(stepKnob));
-		
-		// stepsKnob
-		json_object_set_new(rootJ, "stepsKnob", json_integer(stepsKnob));
 
 		return rootJ;
 	}
@@ -226,16 +220,6 @@ struct WriteSeq64 : Module {
 						gates[c][i] = !!json_integer_value(gateJ);
 				}
 		}
-
-		// stepKnob
-		json_t *stepKnobJ = json_object_get(rootJ, "stepKnob");
-		if (stepKnobJ)
-			stepKnob = json_integer_value(stepKnobJ);
-
-		// stepsKnob
-		json_t *stepsKnobJ = json_object_get(rootJ, "stepsKnob");
-		if (stepsKnobJ)
-			stepsKnob = json_integer_value(stepsKnobJ);
 	}
 
 	inline float quantize(float cv, bool enable) {
@@ -306,6 +290,8 @@ struct WriteSeq64 : Module {
 
 		// Steps knob
 		int newStepsKnob = (int)roundf(params[STEPS_PARAM].value*10.0f);
+		if (stepsKnob == INT_MAX)
+			stepsKnob = newStepsKnob;
 		if (newStepsKnob != stepsKnob) {
 			if (abs(newStepsKnob - stepsKnob) <= 3) // avoid discontinuous step (initialize for example)
 				indexSteps[indexChannel] = clamp( indexSteps[indexChannel] + newStepsKnob - stepsKnob, 1, 64); 
@@ -313,6 +299,8 @@ struct WriteSeq64 : Module {
 		}	
 		// Step knob
 		int newStepKnob = (int)roundf(params[STEP_PARAM].value*10.0f);
+		if (stepKnob == INT_MAX)
+			stepKnob = newStepKnob;
 		if (newStepKnob != stepKnob) {
 			if (canEdit && (abs(newStepKnob - stepKnob) <= 3) ) // avoid discontinuous step (initialize for example)
 				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + newStepKnob - stepKnob, indexSteps[indexChannel]);

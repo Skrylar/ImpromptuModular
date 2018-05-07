@@ -111,7 +111,6 @@ struct PhraseSeq16 : Module {
 	bool slide[16][16] = {};// First index is patten number, 2nd index is step
 	bool tied[16][16] = {};// First index is patten number, 2nd index is step
 	//
-	int sequenceKnob;// save this so no delta triggered when close/open Rack
 	float attach;
 
 	// No need to save
@@ -144,6 +143,7 @@ struct PhraseSeq16 : Module {
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
+	int sequenceKnob;// INT_MAX when knob not seen yet
 
 
 	SchmittTrigger resetTrigger;
@@ -203,7 +203,7 @@ struct PhraseSeq16 : Module {
 			slideCPbuffer[i] = false;
 			tiedCPbuffer[i] = false;
 		}
-		sequenceKnob = 0;
+		sequenceKnob = INT_MAX;
 		editingLength = 0ul;
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
@@ -244,7 +244,7 @@ struct PhraseSeq16 : Module {
 			slideCPbuffer[i] = false;
 			tiedCPbuffer[i] = false;
 		}
-		sequenceKnob = 0;
+		sequenceKnob = INT_MAX;
 		editingLength = 0ul;
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
@@ -331,9 +331,6 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 16; i++)
 			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
 		json_object_set_new(rootJ, "phrase", phraseJ);
-
-		// sequenceKnob
-		json_object_set_new(rootJ, "sequenceKnob", json_integer(sequenceKnob));
 
 		// attach
 		json_object_set_new(rootJ, "attach", json_real(attach));
@@ -448,11 +445,6 @@ struct PhraseSeq16 : Module {
 					phrase[i] = json_integer_value(phraseArrayJ);
 			}
 			
-		// sequenceKnob
-		json_t *sequenceKnobJ = json_object_get(rootJ, "sequenceKnob");
-		if (sequenceKnobJ)
-			sequenceKnob = json_integer_value(sequenceKnobJ);
-		
 		// attach
 		json_t *attachJ = json_object_get(rootJ, "attach");
 		if (attachJ)
@@ -675,6 +667,8 @@ struct PhraseSeq16 : Module {
 		
 		// Sequence knob  
 		int newSequenceKnob = (int)roundf(params[SEQUENCE_PARAM].value*7.0f);
+		if (sequenceKnob == INT_MAX)
+			sequenceKnob = newSequenceKnob;
 		int deltaKnob = newSequenceKnob - sequenceKnob;
 		if (deltaKnob != 0) {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
