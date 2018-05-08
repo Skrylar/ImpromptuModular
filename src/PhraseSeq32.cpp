@@ -905,30 +905,42 @@ struct PhraseSeq32 : Module {
 		}
 		
 		// Step/phrase lights
-		for (int i = 0; i < 32; i++) {
-			if (displayState == DISP_LENGTH) {
-				// Length (green)
-				if (editingSequence)
-					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < steps) ? 0.5f : 0.0f);
+		if (infoCopyPaste != 0l) {
+			for (int i = 0; i < 32; i++) {
+				if ( (i >= stepIndexEdit && i < (stepIndexEdit + countCP)) || 
+				     i < ((stepIndexEdit + countCP) - 32) || (countCP == 32)  )
+					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.5f;// Green when copy interval
 				else
-					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
-				// Nothing (red)
-				lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = 0.0f;
+					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.0f; // Green (nothing)
+				lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = 0.0f;// Red (nothing)
 			}
-			else {
-				// Run cursor (green)
-				if (editingSequence)
-					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == stepIndexRun)) ? 1.0f : 0.0f);
-				else {
-					float green = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
-					green += ((running && (i == stepIndexPhraseRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
-					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = clamp(green, 0.0f, 1.0f);
+		}
+		else {
+			for (int i = 0; i < 32; i++) {
+				if (displayState == DISP_LENGTH) {
+					// Length (green)
+					if (editingSequence)
+						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < steps) ? 0.5f : 0.0f);
+					else
+						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
+					// Nothing (red)
+					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = 0.0f;
 				}
-				// Edit cursor (red)
-				if (editingSequence)
-					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexEdit ? 1.0f : 0.0f);
-				else
-					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == phraseIndexEdit ? 1.0f : 0.0f);
+				else {
+					// Run cursor (green)
+					if (editingSequence)
+						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == stepIndexRun)) ? 1.0f : 0.0f);
+					else {
+						float green = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
+						green += ((running && (i == stepIndexPhraseRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
+						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = clamp(green, 0.0f, 1.0f);
+					}
+					// Edit cursor (red)
+					if (editingSequence)
+						lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexEdit ? 1.0f : 0.0f);
+					else
+						lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == phraseIndexEdit ? 1.0f : 0.0f);
+				}
 			}
 		}
 	

@@ -329,10 +329,11 @@ struct GateSeq64 : Module {
 			stepConfig = 4;
 		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
 			stepConfig = 2;
-		// Config: set lengths to their max when move switch
-		if (configTrigger.process(params[CONFIG_PARAM].value*10.0f - 10.0f) || 
+		// Config: set lengths to their max when move switch, and set switches same when linked
+		bool configTrigged = configTrigger.process(params[CONFIG_PARAM].value*10.0f - 10.0f) || 
 			configTrigger2.process(params[CONFIG_PARAM].value*10.0f) ||
-			configTrigger3.process(params[CONFIG_PARAM].value*-5.0f + 10.0f)) {
+			configTrigger3.process(params[CONFIG_PARAM].value*-5.0f + 10.0f);
+		if (configTrigged) {
 			for (int i = 0; i < 4; i += stepConfig)
 				length[i] = 16 * stepConfig;
 		}
@@ -344,7 +345,7 @@ struct GateSeq64 : Module {
 			if (runTrig[i])
 				displayState = DISP_GATE;
 		}
-		runTrig[4] = linkedTrigger.process(params[LINKED_PARAM].value);
+		runTrig[4] = linkedTrigger.process(params[LINKED_PARAM].value) || configTrigged;
 		if (params[LINKED_PARAM].value > 0.5f) {// Linked run states
 			if (stepConfig >= 2) {// 2x32
 				runTrig[1] = false;
@@ -419,7 +420,7 @@ struct GateSeq64 : Module {
 		}
 		
 		// Prob knob
-		int newProbKnob = (int)roundf(params[PROB_KNOB_PARAM].value*10.0f);
+		int newProbKnob = (int)roundf(params[PROB_KNOB_PARAM].value*14.0f);
 		if (probKnob == INT_MAX)
 			probKnob = newProbKnob;
 		if (newProbKnob != probKnob) {
@@ -683,12 +684,6 @@ struct GateSeq64 : Module {
 		// Run lights
 		for (int i = 0; i < 4; i++)
 			lights[RUN_LIGHTS + i].value = running[i] ? 1.0f : 0.0f;
-		
-		// ClockIn and GateOut tiny lights
-		/*for (int i = 0; i < 4; i++) {
-			lights[CLOCKIN_LIGHTS + i].value = ((i % stepConfig) == 0 ? 1.0f : 0.0f);
-			lights[GATEOUT_LIGHTS + 3 - i].value = ((i % stepConfig) == 0 ? 1.0f : 0.0f);
-		}*/
 		
 		if (feedbackCP > 0l)			
 			feedbackCP--;	
