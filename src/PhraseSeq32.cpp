@@ -495,7 +495,7 @@ struct PhraseSeq32 : Module {
 		
 		// Seq and Mode CV inputs
 		if (inputs[SEQCV_INPUT].active) {
-			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * 15.0f / 10.0f), 0.0f, 15.0f );
+			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (32.0f - 1.0f) / 10.0f), 0.0f, (32.0f - 1.0f) );
 		}
 		
 		// Run button
@@ -710,13 +710,13 @@ struct PhraseSeq32 : Module {
 						if (!inputs[SEQCV_INPUT].active) {
 							sequence += deltaKnob;
 							if (sequence < 0) sequence = 0;
-							if (sequence > 15) sequence = 15;
+							if (sequence >= 32) sequence = (32 - 1);
 						}
 					}
 					else {
 						phrase[phraseIndexEdit] += deltaKnob;
 						if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
-						if (phrase[phraseIndexEdit] > 15) phrase[phraseIndexEdit] = 15;				
+						if (phrase[phraseIndexEdit] >= 32) phrase[phraseIndexEdit] = (32 - 1);				
 					}
 				}
 			}
