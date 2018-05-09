@@ -248,7 +248,7 @@ struct PhraseSeq32 : Module {
 		json_t *cvJ = json_array();
 		for (int i = 0; i < 32; i++)
 			for (int s = 0; s < 32; s++) {
-				json_array_insert_new(cvJ, s + (i<<5), json_real(cv[i][s]));
+				json_array_insert_new(cvJ, s + (i * 32), json_real(cv[i][s]));
 			}
 		json_object_set_new(rootJ, "cv", cvJ);
 
@@ -256,7 +256,7 @@ struct PhraseSeq32 : Module {
 		json_t *attributesJ = json_array();
 		for (int i = 0; i < 32; i++)
 			for (int s = 0; s < 32; s++) {
-				json_array_insert_new(attributesJ, s + (i<<5), json_integer(attributes[i][s]));
+				json_array_insert_new(attributesJ, s + (i * 32), json_integer(attributes[i][s]));
 			}
 		json_object_set_new(rootJ, "attributes", attributesJ);
 
@@ -308,7 +308,7 @@ struct PhraseSeq32 : Module {
 		if (cvJ) {
 			for (int i = 0; i < 32; i++)
 				for (int s = 0; s < 32; s++) {
-					json_t *cvArrayJ = json_array_get(cvJ, s + (i<<5));
+					json_t *cvArrayJ = json_array_get(cvJ, s + (i * 32));
 					if (cvArrayJ)
 						cv[i][s] = json_real_value(cvArrayJ);
 				}
@@ -319,7 +319,7 @@ struct PhraseSeq32 : Module {
 		if (attributesJ) {
 			for (int i = 0; i < 32; i++)
 				for (int s = 0; s < 32; s++) {
-					json_t *attributesArrayJ = json_array_get(attributesJ, s + (i<<5));
+					json_t *attributesArrayJ = json_array_get(attributesJ, s + (i * 32));
 					if (attributesArrayJ)
 						attributes[i][s] = json_integer_value(attributesArrayJ);
 				}
@@ -421,17 +421,17 @@ struct PhraseSeq32 : Module {
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
 			if (editingSequence) {
 				infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
-				//CPinfo must be set to 0 for copy/paste all, and 0x1ii for copy/paste 8 at pos ii, 0x2ii for copy/paste 16 at 0xii
+				//CPinfo must be set to 0 for copy/paste all, and 0x1ii for copy/paste 4 at pos ii, 0x2ii for copy/paste 8 at 0xii
 				int sStart = stepIndexEdit;
 				int sCount = 32;
 				if (params[CPMODE_PARAM].value > 1.5f)// all
 					sStart = 0;
-				else if (params[CPMODE_PARAM].value < 0.5f)// 8
+				else if (params[CPMODE_PARAM].value < 0.5f)// 4
+					sCount = 4;
+				else// 8
 					sCount = 8;
-				else// 16
-					sCount = 16;
 				countCP = sCount;
-				for (int i = 0, s = sStart; i < countCP; i++, s++) {// TODO may copy less than 8 or 16 if start too far
+				for (int i = 0, s = sStart; i < countCP; i++, s++) {
 					if (s >= 32) s = 0;
 					cvCPbuffer[i] = cv[sequence][s];
 					attributesCPbuffer[i] = attributes[sequence][s];

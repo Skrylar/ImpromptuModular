@@ -286,7 +286,7 @@ struct PhraseSeq16 : Module {
 		json_t *cvJ = json_array();
 		for (int i = 0; i < 16; i++)
 			for (int s = 0; s < 16; s++) {
-				json_array_insert_new(cvJ, s + (i<<4), json_real(cv[i][s]));
+				json_array_insert_new(cvJ, s + (i * 16), json_real(cv[i][s]));
 			}
 		json_object_set_new(rootJ, "cv", cvJ);
 
@@ -294,7 +294,7 @@ struct PhraseSeq16 : Module {
 		json_t *gate1J = json_array();
 		for (int i = 0; i < 16; i++)
 			for (int s = 0; s < 16; s++) {
-				json_array_insert_new(gate1J, s + (i<<4), json_integer((int) gate1[i][s]));
+				json_array_insert_new(gate1J, s + (i * 16), json_integer((int) gate1[i][s]));
 			}
 		json_object_set_new(rootJ, "gate1", gate1J);
 
@@ -302,7 +302,7 @@ struct PhraseSeq16 : Module {
 		json_t *gate1ProbJ = json_array();
 		for (int i = 0; i < 16; i++)
 			for (int s = 0; s < 16; s++) {
-				json_array_insert_new(gate1ProbJ, s + (i<<4), json_integer((int) gate1Prob[i][s]));
+				json_array_insert_new(gate1ProbJ, s + (i * 16), json_integer((int) gate1Prob[i][s]));
 			}
 		json_object_set_new(rootJ, "gate1Prob", gate1ProbJ);
 
@@ -310,7 +310,7 @@ struct PhraseSeq16 : Module {
 		json_t *gate2J = json_array();
 		for (int i = 0; i < 16; i++)
 			for (int s = 0; s < 16; s++) {
-				json_array_insert_new(gate2J, s + (i<<4), json_integer((int) gate2[i][s]));
+				json_array_insert_new(gate2J, s + (i * 16), json_integer((int) gate2[i][s]));
 			}
 		json_object_set_new(rootJ, "gate2", gate2J);
 
@@ -318,7 +318,7 @@ struct PhraseSeq16 : Module {
 		json_t *slideJ = json_array();
 		for (int i = 0; i < 16; i++)
 			for (int s = 0; s < 16; s++) {
-				json_array_insert_new(slideJ, s + (i<<4), json_integer((int) slide[i][s]));
+				json_array_insert_new(slideJ, s + (i * 16), json_integer((int) slide[i][s]));
 			}
 		json_object_set_new(rootJ, "slide", slideJ);
 
@@ -326,7 +326,7 @@ struct PhraseSeq16 : Module {
 		json_t *tiedJ = json_array();
 		for (int i = 0; i < 16; i++)
 			for (int s = 0; s < 16; s++) {
-				json_array_insert_new(tiedJ, s + (i<<4), json_integer((int) tied[i][s]));
+				json_array_insert_new(tiedJ, s + (i * 16), json_integer((int) tied[i][s]));
 			}
 		json_object_set_new(rootJ, "tied", tiedJ);
 
@@ -378,7 +378,7 @@ struct PhraseSeq16 : Module {
 		if (cvJ) {
 			for (int i = 0; i < 16; i++)
 				for (int s = 0; s < 16; s++) {
-					json_t *cvArrayJ = json_array_get(cvJ, s + (i<<4));
+					json_t *cvArrayJ = json_array_get(cvJ, s + (i * 16));
 					if (cvArrayJ)
 						cv[i][s] = json_real_value(cvArrayJ);
 				}
@@ -389,7 +389,7 @@ struct PhraseSeq16 : Module {
 		if (gate1J) {
 			for (int i = 0; i < 16; i++)
 				for (int s = 0; s < 16; s++) {
-					json_t *gate1arrayJ = json_array_get(gate1J, s + (i<<4));
+					json_t *gate1arrayJ = json_array_get(gate1J, s + (i * 16));
 					if (gate1arrayJ)
 						gate1[i][s] = !!json_integer_value(gate1arrayJ);
 				}
@@ -400,7 +400,7 @@ struct PhraseSeq16 : Module {
 		if (gate1ProbJ) {
 			for (int i = 0; i < 16; i++)
 				for (int s = 0; s < 16; s++) {
-					json_t *gate1ProbarrayJ = json_array_get(gate1ProbJ, s + (i<<4));
+					json_t *gate1ProbarrayJ = json_array_get(gate1ProbJ, s + (i * 16));
 					if (gate1ProbarrayJ)
 						gate1Prob[i][s] = !!json_integer_value(gate1ProbarrayJ);
 				}
@@ -411,7 +411,7 @@ struct PhraseSeq16 : Module {
 		if (gate2J) {
 			for (int i = 0; i < 16; i++)
 				for (int s = 0; s < 16; s++) {
-					json_t *gate2arrayJ = json_array_get(gate2J, s + (i<<4));
+					json_t *gate2arrayJ = json_array_get(gate2J, s + (i * 16));
 					if (gate2arrayJ)
 						gate2[i][s] = !!json_integer_value(gate2arrayJ);
 				}
@@ -422,7 +422,7 @@ struct PhraseSeq16 : Module {
 		if (slideJ) {
 			for (int i = 0; i < 16; i++)
 				for (int s = 0; s < 16; s++) {
-					json_t *slideArrayJ = json_array_get(slideJ, s + (i<<4));
+					json_t *slideArrayJ = json_array_get(slideJ, s + (i * 16));
 					if (slideArrayJ)
 						slide[i][s] = !!json_integer_value(slideArrayJ);
 				}
@@ -433,7 +433,7 @@ struct PhraseSeq16 : Module {
 		if (tiedJ) {
 			for (int i = 0; i < 16; i++)
 				for (int s = 0; s < 16; s++) {
-					json_t *tiedArrayJ = json_array_get(tiedJ, s + (i<<4));
+					json_t *tiedArrayJ = json_array_get(tiedJ, s + (i * 16));
 					if (tiedArrayJ)
 						tied[i][s] = !!json_integer_value(tiedArrayJ);
 				}
@@ -561,7 +561,7 @@ struct PhraseSeq16 : Module {
 				else// 8
 					sCount = 8;
 				countCP = sCount;
-				for (int i = 0, s = sStart; i < countCP; i++, s++) {// TODO may copy less than 4 or 8 if start too far
+				for (int i = 0, s = sStart; i < countCP; i++, s++) {
 					if (s >= 16) s = 0;
 					cvCPbuffer[i] = cv[sequence][s];
 					gate1CPbuffer[i] = gate1[sequence][s];

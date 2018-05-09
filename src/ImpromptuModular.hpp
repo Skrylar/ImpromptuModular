@@ -78,7 +78,7 @@ struct Davies1900hBlackSnapKnob : Davies1900hBlackKnob {
 	}
 };
 
-struct Davies1900hBlackKnobNoTick : Davies1900hKnob {
+struct Davies1900hBlackKnobNoTick : Davies1900hKnob {// use for infinite rotary only
 	Davies1900hBlackKnobNoTick() {
 		setSVG(SVG::load(assetPlugin(plugin, "res/Davies1900hBlackNoTick.svg")));
 		speed = 0.9f;
@@ -86,6 +86,7 @@ struct Davies1900hBlackKnobNoTick : Davies1900hKnob {
 		shadow->blurRadius = 10.0;
 		shadow->opacity = 0.8;
 	}
+	void randomize() override {}
 };
 
 struct RoundSmallBlackKnobB : RoundKnob {
