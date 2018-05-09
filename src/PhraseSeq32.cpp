@@ -203,6 +203,8 @@ struct PhraseSeq32 : Module {
 			for (int s = 0; s < 32; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 				attributes[i][s] = randomu32() % 32;// 32 because 5 attributes
+				if ((attributes[i][s] & ATT_MSK_TIED) != 0)
+					attributes[i][s] = ATT_MSK_TIED;// clear other attributes if tied
 			}
 			phrase[i] = randomu32() % 32;
 			cvCPbuffer[i] = 0.0f;

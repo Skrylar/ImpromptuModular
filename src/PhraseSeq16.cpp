@@ -49,6 +49,7 @@ struct PhraseSeq16 : Module {
 		GATE1_PROB_PARAM,
 		TIE_PARAM,// Legato
 		// -- 0.6.3 ^^
+		CPMODE_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -136,6 +137,7 @@ struct PhraseSeq16 : Module {
 	bool gate2CPbuffer[16];// copy paste buffer for gate2
 	bool slideCPbuffer[16];// copy paste buffer for slide
 	bool tiedCPbuffer[16];// copy paste buffer for slide
+	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
 	bool gate1RandomEnable; 
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
 	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
@@ -232,11 +234,11 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 16; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
-				gate1[i][s] = (randomUniform() > 0.5f);
-				gate1Prob[i][s] = (randomUniform() > 0.5f);
-				gate2[i][s] = (randomUniform() > 0.5f);
-				slide[i][s] = (randomUniform() > 0.5f);
 				tied[i][s] = (randomUniform() > 0.5f);
+				gate1[i][s] = tied[i][s] ? false : (randomUniform() > 0.5f);
+				gate1Prob[i][s] = tied[i][s] ? false : (randomUniform() > 0.5f);
+				gate2[i][s] = tied[i][s] ? false : (randomUniform() > 0.5f);
+				slide[i][s] = tied[i][s] ? false : (randomUniform() > 0.5f);
 			}
 			phrase[i] = randomu32() % 16;
 			cvCPbuffer[i] = 0.0f;
@@ -549,13 +551,26 @@ struct PhraseSeq16 : Module {
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
 			if (editingSequence) {
 				infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
-				for (int s = 0; s < 16; s++) {
-					cvCPbuffer[s] = cv[sequence][s];
-					gate1CPbuffer[s] = gate1[sequence][s];
-					gate1ProbCPbuffer[s] = gate1Prob[sequence][s];
-					gate2CPbuffer[s] = gate2[sequence][s];
-					slideCPbuffer[s] = slide[sequence][s];
-					tiedCPbuffer[s] = tied[sequence][s];
+				//CPinfo must be set to 0 for copy/paste all, and 0x1ii for copy/paste 4 at pos ii, 0x2ii for copy/paste 8 at 0xii
+				int sStart = stepIndexEdit;
+				int sCount = 16;
+				if (params[CPMODE_PARAM].value > 1.5f)// all
+					sStart = 0;
+				else if (params[CPMODE_PARAM].value < 0.5f)// 4
+					sCount = 4;
+				else// 8
+					sCount = 8;
+				countCP = sCount;
+				for (int i = 0, s = sStart; i < countCP; i++, s++) {// TODO may copy less than 4 or 8 if start too far
+					if (s >= 16) s = 0;
+					cvCPbuffer[i] = cv[sequence][s];
+					gate1CPbuffer[i] = gate1[sequence][s];
+					gate1ProbCPbuffer[i] = gate1Prob[sequence][s];
+					gate2CPbuffer[i] = gate2[sequence][s];
+					slideCPbuffer[i] = slide[sequence][s];
+					tiedCPbuffer[i] = tied[sequence][s];
+					if ((--sCount) <= 0)
+						break;
 				}
 			}
 			displayState = DISP_NORMAL;
@@ -564,14 +579,19 @@ struct PhraseSeq16 : Module {
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 			if (editingSequence) {
 				infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
-				for (int s = 0; s < 16; s++) {
-					cv[sequence][s] = cvCPbuffer[s];
-					gate1[sequence][s] = gate1CPbuffer[s];
-					gate1Prob[sequence][s] = gate1ProbCPbuffer[s];
-					gate2[sequence][s] = gate2CPbuffer[s];
-					slide[sequence][s] = slideCPbuffer[s];
-					tied[sequence][s] = tiedCPbuffer[s];
-				}
+				int sStart = ((countCP == 16) ? 0 : stepIndexEdit);
+				int sCount = countCP;
+				for (int i = 0, s = sStart; i < countCP; i++, s++) {
+					if (s >= 16) s = 0;
+					cv[sequence][s] = cvCPbuffer[i];
+					gate1[sequence][s] = gate1CPbuffer[i];
+					gate1Prob[sequence][s] = gate1ProbCPbuffer[i];
+					gate2[sequence][s] = gate2CPbuffer[i];
+					slide[sequence][s] = slideCPbuffer[i];
+					tied[sequence][s] = tiedCPbuffer[i];
+					if ((--sCount) <= 0)
+						break;
+				}	
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -915,30 +935,42 @@ struct PhraseSeq16 : Module {
 		}
 		
 		// Step/phrase lights
-		for (int i = 0; i < 16; i++) {
-			if (editingLength > 0ul) {
-				// Length (green)
-				if (editingSequence)
-					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < steps) ? 0.5f : 0.0f);
+		if (infoCopyPaste != 0l) {
+			for (int i = 0; i < 16; i++) {
+				if ( (i >= stepIndexEdit && i < (stepIndexEdit + countCP)) || 
+				     i < ((stepIndexEdit + countCP) - 16) || (countCP == 16)  )
+					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.5f;// Green when copy interval
 				else
-					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
-				// Nothing (red)
-				lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = 0.0f;
+					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.0f; // Green (nothing)
+				lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = 0.0f;// Red (nothing)
 			}
-			else {
-				// Run cursor (green)
-				if (editingSequence)
-					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == stepIndexRun)) ? 1.0f : 0.0f);
-				else {
-					float green = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
-					green += ((running && (i == stepIndexPhraseRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
-					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = clamp(green, 0.0f, 1.0f);
+		}
+		else {
+			for (int i = 0; i < 16; i++) {
+				if (editingLength > 0ul) {
+					// Length (green)
+					if (editingSequence)
+						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < steps) ? 0.5f : 0.0f);
+					else
+						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
+					// Nothing (red)
+					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = 0.0f;
 				}
-				// Edit cursor (red)
-				if (editingSequence)
-					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexEdit ? 1.0f : 0.0f);
-				else
-					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == phraseIndexEdit ? 1.0f : 0.0f);
+				else {
+					// Run cursor (green)
+					if (editingSequence)
+						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == stepIndexRun)) ? 1.0f : 0.0f);
+					else {
+						float green = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
+						green += ((running && (i == stepIndexPhraseRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
+						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = clamp(green, 0.0f, 1.0f);
+					}
+					// Edit cursor (red)
+					if (editingSequence)
+						lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexEdit ? 1.0f : 0.0f);
+					else
+						lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == phraseIndexEdit ? 1.0f : 0.0f);
+				}
 			}
 		}
 	
@@ -1230,9 +1262,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 		// Copy/paste buttons
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 - 10, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq16::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 + 20, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq16::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
-		// Reset LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK2 + offsetLEDbezel, rowRulerMK2 + 5 + offsetLEDbezel), module, PhraseSeq16::RESET_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK2 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK2 + 5 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq16::RESET_LIGHT));
+		// Copy-paste mode switch (3 position)
+		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRulerMK2 - 3 + hOffsetCKSS + 1, rowRulerMK2 - 1 + vOffsetCKSSThree), module, PhraseSeq16::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));	// 0.0f is top position
 
 		
 		
@@ -1287,7 +1318,10 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int columnRulerB6 = columnRulerB7 - outputJackSpacingX;
 		static const int columnRulerB5 = columnRulerB6 - outputJackSpacingX;
 
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerMB0, rowRulerB1), Port::INPUT, module, PhraseSeq16::SEQCV_INPUT));
+		// Reset LED bezel and light
+		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMB0 + offsetLEDbezel, rowRulerB1 + 1 + offsetLEDbezel), module, PhraseSeq16::RESET_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMB0 + offsetLEDbezel + offsetLEDbezelLight, rowRulerB1 + 1 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq16::RESET_LIGHT));
+		// Autostep and penultimate row jacks
 		addParam(ParamWidget::create<CKSS>(Vec(columnRulerB4 + hOffsetCKSS, rowRulerB1 + vOffsetCKSS), module, PhraseSeq16::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, PhraseSeq16::CV_INPUT));
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, PhraseSeq16::RESET_INPUT));
@@ -1299,7 +1333,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 
 	
 		// CV control Inputs 
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq16::MODECV_INPUT));
+		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq16::SEQCV_INPUT));
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, PhraseSeq16::LEFTCV_INPUT));
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, PhraseSeq16::RIGHTCV_INPUT));
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq16::RUNCV_INPUT));
@@ -1317,6 +1351,7 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 /*CHANGE LOG
 
 0.6.4:
+removed mode CV input, moved reset button, added paste 4/8/ALL option
 merged functionalities of transpose and rotate into one knob
 implemented tied notes state bit for each step, and added light to tied steps
 implemented 0-T slide as opposed to 0-2s slide, where T is clock period

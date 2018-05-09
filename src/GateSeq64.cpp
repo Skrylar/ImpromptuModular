@@ -55,8 +55,6 @@ struct GateSeq64 : Module {
 		P_LIGHT,
 		MODES_LIGHT,
 		ENUMS(RUN_LIGHTS, 4),
-		//ENUMS(CLOCKIN_LIGHTS, 4),
-		//ENUMS(GATEOUT_LIGHTS, 4),
 		RESET_LIGHT,
 		NUM_LIGHTS
 	};
@@ -792,13 +790,11 @@ struct GateSeq64Widget : ModuleWidget {
 		static const int colRuler0 = 20;
 		static const int colRuler6 = 406;
 		static const int rowSpacingSides = 40;
-		//static int offsetTinyLight = 22;
 		
 		// Clock inputs
 		int iSides = 0;
 		for (; iSides < 4; iSides++) {
 			addInput(Port::create<PJ301MPortS>(Vec(colRuler0, rowRuler0 + iSides * rowSpacingSides), Port::INPUT, module, GateSeq64::CLOCK_INPUTS + iSides));
-			//addChild(ModuleLightWidget::create<TinyLight<GreenLight>>(Vec(colRuler0 + offsetTinyLight, rowRuler0 + iSides * rowSpacingSides), module, GateSeq64::CLOCKIN_LIGHTS + iSides));
 		}
 		// Run CVs
 		for (; iSides < 8; iSides++) {
@@ -807,15 +803,14 @@ struct GateSeq64Widget : ModuleWidget {
 		}
 		// Run LED bezel and light, four times
 		for (iSides = 4; iSides < 8; iSides++) {
-			addParam(ParamWidget::create<LEDBezel>(Vec(colRuler0 + 38 + offsetLEDbezel, rowRuler0 + 5 + iSides * rowSpacingSides + offsetLEDbezel), module, GateSeq64::RUN_PARAMS + iSides - 4, 0.0f, 1.0f, 0.0f));
-			addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRuler0 + 38 + offsetLEDbezel + offsetLEDbezelLight, rowRuler0 + 5 + iSides * rowSpacingSides + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RUN_LIGHTS + iSides - 4));
+			addParam(ParamWidget::create<LEDBezel>(Vec(colRuler0 + 43 + offsetLEDbezel, rowRuler0 + 5 + iSides * rowSpacingSides + offsetLEDbezel), module, GateSeq64::RUN_PARAMS + iSides - 4, 0.0f, 1.0f, 0.0f));
+			addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRuler0 + 43 + offsetLEDbezel + offsetLEDbezelLight, rowRuler0 + 5 + iSides * rowSpacingSides + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RUN_LIGHTS + iSides - 4));
 		}
 
 		// Outputs
 		iSides = 0;
 		for (; iSides < 4; iSides++) {
 			addOutput(Port::create<PJ301MPortS>(Vec(colRuler6, rowRuler0 + iSides * rowSpacingSides), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides));
-			//addChild(ModuleLightWidget::create<TinyLight<GreenLight>>(Vec(colRuler6 + offsetTinyLight, rowRuler0 + iSides * rowSpacingSides), module, GateSeq64::GATEOUT_LIGHTS + iSides));
 		}
 		
 		
