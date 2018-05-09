@@ -199,6 +199,7 @@ struct PhraseSeq16 : Module {
 			phrase[i] = 0;
 			cvCPbuffer[i] = 0.0f;
 			gate1CPbuffer[i] = true;
+			gate1ProbCPbuffer[i] = false;
 			gate2CPbuffer[i] = true;
 			slideCPbuffer[i] = false;
 			tiedCPbuffer[i] = false;
@@ -240,6 +241,7 @@ struct PhraseSeq16 : Module {
 			phrase[i] = randomu32() % 16;
 			cvCPbuffer[i] = 0.0f;
 			gate1CPbuffer[i] = true;
+			gate1ProbCPbuffer[i] = false;
 			gate2CPbuffer[i] = true;
 			slideCPbuffer[i] = false;
 			tiedCPbuffer[i] = false;
@@ -963,19 +965,12 @@ struct PhraseSeq16 : Module {
 		}			
 		
 		// Gate1, Gate1Prob, Gate2, Slide and Tied lights
-		bool gate1Val = true;
-		bool gate1ProbVal = true;
-		bool gate2Val = true;
-		bool slideVal = true;
-		bool tiedVal = true;
-		if (editingSequence) {
-			gate1Val = gate1[sequence][stepIndexEdit];
-			gate1ProbVal = gate1Prob[sequence][stepIndexEdit];
-			gate2Val = gate2[sequence][stepIndexEdit];
-			slideVal = slide[sequence][stepIndexEdit];
-			tiedVal = tied[sequence][stepIndexEdit];
-		}
-		else {
+		bool gate1Val = gate1[sequence][stepIndexEdit];
+		bool gate1ProbVal = gate1Prob[sequence][stepIndexEdit];
+		bool gate2Val = gate2[sequence][stepIndexEdit];
+		bool slideVal = slide[sequence][stepIndexEdit];
+		bool tiedVal = tied[sequence][stepIndexEdit];
+		if (!editingSequence) {
 			gate1Val = gate1[phrase[phraseIndexEdit]][stepIndexPhraseRun];
 			gate1ProbVal = gate1Prob[phrase[phraseIndexEdit]][stepIndexPhraseRun];
 			gate2Val = gate2[phrase[phraseIndexEdit]][stepIndexPhraseRun];
