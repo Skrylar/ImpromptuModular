@@ -51,6 +51,7 @@ struct BlankPanelWidget : ModuleWidget {
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 365)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 365)));
+		
 	}
 };
 

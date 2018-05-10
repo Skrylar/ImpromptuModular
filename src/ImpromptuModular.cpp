@@ -28,19 +28,41 @@ void init(rack::Plugin *p) {
 }
 
 
-SVGScrewRot::SVGScrewRot() {
-	tw = new TransformWidget();
-	addChild(tw);
-	sw = new SVGWidget();
-	tw->addChild(sw);
+ScrewCircle::ScrewCircle(float _angle) {
+	static const float highRadius = 1.4f;// radius for 0 degrees (screw looks like a +_
+	static const float lowRadius = 1.2f;// radius for 45 degrees (screw looks like an x)
+	angle = _angle;
+	_angle = fabs(angle - M_PI/4.0f);
+	radius = ((highRadius - lowRadius)/(M_PI/4.0f)) * _angle + lowRadius;
 }
+void ScrewCircle::draw(NVGcontext *vg) {
+	NVGcolor backgroundColor = nvgRGB(0x72, 0x72, 0x72); 
+	NVGcolor borderColor = nvgRGB(0x72, 0x72, 0x72);
+	nvgBeginPath(vg);
+	nvgCircle(vg, box.size.x/2.0f, box.size.y/2.0f, radius);// box, radius
+	nvgFillColor(vg, backgroundColor);
+	nvgFill(vg);
+	nvgStrokeWidth(vg, 1.0);
+	nvgStrokeColor(vg, borderColor);
+	nvgStroke(vg);		
+}
+
 ScrewSilverRandomRot::ScrewSilverRandomRot() {
 	float angle0_90 = randomUniform()*M_PI/2.0f;
-	if ( angle0_90 > M_PI/6.0f && angle0_90 < 2.0f*M_PI/6.0f )
-		sw->setSVG(SVG::load(assetPlugin(plugin, "res/Screw45.svg")));
-	else
-		sw->setSVG(SVG::load(assetPlugin(plugin, "res/Screw0.svg")));
-	//sw->setSVG(SVG::load(assetGlobal("res/ComponentLibrary/ScrewSilver.svg")));
+	//float angle0_90 = randomUniform() > 0.5f ? M_PI/4.0f : 0.0f;// for testing
+	
+	tw = new TransformWidget();
+	addChild(tw);
+	
+	sw = new SVGWidget();
+	tw->addChild(sw);
+	//sw->setSVG(SVG::load(assetPlugin(plugin, "res/Screw0.svg")));
+	sw->setSVG(SVG::load(assetGlobal("res/ComponentLibrary/ScrewSilver.svg")));
+	
+	sc = new ScrewCircle(angle0_90);
+	sc->box.size = sw->box.size;
+	tw->addChild(sc);
+	
 	box.size = sw->box.size;
 	tw->box.size = sw->box.size; 
 	tw->identity();
@@ -48,7 +70,7 @@ ScrewSilverRandomRot::ScrewSilverRandomRot() {
 	Vec center = sw->box.getCenter();
 	tw->translate(center);
 	tw->rotate(angle0_90);
-	tw->translate(center.neg());
+	tw->translate(center.neg());	
 }
 
 
