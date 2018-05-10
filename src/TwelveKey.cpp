@@ -38,7 +38,7 @@ struct TwelveKey : Module {
 		NUM_OUTPUTS
 	};
 	enum LightIds {
-		//PRESS_LIGHT,
+		PRESS_LIGHT,// no longer used
 		ENUMS(KEY_LIGHTS, 12),
 		NUM_LIGHTS
 	};
@@ -116,7 +116,7 @@ struct TwelveKey : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
-		static const float noteLightTime = 1.0f;// seconds
+		static const float noteLightTime = 0.5f;// seconds
 
 		
 		//********** Buttons, knobs, switches and inputs **********
@@ -175,7 +175,7 @@ struct TwelveKey : Module {
 		
 		// Key lights
 		for (int i = 0; i < 12; i++)
-			lights[KEY_LIGHTS + i].value = (( i == lastKeyPressed && noteLightCounter > 0ul) ? 1.0f : 0.0f);
+			lights[KEY_LIGHTS + i].value = (( i == lastKeyPressed && (noteLightCounter > 0ul || params[KEY_PARAMS + i].value > 0.5f)) ? 1.0f : 0.0f);
 		
 		if (noteLightCounter > 0ul)
 			noteLightCounter--;
