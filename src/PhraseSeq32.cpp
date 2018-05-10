@@ -41,6 +41,7 @@ struct PhraseSeq32 : Module {
 		GATE1_PROB_PARAM,
 		TIE_PARAM,// Legato
 		CPMODE_PARAM,
+		ENUMS(STEP_PHRASE_PARAMS, 32),
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -148,6 +149,7 @@ struct PhraseSeq32 : Module {
 	SchmittTrigger editTrigger;
 	SchmittTrigger editTriggerInv;
 	SchmittTrigger tiedTrigger;
+	SchmittTrigger stepTriggers[32];
 	
 		
 	PhraseSeq32() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -171,7 +173,7 @@ struct PhraseSeq32 : Module {
 				attributes[i][s] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
 			}
 			phrase[i] = 0;
-			lengths[i] = 16;
+			lengths[i] = 32;
 			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
 		}
@@ -489,8 +491,52 @@ struct PhraseSeq32 : Module {
 			}
 			displayState = DISP_NORMAL;
 		}
+		
+		// Step button presses
+		int stepPressed = -1;
+		for (int i = 0; i < 32; i++) {
+			if (stepTriggers[i].process(params[STEP_PHRASE_PARAMS + i].value))
+				stepPressed = i;
+		}
+		if (stepPressed != -1) {
+			if (displayState == DISP_LENGTH) {
+				if (editingSequence) {
+					lengths[sequence] = stepPressed + 1;
+					if (lengths[sequence] > 32) lengths[sequence] = 32;
+					if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+					if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = lengths[sequence] - 1;
+				}
+				else {
+					phrases = stepPressed + 1;
+					if (phrases > 32) phrases = 32;
+					if (phrases < 1 ) phrases = 1;
+					if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
+				}
+			}
+			else {
+				if (!running || attach < 0.5f) {// don't move heads when attach and running
+					if (editingSequence) {
+						stepIndexEdit = stepPressed;
+						if (stepIndexEdit >= lengths[sequence])
+							stepIndexEdit = lengths[sequence] - 1;
+						if ((attributes[sequence][stepIndexEdit] & ATT_MSK_TIED) == 0) {// play if non-tied step
+							if (!writeTrig)
+								editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
+							editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+						}
+					}
+					else {
+						phraseIndexEdit = stepPressed;
+						if (phraseIndexEdit >= phrases)
+							phraseIndexEdit = phrases - 1;
+					}
+				}
+				displayState = DISP_NORMAL;
+			}
+		} 
+		
 		// Left and Right buttons
-		int delta = 0;
+		/*int delta = 0;
 		if (leftTrigger.process(inputs[LEFTCV_INPUT].value + params[LEFT_PARAM].value)) { 
 			delta = -1;
 			displayState = DISP_NORMAL;
@@ -516,7 +562,7 @@ struct PhraseSeq32 : Module {
 				else
 					phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, phrases);
 			}
-		}
+		}*/
 		
 		// Mode/Length and Transpose/Rotate buttons
 		if (modeTrigger.process(params[RUNMODE_PARAM].value)) {
@@ -1033,21 +1079,24 @@ struct PhraseSeq32Widget : ModuleWidget {
 		// ****** Top row ******
 		
 		static const int rowRulerT0 = 48;
-		static const int columnRulerT0 = 15;// Length button
-		static const int columnRulerT1 = columnRulerT0 + 47;// Left/Right buttons
-		static const int columnRulerT2 = columnRulerT1 + 75;// Step/Phase lights
-		static const int columnRulerT3 = columnRulerT2 + 263;// Attach (also used to align rest of right side of module)
+		static const int columnRulerT0 = 40;// Step/Phase LED buttons
+		static const int columnRulerT3 = 400;// Attach (also used to align rest of right side of module)
 
-		// Move right 8 steps button
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerT0 + offsetCKD6b, rowRulerT0 + offsetCKD6b), module, PhraseSeq32::RIGHT8_PARAM, 0.0f, 1.0f, 0.0f));
-		// Left/Right buttons
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerT1 + offsetCKD6b, rowRulerT0 + offsetCKD6b), module, PhraseSeq32::LEFT_PARAM, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerT1 + 38 + offsetCKD6b, rowRulerT0 + offsetCKD6b), module, PhraseSeq32::RIGHT_PARAM, 0.0f, 1.0f, 0.0f));
-		// Step/Phrase lights
-		static const int spLightsSpacing = 15;
-		for (int i = 0; i < 16; i++) {
-			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(columnRulerT2 + spLightsSpacing * i + offsetMediumLight, rowRulerT0 - 7 + offsetMediumLight), module, PhraseSeq32::STEP_PHRASE_LIGHTS + (i*2)));
-			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(columnRulerT2 + spLightsSpacing * i + offsetMediumLight, rowRulerT0 + 8 + offsetMediumLight), module, PhraseSeq32::STEP_PHRASE_LIGHTS + ((i+16)*2)));
+		// Step/Phrase LED buttons
+		int posX = columnRulerT0;
+		static int spacingSteps = 20;
+		static int spacingSteps4 = 4;
+		for (int x = 0; x < 16; x++) {
+			// First row
+			addParam(ParamWidget::create<LEDButton>(Vec(posX, rowRulerT0 - 10 + 2 - 4.4f), module, PhraseSeq32::STEP_PHRASE_PARAMS + x, 0.0f, 1.0f, 0.0f));
+			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(posX + 4.4f, rowRulerT0 - 10 + 2), module, PhraseSeq32::STEP_PHRASE_LIGHTS + (x * 2)));
+			// Second row
+			addParam(ParamWidget::create<LEDButton>(Vec(posX, rowRulerT0 + 10 + 2 - 4.4f), module, PhraseSeq32::STEP_PHRASE_PARAMS + x + 16, 0.0f, 1.0f, 0.0f));
+			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(posX + 4.4f, rowRulerT0 + 10 + 2), module, PhraseSeq32::STEP_PHRASE_LIGHTS + ((x + 16) * 2)));
+			// step position to next location and handle groups of four
+			posX += spacingSteps;
+			if ((x + 1) % 4 == 0)
+				posX += spacingSteps4;
 		}
 		// Attach button and light
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerT3 - 4, rowRulerT0 + 2 + offsetTL1105), module, PhraseSeq32::ATTACH_PARAM, 0.0f, 1.0f, 0.0f));
