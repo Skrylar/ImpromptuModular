@@ -280,7 +280,7 @@ struct TwelveKeyWidget : ModuleWidget {
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerL, rowRuler2), Port::INPUT, module, TwelveKey::OCT_INPUT));
 
 		// Middle
-		// Press LED
+		// Press LED (moved other controls below up by 16 px when removed, to better center)
 		//addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(columnRulerM + offsetMediumLight, rowRuler0 - 31 + offsetMediumLight), module, TwelveKey::PRESS_LIGHT));
 		// Octave display
 		OctaveNumDisplayWidget *octaveNumDisplay = new OctaveNumDisplayWidget();
