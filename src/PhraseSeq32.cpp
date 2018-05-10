@@ -85,7 +85,7 @@ struct PhraseSeq32 : Module {
 	int runModeSong; 
 	//
 	int sequence;
-	int steps;//1 to 32
+	int lengths[32];//1 to 32
 	//
 	int phrase[32] = {};// This is the song (series of phases; a phrase is a patten number)
 	int phrases;//1 to 32
@@ -113,6 +113,7 @@ struct PhraseSeq32 : Module {
 	float slideCVdelta;// no need to initialize, this is a companion to slideStepsRemain
 	float cvCPbuffer[32];// copy paste buffer for CVs
 	int attributesCPbuffer[32];// copy paste buffer for attributes
+	int lengthCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
 	bool gate1RandomEnable; 
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
@@ -160,7 +161,6 @@ struct PhraseSeq32 : Module {
 		stepIndexEdit = 0;
 		stepIndexRun = 0;
 		sequence = 0;
-		steps = 32;
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
 		stepIndexPhraseRun = 0;
@@ -171,9 +171,11 @@ struct PhraseSeq32 : Module {
 				attributes[i][s] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
 			}
 			phrase[i] = 0;
+			lengths[i] = 16;
 			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
 		}
+		lengthCPbuffer = 32;
 		countCP = 32;
 		sequenceKnob = INT_MAX;
 		editingGate = 0ul;
@@ -194,7 +196,6 @@ struct PhraseSeq32 : Module {
 		stepIndexEdit = 0;
 		stepIndexRun = 0;
 		sequence = randomu32() % 32;
-		steps = 1 + (randomu32() % 32);
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
 		stepIndexPhraseRun = 0;
@@ -207,9 +208,11 @@ struct PhraseSeq32 : Module {
 					attributes[i][s] = ATT_MSK_TIED;// clear other attributes if tied
 			}
 			phrase[i] = randomu32() % 32;
+			lengths[i] = 1 + (randomu32() % 32);
 			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
 		}
+		lengthCPbuffer = 32;
 		countCP = 32;
 		sequenceKnob = INT_MAX;
 		editingGate = 0ul;
@@ -238,8 +241,11 @@ struct PhraseSeq32 : Module {
 		// sequence
 		json_object_set_new(rootJ, "sequence", json_integer(sequence));
 
-		// steps
-		json_object_set_new(rootJ, "steps", json_integer(steps));
+		// lengths 
+		json_t *lengthsJ = json_array();
+		for (int i = 0; i < 32; i++)
+			json_array_insert_new(lengthsJ, i, json_integer(lengths[i]));
+		json_object_set_new(rootJ, "lengths", lengthsJ);
 
 		// phrases
 		json_object_set_new(rootJ, "phrases", json_integer(phrases));
@@ -293,11 +299,16 @@ struct PhraseSeq32 : Module {
 		if (sequenceJ)
 			sequence = json_integer_value(sequenceJ);
 		
-		// steps
-		json_t *stepsJ = json_object_get(rootJ, "steps");
-		if (stepsJ)
-			steps = json_integer_value(stepsJ);
-		
+		// lengths
+		json_t *lengthsJ = json_object_get(rootJ, "lengths");
+		if (lengthsJ)
+			for (int i = 0; i < 32; i++)
+			{
+				json_t *lengthsArrayJ = json_array_get(lengthsJ, i);
+				if (lengthsArrayJ)
+					lengths[i] = json_integer_value(lengthsArrayJ);
+			}
+			
 		// phrases
 		json_t *phrasesJ = json_object_get(rootJ, "phrases");
 		if (phrasesJ)
@@ -438,6 +449,7 @@ struct PhraseSeq32 : Module {
 					if ((--sCount) <= 0)
 						break;
 				}
+				lengthCPbuffer = lengths[sequence];
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -454,6 +466,7 @@ struct PhraseSeq32 : Module {
 					if ((--sCount) <= 0)
 						break;
 				}	
+				lengths[sequence] = lengthCPbuffer;
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -469,9 +482,9 @@ struct PhraseSeq32 : Module {
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = inputs[CV_INPUT].value;
 					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
-					applyTiedStep(sequence, stepIndexEdit, steps);
+					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 					if (params[AUTOSTEP_PARAM].value > 0.5f)
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, steps);
+						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, lengths[sequence]);
 				}
 			}
 			displayState = DISP_NORMAL;
@@ -493,7 +506,7 @@ struct PhraseSeq32 : Module {
 		if (delta != 0) {
 			if (!running || attach < 0.5f) {// don't move heads when attach and running
 				if (editingSequence) {
-					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, steps);
+					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, lengths[sequence]);
 					if ((attributes[sequence][stepIndexEdit] & ATT_MSK_TIED) == 0) {// play if non-tied step
 						if (!writeTrig)
 							editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
@@ -550,10 +563,10 @@ struct PhraseSeq32 : Module {
 				}
 				else if (displayState == DISP_LENGTH) {
 					if (editingSequence) {
-						steps += deltaKnob;
-						if (steps > 32) steps = 32;
-						if (steps < 1 ) steps = 1;
-						if (stepIndexEdit >= steps) stepIndexEdit = steps - 1;
+						lengths[sequence] += deltaKnob;
+						if (lengths[sequence] > 32) lengths[sequence] = 32;
+						if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+						if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = lengths[sequence] - 1;
 					}
 					else {
 						phrases += deltaKnob;
@@ -581,11 +594,11 @@ struct PhraseSeq32 : Module {
 						if (rotateOffset < -99) rotateOffset = -99;	
 						if (deltaKnob > 0 && deltaKnob < 99) {// Rotate right, 99 is safety
 							for (int i = deltaKnob; i > 0; i--)
-								rotateSeq(sequence, true, steps);
+								rotateSeq(sequence, true, lengths[sequence]);
 						}
 						if (deltaKnob < 0 && deltaKnob > -99) {// Rotate left, 99 is safety
 							for (int i = deltaKnob; i < 0; i++)
-								rotateSeq(sequence, false, steps);
+								rotateSeq(sequence, false, lengths[sequence]);
 						}
 					}						
 				}
@@ -624,7 +637,7 @@ struct PhraseSeq32 : Module {
 					newCV = newCV - floor(newCV) + (float) (newOct - 3);
 					if (newCV >= -3.0f && newCV < 4.0f) {
 						cv[sequence][stepIndexEdit] = newCV;
-						applyTiedStep(sequence, stepIndexEdit, steps);
+						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 					}
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = cv[sequence][stepIndexEdit];
@@ -640,7 +653,7 @@ struct PhraseSeq32 : Module {
 						tiedWarning = tiedWarningInit;
 					else {			
 						cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
-						applyTiedStep(sequence, stepIndexEdit, steps);
+						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 						editingGateCV = cv[sequence][stepIndexEdit];
 					}						
@@ -691,7 +704,7 @@ struct PhraseSeq32 : Module {
 				attributes[sequence][stepIndexEdit] ^= ATT_MSK_TIED;
 				if ( (attributes[sequence][stepIndexEdit] & ATT_MSK_TIED) != 0 ) {// if tied
 					attributes[sequence][stepIndexEdit] &= ~(ATT_MSK_GATE1 | ATT_MSK_GATE1P | ATT_MSK_GATE2 | ATT_MSK_SLIDE);
-					applyTiedStep(sequence, stepIndexEdit, steps);
+					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 				}
 				else
 					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE1;
@@ -709,13 +722,13 @@ struct PhraseSeq32 : Module {
 				float slideToCV = 0.0f;
 				if (editingSequence) {
 					slideFromCV = cv[sequence][stepIndexRun];
-					moveIndexRunMode(&stepIndexRun, steps, runModeSeq, &stepIndexRunHistory);
+					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq, &stepIndexRunHistory);
 					slideToCV = cv[sequence][stepIndexRun];
 					gate1RandomEnable = ( (attributes[sequence][stepIndexRun] & ATT_MSK_GATE1P) != 0 );// not random yet
 				}
 				else {
 					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
-					if (moveIndexRunMode(&stepIndexPhraseRun, steps, runModeSeq, &stepIndexPhraseRunHistory)) {
+					if (moveIndexRunMode(&stepIndexPhraseRun, lengths[phrase[phraseIndexRun]], runModeSeq, &stepIndexPhraseRunHistory)) {
 						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
 					}
 					slideToCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
@@ -806,7 +819,7 @@ struct PhraseSeq32 : Module {
 				if (displayState == DISP_LENGTH) {
 					// Length (green)
 					if (editingSequence)
-						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < steps) ? 0.5f : 0.0f);
+						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < lengths[sequence]) ? 0.5f : 0.0f);
 					else
 						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
 					// Nothing (red)
@@ -975,7 +988,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 				}
 				else if (module->displayState == PhraseSeq32::DISP_LENGTH) {
 					if (module->params[PhraseSeq32::EDIT_PARAM].value > 0.5f)// if editing sequence
-						snprintf(displayStr, 4, "L%2u", module->steps);
+						snprintf(displayStr, 4, "L%2u", module->lengths[module->sequence]);
 					else
 						snprintf(displayStr, 4, "L%2u", module->phrases);
 				}

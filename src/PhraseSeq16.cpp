@@ -100,7 +100,7 @@ struct PhraseSeq16 : Module {
 	int runModeSong; 
 	//
 	int sequence;
-	int steps;//1 to 16
+	int lengths[16];//1 to 16
 	//
 	int phrase[16] = {};// This is the song (series of phases; a phrase is a patten number)
 	int phrases;//1 to 16
@@ -137,6 +137,7 @@ struct PhraseSeq16 : Module {
 	bool gate2CPbuffer[16];// copy paste buffer for gate2
 	bool slideCPbuffer[16];// copy paste buffer for slide
 	bool tiedCPbuffer[16];// copy paste buffer for slide
+	int lengthCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
 	bool gate1RandomEnable; 
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
@@ -184,7 +185,6 @@ struct PhraseSeq16 : Module {
 		stepIndexEdit = 0;
 		stepIndexRun = 0;
 		sequence = 0;
-		steps = 16;
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
 		stepIndexPhraseRun = 0;
@@ -199,6 +199,7 @@ struct PhraseSeq16 : Module {
 				tied[i][s] = false;
 			}
 			phrase[i] = 0;
+			lengths[i] = 16;
 			cvCPbuffer[i] = 0.0f;
 			gate1CPbuffer[i] = true;
 			gate1ProbCPbuffer[i] = false;
@@ -206,6 +207,7 @@ struct PhraseSeq16 : Module {
 			slideCPbuffer[i] = false;
 			tiedCPbuffer[i] = false;
 		}
+		lengthCPbuffer = 16;
 		sequenceKnob = INT_MAX;
 		editingLength = 0ul;
 		editingGate = 0ul;
@@ -226,7 +228,6 @@ struct PhraseSeq16 : Module {
 		stepIndexEdit = 0;
 		stepIndexRun = 0;
 		sequence = randomu32() % 16;
-		steps = 1 + (randomu32() % 16);
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
 		stepIndexPhraseRun = 0;
@@ -241,6 +242,7 @@ struct PhraseSeq16 : Module {
 				slide[i][s] = tied[i][s] ? false : (randomUniform() > 0.5f);
 			}
 			phrase[i] = randomu32() % 16;
+			lengths[i] = 1 + (randomu32() % 16);
 			cvCPbuffer[i] = 0.0f;
 			gate1CPbuffer[i] = true;
 			gate1ProbCPbuffer[i] = false;
@@ -248,6 +250,7 @@ struct PhraseSeq16 : Module {
 			slideCPbuffer[i] = false;
 			tiedCPbuffer[i] = false;
 		}
+		lengthCPbuffer = 16;
 		sequenceKnob = INT_MAX;
 		editingLength = 0ul;
 		editingGate = 0ul;
@@ -277,7 +280,13 @@ struct PhraseSeq16 : Module {
 		json_object_set_new(rootJ, "sequence", json_integer(sequence));
 
 		// steps
-		json_object_set_new(rootJ, "steps", json_integer(steps));
+		//json_object_set_new(rootJ, "steps", json_integer(steps));// deprecated
+		
+		// lengths
+		json_t *lengthsJ = json_array();
+		for (int i = 0; i < 16; i++)
+			json_array_insert_new(lengthsJ, i, json_integer(lengths[i]));
+		json_object_set_new(rootJ, "lengths", lengthsJ);
 
 		// phrases
 		json_object_set_new(rootJ, "phrases", json_integer(phrases));
@@ -363,10 +372,24 @@ struct PhraseSeq16 : Module {
 		if (sequenceJ)
 			sequence = json_integer_value(sequenceJ);
 		
-		// steps
-		json_t *stepsJ = json_object_get(rootJ, "steps");
-		if (stepsJ)
-			steps = json_integer_value(stepsJ);
+		// lengths
+		json_t *lengthsJ = json_object_get(rootJ, "lengths");
+		if (lengthsJ) {
+			for (int i = 0; i < 16; i++)
+			{
+				json_t *lengthsArrayJ = json_array_get(lengthsJ, i);
+				if (lengthsArrayJ)
+					lengths[i] = json_integer_value(lengthsArrayJ);
+			}			
+		}
+		else {
+			json_t *stepsJ = json_object_get(rootJ, "steps");// legacy
+			if (stepsJ) {
+				int steps = json_integer_value(stepsJ);
+				for (int i = 0; i < 16; i++)
+					lengths[i] = steps;
+			}
+		}
 		
 		// phrases
 		json_t *phrasesJ = json_object_get(rootJ, "phrases");
@@ -572,6 +595,7 @@ struct PhraseSeq16 : Module {
 					if ((--sCount) <= 0)
 						break;
 				}
+				lengthCPbuffer = lengths[sequence];
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -592,6 +616,7 @@ struct PhraseSeq16 : Module {
 					if ((--sCount) <= 0)
 						break;
 				}	
+				lengths[sequence] = lengthCPbuffer;
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -616,9 +641,9 @@ struct PhraseSeq16 : Module {
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = inputs[CV_INPUT].value;
 					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
-					applyTiedStep(sequence, stepIndexEdit, steps);
+					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 					if (params[AUTOSTEP_PARAM].value > 0.5f)
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, steps);
+						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, lengths[sequence]);
 				}
 			}
 			displayState = DISP_NORMAL;
@@ -637,10 +662,10 @@ struct PhraseSeq16 : Module {
 			if (editingLength > 0ul) {
 				editingLength = (unsigned long) (editLengthTime * engineGetSampleRate());// restart editing length timer
 				if (editingSequence) {
-					steps += delta;
-					if (steps > 16) steps = 16;
-					if (steps < 1 ) steps = 1;
-					if (stepIndexEdit >= steps) stepIndexEdit = steps - 1;
+					lengths[sequence] += delta;
+					if (lengths[sequence] > 16) lengths[sequence] = 16;
+					if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+					if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = lengths[sequence] - 1;
 				}
 				else {
 					phrases += delta;
@@ -652,7 +677,7 @@ struct PhraseSeq16 : Module {
 			else {
 				if (!running || attach < 0.5f) {// don't move heads when attach and running
 					if (editingSequence) {
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, steps);
+						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, lengths[sequence]);
 						if (!tied[sequence][stepIndexEdit]) {// don't play tied step
 							if (!writeTrig)
 								editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
@@ -727,11 +752,11 @@ struct PhraseSeq16 : Module {
 						if (rotateOffset < -99) rotateOffset = -99;	
 						if (deltaKnob > 0 && deltaKnob < 99) {// Rotate right, 99 is safety
 							for (int i = deltaKnob; i > 0; i--)
-								rotateSeq(sequence, true, steps);
+								rotateSeq(sequence, true, lengths[sequence]);
 						}
 						if (deltaKnob < 0 && deltaKnob > -99) {// Rotate left, 99 is safety
 							for (int i = deltaKnob; i < 0; i++)
-								rotateSeq(sequence, false, steps);
+								rotateSeq(sequence, false, lengths[sequence]);
 						}
 					}						
 				}
@@ -770,7 +795,7 @@ struct PhraseSeq16 : Module {
 					newCV = newCV - floor(newCV) + (float) (newOct - 3);
 					if (newCV >= -3.0f && newCV < 4.0f) {
 						cv[sequence][stepIndexEdit] = newCV;
-						applyTiedStep(sequence, stepIndexEdit, steps);
+						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 					}
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = cv[sequence][stepIndexEdit];
@@ -786,7 +811,7 @@ struct PhraseSeq16 : Module {
 						tiedWarning = tiedWarningInit;
 					else {			
 						cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
-						applyTiedStep(sequence, stepIndexEdit, steps);
+						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 						editingGateCV = cv[sequence][stepIndexEdit];
 					}						
@@ -840,7 +865,7 @@ struct PhraseSeq16 : Module {
 					gate1Prob[sequence][stepIndexEdit] = false;
 					gate2[sequence][stepIndexEdit] = false;
 					slide[sequence][stepIndexEdit] = false;
-					applyTiedStep(sequence, stepIndexEdit, steps);
+					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 				}
 				else
 					gate1[sequence][stepIndexEdit] = true;
@@ -858,13 +883,13 @@ struct PhraseSeq16 : Module {
 				float slideToCV = 0.0f;
 				if (editingSequence) {
 					slideFromCV = cv[sequence][stepIndexRun];
-					moveIndexRunMode(&stepIndexRun, steps, runModeSeq, &stepIndexRunHistory);
+					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq, &stepIndexRunHistory);
 					slideToCV = cv[sequence][stepIndexRun];
 					gate1RandomEnable = gate1Prob[sequence][stepIndexRun];// not random yet
 				}
 				else {
 					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
-					if (moveIndexRunMode(&stepIndexPhraseRun, steps, runModeSeq, &stepIndexPhraseRunHistory)) {
+					if (moveIndexRunMode(&stepIndexPhraseRun, lengths[phrase[phraseIndexRun]], runModeSeq, &stepIndexPhraseRunHistory)) {
 						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
 					}
 					slideToCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
@@ -950,7 +975,7 @@ struct PhraseSeq16 : Module {
 				if (editingLength > 0ul) {
 					// Length (green)
 					if (editingSequence)
-						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < steps) ? 0.5f : 0.0f);
+						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < lengths[sequence]) ? 0.5f : 0.0f);
 					else
 						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
 					// Nothing (red)
@@ -1351,7 +1376,8 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 /*CHANGE LOG
 
 0.6.4:
-removed mode CV input, moved reset button, added paste 4/8/ALL option
+allow each sequence to have its own length
+removed mode CV input, moved reset button, added paste 4/8/ALL option (ALL copies length also)
 merged functionalities of transpose and rotate into one knob
 implemented tied notes state bit for each step, and added light to tied steps
 implemented 0-T slide as opposed to 0-2s slide, where T is clock period
