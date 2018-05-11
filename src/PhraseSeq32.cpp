@@ -92,7 +92,7 @@ struct PhraseSeq32 : Module {
 	int phrases;//1 to 32
 	//
 	float cv[32][32] = {};// [-3.0 : 3.917]. First index is patten number, 2nd index is step
-	int attributes[32][32] = {};// First index is patten number, 2nd index is step
+	int attributes[32][32] = {};// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
 	//
 	float attach;
 
