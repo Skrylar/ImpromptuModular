@@ -536,35 +536,6 @@ struct PhraseSeq32 : Module {
 			}
 		} 
 		
-		// Left and Right buttons
-		/*int delta = 0;
-		if (leftTrigger.process(inputs[LEFTCV_INPUT].value + params[LEFT_PARAM].value)) { 
-			delta = -1;
-			displayState = DISP_NORMAL;
-		}
-		if (rightTrigger.process(inputs[RIGHTCV_INPUT].value + params[RIGHT_PARAM].value)) {
-			delta = +1;
-			displayState = DISP_NORMAL;
-		}
-		if (right8Trigger.process(params[RIGHT8_PARAM].value)) {
-			delta = +8;
-			displayState = DISP_NORMAL;
-		}
-		if (delta != 0) {
-			if (!running || attach < 0.5f) {// don't move heads when attach and running
-				if (editingSequence) {
-					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, lengths[sequence]);
-					if ((attributes[sequence][stepIndexEdit] & ATT_MSK_TIED) == 0) {// play if non-tied step
-						if (!writeTrig)
-							editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
-						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
-					}
-				}
-				else
-					phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, phrases);
-			}
-		}*/
-		
 		// Mode/Length and Transpose/Rotate buttons
 		if (modeTrigger.process(params[RUNMODE_PARAM].value)) {
 			if (displayState == DISP_NORMAL || displayState == DISP_TRANSPOSE || displayState == DISP_ROTATE)
