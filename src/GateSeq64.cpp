@@ -20,7 +20,6 @@ struct GateSeq64 : Module {
 	enum ParamIds {
 		ENUMS(STEP_PARAMS, 64),
 		GATE_PARAM,
-		//LENGTH_PARAM,
 		GATEP_PARAM,
 		MODES_PARAM,
 		RUN_PARAM,
@@ -47,7 +46,6 @@ struct GateSeq64 : Module {
 	enum LightIds {
 		ENUMS(STEP_LIGHTS, 64 * 2),// room for GreenRed
 		GATE_LIGHT,
-		//LENGTH_LIGHT,
 		GATEP_LIGHT,
 		P_LIGHT,
 		MODES_LIGHT,
@@ -75,11 +73,12 @@ struct GateSeq64 : Module {
 	bool cpBufGateP[16] = {};// copy-paste only one row
 	int cpBufGatePVal[16] = {};// copy-paste only one row
 	long feedbackCP;// downward step counter for CP feedback
+	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	bool gateRandomEnable[4];// no need to initialize
 	float resetLight = 0.0f;
 	long feedbackCPinit;// no need to initialize
 	bool gatePulsesValue[4] = {};
-	int cpcfInfo;// 4 LSbits are: copy = 1, paste = 2, clear = 3, fill = 4; next 2 LS bits indicate gate, gatep, gatepval
+	int cpcfInfo;// 4 LSbits are: copy = 1, paste = 2; next 2 LS bits indicate gate, gatep, gatepval
 	long clockIgnoreOnReset;
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 	int displayProb;// -1 when no step was clicked (when moving to DISP_GATEP mode), 0 to 63 when a step was selected and its prob can be changed.
@@ -96,10 +95,11 @@ struct GateSeq64 : Module {
 	SchmittTrigger runningTrigger;
 	SchmittTrigger clockTriggers[4];
 	SchmittTrigger resetTrigger;
-	SchmittTrigger linkedTrigger;
 	SchmittTrigger configTrigger;
 	SchmittTrigger configTrigger2;
 	SchmittTrigger configTrigger3;
+	SchmittTrigger editTrigger;
+	SchmittTrigger editTriggerInv;
 
 	PulseGenerator gatePulses[4];
 
@@ -130,6 +130,7 @@ struct GateSeq64 : Module {
 		}
 		feedbackCP = 0l;
 		displayProb = -1;
+		infoCopyPaste = 0l;
 		probKnob = INT_MAX;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
@@ -140,7 +141,6 @@ struct GateSeq64 : Module {
 		configTrigger.reset();
 		configTrigger2.reset();
 		configTrigger3.reset();
-		linkedTrigger.reset();
 		int stepConfig = 1;// 4x16
 		if (params[CONFIG_PARAM].value > 1.5f)// 1x64
 			stepConfig = 4;
@@ -164,6 +164,7 @@ struct GateSeq64 : Module {
 		}
 		feedbackCP = 0l;
 		displayProb = -1;
+		infoCopyPaste = 0l;
 		probKnob = INT_MAX;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
@@ -301,6 +302,10 @@ struct GateSeq64 : Module {
 		
 		//********** Buttons, knobs, switches and inputs **********
 		
+		bool editingSequence = params[EDIT_PARAM].value > 0.5f;// true = editing sequence, false = editing song
+		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) )
+			displayState = DISP_GATE;
+
 		// Config switch
 		int stepConfig = 1;// 4x16
 		if (params[CONFIG_PARAM].value > 1.5f)// 1x64
@@ -366,6 +371,51 @@ struct GateSeq64 : Module {
 			}
 			probKnob = newProbKnob;// must do this step whether running or not
 		}	
+
+		// Copy button (FROM PS32)
+		/*if (copyTrigger.process(params[COPY_PARAM].value)) {
+			if (editingSequence) {
+				infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
+				//CPinfo must be set to 0 for copy/paste all, and 0x1ii for copy/paste 4 at pos ii, 0x2ii for copy/paste 8 at 0xii
+				int sStart = stepIndexEdit;
+				int sCount = 32;
+				if (params[CPMODE_PARAM].value > 1.5f)// all
+					sStart = 0;
+				else if (params[CPMODE_PARAM].value < 0.5f)// 4
+					sCount = 4;
+				else// 8
+					sCount = 8;
+				countCP = sCount;
+				for (int i = 0, s = sStart; i < countCP; i++, s++) {
+					if (s >= 32) s = 0;
+					cvCPbuffer[i] = cv[sequence][s];
+					attributesCPbuffer[i] = attributes[sequence][s];
+					if ((--sCount) <= 0)
+						break;
+				}
+				lengthCPbuffer = lengths[sequence];
+			}
+			displayState = DISP_NORMAL;
+		}
+		// Paste button (FROM PS32)
+		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
+			if (editingSequence) {
+				infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
+				int sStart = ((countCP == 32) ? 0 : stepIndexEdit);
+				int sCount = countCP;
+				for (int i = 0, s = sStart; i < countCP; i++, s++) {
+					if (s >= 32) s = 0;
+					cv[sequence][s] = cvCPbuffer[i];
+					attributes[sequence][s] = attributesCPbuffer[i];
+					if ((--sCount) <= 0)
+						break;
+				}	
+				if (params[CPMODE_PARAM].value > 1.5f)// all
+					lengths[sequence] = lengthCPbuffer;
+			}
+			displayState = DISP_NORMAL;
+		}*/
+
 
 		// Copy, paste, clear, fill (cpcf) buttons
 		bool copyTrigged = copyTrigger.process(params[COPY_PARAM].value);
@@ -589,10 +639,9 @@ struct GateSeq64 : Module {
 		}
 		
 		// Main button lights
-		lights[GATE_LIGHT].value = displayState == DISP_GATE ? 1.0f : 0.0f;
-		//lights[LENGTH_LIGHT].value = displayState == DISP_LENGTH ? 1.0f : 0.0f;
-		lights[GATEP_LIGHT].value = displayState == DISP_GATEP ? 1.0f : 0.0f;
 		lights[MODES_LIGHT].value = (displayState == DISP_MODES || displayState == DISP_LENGTH) ? 1.0f : 0.0f;		
+		lights[GATE_LIGHT].value = displayState == DISP_GATE ? 1.0f : 0.0f;
+		lights[GATEP_LIGHT].value = displayState == DISP_GATEP ? 1.0f : 0.0f;
 
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
