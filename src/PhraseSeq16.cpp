@@ -615,8 +615,9 @@ struct PhraseSeq16 : Module {
 					tied[sequence][s] = tiedCPbuffer[i];
 					if ((--sCount) <= 0)
 						break;
-				}	
-				lengths[sequence] = lengthCPbuffer;
+				}
+				if (params[CPMODE_PARAM].value > 1.5f)// all
+					lengths[sequence] = lengthCPbuffer;
 			}
 			displayState = DISP_NORMAL;
 		}
