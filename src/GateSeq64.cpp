@@ -72,16 +72,13 @@ struct GateSeq64 : Module {
 	float resetLight = 0.0f;
 	long feedbackCPinit;// no need to initialize
 	bool gatePulsesValue[4] = {};
-	int cpcfInfo;// 4 LSbits are: copy = 1, paste = 2; next 2 LS bits indicate gate, gatep, gatepval
+	int cpInfo;// copy = 1, paste = 2
 	long clockIgnoreOnReset;
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 	int displayProb;// -1 when prob can not be modified, 0 to 63 when prob can be changed.
 	int probKnob;// INT_MAX when knob not seen yet
 
 	
-	SchmittTrigger gateTrigger;
-	SchmittTrigger lengthTrigger;
-	//SchmittTrigger gatePTrigger;
 	SchmittTrigger modesTrigger;
 	SchmittTrigger stepTriggers[64];
 	SchmittTrigger copyTrigger;
@@ -272,8 +269,7 @@ struct GateSeq64 : Module {
 				if (trigArrayJ)
 					trig[i] = !!json_integer_value(trigArrayJ);
 			}
-		}
-		
+		}		
 	}
 
 	
@@ -318,7 +314,6 @@ struct GateSeq64 : Module {
 			displayProb = -1;
 		}
 		
-
 		// Run state button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
@@ -361,13 +356,13 @@ struct GateSeq64 : Module {
 		bool pasteTrigged = pasteTrigger.process(params[PASTE_PARAM].value);
 		if (copyTrigged || pasteTrigged) {
 			if (displayState == DISP_GATE) {
-				cpcfInfo = 0;
-				if (copyTrigged) cpcfInfo = 1;
-				if (pasteTrigged) cpcfInfo = 2;
+				cpInfo = 0;
+				if (copyTrigged) cpInfo = 1;
+				if (pasteTrigged) cpInfo = 2;
 				displayState = DISP_ROW_SEL;
 				feedbackCP = feedbackCPinit;
 			}
-			else if (displayState == DISP_ROW_SEL) {// abort copy
+			else if (displayState == DISP_ROW_SEL) {// abort copy or paste
 				displayState = DISP_GATE;
 			}
 			displayProb = -1;
@@ -422,35 +417,20 @@ struct GateSeq64 : Module {
 				}
 				if (displayState == DISP_ROW_SEL) {
 					row = i / 16;// copy-paste done on blocks of 16 even when in 2x32 or 1x64 config
-					int button = (cpcfInfo & 0xF);
-					if (button == 1) {// copy
+					if (cpInfo == 1) {// copy
 						for (int j = 0; j < 16; j++) {
-							// copy all attributes, in case params[CP_ALL_PARAM].value changes in between copy-paste ops
 							cpBufGatePVal[j] = gatepval[row * 16 + j];
 							cpBufGateP[j] = gatep[row * 16 + j];
 							cpBufGate[j] = gate[row * 16 + j];
 						}
 					}					
-					else if (button == 2) {// paste
+					else if (cpInfo == 2) {// paste
 						for (int j = 0; j < 16; j++) {
-							if ((cpcfInfo >= 32) /*|| (params[CP_ALL_PARAM].value > 0.5f)*/)// gatepval
-								gatepval[row * 16 + j] = cpBufGatePVal[j];
-							if ((cpcfInfo >= 16 && cpcfInfo < 32) /*|| (params[CP_ALL_PARAM].value > 0.5f)*/)// gatep
-								gatep[row * 16 + j] = cpBufGateP[j];
-							if ((cpcfInfo < 16) /*|| (params[CP_ALL_PARAM].value > 0.5f)*/)// gate
-								gate[row * 16 + j] = cpBufGate[j];
+							gatepval[row * 16 + j] = cpBufGatePVal[j];
+							gatep[row * 16 + j] = cpBufGateP[j];
+							gate[row * 16 + j] = cpBufGate[j];
 						}
 					}			
-					else if (button == 3 || button == 4) {// clear or fill
-						for (int j = 0; j < 16; j++) {
-							if (cpcfInfo >= 32)// gatepval
-								gatepval[row * 16 + j] = (button == 3 ? 0 : 100);
-							else if (cpcfInfo >= 16)// gatep
-								gatep[row * 16 + j] = (button == 3 ? false : true);
-							else// gate
-								gate[row * 16 + j] = (button == 3 ? false : true);
-						}
-					}
 					displayState = DISP_GATE;
 				}
 			}
@@ -743,12 +723,11 @@ struct GateSeq64Widget : ModuleWidget {
 		static int colRulerC1 = colRulerC0 + colRulerSpacing;
 		static int colRulerC2 = colRulerC1 + colRulerSpacing;
 		static int colRulerC3 = colRulerC2 + colRulerSpacing;
-		//static int colRulerC4 = colRulerC3 + colRulerSpacing;
 		static int rowRulerC0 = 217;
 		static int rowRulerSpacing = 48;
 		static int rowRulerC1 = rowRulerC0 + rowRulerSpacing;
 		static int rowRulerC2 = rowRulerC1 + rowRulerSpacing;
-		//static const int posLEDvsButton = + 25;
+		
 		
 		// Seq/Song selector
 		addParam(ParamWidget::create<CKSSH>(Vec(colRulerC0 + hOffsetCKSSH, rowRulerC0 + vOffsetCKSSH), module, GateSeq64::EDIT_PARAM, 0.0f, 1.0f, 1.0f));		
