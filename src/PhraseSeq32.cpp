@@ -249,6 +249,12 @@ struct PhraseSeq32 : Module {
 			json_array_insert_new(lengthsJ, i, json_integer(lengths[i]));
 		json_object_set_new(rootJ, "lengths", lengthsJ);
 
+		// phrase 
+		json_t *phraseJ = json_array();
+		for (int i = 0; i < 32; i++)
+			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
+		json_object_set_new(rootJ, "phrase", phraseJ);
+
 		// phrases
 		json_object_set_new(rootJ, "phrases", json_integer(phrases));
 
@@ -267,12 +273,6 @@ struct PhraseSeq32 : Module {
 				json_array_insert_new(attributesJ, s + (i * 32), json_integer(attributes[i][s]));
 			}
 		json_object_set_new(rootJ, "attributes", attributesJ);
-
-		// phrase 
-		json_t *phraseJ = json_array();
-		for (int i = 0; i < 32; i++)
-			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
-		json_object_set_new(rootJ, "phrase", phraseJ);
 
 		// attach
 		json_object_set_new(rootJ, "attach", json_real(attach));
@@ -311,6 +311,16 @@ struct PhraseSeq32 : Module {
 					lengths[i] = json_integer_value(lengthsArrayJ);
 			}
 			
+		// phrase
+		json_t *phraseJ = json_object_get(rootJ, "phrase");
+		if (phraseJ)
+			for (int i = 0; i < 32; i++)
+			{
+				json_t *phraseArrayJ = json_array_get(phraseJ, i);
+				if (phraseArrayJ)
+					phrase[i] = json_integer_value(phraseArrayJ);
+			}
+		
 		// phrases
 		json_t *phrasesJ = json_object_get(rootJ, "phrases");
 		if (phrasesJ)
@@ -337,16 +347,6 @@ struct PhraseSeq32 : Module {
 						attributes[i][s] = json_integer_value(attributesArrayJ);
 				}
 		}
-		
-		// phrase
-		json_t *phraseJ = json_object_get(rootJ, "phrase");
-		if (phraseJ)
-			for (int i = 0; i < 32; i++)
-			{
-				json_t *phraseArrayJ = json_array_get(phraseJ, i);
-				if (phraseArrayJ)
-					phrase[i] = json_integer_value(phraseArrayJ);
-			}
 		
 		// attach
 		json_t *attachJ = json_object_get(rootJ, "attach");
@@ -398,7 +398,7 @@ struct PhraseSeq32 : Module {
 		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) )
 			displayState = DISP_NORMAL;
 		
-		// Seq and Mode CV inputs
+		// Seq CV input
 		if (inputs[SEQCV_INPUT].active) {
 			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (32.0f - 1.0f) / 10.0f), 0.0f, (32.0f - 1.0f) );
 		}

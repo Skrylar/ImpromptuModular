@@ -288,6 +288,12 @@ struct PhraseSeq16 : Module {
 			json_array_insert_new(lengthsJ, i, json_integer(lengths[i]));
 		json_object_set_new(rootJ, "lengths", lengthsJ);
 
+		// phrase 
+		json_t *phraseJ = json_array();
+		for (int i = 0; i < 16; i++)
+			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
+		json_object_set_new(rootJ, "phrase", phraseJ);
+
 		// phrases
 		json_object_set_new(rootJ, "phrases", json_integer(phrases));
 
@@ -339,12 +345,6 @@ struct PhraseSeq16 : Module {
 			}
 		json_object_set_new(rootJ, "tied", tiedJ);
 
-		// phrase 
-		json_t *phraseJ = json_array();
-		for (int i = 0; i < 16; i++)
-			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
-		json_object_set_new(rootJ, "phrase", phraseJ);
-
 		// attach
 		json_object_set_new(rootJ, "attach", json_real(attach));
 
@@ -391,6 +391,16 @@ struct PhraseSeq16 : Module {
 			}
 		}
 		
+		// phrase
+		json_t *phraseJ = json_object_get(rootJ, "phrase");
+		if (phraseJ)
+			for (int i = 0; i < 16; i++)
+			{
+				json_t *phraseArrayJ = json_array_get(phraseJ, i);
+				if (phraseArrayJ)
+					phrase[i] = json_integer_value(phraseArrayJ);
+			}
+			
 		// phrases
 		json_t *phrasesJ = json_object_get(rootJ, "phrases");
 		if (phrasesJ)
@@ -462,16 +472,6 @@ struct PhraseSeq16 : Module {
 				}
 		}
 		
-		// phrase
-		json_t *phraseJ = json_object_get(rootJ, "phrase");
-		if (phraseJ)
-			for (int i = 0; i < 16; i++)
-			{
-				json_t *phraseArrayJ = json_array_get(phraseJ, i);
-				if (phraseArrayJ)
-					phrase[i] = json_integer_value(phraseArrayJ);
-			}
-			
 		// attach
 		json_t *attachJ = json_object_get(rootJ, "attach");
 		if (attachJ)
