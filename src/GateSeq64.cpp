@@ -46,6 +46,7 @@ struct GateSeq64 : Module {
 		P_LIGHT,
 		RUN_LIGHT,
 		RESET_LIGHT,
+		MODES_LIGHT,
 		NUM_LIGHTS
 	};
 	
@@ -576,6 +577,9 @@ struct GateSeq64 : Module {
 		// Run lights
 		lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
 		
+		// Modes/Length light
+		lights[MODES_LIGHT].value = (displayState == DISP_LENGTH || displayState == DISP_MODES) ? 1.0f : 0.0f;
+		
 		if (feedbackCP > 0l)			
 			feedbackCP--;	
 		else
@@ -638,7 +642,10 @@ struct GateSeq64Widget : ModuleWidget {
 				nvgText(vg, textPos.x, textPos.y, "~~", NULL);
 				nvgFillColor(vg, textColor);
 				char displayStr[3];
-				snprintf(displayStr, 3, "%2u", (unsigned) (module->params[GateSeq64::EDIT_PARAM].value > 0.5f ? module->sequence : /*module->phrase[module->phraseIndexEdit]*/98) + 1 );// TODO
+				if (module->displayState == GateSeq64::DISP_MODES)
+					snprintf(displayStr, 3, " *");
+				else
+					snprintf(displayStr, 3, "%2u", (unsigned) (module->params[GateSeq64::EDIT_PARAM].value > 0.5f ? module->sequence : /*module->phrase[module->phraseIndexEdit]*/98) + 1 );// TODO
 				nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 			}
 		};	
@@ -771,8 +778,10 @@ struct GateSeq64Widget : ModuleWidget {
 		
 		addInput(Port::create<PJ301MPortS>(Vec(colRulerC1 + 30, rowRulerC2), Port::INPUT, module, GateSeq64::SEQCV_INPUT));
 		
-		// Modes button
+		// Modes button and light
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC2 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq64::MODES_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerC2 + 25 + offsetMediumLight, rowRulerC0 + offsetMediumLight), module, GateSeq64::MODES_LIGHT));		
+		
 		// Reset LED bezel and light
 		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC2 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq64::RESET_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC2 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RESET_LIGHT));
