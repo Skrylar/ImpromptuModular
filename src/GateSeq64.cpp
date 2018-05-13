@@ -49,23 +49,20 @@ struct GateSeq64 : Module {
 	};
 	
 	enum DisplayStateIds {DISP_GATE, DISP_LENGTH, DISP_MODES, DISP_ROW_SEL};
+	enum AttributeBitMasks {ATT_MSK_PROB = 0xFF, ATT_MSK_GATEP = 0x100, ATT_MSK_GATE = 0x200};
 	
 	// Need to save
 	bool running;
 	int length[4] = {};// values are 1 to 16
 	int mode[4] = {};
 	bool trig[4] = {};
-	bool gate[64] = {};
-	bool gatep[64] = {};
-	int gatepval[64] = {};// values are 0 to 100
+	int attributes[64] = {};
 
 	// No need to save
 	int displayState;
 	int indexStep[4] = {};
 	int stepIndexRunHistory[4] = {};// no need to initialize
-	bool cpBufGate[16] = {};// copy-paste only one row
-	bool cpBufGateP[16] = {};// copy-paste only one row
-	int cpBufGatePVal[16] = {};// copy-paste only one row
+	int cpBufAttributes[16] = {};// copy-paste only one row
 	long feedbackCP;// downward step counter for CP feedback
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	bool gateRandomEnable[4];// no need to initialize
@@ -94,6 +91,9 @@ struct GateSeq64 : Module {
 
 	PulseGenerator gatePulses[4];
 
+	inline bool getGate(int i) {return (attributes[i] & ATT_MSK_GATE) != 0;}
+	inline bool getGateP(int i) {return (attributes[i] & ATT_MSK_GATEP) != 0;}
+	inline int getGatePVal(int i) {return attributes[i] & ATT_MSK_PROB;}
 		
 	GateSeq64() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
@@ -103,9 +103,7 @@ struct GateSeq64 : Module {
 		displayState = DISP_GATE;
 		running = false;
 		for (int i = 0; i < 64; i++) {
-			gate[i] = false;
-			gatep[i] = false;
-			gatepval[i] = 50;
+			attributes[i] = 50;
 		}
 		for (int i = 0; i < 4; i++) {
 			indexStep[i] = 0;
@@ -115,9 +113,7 @@ struct GateSeq64 : Module {
 			gateRandomEnable[i] = true;
 		}
 		for (int i = 0; i < 16; i++) {
-			cpBufGate[i] = false;
-			cpBufGateP[i] = false;
-			cpBufGatePVal[i] = 50;
+			cpBufAttributes[i] = 50;
 		}
 		feedbackCP = 0l;
 		displayProb = -1;
@@ -138,9 +134,7 @@ struct GateSeq64 : Module {
 		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
 			stepConfig = 2;
 		for (int i = 0; i < 64; i++) {
-			gate[i] = (randomUniform() > 0.5f);
-			gatep[i] = (randomUniform() > 0.5f);
-			gatepval[i] = (randomu32() % 101);
+			attributes[i] = (randomu32() % 101) | (randomu32() & (ATT_MSK_GATEP | ATT_MSK_GATE));
 		}
 		for (int i = 0; i < 4; i += stepConfig) {
 			indexStep[i] = 0;
@@ -149,9 +143,7 @@ struct GateSeq64 : Module {
 			trig[i] = (randomUniform() > 0.5f);
 		}
 		for (int i = 0; i < 16; i++) {
-			cpBufGate[i] = false;
-			cpBufGateP[i] = false;
-			cpBufGatePVal[i] = 50;
+			cpBufAttributes[i] = 50;
 		}
 		feedbackCP = 0l;
 		displayProb = -1;
@@ -166,29 +158,17 @@ struct GateSeq64 : Module {
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
 		
-		// gate
-		json_t *gateJ = json_array();
+		// attributes
+		json_t *attributesJ = json_array();
 		for (int i = 0; i < 64; i++)
-			json_array_insert_new(gateJ, i, json_integer((int) gate[i]));
-		json_object_set_new(rootJ, "gate", gateJ);
+			json_array_insert_new(attributesJ, i, json_integer(attributes[i]));
+		json_object_set_new(rootJ, "attributes", attributesJ);
 		
 		// length
 		json_t *lengthJ = json_array();
 		for (int i = 0; i < 4; i++)
 			json_array_insert_new(lengthJ, i, json_integer(length[i]));
 		json_object_set_new(rootJ, "length", lengthJ);
-		
-		// gatep
-		json_t *gatepJ = json_array();
-		for (int i = 0; i < 64; i++)
-			json_array_insert_new(gatepJ, i, json_integer((int) gatep[i]));
-		json_object_set_new(rootJ, "gatep", gatepJ);
-		
-		// gatepval
-		json_t *gatepvalJ = json_array();
-		for (int i = 0; i < 64; i++)
-			json_array_insert_new(gatepvalJ, i, json_integer(gatepval[i]));
-		json_object_set_new(rootJ, "gatepval", gatepvalJ);
 		
 		// mode
 		json_t *modeJ = json_array();
@@ -211,55 +191,37 @@ struct GateSeq64 : Module {
 		if (runningJ)
 			running = json_is_true(runningJ);
 		
-		// gate
-		json_t *gateJ = json_object_get(rootJ, "gate");
-		if (gateJ) {
+		// attributes
+		json_t *attributesJ = json_object_get(rootJ, "attributes");
+		if (attributesJ) {
 			for (int i = 0; i < 64; i++) {
-				json_t *gateArrayJ = json_array_get(gateJ, i);
-				if (gateArrayJ)
-					gate[i] = !!json_integer_value(gateArrayJ);
+				json_t *attributesArrayJ = json_array_get(attributesJ, i);
+				if (attributesArrayJ)
+					attributes[i] = json_integer_value(attributesArrayJ);
 			}
 		}
-		
+			
 		// length
 		json_t *lengthJ = json_object_get(rootJ, "length");
-		if (lengthJ)
+		if (lengthJ) {
 			for (int i = 0; i < 4; i++)
 			{
 				json_t *lengthArrayJ = json_array_get(lengthJ, i);
 				if (lengthArrayJ)
 					length[i] = json_integer_value(lengthArrayJ);
 			}
-		
-		// gatep
-		json_t *gatepJ = json_object_get(rootJ, "gatep");
-		if (gatepJ) {
-			for (int i = 0; i < 64; i++) {
-				json_t *gatepArrayJ = json_array_get(gatepJ, i);
-				if (gatepArrayJ)
-					gatep[i] = !!json_integer_value(gatepArrayJ);
-			}
-		}
-		
-		// gatepval
-		json_t *gatepvalJ = json_object_get(rootJ, "gatepval");
-		if (gatepvalJ) {
-			for (int i = 0; i < 64; i++) {
-				json_t *gatepvalArrayJ = json_array_get(gatepvalJ, i);
-				if (gatepvalArrayJ)
-					gatepval[i] = json_integer_value(gatepvalArrayJ);
-			}
 		}
 		
 		// mode
 		json_t *modeJ = json_object_get(rootJ, "mode");
-		if (modeJ)
+		if (modeJ) {
 			for (int i = 0; i < 4; i++)
 			{
 				json_t *modeArrayJ = json_array_get(modeJ, i);
 				if (modeArrayJ)
 					mode[i] = json_integer_value(modeArrayJ);
 			}
+		}
 		
 		// trig
 		json_t *trigJ = json_object_get(rootJ, "trig");
@@ -342,11 +304,13 @@ struct GateSeq64 : Module {
 			probKnob = newProbKnob;
 		if (newProbKnob != probKnob) {
 			if ((abs(newProbKnob - probKnob) <= 3) && displayProb != -1 ) {// avoid discontinuous step (initialize for example)
-				gatepval[displayProb] += (newProbKnob - probKnob) * 2;
-				if (gatepval[displayProb] > 100)
-					gatepval[displayProb] = 100;
-				if (gatepval[displayProb] < 0)
-					gatepval[displayProb] = 0;
+				int pval = getGatePVal(displayProb);
+				pval += (newProbKnob - probKnob) * 2;
+				if (pval > 100)
+					pval = 100;
+				if (pval < 0)
+					pval = 0;
+				attributes[displayProb] = pval | (attributes[displayProb] & (ATT_MSK_GATE | ATT_MSK_GATEP));
 			}
 			probKnob = newProbKnob;// must do this step whether running or not
 		}	
@@ -375,22 +339,21 @@ struct GateSeq64 : Module {
 		for (int i = 0; i < 64; i++) {
 			if (stepTriggers[i].process(params[STEP_PARAMS + i].value)) {
 				if (displayState == DISP_GATE) {
-					if (!gate[i]) {// clicked inactive, so turn gate on
-						gate[i] = true;
-						gatep[i] = false;
+					if (!getGate(i)) {// clicked inactive, so turn gate on
+						attributes[i] |= ATT_MSK_GATE;
+						attributes[i] &= ~ATT_MSK_GATEP;
 						displayProb = -1;
 					}
 					else {
-						if (!gatep[i]) {// clicked active, but not in prob mode
+						if (!getGateP(i)) {// clicked active, but not in prob mode
 							displayProb = i;
-							gatep[i] = true;
+							attributes[i] |= ATT_MSK_GATEP;
 						}
 						else {// clicked active, and in prob mode
 							if (displayProb != i)// coming from elsewhere, so don't change any states, just show its prob
 								displayProb = i;
 							else {// coming from current step, so turn off
-								gate[i] = false;
-								gatep[i] = false;
+								attributes[i] &= ~(ATT_MSK_GATEP | ATT_MSK_GATE);
 								displayProb = -1;
 							}
 						}
@@ -419,16 +382,12 @@ struct GateSeq64 : Module {
 					row = i / 16;// copy-paste done on blocks of 16 even when in 2x32 or 1x64 config
 					if (cpInfo == 1) {// copy
 						for (int j = 0; j < 16; j++) {
-							cpBufGatePVal[j] = gatepval[row * 16 + j];
-							cpBufGateP[j] = gatep[row * 16 + j];
-							cpBufGate[j] = gate[row * 16 + j];
+							cpBufAttributes[j] = attributes[row * 16 + j];
 						}
 					}					
 					else if (cpInfo == 2) {// paste
 						for (int j = 0; j < 16; j++) {
-							gatepval[row * 16 + j] = cpBufGatePVal[j];
-							gatep[row * 16 + j] = cpBufGateP[j];
-							gate[row * 16 + j] = cpBufGate[j];
+							attributes[row * 16 + j] = cpBufAttributes[j];
 						}
 					}			
 					displayState = DISP_GATE;
@@ -451,8 +410,8 @@ struct GateSeq64 : Module {
 				if (clockIgnoreOnReset == 0l && clkTrig[findClock(i, clkActive)]) {
 					moveIndexRunMode(&indexStep[i], length[i], mode[i], &stepIndexRunHistory[i]);
 					gatePulses[i].trigger(0.001f);
-					gateRandomEnable[i] = !gatep[i * 16 + indexStep[i]];// not random yet
-					gateRandomEnable[i] |= randomUniform() < ((float)(gatepval[i * 16 + indexStep[i]]))/100.0f;// randomUniform is [0.0, 1.0), see include/util/common.hpp
+					gateRandomEnable[i] = !getGateP(i * 16 + indexStep[i]);// not random yet
+					gateRandomEnable[i] |= randomUniform() < ((float)(getGatePVal(i * 16 + indexStep[i])))/100.0f;// randomUniform is [0.0, 1.0), see include/util/common.hpp
 				}
 			}
 		}
@@ -481,7 +440,7 @@ struct GateSeq64 : Module {
 		// Gate outputs
 		for (int i = 0; i < 4; i += stepConfig) {
 			if (running) {
-				bool gateOut = gate[i * 16 + indexStep[i]] && gateRandomEnable[i];
+				bool gateOut = getGate(i * 16 + indexStep[i]) && gateRandomEnable[i];
 				if (trig[i])
 					gateOut &= gatePulsesValue[i];
 				else
@@ -504,11 +463,11 @@ struct GateSeq64 : Module {
 			col = i % (16 * stepConfig);
 			if (displayState == DISP_GATE) {
 				float stepHereOffset =  (indexStep[row] == col && running) ? 0.5f : 0.0f;
-				if (gate[i]) {
-					if (i == displayProb && gatep[i]) 
+				if (getGate(i)) {
+					if (i == displayProb && getGateP(i)) 
 						setGreenRed(STEP_LIGHTS + i * 2, 0.4f, 1.0f - stepHereOffset);
 					else
-						setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, gatep[i] ? (1.0f - stepHereOffset) : 0.0f);
+						setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, getGateP(i) ? (1.0f - stepHereOffset) : 0.0f);
 				}
 				else {
 					setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset / 5.0f, 0.0f);
@@ -645,7 +604,7 @@ struct GateSeq64Widget : ModuleWidget {
 			nvgFillColor(vg, textColor);
 			
 			if (module->displayProb != -1) {
-				int prob = module->gatepval[module->displayProb];
+				int prob = module->getGatePVal(module->displayProb);
 				if ( prob>= 100)
 					snprintf(displayStr, 3, "1*");
 				else if (prob >= 1)
