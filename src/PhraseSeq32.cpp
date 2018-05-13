@@ -53,7 +53,6 @@ struct PhraseSeq32 : Module {
 		RIGHTCV_INPUT,
 		RUNCV_INPUT,
 		SEQCV_INPUT,
-		MODECV_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {

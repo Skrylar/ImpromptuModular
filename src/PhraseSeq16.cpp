@@ -62,7 +62,7 @@ struct PhraseSeq16 : Module {
 		RIGHTCV_INPUT,
 		RUNCV_INPUT,
 		SEQCV_INPUT,
-		MODECV_INPUT,
+		MODECV_INPUT,// no longer used
 		// -- 0.6.3 ^^
 		NUM_INPUTS
 	};
@@ -535,12 +535,9 @@ struct PhraseSeq16 : Module {
 		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) )
 			displayState = DISP_NORMAL;
 		
-		// Seq and Mode CV inputs
+		// Seq CV input
 		if (inputs[SEQCV_INPUT].active) {
 			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * 15.0f / 10.0f), 0.0f, 15.0f );
-		}
-		if (inputs[MODECV_INPUT].active) {
-			runModeSeq = (int) clamp( round(inputs[MODECV_INPUT].value * 4.0f / 10.0f), 0.0f, 4.0f );
 		}
 		
 		// Run button
@@ -722,11 +719,9 @@ struct PhraseSeq16 : Module {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 				if (displayState == DISP_MODE) {
 					if (editingSequence) {
-						if (!inputs[MODECV_INPUT].active) {
-							runModeSeq += deltaKnob;
-							if (runModeSeq < 0) runModeSeq = 0;
-							if (runModeSeq > 4) runModeSeq = 4;
-						}
+						runModeSeq += deltaKnob;
+						if (runModeSeq < 0) runModeSeq = 0;
+						if (runModeSeq > 4) runModeSeq = 4;
 					}
 					else {
 						runModeSong += deltaKnob;
