@@ -101,12 +101,10 @@ struct PhraseSeq32 : Module {
 	int stepIndexRun;
 	int phraseIndexEdit;
 	int phraseIndexRun;
-	int stepIndexPhraseRun;
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	float editingGateCV;// no need to initialize, this is a companion to editingGate
 	int stepIndexRunHistory;// no need to initialize
-	int stepIndexPhraseRunHistory;// no need to initialize
 	int phraseIndexRunHistory;// no need to initialize
 	int displayState;
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
@@ -152,6 +150,7 @@ struct PhraseSeq32 : Module {
 
 	inline bool getGate1P(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE1P) != 0;}
 	inline bool getTied(int seq, int step) {return (attributes[seq][step] & ATT_MSK_TIED) != 0;}
+	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
 	
 		
 	PhraseSeq32() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -162,12 +161,11 @@ struct PhraseSeq32 : Module {
 		running = false;
 		runModeSeq = MODE_FWD;
 		runModeSong = MODE_FWD;
-		stepIndexEdit = 0;
-		stepIndexRun = 0;
 		sequence = 0;
+		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
-		stepIndexPhraseRun = 0;
+		stepIndexRun = 0;
 		phrases = 4;
 		for (int i = 0; i < 32; i++) {
 			for (int s = 0; s < 32; s++) {
@@ -200,7 +198,6 @@ struct PhraseSeq32 : Module {
 		sequence = randomu32() % 32;
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
-		stepIndexPhraseRun = 0;
 		phrases = 1 + (randomu32() % 32);
 		for (int i = 0; i < 32; i++) {
 			for (int s = 0; s < 32; s++) {
@@ -214,7 +211,10 @@ struct PhraseSeq32 : Module {
 			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
 		}
-		stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+		if (isEditingSequence())
+			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+		else
+			stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 		lengthCPbuffer = 32;
 		countCP = 32;
 		sequenceKnob = INT_MAX;
@@ -353,7 +353,10 @@ struct PhraseSeq32 : Module {
 		if (attachedJ)
 			attached = !!json_integer_value(attachedJ);
 		
-		stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+		if (isEditingSequence())
+			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+		else
+			stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 	}
 
 	void rotateSeq(int sequenceNum, bool directionRight, int numSteps) {
@@ -396,7 +399,7 @@ struct PhraseSeq32 : Module {
 		//   however, paste, transpose, rotate obviously can.
 		// * Whenever cv[][] is modified or tied[] is activated for a step, call applyTiedStep(sequence,stepIndexEdit,steps)
 		
-		bool editingSequence = params[EDIT_PARAM].value > 0.5f;// true = editing sequence, false = editing song
+		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) )
 			displayState = DISP_NORMAL;
 		
@@ -411,10 +414,12 @@ struct PhraseSeq32 : Module {
 			displayState = DISP_NORMAL;
 			if (running) {
 				stepIndexEdit = 0;
-				stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 				phraseIndexEdit = 0;
 				phraseIndexRun = 0;
-				stepIndexPhraseRun = 0;
+				if (isEditingSequence())
+					stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+				else
+					stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 			}
 		}
 
@@ -747,16 +752,16 @@ struct PhraseSeq32 : Module {
 					slideToCV = cv[sequence][stepIndexRun];
 				}
 				else {
-					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
-					if (moveIndexRunMode(&stepIndexPhraseRun, lengths[phrase[phraseIndexRun]], runModeSeq, &stepIndexPhraseRunHistory)) {
+					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
+					if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq, &stepIndexRunHistory)) {
 						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
 					}
-					slideToCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
+					slideToCV = cv[phrase[phraseIndexRun]][stepIndexRun];
 				}
 				
 				// Slide
 				if ( (editingSequence && ((attributes[sequence][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) || 
-				    (!editingSequence && ((attributes[phrase[phraseIndexRun]][stepIndexPhraseRun] & ATT_MSK_SLIDE) != 0) ) ) {
+				    (!editingSequence && ((attributes[phrase[phraseIndexRun]][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) ) {
 					// avtivate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
 					slideStepsRemain =   (unsigned long) (((float)clockPeriod)   * params[SLIDE_KNOB_PARAM].value / 2.0f);// 0-T slide, where T is clock period (can be too long when user does clock gating)
 					//slideStepsRemain = (unsigned long)  (engineGetSampleRate() * params[SLIDE_KNOB_PARAM].value );// 0-2s slide
@@ -771,10 +776,12 @@ struct PhraseSeq32 : Module {
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			sequence = 0;
 			stepIndexEdit = 0;
-			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 			phraseIndexEdit = 0;
 			phraseIndexRun = 0;
-			stepIndexPhraseRun = 0;
+			if (isEditingSequence())
+				stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+			else
+				stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
 			clockTrigger.reset();
@@ -799,12 +806,12 @@ struct PhraseSeq32 : Module {
 												((attributes[sequence][stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
 			}
 			else {// editing song while running
-				gate1RandomEnable |= !getGate1P(phrase[phraseIndexRun],stepIndexPhraseRun);
-				outputs[CV_OUTPUT].value = cv[phrase[phraseIndexRun]][stepIndexPhraseRun] - slideOffset;
+				gate1RandomEnable |= !getGate1P(phrase[phraseIndexRun],stepIndexRun);
+				outputs[CV_OUTPUT].value = cv[phrase[phraseIndexRun]][stepIndexRun] - slideOffset;
 				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
-												((attributes[phrase[phraseIndexRun]][stepIndexPhraseRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
+												((attributes[phrase[phraseIndexRun]][stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
 				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && 
-												((attributes[phrase[phraseIndexRun]][stepIndexPhraseRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
+												((attributes[phrase[phraseIndexRun]][stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
 			}
 		}
 		else {// not running 
@@ -848,7 +855,7 @@ struct PhraseSeq32 : Module {
 						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == stepIndexRun)) ? 1.0f : 0.0f);
 					else {
 						float green = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
-						green += ((running && (i == stepIndexPhraseRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
+						green += ((running && (i == stepIndexRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
 						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = clamp(green, 0.0f, 1.0f);
 					}
 					// Edit cursor (red)
@@ -865,7 +872,7 @@ struct PhraseSeq32 : Module {
 		if (editingSequence)
 			octCV = cv[sequence][stepIndexEdit];
 		else
-			octCV = cv[phrase[phraseIndexEdit]][stepIndexPhraseRun];
+			octCV = cv[phrase[phraseIndexEdit]][stepIndexRun];
 		int octLightIndex = (int) floor(octCV + 3.0f);
 		for (int i = 0; i < 7; i++) {
 			if (!editingSequence && !attached)// no oct lights when song mode and detached (makes no sense, can't mod steps and stepping though seq that may not be playing)
@@ -879,7 +886,7 @@ struct PhraseSeq32 : Module {
 		if (editingSequence) 
 			cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
 		else	
-			cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexPhraseRun] + 10.0f;//to properly handle negative note voltages
+			cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
 		int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
 		for (int i = 0; i < 12; i++) {
 			if (!editingSequence && !attached)// no keyboard lights when song mode and detached (makes no sense, can't mod steps and stepping though seq that may not be playing)
@@ -891,7 +898,7 @@ struct PhraseSeq32 : Module {
 		// Gate1, Gate1Prob, Gate2, Slide and Tied lights
 		int attributesVal = attributes[sequence][stepIndexEdit];
 		if (!editingSequence)
-			attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexPhraseRun];
+			attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
 		//
 		lights[GATE1_LIGHT].value = ((attributesVal & ATT_MSK_GATE1) != 0) ? 1.0f : 0.0f;
 		lights[GATE1_PROB_LIGHT].value = ((attributesVal & ATT_MSK_GATE1P) != 0) ? 1.0f : 0.0f;

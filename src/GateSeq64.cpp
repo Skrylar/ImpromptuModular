@@ -71,9 +71,7 @@ struct GateSeq64 : Module {
 	int stepIndexRun;
 	int phraseIndexEdit;	
 	int phraseIndexRun;
-	int stepIndexPhraseRun;
 	int stepIndexRunHistory;// no need to initialize
-	int stepIndexPhraseRunHistory;// no need to initialize
 	int phraseIndexRunHistory;// no need to initialize
 	int cpBufAttributes[16] = {};// copy-paste only one row
 	int cpBufLength;// copy-paste only one row
@@ -108,6 +106,7 @@ struct GateSeq64 : Module {
 	inline int getGatePVal(int seq, int step) {return attributes[seq][step] & ATT_MSK_PROB;}
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
 		
+		
 	GateSeq64() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
 	}
@@ -117,12 +116,11 @@ struct GateSeq64 : Module {
 		running = false;
 		runModeSeq = MODE_FWD;
 		runModeSong = MODE_FWD;
-		stepIndexRun = 0;
 		sequence = 0;
-		phrases = 4;
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
-		stepIndexPhraseRun = 0;
+		stepIndexRun = 0;
+		phrases = 4;
 		for (int r = 0; r < 4; r++) {
 			trig[r] = false;
 		}
@@ -158,7 +156,6 @@ struct GateSeq64 : Module {
 		phrases = 1 + (randomu32() % 16);
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
-		stepIndexPhraseRun = 0;
 		configTrigger.reset();
 		configTrigger2.reset();
 		configTrigger3.reset();
@@ -170,7 +167,10 @@ struct GateSeq64 : Module {
 			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
 			cpBufAttributes[i] = 50;
 		}
-		stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+		if (isEditingSequence())
+			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+		else
+			stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 		cpBufLength = 16;
 		feedbackCP = 0l;
 		displayProb = -1;
@@ -254,7 +254,10 @@ struct GateSeq64 : Module {
 					lengths[i] = json_integer_value(lengthsArrayJ);
 			}			
 		}
-		stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+		if (isEditingSequence())
+			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+		else
+			stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 	}
 
 	
@@ -299,10 +302,12 @@ struct GateSeq64 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			if (running) {
-				stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);				
 				phraseIndexEdit = 0;				
 				phraseIndexRun = 0;
-				stepIndexPhraseRun = 0;
+				if (isEditingSequence())
+					stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+				else
+					stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 			}
 			displayState = DISP_GATE;
 			displayProb = -1;
@@ -498,7 +503,7 @@ struct GateSeq64 : Module {
 					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq, &stepIndexRunHistory);
 				}
 				else {
-					if (moveIndexRunMode(&stepIndexPhraseRun, lengths[phrase[phraseIndexRun]], runModeSeq, &stepIndexPhraseRunHistory)) {
+					if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq, &stepIndexRunHistory)) {
 						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
 					}
 				}
@@ -508,10 +513,12 @@ struct GateSeq64 : Module {
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			sequence = 0;
-			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 			phraseIndexEdit = 0;
 			phraseIndexRun = 0;
-			stepIndexPhraseRun = 0;
+			if (isEditingSequence())
+				stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+			else
+				stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 			resetLight = 1.0f;
 			displayState = DISP_GATE;
 			clockTrigger.reset();
@@ -533,9 +540,9 @@ struct GateSeq64 : Module {
 					outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = gateOut ? 10.0f : 0.0f;
 				}
 				else {// editing song while running
-					bool gateRandomEnable = randomUniform() < ((float)(getGatePVal(phrase[phraseIndexRun], i * 16 + stepIndexPhraseRun)))/100.0f;// randomUniform is [0.0, 1.0), see include/util/common.hpp
-					gateRandomEnable |= !getGateP(phrase[phraseIndexRun], i * 16 + stepIndexPhraseRun);
-					bool gateOut = clockTrigger.isHigh() && getGate(phrase[phraseIndexRun], i * 16 + stepIndexPhraseRun) && gateRandomEnable;
+					bool gateRandomEnable = randomUniform() < ((float)(getGatePVal(phrase[phraseIndexRun], i * 16 + stepIndexRun)))/100.0f;// randomUniform is [0.0, 1.0), see include/util/common.hpp
+					gateRandomEnable |= !getGateP(phrase[phraseIndexRun], i * 16 + stepIndexRun);
+					bool gateOut = clockTrigger.isHigh() && getGate(phrase[phraseIndexRun], i * 16 + stepIndexRun) && gateRandomEnable;
 					outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = gateOut ? 10.0f : 0.0f;
 				}
 			}
@@ -599,7 +606,7 @@ struct GateSeq64 : Module {
 						green = (i == (phraseIndexRun + 48)) ? 1.0f : 0.0f;
 					else
 						green = (i == (phraseIndexEdit + 48)) ? 1.0f : 0.0f;
-					green += ((running && (col == stepIndexPhraseRun) && i != (phraseIndexEdit + 48)) ? 0.1f : 0.0f);
+					green += ((running && (col == stepIndexRun) && i != (phraseIndexEdit + 48)) ? 0.1f : 0.0f);
 					lights[STEP_LIGHTS + i * 2].value = clamp(green, 0.0f, 1.0f);
 					// Edit cursor (red)
 					lights[STEP_LIGHTS + i * 2 + 1].value = (/*i == (phraseIndexEdit + 48) ? 1.0f :*/ 0.0f);					
