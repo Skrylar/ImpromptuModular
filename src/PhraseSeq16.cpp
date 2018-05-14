@@ -224,7 +224,6 @@ struct PhraseSeq16 : Module {
 		runModeSeq = randomu32() % 5;
 		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
-		stepIndexRun = 0;
 		sequence = randomu32() % 16;
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
@@ -248,6 +247,7 @@ struct PhraseSeq16 : Module {
 			slideCPbuffer[i] = false;
 			tiedCPbuffer[i] = false;
 		}
+		stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 		lengthCPbuffer = 16;
 		sequenceKnob = INT_MAX;
 		editingLength = 0ul;
@@ -473,6 +473,8 @@ struct PhraseSeq16 : Module {
 		json_t *attachedJ = json_object_get(rootJ, "attached");
 		if (attachedJ)
 			attached = !!json_integer_value(attachedJ);
+		
+		stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 	}
 
 	void rotateSeq(int sequenceNum, bool directionRight, int numSteps) {
@@ -543,7 +545,7 @@ struct PhraseSeq16 : Module {
 			displayState = DISP_NORMAL;
 			if (running) {
 				stepIndexEdit = 0;
-				stepIndexRun = 0;
+				stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 				phraseIndexEdit = 0;
 				phraseIndexRun = 0;
 				stepIndexPhraseRun = 0;
@@ -902,9 +904,9 @@ struct PhraseSeq16 : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			stepIndexEdit = 0;
-			stepIndexRun = 0;
 			sequence = 0;
+			stepIndexEdit = 0;
+			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 			phraseIndexEdit = 0;
 			phraseIndexRun = 0;
 			stepIndexPhraseRun = 0;

@@ -154,7 +154,6 @@ struct GateSeq64 : Module {
 		running = (randomUniform() > 0.5f);
 		runModeSeq = randomu32() % 5;
 		runModeSong = randomu32() % 5;
-		stepIndexRun = 0;
 		sequence = randomu32() % 16;
 		phrases = 1 + (randomu32() % 16);
 		phraseIndexEdit = 0;
@@ -171,6 +170,7 @@ struct GateSeq64 : Module {
 			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
 			cpBufAttributes[i] = 50;
 		}
+		stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 		cpBufLength = 16;
 		feedbackCP = 0l;
 		displayProb = -1;
@@ -254,6 +254,7 @@ struct GateSeq64 : Module {
 					lengths[i] = json_integer_value(lengthsArrayJ);
 			}			
 		}
+		stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 	}
 
 	
@@ -298,7 +299,7 @@ struct GateSeq64 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			if (running) {
-				stepIndexRun = 0;
+				stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);				
 				phraseIndexEdit = 0;				
 				phraseIndexRun = 0;
 				stepIndexPhraseRun = 0;
@@ -506,8 +507,8 @@ struct GateSeq64 : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			stepIndexRun = 0;
 			sequence = 0;
+			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 			phraseIndexEdit = 0;
 			phraseIndexRun = 0;
 			stepIndexPhraseRun = 0;
