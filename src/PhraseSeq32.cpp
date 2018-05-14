@@ -115,7 +115,6 @@ struct PhraseSeq32 : Module {
 	int attributesCPbuffer[32];// copy paste buffer for attributes
 	int lengthCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
-	bool gate1RandomEnable; 
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
 	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
 	long clockIgnoreOnReset;
@@ -149,6 +148,10 @@ struct PhraseSeq32 : Module {
 	SchmittTrigger editTriggerInv;
 	SchmittTrigger tiedTrigger;
 	SchmittTrigger stepTriggers[32];
+	
+
+	inline bool getGate1P(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE1P) != 0;}
+	inline bool getTied(int seq, int step) {return (attributes[seq][step] & ATT_MSK_TIED) != 0;}
 	
 		
 	PhraseSeq32() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -184,7 +187,6 @@ struct PhraseSeq32 : Module {
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
 		attached = true;
-		gate1RandomEnable = false;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
@@ -205,7 +207,7 @@ struct PhraseSeq32 : Module {
 			for (int s = 0; s < 32; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 				attributes[i][s] = randomu32() % 32;// 32 because 5 attributes
-				if ((attributes[i][s] & ATT_MSK_TIED) != 0)
+				if (getTied(i,s))
 					attributes[i][s] = ATT_MSK_TIED;// clear other attributes if tied
 			}
 			phrase[i] = randomu32() % 32;
@@ -221,7 +223,6 @@ struct PhraseSeq32 : Module {
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
 		attached = true;
-		gate1RandomEnable = false;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
@@ -477,7 +478,7 @@ struct PhraseSeq32 : Module {
 		bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 		if (writeTrig) {
 			if (editingSequence) {
-				if ((attributes[sequence][stepIndexEdit] & ATT_MSK_TIED) != 0)
+				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else {			
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
@@ -518,7 +519,7 @@ struct PhraseSeq32 : Module {
 						stepIndexEdit = stepPressed;
 						if (stepIndexEdit >= lengths[sequence])
 							stepIndexEdit = lengths[sequence] - 1;
-						if ((attributes[sequence][stepIndexEdit] & ATT_MSK_TIED) == 0) {// play if non-tied step
+						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							if (!writeTrig)
 								editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
 							editingGate = (unsigned long) (gateTime * engineGetSampleRate());
@@ -648,7 +649,7 @@ struct PhraseSeq32 : Module {
 		}
 		if (newOct >= 0 && newOct <= 6) {
 			if (editingSequence) {
-				if ( (attributes[sequence][stepIndexEdit] & ATT_MSK_TIED) != 0 )// if tied
+				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else {			
 					float newCV = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
@@ -667,7 +668,7 @@ struct PhraseSeq32 : Module {
 		for (int i = 0; i < 12; i++) {
 			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 				if (editingSequence) {
-					if ( (attributes[sequence][stepIndexEdit] & ATT_MSK_TIED) != 0 )// if tied
+					if (getTied(sequence,stepIndexEdit))
 						tiedWarning = tiedWarningInit;
 					else {			
 						cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
@@ -683,7 +684,7 @@ struct PhraseSeq32 : Module {
 		// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingSequence) {
-				if ( (attributes[sequence][stepIndexEdit] & ATT_MSK_TIED) != 0 )// if tied
+				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else
 					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1;
@@ -692,7 +693,7 @@ struct PhraseSeq32 : Module {
 		}		
 		if (gate1ProbTrigger.process(params[GATE1_PROB_PARAM].value)) {
 			if (editingSequence) {
-				if ( (attributes[sequence][stepIndexEdit] & ATT_MSK_TIED) != 0 )// if tied
+				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else
 					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1P;
@@ -701,7 +702,7 @@ struct PhraseSeq32 : Module {
 		}		
 		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
 			if (editingSequence) {
-				if ( (attributes[sequence][stepIndexEdit] & ATT_MSK_TIED) != 0 )// if tied
+				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else
 					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE2;
@@ -710,7 +711,7 @@ struct PhraseSeq32 : Module {
 		}		
 		if (slideTrigger.process(params[SLIDE_BTN_PARAM].value)) {
 			if (editingSequence) {
-				if ( (attributes[sequence][stepIndexEdit] & ATT_MSK_TIED) != 0 )// if tied
+				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else
 					attributes[sequence][stepIndexEdit] ^= ATT_MSK_SLIDE;
@@ -720,7 +721,7 @@ struct PhraseSeq32 : Module {
 		if (tiedTrigger.process(params[TIE_PARAM].value)) {
 			if (editingSequence) {
 				attributes[sequence][stepIndexEdit] ^= ATT_MSK_TIED;
-				if ( (attributes[sequence][stepIndexEdit] & ATT_MSK_TIED) != 0 ) {// if tied
+				if (getTied(sequence,stepIndexEdit)) {
 					attributes[sequence][stepIndexEdit] &= ~(ATT_MSK_GATE1 | ATT_MSK_GATE1P | ATT_MSK_GATE2 | ATT_MSK_SLIDE);
 					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 				}
@@ -742,7 +743,6 @@ struct PhraseSeq32 : Module {
 					slideFromCV = cv[sequence][stepIndexRun];
 					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq, &stepIndexRunHistory);
 					slideToCV = cv[sequence][stepIndexRun];
-					gate1RandomEnable = ( (attributes[sequence][stepIndexRun] & ATT_MSK_GATE1P) != 0 );// not random yet
 				}
 				else {
 					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
@@ -750,7 +750,6 @@ struct PhraseSeq32 : Module {
 						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
 					}
 					slideToCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
-					gate1RandomEnable = ( (attributes[phrase[phraseIndexRun]][stepIndexPhraseRun] & ATT_MSK_GATE1P) != 0 );// not random yet
 				}
 				
 				// Slide
@@ -761,11 +760,6 @@ struct PhraseSeq32 : Module {
 					//slideStepsRemain = (unsigned long)  (engineGetSampleRate() * params[SLIDE_KNOB_PARAM].value );// 0-2s slide
 					slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
 				}
-
-				if (gate1RandomEnable)
-					gate1RandomEnable = randomUniform() < (params[GATE1_KNOB_PARAM].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
-				else 
-					gate1RandomEnable = true;
 			}
 			clockPeriod = 0ul;
 		}	
@@ -793,7 +787,9 @@ struct PhraseSeq32 : Module {
 		// CV and gates outputs
 		if (running) {
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
+			bool gate1RandomEnable = randomUniform() < (params[GATE1_KNOB_PARAM].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
 			if (editingSequence) {// editing sequence while running
+				gate1RandomEnable |= !getGate1P(sequence,stepIndexRun);
 				outputs[CV_OUTPUT].value = cv[sequence][stepIndexRun] - slideOffset;
 				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
 												((attributes[sequence][stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
@@ -801,6 +797,7 @@ struct PhraseSeq32 : Module {
 												((attributes[sequence][stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
 			}
 			else {// editing song while running
+				gate1RandomEnable |= !getGate1P(phrase[phraseIndexRun],stepIndexPhraseRun);
 				outputs[CV_OUTPUT].value = cv[phrase[phraseIndexRun]][stepIndexPhraseRun] - slideOffset;
 				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
 												((attributes[phrase[phraseIndexRun]][stepIndexPhraseRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
@@ -946,7 +943,7 @@ struct PhraseSeq32 : Module {
 		//   case B: the give step's CV was modified
 		// These cases are mutually exclusive
 		
-		if ((attributes[seqNum][indexTied] & ATT_MSK_TIED) != 0) {
+		if (getTied(seqNum,indexTied)) {
 			// copy previous CV over to current step
 			int iSrc = indexTied - 1;
 			if (iSrc < 0) 
@@ -958,7 +955,7 @@ struct PhraseSeq32 : Module {
 		for (int i = 0; i < 16; i++) {// i is a safety counter in case all notes are tied (avoir infinite loop)
 			if (iDest > numSteps - 1) 
 				iDest = 0;
-			if ((attributes[seqNum][iDest] & ATT_MSK_TIED) == 0)
+			if (!getTied(seqNum,iDest))
 				break;
 			// iDest is tied, so set its CV
 			cv[seqNum][iDest] = cv[seqNum][indexTied];

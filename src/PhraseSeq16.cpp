@@ -139,7 +139,6 @@ struct PhraseSeq16 : Module {
 	bool tiedCPbuffer[16];// copy paste buffer for slide
 	int lengthCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
-	bool gate1RandomEnable; 
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
 	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
 	long clockIgnoreOnReset;
@@ -215,7 +214,6 @@ struct PhraseSeq16 : Module {
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
 		attached = true;
-		gate1RandomEnable = false;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
@@ -258,7 +256,6 @@ struct PhraseSeq16 : Module {
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
 		attached = true;
-		gate1RandomEnable = false;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
@@ -882,7 +879,6 @@ struct PhraseSeq16 : Module {
 					slideFromCV = cv[sequence][stepIndexRun];
 					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq, &stepIndexRunHistory);
 					slideToCV = cv[sequence][stepIndexRun];
-					gate1RandomEnable = gate1Prob[sequence][stepIndexRun];// not random yet
 				}
 				else {
 					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
@@ -890,7 +886,6 @@ struct PhraseSeq16 : Module {
 						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
 					}
 					slideToCV = cv[phrase[phraseIndexRun]][stepIndexPhraseRun];
-					gate1RandomEnable = gate1Prob[phrase[phraseIndexRun]][stepIndexPhraseRun];// not random yet
 				}
 				
 				// Slide
@@ -900,11 +895,6 @@ struct PhraseSeq16 : Module {
 					//slideStepsRemain = (unsigned long)  (engineGetSampleRate() * params[SLIDE_KNOB_PARAM].value );// 0-2s slide
 					slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
 				}
-
-				if (gate1RandomEnable)
-					gate1RandomEnable = randomUniform() < (params[GATE1_KNOB_PARAM].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
-				else 
-					gate1RandomEnable = true;
 			}
 			clockPeriod = 0ul;
 		}	
@@ -932,12 +922,15 @@ struct PhraseSeq16 : Module {
 		// CV and gates outputs
 		if (running) {
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
+			bool gate1RandomEnable = randomUniform() < (params[GATE1_KNOB_PARAM].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
 			if (editingSequence) {// editing sequence while running
+				gate1RandomEnable |= !gate1Prob[sequence][stepIndexRun];
 				outputs[CV_OUTPUT].value = cv[sequence][stepIndexRun] - slideOffset;
 				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && gate1[sequence][stepIndexRun]) ? 10.0f : 0.0f;
 				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2[sequence][stepIndexRun]) ? 10.0f : 0.0f;
 			}
 			else {// editing song while running
+				gate1RandomEnable |= !gate1Prob[phrase[phraseIndexRun]][stepIndexPhraseRun];
 				outputs[CV_OUTPUT].value = cv[phrase[phraseIndexRun]][stepIndexPhraseRun] - slideOffset;
 				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && gate1[phrase[phraseIndexRun]][stepIndexPhraseRun]) ? 10.0f : 0.0f;
 				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2[phrase[phraseIndexRun]][stepIndexPhraseRun]) ? 10.0f : 0.0f;
