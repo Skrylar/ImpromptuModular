@@ -93,7 +93,7 @@ struct PhraseSeq32 : Module {
 	float cv[32][32] = {};// [-3.0 : 3.917]. First index is patten number, 2nd index is step
 	int attributes[32][32] = {};// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
 	//
-	float attach;
+	bool attached;
 
 	// No need to save
 	float resetLight = 0.0f;
@@ -139,7 +139,7 @@ struct PhraseSeq32 : Module {
 	SchmittTrigger slideTrigger;
 	SchmittTrigger keyTriggers[12];
 	SchmittTrigger writeTrigger;
-	SchmittTrigger attachTrigger;
+	SchmittTrigger attachedTrigger;
 	SchmittTrigger copyTrigger;
 	SchmittTrigger pasteTrigger;
 	SchmittTrigger modeTrigger;
@@ -183,7 +183,7 @@ struct PhraseSeq32 : Module {
 		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
-		attach = 1.0f;
+		attached = true;
 		gate1RandomEnable = false;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
@@ -220,7 +220,7 @@ struct PhraseSeq32 : Module {
 		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
-		attach = 1.0f;
+		attached = true;
 		gate1RandomEnable = false;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
@@ -273,8 +273,8 @@ struct PhraseSeq32 : Module {
 			}
 		json_object_set_new(rootJ, "attributes", attributesJ);
 
-		// attach
-		json_object_set_new(rootJ, "attach", json_real(attach));
+		// attached
+		json_object_set_new(rootJ, "attached", json_integer((int)attached));
 
 		return rootJ;
 	}
@@ -347,10 +347,10 @@ struct PhraseSeq32 : Module {
 				}
 		}
 		
-		// attach
-		json_t *attachJ = json_object_get(rootJ, "attach");
-		if (attachJ)
-			attach = json_real_value(attachJ);
+		// attached
+		json_t *attachedJ = json_object_get(rootJ, "attached");
+		if (attachedJ)
+			attached = !!json_integer_value(attachedJ);
 	}
 
 	void rotateSeq(int sequenceNum, bool directionRight, int numSteps) {
@@ -416,13 +416,12 @@ struct PhraseSeq32 : Module {
 		}
 
 		// Attach button
-		if (attachTrigger.process(params[ATTACH_PARAM].value)) {
-			if (running) {
-				attach = 1.0f - attach;// toggle
-			}	
+		if (attachedTrigger.process(params[ATTACH_PARAM].value)) {
+			if (running)
+				attached = !attached;
 			displayState = DISP_NORMAL;			
 		}
-		if (running && attach > 0.5f) {
+		if (running && attached) {
 			if (editingSequence)
 				stepIndexEdit = stepIndexRun;
 			else
@@ -514,7 +513,7 @@ struct PhraseSeq32 : Module {
 				}
 			}
 			else {
-				if (!running || attach < 0.5f) {// don't move heads when attach and running
+				if (!running || !attached) {// don't move heads when attach and running
 					if (editingSequence) {
 						stepIndexEdit = stepPressed;
 						if (stepIndexEdit >= lengths[sequence])
@@ -625,6 +624,8 @@ struct PhraseSeq32 : Module {
 							sequence += deltaKnob;
 							if (sequence < 0) sequence = 0;
 							if (sequence >= 32) sequence = (32 - 1);
+							if (stepIndexEdit >= lengths[sequence])
+								stepIndexEdit = lengths[sequence] - 1;
 						}
 					}
 					else {
@@ -868,7 +869,10 @@ struct PhraseSeq32 : Module {
 			octCV = cv[phrase[phraseIndexEdit]][stepIndexPhraseRun];
 		int octLightIndex = (int) floor(octCV + 3.0f);
 		for (int i = 0; i < 7; i++) {
-			lights[OCTAVE_LIGHTS + i].value = (i == (6 - octLightIndex) ? 1.0f : 0.0f);
+			if (!editingSequence && !attached)// no oct lights when song mode and detached (makes no sense, can't mod steps and stepping though seq that may not be playing)
+				lights[OCTAVE_LIGHTS + i].value = 0.0f;
+			else
+				lights[OCTAVE_LIGHTS + i].value = (i == (6 - octLightIndex) ? 1.0f : 0.0f);
 		}
 		
 		// Keyboard lights
@@ -879,7 +883,10 @@ struct PhraseSeq32 : Module {
 			cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexPhraseRun] + 10.0f;//to properly handle negative note voltages
 		int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
 		for (int i = 0; i < 12; i++) {
-			lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+			if (!editingSequence && !attached)// no keyboard lights when song mode and detached (makes no sense, can't mod steps and stepping though seq that may not be playing)
+				lights[KEY_LIGHTS + i].value = 0.0f;
+			else
+				lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
 		}			
 		
 		// Gate1, Gate1Prob, Gate2, Slide and Tied lights
@@ -899,7 +906,7 @@ struct PhraseSeq32 : Module {
 			lights[TIE_LIGHT].value = ((attributesVal & ATT_MSK_TIED) != 0) ? 1.0f : 0.0f;
 
 		// Attach light
-		lights[ATTACH_LIGHT].value = running ? attach : 0.0f;
+		lights[ATTACH_LIGHT].value = (running && attached) ? 1.0f : 0.0f;
 		
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
