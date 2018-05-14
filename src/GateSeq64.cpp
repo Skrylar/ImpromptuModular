@@ -49,7 +49,7 @@ struct GateSeq64 : Module {
 		NUM_LIGHTS
 	};
 	
-	enum DisplayStateIds {DISP_GATE, DISP_LENGTH, DISP_MODES, DISP_ROW_SEL};
+	enum DisplayStateIds {DISP_GATE, DISP_LENGTH, DISP_MODES, DISP_ROW_SEL};// TODO remove DISP_ROW_SEL and make copy paste like in PSxx
 	enum AttributeBitMasks {ATT_MSK_PROB = 0xFF, ATT_MSK_GATEP = 0x100, ATT_MSK_GATE = 0x200};
 	
 	// Need to save
@@ -379,10 +379,10 @@ struct GateSeq64 : Module {
 						}
 					}
 					else {
-						if (displayState == DISP_GATE) {// dont change anything when in song length change mode
+						if (!running) {
 							phrase[phraseIndexEdit] += deltaKnob;
 							if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
-							if (phrase[phraseIndexEdit] > 15) phrase[phraseIndexEdit] = 15;	
+							if (phrase[phraseIndexEdit] > 15) phrase[phraseIndexEdit] = 15;
 						}						
 					}	
 				}					
@@ -478,9 +478,11 @@ struct GateSeq64 : Module {
 							runModeSong = col - 11;
 					}
 					else {
-						phraseIndexEdit = stepPressed - 48;
-						if (phraseIndexEdit >= phrases)
-							phraseIndexEdit = phrases - 1;
+						if (!running) {
+							phraseIndexEdit = stepPressed - 48;
+							if (phraseIndexEdit >= phrases)
+								phraseIndexEdit = phrases - 1;
+						}
 					}
 				}
 			}
@@ -591,11 +593,15 @@ struct GateSeq64 : Module {
 				}
 				else {
 					// Run cursor (green)
-					float green = ((running && (i == (phraseIndexRun + 48))) ? 1.0f : 0.0f);
+					float green;
+					if (running) 
+						green = (i == (phraseIndexRun + 48)) ? 1.0f : 0.0f;
+					else
+						green = (i == (phraseIndexEdit + 48)) ? 1.0f : 0.0f;
 					green += ((running && (col == stepIndexPhraseRun) && i != (phraseIndexEdit + 48)) ? 0.1f : 0.0f);
 					lights[STEP_LIGHTS + i * 2].value = clamp(green, 0.0f, 1.0f);
 					// Edit cursor (red)
-					lights[STEP_LIGHTS + i * 2 + 1].value = (i == (phraseIndexEdit + 48) ? 1.0f : 0.0f);					
+					lights[STEP_LIGHTS + i * 2 + 1].value = (/*i == (phraseIndexEdit + 48) ? 1.0f :*/ 0.0f);					
 				}				
 			}
 		}
@@ -685,8 +691,18 @@ struct GateSeq64Widget : ModuleWidget {
 				else
 					runModeToStr(module->runModeSong);
 			}
-			else
-				snprintf(displayStr, 4, " %2u", (unsigned) (module->isEditingSequence() ? module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
+			else {
+				int dispVal = 0;
+				if (module->isEditingSequence())
+					dispVal = module->sequence;
+				else {
+					if (module->running)
+						dispVal = module->phrase[module->phraseIndexRun];
+					else 
+						dispVal = module->phrase[module->phraseIndexEdit];
+				}
+				snprintf(displayStr, 4, " %2u", (unsigned)(dispVal) + 1 );
+			}
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};	
