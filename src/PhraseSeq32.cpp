@@ -157,8 +157,8 @@ struct PhraseSeq32 : Module {
 
 	void onReset() override {
 		running = false;
-		runModeSeq = 0;
-		runModeSong = 0;
+		runModeSeq = MODE_FWD;
+		runModeSong = MODE_FWD;
 		stepIndexEdit = 0;
 		stepIndexRun = 0;
 		sequence = 0;

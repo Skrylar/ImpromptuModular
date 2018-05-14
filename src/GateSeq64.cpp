@@ -55,7 +55,8 @@ struct GateSeq64 : Module {
 	
 	// Need to save
 	bool running;
-	int runModeSeq[4] = {};
+	int runModeSeq;
+	int runModeSong;
 	//
 	int sequence;
 	int length[16][4] = {};// values are 1 to 16
@@ -68,7 +69,7 @@ struct GateSeq64 : Module {
 
 	// No need to save
 	int displayState;
-	int indexStep[4] = {};
+	int stepIndexRun[4] = {};
 	int phraseIndexEdit;	
 	int stepIndexRunHistory[4] = {};// no need to initialize
 	int cpBufAttributes[16] = {};// copy-paste only one row
@@ -114,12 +115,13 @@ struct GateSeq64 : Module {
 	void onReset() override {
 		displayState = DISP_GATE;
 		running = false;
+		runModeSeq = MODE_FWD;
+		runModeSong = MODE_FWD;
 		sequence = 0;
 		phrases = 4;
 		phraseIndexEdit = 0;
 		for (int r = 0; r < 4; r++) {
-			indexStep[r] = 0;
-			runModeSeq[r] = MODE_FWD;
+			stepIndexRun[r] = 0;
 			trig[r] = false;
 			gateRandomEnable[r] = true;
 		}
@@ -151,6 +153,8 @@ struct GateSeq64 : Module {
 		//
 		displayState = DISP_GATE;
 		running = (randomUniform() > 0.5f);
+		runModeSeq = randomu32() % 5;
+		runModeSong = randomu32() % 5;
 		sequence = randomu32() % 16;
 		phrases = 1 + (randomu32() % 16);
 		phraseIndexEdit = 0;
@@ -158,8 +162,7 @@ struct GateSeq64 : Module {
 		configTrigger2.reset();
 		configTrigger3.reset();
 		for (int r = 0; r < 4; r++) {
-			indexStep[r] = 0;
-			runModeSeq[r] = randomu32() % 5;
+			stepIndexRun[r] = 0;
 			trig[r] = (randomUniform() > 0.5f);
 		}
 		for (int i = 0; i < 16; i++) {
@@ -187,6 +190,12 @@ struct GateSeq64 : Module {
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
 		
+		// runModeSeq
+		json_object_set_new(rootJ, "runModeSeq", json_integer(runModeSeq));
+
+		// runModeSong
+		json_object_set_new(rootJ, "runModeSong", json_integer(runModeSong));
+
 		// sequence
 		json_object_set_new(rootJ, "sequence", json_integer(sequence));
 
@@ -206,12 +215,6 @@ struct GateSeq64 : Module {
 			}
 		json_object_set_new(rootJ, "length", lengthJ);
 		
-		// runModeSeq
-		json_t *runModeSeqJ = json_array();
-		for (int i = 0; i < 4; i++)
-			json_array_insert_new(runModeSeqJ, i, json_integer(runModeSeq[i]));
-		json_object_set_new(rootJ, "runModeSeq", runModeSeqJ);
-		
 		// trig
 		json_t *trigJ = json_array();
 		for (int i = 0; i < 4; i++)
@@ -226,6 +229,16 @@ struct GateSeq64 : Module {
 		json_t *runningJ = json_object_get(rootJ, "running");
 		if (runningJ)
 			running = json_is_true(runningJ);
+		
+		// runModeSeq
+		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq");
+		if (runModeSeqJ)
+			runModeSeq = json_integer_value(runModeSeqJ);
+		
+		// runModeSong
+		json_t *runModeSongJ = json_object_get(rootJ, "runModeSong");
+		if (runModeSongJ)
+			runModeSong = json_integer_value(runModeSongJ);
 		
 		// sequence
 		json_t *sequenceJ = json_object_get(rootJ, "sequence");
@@ -254,17 +267,6 @@ struct GateSeq64 : Module {
 				}
 		}
 				
-		// runModeSeq
-		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq");
-		if (runModeSeqJ) {
-			for (int i = 0; i < 4; i++)
-			{
-				json_t *runModeSeqArrayJ = json_array_get(runModeSeqJ, i);
-				if (runModeSeqArrayJ)
-					runModeSeq[i] = json_integer_value(runModeSeqArrayJ);
-			}
-		}
-		
 		// trig
 		json_t *trigJ = json_object_get(rootJ, "trig");
 		if (trigJ) {
@@ -331,7 +333,7 @@ struct GateSeq64 : Module {
 			running = !running;
 			if (running) {
 				for (int i = 0; i < 4; i++)
-					indexStep[i] = 0;			
+					stepIndexRun[i] = 0;			
 			}
 			displayState = DISP_GATE;
 			displayProb = -1;
@@ -339,21 +341,22 @@ struct GateSeq64 : Module {
 		
 		// Modes button
 		if (modesTrigger.process(params[MODES_PARAM].value)) {
-			if (editingSequence) {
+			//if (editingSequence) {
 				if (displayState == DISP_GATE || displayState == DISP_ROW_SEL)
 					displayState = DISP_MODES;
 				else if (displayState == DISP_MODES)
 					displayState = DISP_LENGTH;
 				else
 					displayState = DISP_GATE;
-				displayProb = -1;
-			}
+			/*}
 			else {
 				if (displayState == DISP_GATE)
 					displayState = DISP_LENGTH;
 				else
 					displayState = DISP_GATE;				
 			}
+			*/
+			displayProb = -1;
 		}
 				
 		// Prob knob
@@ -382,25 +385,40 @@ struct GateSeq64 : Module {
 		int deltaKnob = newSequenceKnob - sequenceKnob;
 		if (deltaKnob != 0) {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
-				if (editingSequence) {
-					if (!inputs[SEQCV_INPUT].active) {
-						sequence += deltaKnob;
-						if (sequence < 0) sequence = 0;
-						if (sequence > 15) sequence = 15;
+				if (displayState == DISP_MODES) {
+					if (editingSequence) {
+						runModeSeq += deltaKnob;
+						if (runModeSeq < 0) runModeSeq = 0;
+						if (runModeSeq > 4) runModeSeq = 4;
+					}
+					else {
+						runModeSong += deltaKnob;
+						if (runModeSong < 0) runModeSong = 0;
+						if (runModeSong > 4) runModeSong = 4;
 					}
 				}
 				else {
-					if (displayState == DISP_GATE) {// dont change anything when in song length change mode
-						phrase[phraseIndexEdit] += deltaKnob;
-						if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
-						if (phrase[phraseIndexEdit] > 15) phrase[phraseIndexEdit] = 15;	
-					}						
-				}				
+					if (editingSequence) {
+						if (!inputs[SEQCV_INPUT].active) {
+							sequence += deltaKnob;
+							if (sequence < 0) sequence = 0;
+							if (sequence > 15) sequence = 15;
+						}
+					}
+					else {
+						if (displayState == DISP_GATE) {// dont change anything when in song length change mode
+							phrase[phraseIndexEdit] += deltaKnob;
+							if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
+							if (phrase[phraseIndexEdit] > 15) phrase[phraseIndexEdit] = 15;	
+						}						
+					}	
+				}					
 			}
 			sequenceKnob = newSequenceKnob;
+			displayProb = -1;
 		}
 
-		// Copy, paste, clear, fill (cpcf) buttons
+		// Copy, paste buttons
 		bool copyTrigged = copyTrigger.process(params[COPY_PARAM].value);
 		bool pasteTrigged = pasteTrigger.process(params[PASTE_PARAM].value);
 		if (editingSequence) {
@@ -427,8 +445,7 @@ struct GateSeq64 : Module {
 		for (int i = 0; i < 64; i++) {
 			if (stepTriggers[i].process(params[STEP_PARAMS + i].value))
 				stepPressed = i;
-		}	
-				
+		}		
 		if (stepPressed != -1) {
 			if (editingSequence) {
 				if (displayState == DISP_GATE) {
@@ -459,7 +476,7 @@ struct GateSeq64 : Module {
 					col = stepPressed % (16 * stepConfig);
 					length[sequence][row] = col + 1;
 				}
-				if (displayState == DISP_MODES) {
+				/*if (displayState == DISP_MODES) {
 					row = stepPressed / (16 * stepConfig);
 					if (stepConfig == 2 && row == 1) 
 						row++;
@@ -470,7 +487,7 @@ struct GateSeq64 : Module {
 						trig[row] = false;
 					else if (col == 1)
 						trig[row] = true;
-				}
+				}*/
 				if (displayState == DISP_ROW_SEL) {
 					row = stepPressed / 16;// copy-paste done on blocks of 16 even when in 2x32 or 1x64 config
 					if (cpInfo == 1) {// copy
@@ -498,6 +515,10 @@ struct GateSeq64 : Module {
 						if (phrases < 1 ) phrases = 1;
 						if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
 					}
+					else if (displayState == DISP_MODES) {
+						if (col >= 11 && col <= 15)
+							runModeSong = col - 11;
+					}
 					else {
 						phraseIndexEdit = stepPressed - 48;
 						if (phraseIndexEdit >= phrases)
@@ -520,10 +541,10 @@ struct GateSeq64 : Module {
 		if (running) {
 			for (int i = 0; i < 4; i += stepConfig) {
 				if (clockIgnoreOnReset == 0l && clkTrig[findClock(i, clkActive)]) {
-					moveIndexRunMode(&indexStep[i], length[sequence][i], runModeSeq[i], &stepIndexRunHistory[i]);
+					moveIndexRunMode(&stepIndexRun[i], length[sequence][i], runModeSeq, &stepIndexRunHistory[i]);
 					gatePulses[i].trigger(0.001f);
-					gateRandomEnable[i] = !getGateP(sequence, i * 16 + indexStep[i]);// not random yet
-					gateRandomEnable[i] |= randomUniform() < ((float)(getGatePVal(sequence, i * 16 + indexStep[i])))/100.0f;// randomUniform is [0.0, 1.0), see include/util/common.hpp
+					gateRandomEnable[i] = !getGateP(sequence, i * 16 + stepIndexRun[i]);// not random yet
+					gateRandomEnable[i] |= randomUniform() < ((float)(getGatePVal(sequence, i * 16 + stepIndexRun[i])))/100.0f;// randomUniform is [0.0, 1.0), see include/util/common.hpp
 				}
 			}
 		}
@@ -531,7 +552,7 @@ struct GateSeq64 : Module {
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			for (int i = 0; i < 4; i++) {
-				indexStep[i] = 0;
+				stepIndexRun[i] = 0;
 				clockTriggers[i].reset();
 				gateRandomEnable[i] = true;
 			}
@@ -552,7 +573,7 @@ struct GateSeq64 : Module {
 		// Gate outputs
 		for (int i = 0; i < 4; i += stepConfig) {
 			if (running) {
-				bool gateOut = getGate(sequence, i * 16 + indexStep[i]) && gateRandomEnable[i];
+				bool gateOut = getGate(sequence, i * 16 + stepIndexRun[i]) && gateRandomEnable[i];
 				if (trig[i])
 					gateOut &= gatePulsesValue[i];
 				else
@@ -575,7 +596,7 @@ struct GateSeq64 : Module {
 			col = i % (16 * stepConfig);
 			if (editingSequence) {
 				if (displayState == DISP_GATE) {
-					float stepHereOffset =  (indexStep[row] == col && running) ? 0.5f : 0.0f;
+					float stepHereOffset =  (stepIndexRun[row] == col && running) ? 0.5f : 0.0f;
 					if (getGate(sequence, i)) {
 						if (i == displayProb && getGateP(sequence, i)) 
 							setGreenRed(STEP_LIGHTS + i * 2, 0.4f, 1.0f - stepHereOffset);
@@ -594,7 +615,7 @@ struct GateSeq64 : Module {
 					else 
 						setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
 				}
-				else if (displayState == DISP_MODES) {
+				/*else if (displayState == DISP_MODES) {
 					if (col >= 11 && col <= 15) { 
 						if (col - 11 == runModeSeq[row])
 							setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
@@ -610,7 +631,7 @@ struct GateSeq64 : Module {
 					else {
 						setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
 					}
-				}
+				}*/
 				else if (displayState == DISP_ROW_SEL) {
 					if ((i / 16) == rowToLight)
 						setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
@@ -632,8 +653,19 @@ struct GateSeq64 : Module {
 					else 
 						setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
 				}
+				/*else if (displayState == DISP_MODES) {
+					if (row == 3 && col >= 11 && col <= 15) { 
+						if (col - 11 == runModeSong)
+							setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
+						else
+							setGreenRed(STEP_LIGHTS + i * 2, 0.1f, 0.0f);
+					}
+					else {
+						setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
+					}				
+				}*/
 				else {
-					float stepHereOffset =  (indexStep[row] == col && running) ? 0.5f : 0.0f;
+					float stepHereOffset =  (stepIndexRun[row] == col && running) ? 0.5f : 0.0f;
 					if (i == (phraseIndexEdit + 48)) {
 						setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, 0.0f);
 					}
@@ -697,31 +729,43 @@ struct GateSeq64 : Module {
 
 struct GateSeq64Widget : ModuleWidget {
 		
-		struct SequenceDisplayWidget : TransparentWidget {
-			GateSeq64 *module;
-			std::shared_ptr<Font> font;
-			
-			SequenceDisplayWidget() {
-				font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
-			}
+	struct SequenceDisplayWidget : TransparentWidget {
+		GateSeq64 *module;
+		std::shared_ptr<Font> font;
+		char displayStr[4];
+		std::string modeLabels[5]={"FWD","REV","PPG","BRN","RND"};
+		
+		SequenceDisplayWidget() {
+			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
+		}
+		
+		void runModeToStr(int num) {
+			if (num >= 0 && num < 5)
+				snprintf(displayStr, 4, "%s", modeLabels[num].c_str());
+		}
 
-			void draw(NVGcontext *vg) override {
-				NVGcolor textColor = prepareDisplay(vg, &box);
-				nvgFontFaceId(vg, font->handle);
-				//nvgTextLetterSpacing(vg, 2.5);
+		void draw(NVGcontext *vg) override {
+			NVGcolor textColor = prepareDisplay(vg, &box);
+			nvgFontFaceId(vg, font->handle);
+			//nvgTextLetterSpacing(vg, 2.5);
 
-				Vec textPos = Vec(6, 24);
-				nvgFillColor(vg, nvgTransRGBA(textColor, 16));
-				nvgText(vg, textPos.x, textPos.y, "~~", NULL);
-				nvgFillColor(vg, textColor);
-				char displayStr[3];
-				if (module->displayState == GateSeq64::DISP_MODES)
-					snprintf(displayStr, 3, " *");
+			Vec textPos = Vec(6, 24);
+			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
+			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
+			nvgFillColor(vg, textColor);				
+			if (module->displayState == GateSeq64::DISP_LENGTH)
+				snprintf(displayStr, 4, "L ");
+			else if (module->displayState == GateSeq64::DISP_MODES) {
+				if (module->isEditingSequence())
+					runModeToStr(module->runModeSeq);
 				else
-					snprintf(displayStr, 3, "%2u", (unsigned) (module->isEditingSequence() ? module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
-				nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
+					runModeToStr(module->runModeSong);
 			}
-		};	
+			else
+				snprintf(displayStr, 4, " %2u", (unsigned) (module->isEditingSequence() ? module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
+			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
+		}
+	};	
 		
 		
 	struct ProbDisplayWidget : TransparentWidget {
@@ -832,8 +876,8 @@ struct GateSeq64Widget : ModuleWidget {
 		addParam(ParamWidget::create<CKSSH>(Vec(colRulerC0 + hOffsetCKSSH, rowRulerC0 + vOffsetCKSSH), module, GateSeq64::EDIT_PARAM, 0.0f, 1.0f, 0.0f));// 1.0f is rightmost position	
 		// Steps display
 		SequenceDisplayWidget *displaySequence = new SequenceDisplayWidget();
-		displaySequence->box.pos = Vec(colRulerC0 - 7, rowRulerC1 + vOffsetDisplay);
-		displaySequence->box.size = Vec(40, 30);// 2 characters
+		displaySequence->box.pos = Vec(colRulerC0 - 15, rowRulerC1 + vOffsetDisplay);
+		displaySequence->box.size = Vec(55, 30);// 3 characters
 		displaySequence->module = module;
 		addChild(displaySequence);
 		// Sequence knob
