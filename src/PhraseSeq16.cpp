@@ -183,11 +183,11 @@ struct PhraseSeq16 : Module {
 		runModeSeq = MODE_FWD;
 		runModeSong = MODE_FWD;
 		sequence = 0;
+		phrases = 4;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
 		stepIndexRun = 0;
-		phrases = 4;
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 16; s++) {
 				cv[i][s] = 0.0f;
@@ -225,9 +225,9 @@ struct PhraseSeq16 : Module {
 		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
 		sequence = randomu32() % 16;
-		phraseIndexEdit = 0;
-		phraseIndexRun = 0;
 		phrases = 1 + (randomu32() % 16);
+		phraseIndexEdit = 0;
+		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 16; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
@@ -476,6 +476,7 @@ struct PhraseSeq16 : Module {
 		if (attachedJ)
 			attached = !!json_integer_value(attachedJ);
 		
+		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		if (isEditingSequence())
 			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 		else
@@ -551,7 +552,7 @@ struct PhraseSeq16 : Module {
 			if (running) {
 				stepIndexEdit = 0;
 				phraseIndexEdit = 0;
-				phraseIndexRun = 0;
+				phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 				if (isEditingSequence())
 					stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 				else
@@ -914,7 +915,7 @@ struct PhraseSeq16 : Module {
 			sequence = 0;
 			stepIndexEdit = 0;
 			phraseIndexEdit = 0;
-			phraseIndexRun = 0;
+			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 			if (isEditingSequence())
 				stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 			else
@@ -934,18 +935,11 @@ struct PhraseSeq16 : Module {
 		if (running) {
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
 			bool gate1RandomEnable = randomUniform() < (params[GATE1_KNOB_PARAM].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
-			if (editingSequence) {// editing sequence while running
-				gate1RandomEnable |= !gate1Prob[sequence][stepIndexRun];
-				outputs[CV_OUTPUT].value = cv[sequence][stepIndexRun] - slideOffset;
-				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && gate1[sequence][stepIndexRun]) ? 10.0f : 0.0f;
-				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2[sequence][stepIndexRun]) ? 10.0f : 0.0f;
-			}
-			else {// editing song while running
-				gate1RandomEnable |= !gate1Prob[phrase[phraseIndexRun]][stepIndexRun];
-				outputs[CV_OUTPUT].value = cv[phrase[phraseIndexRun]][stepIndexRun] - slideOffset;
-				outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && gate1[phrase[phraseIndexRun]][stepIndexRun]) ? 10.0f : 0.0f;
-				outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2[phrase[phraseIndexRun]][stepIndexRun]) ? 10.0f : 0.0f;
-			}
+			int seq = editingSequence ? sequence : phrase[phraseIndexRun];
+			gate1RandomEnable |= !gate1Prob[seq][stepIndexRun];
+			outputs[CV_OUTPUT].value = cv[seq][stepIndexRun] - slideOffset;
+			outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && gate1[seq][stepIndexRun]) ? 10.0f : 0.0f;
+			outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2[seq][stepIndexRun]) ? 10.0f : 0.0f;
 		}
 		else {// not running 
 			if (editingSequence) {// editing sequence while not running

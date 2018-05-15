@@ -112,15 +112,14 @@ struct GateSeq64 : Module {
 	}
 
 	void onReset() override {
-		displayState = DISP_GATE;
 		running = false;
 		runModeSeq = MODE_FWD;
 		runModeSong = MODE_FWD;
 		sequence = 0;
+		phrases = 4;
 		phraseIndexEdit = 0;
 		phraseIndexRun = 0;
 		stepIndexRun = 0;
-		phrases = 4;
 		for (int r = 0; r < 4; r++) {
 			trig[r] = false;
 		}
@@ -134,6 +133,7 @@ struct GateSeq64 : Module {
 		}
 		cpBufLength = 16;
 		feedbackCP = 0l;
+		displayState = DISP_GATE;
 		displayProb = -1;
 		infoCopyPaste = 0l;
 		probKnob = INT_MAX;
@@ -148,14 +148,13 @@ struct GateSeq64 : Module {
 		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
 			stepConfig = 2;
 		//
-		displayState = DISP_GATE;
 		running = (randomUniform() > 0.5f);
 		runModeSeq = randomu32() % 5;
 		runModeSong = randomu32() % 5;
 		sequence = randomu32() % 16;
 		phrases = 1 + (randomu32() % 16);
 		phraseIndexEdit = 0;
-		phraseIndexRun = 0;
+		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		configTrigger.reset();
 		configTrigger2.reset();
 		configTrigger3.reset();
@@ -173,6 +172,7 @@ struct GateSeq64 : Module {
 			stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 		cpBufLength = 16;
 		feedbackCP = 0l;
+		displayState = DISP_GATE;
 		displayProb = -1;
 		infoCopyPaste = 0l;
 		probKnob = INT_MAX;
@@ -195,6 +195,21 @@ struct GateSeq64 : Module {
 		// sequence
 		json_object_set_new(rootJ, "sequence", json_integer(sequence));
 
+		// lengths
+		json_t *lengthsJ = json_array();
+		for (int i = 0; i < 16; i++)
+			json_array_insert_new(lengthsJ, i, json_integer(lengths[i]));
+		json_object_set_new(rootJ, "lengths", lengthsJ);
+	
+		// phrase 
+		json_t *phraseJ = json_array();
+		for (int i = 0; i < 16; i++)
+			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
+		json_object_set_new(rootJ, "phrase", phraseJ);
+
+		// phrases
+		json_object_set_new(rootJ, "phrases", json_integer(phrases));
+
 		// attributes
 		json_t *attributesJ = json_array();
 		for (int i = 0; i < 16; i++)
@@ -203,12 +218,6 @@ struct GateSeq64 : Module {
 			}
 		json_object_set_new(rootJ, "attributes", attributesJ);
 		
-		// lengths
-		json_t *lengthsJ = json_array();
-		for (int i = 0; i < 16; i++)
-			json_array_insert_new(lengthsJ, i, json_integer(lengths[i]));
-		json_object_set_new(rootJ, "lengths", lengthsJ);
-	
 		return rootJ;
 	}
 
@@ -233,6 +242,32 @@ struct GateSeq64 : Module {
 		if (sequenceJ)
 			sequence = json_integer_value(sequenceJ);
 		
+		// lengths
+		json_t *lengthsJ = json_object_get(rootJ, "lengths");
+		if (lengthsJ) {
+			for (int i = 0; i < 16; i++)
+			{
+				json_t *lengthsArrayJ = json_array_get(lengthsJ, i);
+				if (lengthsArrayJ)
+					lengths[i] = json_integer_value(lengthsArrayJ);
+			}			
+		}
+		
+		// phrase
+		json_t *phraseJ = json_object_get(rootJ, "phrase");
+		if (phraseJ)
+			for (int i = 0; i < 16; i++)
+			{
+				json_t *phraseArrayJ = json_array_get(phraseJ, i);
+				if (phraseArrayJ)
+					phrase[i] = json_integer_value(phraseArrayJ);
+			}
+		
+		// phrases
+		json_t *phrasesJ = json_object_get(rootJ, "phrases");
+		if (phrasesJ)
+			phrases = json_integer_value(phrasesJ);
+	
 		// attributes
 		json_t *attributesJ = json_object_get(rootJ, "attributes");
 		if (attributesJ) {
@@ -244,16 +279,7 @@ struct GateSeq64 : Module {
 				}
 		}
 		
-		// lengths
-		json_t *lengthsJ = json_object_get(rootJ, "lengths");
-		if (lengthsJ) {
-			for (int i = 0; i < 16; i++)
-			{
-				json_t *lengthsArrayJ = json_array_get(lengthsJ, i);
-				if (lengthsArrayJ)
-					lengths[i] = json_integer_value(lengthsArrayJ);
-			}			
-		}
+		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		if (isEditingSequence())
 			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 		else
@@ -303,7 +329,7 @@ struct GateSeq64 : Module {
 			running = !running;
 			if (running) {
 				phraseIndexEdit = 0;				
-				phraseIndexRun = 0;
+				phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 				if (isEditingSequence())
 					stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 				else
@@ -514,7 +540,7 @@ struct GateSeq64 : Module {
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			sequence = 0;
 			phraseIndexEdit = 0;
-			phraseIndexRun = 0;
+			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 			if (isEditingSequence())
 				stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
 			else
@@ -533,18 +559,11 @@ struct GateSeq64 : Module {
 		// Gate outputs
 		for (int i = 0; i < 4; i += stepConfig) {
 			if (running) {
-				if (editingSequence) {// editing sequence while running
-					bool gateRandomEnable = randomUniform() < ((float)(getGatePVal(sequence, i * 16 + stepIndexRun)))/100.0f;// randomUniform is [0.0, 1.0), see include/util/common.hpp
-					gateRandomEnable |= !getGateP(sequence, i * 16 + stepIndexRun);
-					bool gateOut = clockTrigger.isHigh() && getGate(sequence, i * 16 + stepIndexRun) && gateRandomEnable;
-					outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = gateOut ? 10.0f : 0.0f;
-				}
-				else {// editing song while running
-					bool gateRandomEnable = randomUniform() < ((float)(getGatePVal(phrase[phraseIndexRun], i * 16 + stepIndexRun)))/100.0f;// randomUniform is [0.0, 1.0), see include/util/common.hpp
-					gateRandomEnable |= !getGateP(phrase[phraseIndexRun], i * 16 + stepIndexRun);
-					bool gateOut = clockTrigger.isHigh() && getGate(phrase[phraseIndexRun], i * 16 + stepIndexRun) && gateRandomEnable;
-					outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = gateOut ? 10.0f : 0.0f;
-				}
+				int seq = editingSequence ? sequence : phrase[phraseIndexRun];
+				bool gateRandomEnable = randomUniform() < ((float)(getGatePVal(seq, i * 16 + stepIndexRun)))/100.0f;// randomUniform is [0.0, 1.0), see include/util/common.hpp
+				gateRandomEnable |= !getGateP(seq, i * 16 + stepIndexRun);
+				bool gateOut = clockTrigger.isHigh() && getGate(seq, i * 16 + stepIndexRun) && gateRandomEnable;
+				outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = gateOut ? 10.0f : 0.0f;
 			}
 			else {// not running (no gates, no need to hear anything)
 				outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = 0.0f;
