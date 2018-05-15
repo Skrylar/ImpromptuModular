@@ -64,7 +64,7 @@ struct GateSeq64 : Module {
 	int phrase[16] = {};// This is the song (series of phases; a phrase is a patten number)
 	int phrases;//1 to 16
 	//	
-	bool trig[4] = {};
+	bool trig[4] = {false, false, false, false};
 	int attributes[16][64] = {};
 
 	// No need to save
@@ -74,7 +74,7 @@ struct GateSeq64 : Module {
 	int phraseIndexRun;
 	int stepIndexRunHistory;// no need to initialize
 	int phraseIndexRunHistory;// no need to initialize
-	int cpBufAttributes[16] = {};// copy-paste only one row
+	int cpBufAttributes[64] = {};// copy-paste one row or all rows
 	int cpBufLength;// copy-paste only one row
 	long feedbackCP;// downward step counter for CP feedback
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
@@ -86,6 +86,7 @@ struct GateSeq64 : Module {
 	int displayProb;// -1 when prob can not be modified, 0 to 63 when prob can be changed.
 	int probKnob;// INT_MAX when knob not seen yet
 	int sequenceKnob;// INT_MAX when knob not seen yet
+	bool gateRandomEnable[4] = {};
 
 	
 	SchmittTrigger modesTrigger;
@@ -106,32 +107,35 @@ struct GateSeq64 : Module {
 	inline bool getGateP(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATEP) != 0;}
 	inline int getGatePVal(int seq, int step) {return attributes[seq][step] & ATT_MSK_PROB;}
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
+	inline bool calcGateRandomEnable(bool gateP, int gatePVal) {return (randomUniform() < (((float)(gatePVal))/100.0f)) || !gateP;}// randomUniform is [0.0, 1.0), see include/util/common.hpp
 		
 		
 	GateSeq64() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
 	}
 
+	
 	void onReset() override {
+		int stepConfig = 1;// 4x16
+		if (params[CONFIG_PARAM].value > 1.5f)// 1x64
+			stepConfig = 4;
+		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
+			stepConfig = 2;
 		running = false;
 		runModeSeq = MODE_FWD;
 		runModeSong = MODE_FWD;
 		sequence = 0;
 		phrases = 4;
-		phraseIndexEdit = 0;
-		phraseIndexRun = 0;
-		stepIndexRun = 0;
-		for (int r = 0; r < 4; r++) {
-			trig[r] = false;
-		}
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 64; s++) {
 				attributes[i][s] = 50;
 			}
 			phrase[i] = 0;
 			lengths[i] = 16;
-			cpBufAttributes[i] = 50;
 		}
+		for (int i = 0; i < 64; i++)
+			cpBufAttributes[i] = 50;
+		initRun(stepConfig);
 		cpBufLength = 16;
 		feedbackCP = 0l;
 		displayState = DISP_GATE;
@@ -142,6 +146,7 @@ struct GateSeq64 : Module {
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
+	
 	void onRandomize() override {
 		int stepConfig = 1;// 4x16
 		if (params[CONFIG_PARAM].value > 1.5f)// 1x64
@@ -154,8 +159,6 @@ struct GateSeq64 : Module {
 		runModeSong = randomu32() % 5;
 		sequence = randomu32() % 16;
 		phrases = 1 + (randomu32() % 16);
-		phraseIndexEdit = 0;
-		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		configTrigger.reset();
 		configTrigger2.reset();
 		configTrigger3.reset();
@@ -165,12 +168,10 @@ struct GateSeq64 : Module {
 			}
 			phrase[i] = randomu32() % 16;
 			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
-			cpBufAttributes[i] = 50;
 		}
-		if (isEditingSequence())
-			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
-		else
-			stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
+		for (int i = 0; i < 64; i++)
+			cpBufAttributes[i] = 50;
+		initRun(stepConfig);
 		cpBufLength = 16;
 		feedbackCP = 0l;
 		displayState = DISP_GATE;
@@ -181,6 +182,36 @@ struct GateSeq64 : Module {
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
+	
+	void initRun(int stepConfig) {// run button activated or run edge in run input jack
+		//stepIndexEdit = 0;
+		phraseIndexEdit = 0;
+		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+		for (int i = 0; i < 4; i++)
+			gateRandomEnable[i] = false;
+		if (isEditingSequence()) {
+			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+			for (int i = 0; i < 4; i += stepConfig)
+				gateRandomEnable[i] = calcGateRandomEnable(getGateP(sequence, (i * 16) + stepIndexRun), getGatePVal(sequence, (i * 16) + stepIndexRun));
+		}
+		else {
+			stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
+			for (int i = 0; i < 4; i += stepConfig)
+				gateRandomEnable[i] = calcGateRandomEnable(getGateP(phrase[phraseIndexRun], (i * 16) + stepIndexRun), getGatePVal(phrase[phraseIndexRun], (i * 16) + stepIndexRun));
+		}
+	}
+	
+	
+	void resetModule(int stepConfig) {// reset button on module or reset edge in reset input jack
+		sequence = 0;
+		initRun(stepConfig);// must be after sequence reset
+		resetLight = 1.0f;
+		displayState = DISP_GATE;
+		clockTrigger.reset();
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());	
+	}
+		
+	
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
@@ -290,9 +321,10 @@ struct GateSeq64 : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
-		static const float copyPasteInfoTime = 3.0f;// seconds
+		static const float feedbackCPinitTime = 3.0f;// seconds
+		static const float copyPasteInfoTime = 0.4f;// seconds
 		float engineSampleRate = engineGetSampleRate();
-		feedbackCPinit = (long) (copyPasteInfoTime * engineSampleRate);
+		feedbackCPinit = (long) (feedbackCPinitTime * engineSampleRate);
 		
 		
 		//********** Buttons, knobs, switches and inputs **********
@@ -328,14 +360,8 @@ struct GateSeq64 : Module {
 		// Run state button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
-			if (running) {
-				phraseIndexEdit = 0;				
-				phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
-				if (isEditingSequence())
-					stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
-				else
-					stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
-			}
+			if (running)
+				initRun(stepConfig);
 			displayState = DISP_GATE;
 			displayProb = -1;
 		}
@@ -392,7 +418,8 @@ struct GateSeq64 : Module {
 				else if (displayState == DISP_LENGTH) {
 					if (editingSequence) {
 						lengths[sequence] += deltaKnob;
-						if (lengths[sequence] > (16 * stepConfig)) lengths[sequence] = (16 * stepConfig);
+						if (lengths[sequence] > (16 * stepConfig)) 
+							lengths[sequence] = (16 * stepConfig);
 						if (lengths[sequence] < 1 ) lengths[sequence] = 1;
 					}
 					else {
@@ -431,11 +458,31 @@ struct GateSeq64 : Module {
 		if (editingSequence) {
 			if (copyTrigged || pasteTrigged) {
 				if (displayState == DISP_GATE) {
-					cpInfo = 0;
-					if (copyTrigged) cpInfo = 1;
-					if (pasteTrigged) cpInfo = 2;
-					displayState = DISP_ROW_SEL;
-					feedbackCP = feedbackCPinit;
+					if (params[CPMODE_PARAM].value > 0.5f) {// if copy-paste in row mode
+						cpInfo = 0;
+						if (copyTrigged) cpInfo = 1;
+						if (pasteTrigged) cpInfo = 2;
+						displayState = DISP_ROW_SEL;
+						feedbackCP = feedbackCPinit;
+					}
+					else {// copy-paste in "all" mode
+						if (copyTrigged) {
+							for (int i = 0; i < 64; i++) {
+								cpBufAttributes[i] = attributes[sequence][i];
+								cpBufLength = lengths[sequence];
+							}
+							infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
+						}
+						else {// paste triggered
+							for (int i = 0; i < 64; i++) {
+								attributes[sequence][i] = cpBufAttributes[i];
+								lengths[sequence] = cpBufLength;
+								if (lengths[sequence] > 16 * stepConfig)
+									lengths[sequence] = 16 * stepConfig;
+							}
+							infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
+						}
+					}
 				}
 				else if (displayState == DISP_ROW_SEL) {// abort copy or paste
 					displayState = DISP_GATE;
@@ -460,20 +507,19 @@ struct GateSeq64 : Module {
 					lengths[sequence] = col + 1;
 				}
 				else if (displayState == DISP_ROW_SEL) {
-					row = stepPressed / 16;// copy-paste done on blocks of 16 even when in 2x32 or 1x64 config
+					row = stepPressed / 16;// copy-paste done on blocks of 16 even when in 2x32 or 1x64 config (and length is not copied)
 					if (cpInfo == 1) {// copy
 						for (int i = 0; i < 16; i++) {
 							cpBufAttributes[i] = attributes[sequence][row * 16 + i];
-							cpBufLength = lengths[sequence];
 						}
 					}					
 					else if (cpInfo == 2) {// paste
-						for (int i = 0; i < 16; i++) {
+						for (int i = 0; i < 16; i++)
 							attributes[sequence][row * 16 + i] = cpBufAttributes[i];
-							lengths[sequence] = cpBufLength;
-						}
 					}			
 					displayState = DISP_GATE;
+				}
+				else if (displayState == DISP_MODES) {
 				}
 				else {
 					if (!getGate(sequence, stepPressed)) {// clicked inactive, so turn gate on
@@ -525,33 +571,29 @@ struct GateSeq64 : Module {
 		
 		//********** Clock and reset **********
 		
+		// Clock
 		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
 			if (running && clockIgnoreOnReset == 0l) {
+				for (int i = 0; i < 4; i++)
+					gateRandomEnable[i] = false;
 				if (editingSequence) {
 					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq, &stepIndexRunHistory);
+					for (int i = 0; i < 4; i += stepConfig)
+						gateRandomEnable[i] = calcGateRandomEnable(getGateP(sequence, (i * 16) + stepIndexRun), getGatePVal(sequence, (i * 16) + stepIndexRun));
 				}
 				else {
 					if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq, &stepIndexRunHistory)) {
 						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
 					}
+					for (int i = 0; i < 4; i += stepConfig)
+						gateRandomEnable[i] = calcGateRandomEnable(getGateP(phrase[phraseIndexRun], (i * 16) + stepIndexRun), getGatePVal(phrase[phraseIndexRun], (i * 16) + stepIndexRun));
 				}
 			}
 		}	
 		
 		// Reset
-		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			sequence = 0;
-			phraseIndexEdit = 0;
-			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
-			if (isEditingSequence())
-				stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
-			else
-				stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
-			resetLight = 1.0f;
-			displayState = DISP_GATE;
-			clockTrigger.reset();
-			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		}
+		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value))
+			resetModule(stepConfig);
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
 	
@@ -559,17 +601,32 @@ struct GateSeq64 : Module {
 		//********** Outputs and lights **********
 				
 		// Gate outputs
-		for (int i = 0; i < 4; i += stepConfig) {
-			if (running) {
-				int seq = editingSequence ? sequence : phrase[phraseIndexRun];
-				bool gateRandomEnable = randomUniform() < ((float)(getGatePVal(seq, i * 16 + stepIndexRun)))/100.0f;// randomUniform is [0.0, 1.0), see include/util/common.hpp
-				gateRandomEnable |= !getGateP(seq, i * 16 + stepIndexRun);
-				bool gateOut = clockTrigger.isHigh() && getGate(seq, i * 16 + stepIndexRun) && gateRandomEnable;
-				outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = gateOut ? 10.0f : 0.0f;
+		if (running) {
+			int seq = editingSequence ? sequence : phrase[phraseIndexRun];
+			if (stepConfig == 1) {
+				for (int i = 0; i < 4; i++) {
+					bool gateOut = gateRandomEnable[i] && clockTrigger.isHigh() && getGate(seq, (i * 16) + stepIndexRun);
+					outputs[GATE_OUTPUTS + i].value = gateOut ? 10.0f : 0.0f;
+				}
+			} 
+			else if (stepConfig == 2) {
+				for (int i = 0; i < 4; i += 2) {
+					bool gateOut = gateRandomEnable[i] && clockTrigger.isHigh() && getGate(seq, (i * 16) + stepIndexRun);
+					outputs[GATE_OUTPUTS + i + 1].value = gateOut ? 10.0f : 0.0f;
+					outputs[GATE_OUTPUTS + i ].value = 0.0f;
+				}
 			}
-			else {// not running (no gates, no need to hear anything)
-				outputs[GATE_OUTPUTS + i + (stepConfig - 1)].value = 0.0f;
-			}		
+			else {// stepConfig == 4
+				bool gateOut = gateRandomEnable[0] && clockTrigger.isHigh() && getGate(seq, stepIndexRun);
+				outputs[GATE_OUTPUTS + 3].value = gateOut ? 10.0f : 0.0f;
+				outputs[GATE_OUTPUTS + 0].value = 0.0f;			
+				outputs[GATE_OUTPUTS + 1].value = 0.0f;			
+				outputs[GATE_OUTPUTS + 2].value = 0.0f;			
+			}
+		}
+		else {// not running (no gates, no need to hear anything)
+			for (int i = 0; i < 4; i++)
+				outputs[GATE_OUTPUTS + i].value = 0.0f;	
 		}
 		
 		// Step LED button lights
@@ -646,6 +703,12 @@ struct GateSeq64 : Module {
 		else
 			feedbackCP = feedbackCPinit;// roll over
 		
+		if (infoCopyPaste != 0l) {
+			if (infoCopyPaste > 0l)
+				infoCopyPaste --;
+			if (infoCopyPaste < 0l)
+				infoCopyPaste ++;
+		}
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
 	}// step()
@@ -709,33 +772,43 @@ struct GateSeq64Widget : ModuleWidget {
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);				
-			if (module->displayState == GateSeq64::DISP_LENGTH)
-				if (module->isEditingSequence())
-					snprintf(displayStr, 4, "L%2u", module->lengths[module->sequence]);
-				else
-					snprintf(displayStr, 4, "L%2u", module->phrases);
-			else if (module->displayState == GateSeq64::DISP_MODES) {
-				if (module->isEditingSequence())
-					runModeToStr(module->runModeSeq);
-				else
-					runModeToStr(module->runModeSong);
-			}
-			else if (module->displayState == GateSeq64::DISP_ROW_SEL) {
-				snprintf(displayStr, 4, "CPY");
-				if (module->cpInfo == 2)
+			if (module->infoCopyPaste != 0l) {
+				if (module->infoCopyPaste > 0l) {// if copy display "CPY"
+					snprintf(displayStr, 4, "CPY");
+				}
+				else {// if paste display "PST"
 					snprintf(displayStr, 4, "PST");
+				}
 			}
 			else {
-				int dispVal = 0;
-				if (module->isEditingSequence())
-					dispVal = module->sequence;
-				else {
-					if (module->running)
-						dispVal = module->phrase[module->phraseIndexRun];
-					else 
-						dispVal = module->phrase[module->phraseIndexEdit];
+				if (module->displayState == GateSeq64::DISP_LENGTH)
+					if (module->isEditingSequence())
+						snprintf(displayStr, 4, "L%2u", module->lengths[module->sequence]);
+					else
+						snprintf(displayStr, 4, "L%2u", module->phrases);
+				else if (module->displayState == GateSeq64::DISP_MODES) {
+					if (module->isEditingSequence())
+						runModeToStr(module->runModeSeq);
+					else
+						runModeToStr(module->runModeSong);
 				}
-				snprintf(displayStr, 4, " %2u", (unsigned)(dispVal) + 1 );
+				else if (module->displayState == GateSeq64::DISP_ROW_SEL) {
+					snprintf(displayStr, 4, "CPY");
+					if (module->cpInfo == 2)
+						snprintf(displayStr, 4, "PST");
+				}
+				else {
+					int dispVal = 0;
+					if (module->isEditingSequence())
+						dispVal = module->sequence;
+					else {
+						if (module->running)
+							dispVal = module->phrase[module->phraseIndexRun];
+						else 
+							dispVal = module->phrase[module->phraseIndexEdit];
+					}
+					snprintf(displayStr, 4, " %2u", (unsigned)(dispVal) + 1 );
+				}
 			}
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
@@ -863,7 +936,7 @@ struct GateSeq64Widget : ModuleWidget {
 		displaySequence->module = module;
 		addChild(displaySequence);
 		// Sequence knob
-		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC2 + 1 + offsetDavies1900, rowRulerC0 + 55 + offsetDavies1900), module, GateSeq64::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f));		
+		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC2 + 1 + offsetDavies1900, rowRulerC0 + 62 + offsetDavies1900), module, GateSeq64::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f));		
 
 
 		// Modes button and light
@@ -882,7 +955,7 @@ struct GateSeq64Widget : ModuleWidget {
 		probDisplay->module = module;
 		addChild(probDisplay);
 		// Probability knob
-		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC4 + 1 + offsetDavies1900, rowRulerC0 + 55 + offsetDavies1900), module, GateSeq64::PROB_KNOB_PARAM, -INFINITY, INFINITY, 0.0f));	
+		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC4 + 1 + offsetDavies1900, rowRulerC0 + 62 + offsetDavies1900), module, GateSeq64::PROB_KNOB_PARAM, -INFINITY, INFINITY, 0.0f));	
 
 		
 		// Outputs

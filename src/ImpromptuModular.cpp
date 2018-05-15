@@ -44,7 +44,7 @@ void ScrewCircle::draw(NVGcontext *vg) {
 	nvgFill(vg);
 	nvgStrokeWidth(vg, 1.0);
 	nvgStrokeColor(vg, borderColor);
-	nvgStroke(vg);		
+	nvgStroke(vg);
 }
 
 ScrewSilverRandomRot::ScrewSilverRandomRot() {
