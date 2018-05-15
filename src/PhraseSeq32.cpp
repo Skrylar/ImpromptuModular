@@ -773,6 +773,7 @@ struct PhraseSeq32 : Module {
 					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
 					if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq, &stepIndexRunHistory)) {
 						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
+						stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
 					}
 					slideToCV = cv[phrase[phraseIndexRun]][stepIndexRun];
 					gate1RandomEnable = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun],stepIndexRun));// must be calculated on clock edge only

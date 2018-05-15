@@ -584,6 +584,7 @@ struct GateSeq64 : Module {
 				else {
 					if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq, &stepIndexRunHistory)) {
 						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
+						stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
 					}
 					for (int i = 0; i < 4; i += stepConfig)
 						gateRandomEnable[i] = calcGateRandomEnable(getGateP(phrase[phraseIndexRun], (i * 16) + stepIndexRun), getGatePVal(phrase[phraseIndexRun], (i * 16) + stepIndexRun));
