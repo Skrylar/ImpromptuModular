@@ -28,6 +28,7 @@ struct GateSeq64 : Module {
 		PROB_KNOB_PARAM,
 		EDIT_PARAM,
 		SEQUENCE_PARAM,
+		CPMODE_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -400,7 +401,8 @@ struct GateSeq64 : Module {
 						if (phrases < 1 ) phrases = 1;
 						if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
 					}
-					
+				}
+				else if (displayState == DISP_ROW_SEL) {
 				}
 				else {
 					if (editingSequence) {
@@ -718,6 +720,11 @@ struct GateSeq64Widget : ModuleWidget {
 				else
 					runModeToStr(module->runModeSong);
 			}
+			else if (module->displayState == GateSeq64::DISP_ROW_SEL) {
+				snprintf(displayStr, 4, "CPY");
+				if (module->cpInfo == 2)
+					snprintf(displayStr, 4, "PST");
+			}
 			else {
 				int dispVal = 0;
 				if (module->isEditingSequence())
@@ -791,7 +798,7 @@ struct GateSeq64Widget : ModuleWidget {
 		// ****** Top portion (2 switches and LED button array ******
 		
 		static const int colRuler0 = 20;
-		static const int rowRuler0 = 36;
+		static const int rowRuler0 = 34;
 		static const int colRulerSteps = 60;
 		static const int spacingSteps = 20;
 		static const int spacingSteps4 = 4;
@@ -819,16 +826,16 @@ struct GateSeq64Widget : ModuleWidget {
 		
 		// ****** 5x3 Main bottom half Control section ******
 		
-		static int colRulerC0 = 25;
-		static int colRulerSpacing = 68;
-		static int colRulerC1 = colRulerC0 + colRulerSpacing;
-		static int colRulerC2 = colRulerC1 + colRulerSpacing;
-		static int colRulerC3 = colRulerC2 + colRulerSpacing;
-		static int colRulerC4 = colRulerC3 + colRulerSpacing;
-		static int rowRulerC0 = 217;
-		static int rowRulerSpacing = 54;
-		static int rowRulerC1 = rowRulerC0 + rowRulerSpacing;
-		static int rowRulerC2 = rowRulerC1 + rowRulerSpacing;
+		static const int colRulerC0 = 25;
+		static const int colRulerSpacing = 68;
+		static const int colRulerC1 = colRulerC0 + colRulerSpacing;
+		static const int colRulerC2 = colRulerC1 + colRulerSpacing;
+		static const int colRulerC3 = colRulerC2 + colRulerSpacing;
+		static const int colRulerC4 = colRulerC3 + colRulerSpacing;
+		static const int rowRulerC0 = 215;
+		static const int rowRulerSpacing = 54;
+		static const int rowRulerC1 = rowRulerC0 + rowRulerSpacing;
+		static const int rowRulerC2 = rowRulerC1 + rowRulerSpacing;
 		
 		
 		// Clock input
@@ -851,12 +858,12 @@ struct GateSeq64Widget : ModuleWidget {
 		
 		// Sequence display
 		SequenceDisplayWidget *displaySequence = new SequenceDisplayWidget();
-		displaySequence->box.pos = Vec(colRulerC2 - 15, rowRulerC0 + vOffsetDisplay);
+		displaySequence->box.pos = Vec(colRulerC2 - 15, rowRulerC0 + 2 + vOffsetDisplay);
 		displaySequence->box.size = Vec(55, 30);// 3 characters
 		displaySequence->module = module;
 		addChild(displaySequence);
 		// Sequence knob
-		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC2 + 1 + offsetDavies1900, rowRulerC0 + 50 + offsetDavies1900), module, GateSeq64::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f));		
+		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC2 + 1 + offsetDavies1900, rowRulerC0 + 55 + offsetDavies1900), module, GateSeq64::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f));		
 
 
 		// Modes button and light
@@ -864,21 +871,23 @@ struct GateSeq64Widget : ModuleWidget {
 		// Copy/paste buttons
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC3 - 10, rowRulerC1 + offsetTL1105), module, GateSeq64::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerC3 + 20, rowRulerC1 + offsetTL1105), module, GateSeq64::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
-		
+		// Copy paste mode
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerC3 + 2 + hOffsetCKSS, rowRulerC2 - 3 + vOffsetCKSS), module, GateSeq64::CPMODE_PARAM, 0.0f, 1.0f, 1.0f));
+
 		
 		// Probability display
 		ProbDisplayWidget *probDisplay = new ProbDisplayWidget();
-		probDisplay->box.pos = Vec(colRulerC4 - 7, rowRulerC0 + vOffsetDisplay);
+		probDisplay->box.pos = Vec(colRulerC4 - 7, rowRulerC0 + 2 + vOffsetDisplay);
 		probDisplay->box.size = Vec(40, 30);// 3 characters
 		probDisplay->module = module;
 		addChild(probDisplay);
 		// Probability knob
-		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC4 + 1 + offsetDavies1900, rowRulerC0 + 50 + offsetDavies1900), module, GateSeq64::PROB_KNOB_PARAM, -INFINITY, INFINITY, 0.0f));	
+		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC4 + 1 + offsetDavies1900, rowRulerC0 + 55 + offsetDavies1900), module, GateSeq64::PROB_KNOB_PARAM, -INFINITY, INFINITY, 0.0f));	
 
 		
 		// Outputs
 		for (int iSides = 0; iSides < 4; iSides++)
-			addOutput(Port::create<PJ301MPortS>(Vec(356, 210 + iSides * 40), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides));
+			addOutput(Port::create<PJ301MPortS>(Vec(356, 208 + iSides * 40), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides));
 		
 	}
 };
