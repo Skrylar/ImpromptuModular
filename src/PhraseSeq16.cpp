@@ -93,6 +93,7 @@ struct PhraseSeq16 : Module {
 	};
 	
 	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_TRANSPOSE, DISP_ROTATE};
+	enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_GATE2 = 0x04, ATT_MSK_SLIDE = 0x08, ATT_MSK_TIED = 0x10};
 
 	// Need to save
 	bool running;
@@ -106,11 +107,13 @@ struct PhraseSeq16 : Module {
 	int phrases;//1 to 16
 	//
 	float cv[16][16] = {};// [-3.0 : 3.917]. First index is patten number, 2nd index is step
-	bool gate1[16][16] = {};// First index is patten number, 2nd index is step
+	/*bool gate1[16][16] = {};// First index is patten number, 2nd index is step
 	bool gate1Prob[16][16] = {};// First index is patten number, 2nd index is step
 	bool gate2[16][16] = {};// First index is patten number, 2nd index is step
 	bool slide[16][16] = {};// First index is patten number, 2nd index is step
 	bool tied[16][16] = {};// First index is patten number, 2nd index is step
+	*/
+	int attributes[16][16] = {};// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
 	//
 	bool attached;
 
@@ -130,11 +133,7 @@ struct PhraseSeq16 : Module {
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta;// no need to initialize, this is a companion to slideStepsRemain
 	float cvCPbuffer[16];// copy paste buffer for CVs
-	bool gate1CPbuffer[16];// copy paste buffer for gate1
-	bool gate1ProbCPbuffer[16];// copy paste buffer for gate1Prob
-	bool gate2CPbuffer[16];// copy paste buffer for gate2
-	bool slideCPbuffer[16];// copy paste buffer for slide
-	bool tiedCPbuffer[16];// copy paste buffer for slide
+	int attributesCPbuffer[16];// copy paste buffer for attributes
 	int lengthCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
@@ -171,6 +170,8 @@ struct PhraseSeq16 : Module {
 	SchmittTrigger tiedTrigger;
 
 	
+	inline bool getGate1P(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE1P) != 0;}
+	inline bool getTied(int seq, int step) {return (attributes[seq][step] & ATT_MSK_TIED) != 0;}
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
 	
 	
@@ -191,20 +192,12 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 16; s++) {
 				cv[i][s] = 0.0f;
-				gate1[i][s] = true;
-				gate1Prob[i][s] = false;
-				gate2[i][s] = true;
-				slide[i][s] = false;
-				tied[i][s] = false;
+				attributes[i][s] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
 			}
 			phrase[i] = 0;
 			lengths[i] = 16;
 			cvCPbuffer[i] = 0.0f;
-			gate1CPbuffer[i] = true;
-			gate1ProbCPbuffer[i] = false;
-			gate2CPbuffer[i] = true;
-			slideCPbuffer[i] = false;
-			tiedCPbuffer[i] = false;
+			attributesCPbuffer[i] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
 		}
 		lengthCPbuffer = 16;
 		sequenceKnob = INT_MAX;
@@ -231,20 +224,14 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 16; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
-				tied[i][s] = (randomUniform() > 0.5f);
-				gate1[i][s] = tied[i][s] ? false : (randomUniform() > 0.5f);
-				gate1Prob[i][s] = tied[i][s] ? false : (randomUniform() > 0.5f);
-				gate2[i][s] = tied[i][s] ? false : (randomUniform() > 0.5f);
-				slide[i][s] = tied[i][s] ? false : (randomUniform() > 0.5f);
+				attributes[i][s] = randomu32() % 32;// 32 because 5 attributes
+				if (getTied(i,s))
+					attributes[i][s] = ATT_MSK_TIED;// clear other attributes if tied
 			}
 			phrase[i] = randomu32() % 16;
 			lengths[i] = 1 + (randomu32() % 16);
 			cvCPbuffer[i] = 0.0f;
-			gate1CPbuffer[i] = true;
-			gate1ProbCPbuffer[i] = false;
-			gate2CPbuffer[i] = true;
-			slideCPbuffer[i] = false;
-			tiedCPbuffer[i] = false;
+			attributesCPbuffer[i] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
 		}
 		if (isEditingSequence())
 			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
@@ -278,9 +265,6 @@ struct PhraseSeq16 : Module {
 		// sequence
 		json_object_set_new(rootJ, "sequence", json_integer(sequence));
 
-		// steps
-		//json_object_set_new(rootJ, "steps", json_integer(steps));// deprecated
-		
 		// lengths
 		json_t *lengthsJ = json_array();
 		for (int i = 0; i < 16; i++)
@@ -304,46 +288,14 @@ struct PhraseSeq16 : Module {
 			}
 		json_object_set_new(rootJ, "cv", cvJ);
 
-		// gate1
-		json_t *gate1J = json_array();
+		// attributes
+		json_t *attributesJ = json_array();
 		for (int i = 0; i < 16; i++)
 			for (int s = 0; s < 16; s++) {
-				json_array_insert_new(gate1J, s + (i * 16), json_integer((int) gate1[i][s]));
+				json_array_insert_new(attributesJ, s + (i * 16), json_integer(attributes[i][s]));
 			}
-		json_object_set_new(rootJ, "gate1", gate1J);
-
-		// gate1Prob
-		json_t *gate1ProbJ = json_array();
-		for (int i = 0; i < 16; i++)
-			for (int s = 0; s < 16; s++) {
-				json_array_insert_new(gate1ProbJ, s + (i * 16), json_integer((int) gate1Prob[i][s]));
-			}
-		json_object_set_new(rootJ, "gate1Prob", gate1ProbJ);
-
-		// gate2
-		json_t *gate2J = json_array();
-		for (int i = 0; i < 16; i++)
-			for (int s = 0; s < 16; s++) {
-				json_array_insert_new(gate2J, s + (i * 16), json_integer((int) gate2[i][s]));
-			}
-		json_object_set_new(rootJ, "gate2", gate2J);
-
-		// slide
-		json_t *slideJ = json_array();
-		for (int i = 0; i < 16; i++)
-			for (int s = 0; s < 16; s++) {
-				json_array_insert_new(slideJ, s + (i * 16), json_integer((int) slide[i][s]));
-			}
-		json_object_set_new(rootJ, "slide", slideJ);
-
-		// tied
-		json_t *tiedJ = json_array();
-		for (int i = 0; i < 16; i++)
-			for (int s = 0; s < 16; s++) {
-				json_array_insert_new(tiedJ, s + (i * 16), json_integer((int) tied[i][s]));
-			}
-		json_object_set_new(rootJ, "tied", tiedJ);
-
+		json_object_set_new(rootJ, "attributes", attributesJ);
+		
 		// attached
 		json_object_set_new(rootJ, "attached", json_integer((int)attached));
 
@@ -381,8 +333,8 @@ struct PhraseSeq16 : Module {
 					lengths[i] = json_integer_value(lengthsArrayJ);
 			}			
 		}
-		else {
-			json_t *stepsJ = json_object_get(rootJ, "steps");// legacy
+		else {// legacy
+			json_t *stepsJ = json_object_get(rootJ, "steps");
 			if (stepsJ) {
 				int steps = json_integer_value(stepsJ);
 				for (int i = 0; i < 16; i++)
@@ -415,62 +367,73 @@ struct PhraseSeq16 : Module {
 						cv[i][s] = json_real_value(cvArrayJ);
 				}
 		}
-		
-		// gate1
-		json_t *gate1J = json_object_get(rootJ, "gate1");
-		if (gate1J) {
+
+		// attributes
+		json_t *attributesJ = json_object_get(rootJ, "attributes");
+		if (attributesJ) {
 			for (int i = 0; i < 16; i++)
 				for (int s = 0; s < 16; s++) {
-					json_t *gate1arrayJ = json_array_get(gate1J, s + (i * 16));
-					if (gate1arrayJ)
-						gate1[i][s] = !!json_integer_value(gate1arrayJ);
+					json_t *attributesArrayJ = json_array_get(attributesJ, s + (i * 16));
+					if (attributesArrayJ)
+						attributes[i][s] = json_integer_value(attributesArrayJ);
 				}
 		}
-		
-		// gate1Prob
-		json_t *gate1ProbJ = json_object_get(rootJ, "gate1Prob");
-		if (gate1ProbJ) {
+		else {// legacy
 			for (int i = 0; i < 16; i++)
-				for (int s = 0; s < 16; s++) {
-					json_t *gate1ProbarrayJ = json_array_get(gate1ProbJ, s + (i * 16));
-					if (gate1ProbarrayJ)
-						gate1Prob[i][s] = !!json_integer_value(gate1ProbarrayJ);
-				}
+				for (int s = 0; s < 16; s++)
+					attributes[i][s] = 0;
+			// gate1
+			json_t *gate1J = json_object_get(rootJ, "gate1");
+			if (gate1J) {
+				for (int i = 0; i < 16; i++)
+					for (int s = 0; s < 16; s++) {
+						json_t *gate1arrayJ = json_array_get(gate1J, s + (i * 16));
+						if (gate1arrayJ)
+							if (!!json_integer_value(gate1arrayJ)) attributes[i][s] |= ATT_MSK_GATE1;
+					}
+			}
+			// gate1Prob
+			json_t *gate1ProbJ = json_object_get(rootJ, "gate1Prob");
+			if (gate1ProbJ) {
+				for (int i = 0; i < 16; i++)
+					for (int s = 0; s < 16; s++) {
+						json_t *gate1ProbarrayJ = json_array_get(gate1ProbJ, s + (i * 16));
+						if (gate1ProbarrayJ)
+							if (!!json_integer_value(gate1ProbarrayJ)) attributes[i][s] |= ATT_MSK_GATE1P;
+					}
+			}
+			// gate2
+			json_t *gate2J = json_object_get(rootJ, "gate2");
+			if (gate2J) {
+				for (int i = 0; i < 16; i++)
+					for (int s = 0; s < 16; s++) {
+						json_t *gate2arrayJ = json_array_get(gate2J, s + (i * 16));
+						if (gate2arrayJ)
+							if (!!json_integer_value(gate2arrayJ)) attributes[i][s] |= ATT_MSK_GATE2;
+					}
+			}
+			// slide
+			json_t *slideJ = json_object_get(rootJ, "slide");
+			if (slideJ) {
+				for (int i = 0; i < 16; i++)
+					for (int s = 0; s < 16; s++) {
+						json_t *slideArrayJ = json_array_get(slideJ, s + (i * 16));
+						if (slideArrayJ)
+							if (!!json_integer_value(slideArrayJ)) attributes[i][s] |= ATT_MSK_SLIDE;
+					}
+			}
+			// tied
+			json_t *tiedJ = json_object_get(rootJ, "tied");
+			if (tiedJ) {
+				for (int i = 0; i < 16; i++)
+					for (int s = 0; s < 16; s++) {
+						json_t *tiedArrayJ = json_array_get(tiedJ, s + (i * 16));
+						if (tiedArrayJ)
+							if (!!json_integer_value(tiedArrayJ)) attributes[i][s] |= ATT_MSK_TIED;
+					}
+			}
 		}
-		
-		// gate2
-		json_t *gate2J = json_object_get(rootJ, "gate2");
-		if (gate2J) {
-			for (int i = 0; i < 16; i++)
-				for (int s = 0; s < 16; s++) {
-					json_t *gate2arrayJ = json_array_get(gate2J, s + (i * 16));
-					if (gate2arrayJ)
-						gate2[i][s] = !!json_integer_value(gate2arrayJ);
-				}
-		}
-		
-		// slide
-		json_t *slideJ = json_object_get(rootJ, "slide");
-		if (slideJ) {
-			for (int i = 0; i < 16; i++)
-				for (int s = 0; s < 16; s++) {
-					json_t *slideArrayJ = json_array_get(slideJ, s + (i * 16));
-					if (slideArrayJ)
-						slide[i][s] = !!json_integer_value(slideArrayJ);
-				}
-		}
-		
-		// tied
-		json_t *tiedJ = json_object_get(rootJ, "tied");
-		if (tiedJ) {
-			for (int i = 0; i < 16; i++)
-				for (int s = 0; s < 16; s++) {
-					json_t *tiedArrayJ = json_array_get(tiedJ, s + (i * 16));
-					if (tiedArrayJ)
-						tied[i][s] = !!json_integer_value(tiedArrayJ);
-				}
-		}
-		
+	
 		// attached
 		json_t *attachedJ = json_object_get(rootJ, "attached");
 		if (attachedJ)
@@ -485,7 +448,7 @@ struct PhraseSeq16 : Module {
 
 	void rotateSeq(int sequenceNum, bool directionRight, int numSteps) {
 		float rotCV;
-		bool rotGate1, rotGate1Prob, rotGate2, rotSlide, rotTied;
+		bool rotAttributes;
 		int iRot = 0;
 		int iDelta = 0;
 		if (directionRight) {
@@ -496,27 +459,15 @@ struct PhraseSeq16 : Module {
 			iDelta = 1;
 		}
 		rotCV = cv[sequenceNum][iRot];
-		rotGate1 = gate1[sequenceNum][iRot];
-		rotGate1Prob = gate1Prob[sequenceNum][iRot];
-		rotGate2 = gate2[sequenceNum][iRot];
-		rotSlide = slide[sequenceNum][iRot];
-		rotTied = tied[sequenceNum][iRot];
+		rotAttributes = attributes[sequenceNum][iRot];
 		for ( ; ; iRot += iDelta) {
 			if (iDelta == 1 && iRot >= numSteps - 1) break;
 			if (iDelta == -1 && iRot <= 0) break;
 			cv[sequenceNum][iRot] = cv[sequenceNum][iRot + iDelta];
-			gate1[sequenceNum][iRot] = gate1[sequenceNum][iRot + iDelta];
-			gate1Prob[sequenceNum][iRot] = gate1Prob[sequenceNum][iRot + iDelta];
-			gate2[sequenceNum][iRot] = gate2[sequenceNum][iRot + iDelta];
-			slide[sequenceNum][iRot] = slide[sequenceNum][iRot + iDelta];
-			tied[sequenceNum][iRot] = tied[sequenceNum][iRot + iDelta];
+			attributes[sequenceNum][iRot] = attributes[sequenceNum][iRot + iDelta];
 		}
 		cv[sequenceNum][iRot] = rotCV;
-		gate1[sequenceNum][iRot] = rotGate1;
-		gate1Prob[sequenceNum][iRot] = rotGate1Prob;
-		gate2[sequenceNum][iRot] = rotGate2;
-		slide[sequenceNum][iRot] = rotSlide;
-		tied[sequenceNum][iRot] = rotTied;
+		attributes[sequenceNum][iRot] = rotAttributes;
 	}
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
@@ -590,11 +541,7 @@ struct PhraseSeq16 : Module {
 				for (int i = 0, s = sStart; i < countCP; i++, s++) {
 					if (s >= 16) s = 0;
 					cvCPbuffer[i] = cv[sequence][s];
-					gate1CPbuffer[i] = gate1[sequence][s];
-					gate1ProbCPbuffer[i] = gate1Prob[sequence][s];
-					gate2CPbuffer[i] = gate2[sequence][s];
-					slideCPbuffer[i] = slide[sequence][s];
-					tiedCPbuffer[i] = tied[sequence][s];
+					attributesCPbuffer[i] = attributes[sequence][s];
 					if ((--sCount) <= 0)
 						break;
 				}
@@ -611,11 +558,7 @@ struct PhraseSeq16 : Module {
 				for (int i = 0, s = sStart; i < countCP; i++, s++) {
 					if (s >= 16) s = 0;
 					cv[sequence][s] = cvCPbuffer[i];
-					gate1[sequence][s] = gate1CPbuffer[i];
-					gate1Prob[sequence][s] = gate1ProbCPbuffer[i];
-					gate2[sequence][s] = gate2CPbuffer[i];
-					slide[sequence][s] = slideCPbuffer[i];
-					tied[sequence][s] = tiedCPbuffer[i];
+					attributes[sequence][s] = attributesCPbuffer[i];
 					if ((--sCount) <= 0)
 						break;
 				}
@@ -639,7 +582,7 @@ struct PhraseSeq16 : Module {
 		bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 		if (writeTrig) {
 			if (editingSequence) {
-				if (tied[sequence][stepIndexEdit])
+				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else {			
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
@@ -682,7 +625,7 @@ struct PhraseSeq16 : Module {
 				if (!running || !attached) {// don't move heads when attach and running
 					if (editingSequence) {
 						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, lengths[sequence]);
-						if (!tied[sequence][stepIndexEdit]) {// don't play tied step
+						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							if (!writeTrig)
 								editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
 							editingGate = (unsigned long) (gateTime * engineGetSampleRate());
@@ -792,7 +735,7 @@ struct PhraseSeq16 : Module {
 		}
 		if (newOct >= 0 && newOct <= 6) {
 			if (editingSequence) {
-				if (tied[sequence][stepIndexEdit])
+				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else {			
 					float newCV = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
@@ -811,7 +754,7 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 12; i++) {
 			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 				if (editingSequence) {
-					if (tied[sequence][stepIndexEdit])
+					if (getTied(sequence,stepIndexEdit))
 						tiedWarning = tiedWarningInit;
 					else {			
 						cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
@@ -827,52 +770,49 @@ struct PhraseSeq16 : Module {
 		// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingSequence) {
-				if (tied[sequence][stepIndexEdit])
+				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else
-					gate1[sequence][stepIndexEdit] = !gate1[sequence][stepIndexEdit];
+					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1;
 			}
 			displayState = DISP_NORMAL;
 		}		
 		if (gate1ProbTrigger.process(params[GATE1_PROB_PARAM].value)) {
 			if (editingSequence) {
-				if (tied[sequence][stepIndexEdit])
+				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else
-					gate1Prob[sequence][stepIndexEdit] = !gate1Prob[sequence][stepIndexEdit];
+					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1P;
 			}
 			displayState = DISP_NORMAL;
 		}		
 		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
 			if (editingSequence) {
-				if (tied[sequence][stepIndexEdit])
+				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else
-					gate2[sequence][stepIndexEdit] = !gate2[sequence][stepIndexEdit];
+					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE2;
 			}
 			displayState = DISP_NORMAL;
 		}		
 		if (slideTrigger.process(params[SLIDE_BTN_PARAM].value)) {
 			if (editingSequence) {
-				if (tied[sequence][stepIndexEdit])
+				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else
-					slide[sequence][stepIndexEdit] = !slide[sequence][stepIndexEdit];
+					attributes[sequence][stepIndexEdit] ^= ATT_MSK_SLIDE;
 			}
 			displayState = DISP_NORMAL;
 		}		
 		if (tiedTrigger.process(params[TIE_PARAM].value)) {
 			if (editingSequence) {
-				tied[sequence][stepIndexEdit] = !tied[sequence][stepIndexEdit];
-				if (tied[sequence][stepIndexEdit]) {
-					gate1[sequence][stepIndexEdit] = false;
-					gate1Prob[sequence][stepIndexEdit] = false;
-					gate2[sequence][stepIndexEdit] = false;
-					slide[sequence][stepIndexEdit] = false;
+				attributes[sequence][stepIndexEdit] ^= ATT_MSK_TIED;
+				if (getTied(sequence,stepIndexEdit)) {
+					attributes[sequence][stepIndexEdit] &= ~(ATT_MSK_GATE1 | ATT_MSK_GATE1P | ATT_MSK_GATE2 | ATT_MSK_SLIDE);
 					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 				}
 				else
-					gate1[sequence][stepIndexEdit] = true;
+					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE1;
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -899,7 +839,8 @@ struct PhraseSeq16 : Module {
 				}
 				
 				// Slide
-				if ( (editingSequence && slide[sequence][stepIndexRun]) || (!editingSequence && slide[phrase[phraseIndexRun]][stepIndexRun]) ) {
+				if ( (editingSequence && ((attributes[sequence][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) || 
+				    (!editingSequence && ((attributes[phrase[phraseIndexRun]][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) ) {
 					// avtivate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
 					slideStepsRemain =   (unsigned long) (((float)clockPeriod)   * params[SLIDE_KNOB_PARAM].value / 2.0f);// 0-T slide, where T is clock period (can be too long when user does clock gating)
 					//slideStepsRemain = (unsigned long)  (engineGetSampleRate() * params[SLIDE_KNOB_PARAM].value );// 0-2s slide
@@ -936,10 +877,12 @@ struct PhraseSeq16 : Module {
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
 			bool gate1RandomEnable = randomUniform() < (params[GATE1_KNOB_PARAM].value);// randomUniform is [0.0, 1.0), see include/util/common.hpp
 			int seq = editingSequence ? sequence : phrase[phraseIndexRun];
-			gate1RandomEnable |= !gate1Prob[seq][stepIndexRun];
+			gate1RandomEnable |= !getGate1P(seq,stepIndexRun);
 			outputs[CV_OUTPUT].value = cv[seq][stepIndexRun] - slideOffset;
-			outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && gate1[seq][stepIndexRun]) ? 10.0f : 0.0f;
-			outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && gate2[seq][stepIndexRun]) ? 10.0f : 0.0f;
+			outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
+											((attributes[seq][stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
+			outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && 
+											((attributes[seq][stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
 		}
 		else {// not running 
 			if (editingSequence) {// editing sequence while not running
@@ -1023,28 +966,20 @@ struct PhraseSeq16 : Module {
 		}			
 		
 		// Gate1, Gate1Prob, Gate2, Slide and Tied lights
-		bool gate1Val = gate1[sequence][stepIndexEdit];
-		bool gate1ProbVal = gate1Prob[sequence][stepIndexEdit];
-		bool gate2Val = gate2[sequence][stepIndexEdit];
-		bool slideVal = slide[sequence][stepIndexEdit];
-		bool tiedVal = tied[sequence][stepIndexEdit];
-		if (!editingSequence) {
-			gate1Val = gate1[phrase[phraseIndexEdit]][stepIndexRun];
-			gate1ProbVal = gate1Prob[phrase[phraseIndexEdit]][stepIndexRun];
-			gate2Val = gate2[phrase[phraseIndexEdit]][stepIndexRun];
-			slideVal = slide[phrase[phraseIndexEdit]][stepIndexRun];
-			tiedVal = tied[phrase[phraseIndexEdit]][stepIndexRun];
-		}
-		lights[GATE1_LIGHT].value = (gate1Val) ? 1.0f : 0.0f;
-		lights[GATE1_PROB_LIGHT].value = (gate1ProbVal) ? 1.0f : 0.0f;
-		lights[GATE2_LIGHT].value = (gate2Val) ? 1.0f : 0.0f;
-		lights[SLIDE_LIGHT].value = (slideVal) ? 1.0f : 0.0f;
+		int attributesVal = attributes[sequence][stepIndexEdit];
+		if (!editingSequence)
+			attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
+		//
+		lights[GATE1_LIGHT].value = ((attributesVal & ATT_MSK_GATE1) != 0) ? 1.0f : 0.0f;
+		lights[GATE1_PROB_LIGHT].value = ((attributesVal & ATT_MSK_GATE1P) != 0) ? 1.0f : 0.0f;
+		lights[GATE2_LIGHT].value = ((attributesVal & ATT_MSK_GATE2) != 0) ? 1.0f : 0.0f;
+		lights[SLIDE_LIGHT].value = ((attributesVal & ATT_MSK_SLIDE) != 0) ? 1.0f : 0.0f;
 		if (tiedWarning > 0l) {
 			bool warningFlashState = calcTiedWarning(tiedWarning, tiedWarningInit);
 			lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
 		}
 		else
-			lights[TIE_LIGHT].value = (tiedVal) ? 1.0f : 0.0f;
+			lights[TIE_LIGHT].value = ((attributesVal & ATT_MSK_TIED) != 0) ? 1.0f : 0.0f;
 
 		// Attach light
 		lights[ATTACH_LIGHT].value = (running && attached) ? 1.0f : 0.0f;
@@ -1089,7 +1024,7 @@ struct PhraseSeq16 : Module {
 		//   case B: the give step's CV was modified
 		// These cases are mutually exclusive
 		
-		if (tied[seqNum][indexTied]) {
+		if (getTied(seqNum,indexTied)) {
 			// copy previous CV over to current step
 			int iSrc = indexTied - 1;
 			if (iSrc < 0) 
@@ -1101,7 +1036,7 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 16; i++) {// i is a safety counter in case all notes are tied (avoir infinite loop)
 			if (iDest > numSteps - 1) 
 				iDest = 0;
-			if (!tied[seqNum][iDest])
+			if (!getTied(seqNum,iDest))
 				break;
 			// iDest is tied, so set its CV
 			cv[seqNum][iDest] = cv[seqNum][indexTied];
