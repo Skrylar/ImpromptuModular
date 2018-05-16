@@ -329,7 +329,10 @@ struct TwelveKeyWidget : ModuleWidget {
 		static const int rowRuler2 = rowRuler1 + rowRulerStep;
 		
 		// Left side inputs
-		addInput(Port::create<PJ301MPortS>(Vec(columnRulerL, rowRuler0), Port::INPUT, module, TwelveKey::CV_INPUT));
+		
+		
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerL, rowRuler0), Port::INPUT, module, TwelveKey::CV_INPUT, &module->panelTheme, plugin));
+		//addInput(Port::create<PJ301MPortS>(Vec(columnRulerL, rowRuler0), Port::INPUT, module, TwelveKey::CV_INPUT));
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerL, rowRuler1), Port::INPUT, module, TwelveKey::GATE_INPUT));
 		addInput(Port::create<PJ301MPortS>(Vec(columnRulerL, rowRuler2), Port::INPUT, module, TwelveKey::OCT_INPUT));
 

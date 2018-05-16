@@ -5,6 +5,7 @@
 //See ./LICENSE.txt for all licenses
 //***********************************************************************************************
 
+
 #include "rack.hpp"
 #include "window.hpp"
 
@@ -30,9 +31,9 @@ struct DynamicPanelWidget : FramebufferWidget {
 };
 
 
-// Dynamic Jack (WIP)
+// Dynamic Jack (WIP, started from ValleyWidgets DynamicSwitch)
 
-struct DynamicJackWidget : FramebufferWidget {
+struct DynamicJackWidget : SVGPort {
     int* mode;
     int oldMode;
     std::vector<std::shared_ptr<SVG>> jacks;
@@ -42,3 +43,22 @@ struct DynamicJackWidget : FramebufferWidget {
     void addJack(std::shared_ptr<SVG> svg);
     void step() override;
 };
+
+template <class TDynamicJack>
+DynamicJackWidget* createDynamicJackWidget(Vec pos, Port::PortType type, Module *module, int portId,
+                                               int* mode, Plugin* plugin) {
+	DynamicJackWidget *dynJack = new TDynamicJack();
+	dynJack->box.pos = pos;
+	dynJack->type = type;
+	dynJack->module = module;
+	dynJack->portId = portId;
+	
+    dynJack->addJack(SVG::load(assetPlugin(plugin, "res/light/GateSeq64.svg")));
+    dynJack->addJack(SVG::load(assetPlugin(plugin, "res/light/GateSeq64.svg")));
+	//dynJack->box.size = dynJack->box.size;
+	dynJack->mode = mode;
+	
+	return dynJack;
+}
+
+

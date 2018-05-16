@@ -53,7 +53,7 @@ void DynamicPanelWidget::step() {
 // Dynamic Jack (WIP)
 
 DynamicJackWidget::DynamicJackWidget() {
-    mode = nullptr;
+    mode = nullptr;;
     oldMode = -1;
     visibleJack = new SVGWidget();
     addChild(visibleJack);
