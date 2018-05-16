@@ -13,6 +13,7 @@
 
 
 #include "ImpromptuModular.hpp"
+#include "IMWidgets.hpp"
 #include "dsp/digital.hpp"
 
 
@@ -80,6 +81,7 @@ struct PhraseSeq32 : Module {
 	enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_GATE2 = 0x04, ATT_MSK_SLIDE = 0x08, ATT_MSK_TIED = 0x10};
 
 	// Need to save
+	int panelTheme = 0;
 	bool running;
 	int runModeSeq; 
 	int runModeSong; 
@@ -254,6 +256,9 @@ struct PhraseSeq32 : Module {
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
+		// panelTheme
+		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
+
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
 		
@@ -304,6 +309,11 @@ struct PhraseSeq32 : Module {
 	}
 
 	void fromJson(json_t *rootJ) override {
+		// panelTheme
+		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
+		if (panelThemeJ)
+			panelTheme = json_integer_value(panelThemeJ);
+
 		// running
 		json_t *runningJ = json_object_get(rootJ, "running");
 		if (runningJ)
@@ -1039,10 +1049,53 @@ struct PhraseSeq32Widget : ModuleWidget {
 		}
 	};		
 	
+	struct PanelThemeItem : MenuItem {
+		PhraseSeq32 *module;
+		int theme;
+		void onAction(EventAction &e) override {
+			module->panelTheme = theme;
+		}
+		void step() override {
+			rightText = (module->panelTheme == theme) ? "✔" : "";
+		}
+	};
+	Menu *createContextMenu() override {
+		Menu *menu = ModuleWidget::createContextMenu();
+
+		MenuLabel *spacerLabel = new MenuLabel();
+		menu->addChild(spacerLabel);
+
+		PhraseSeq32 *module = dynamic_cast<PhraseSeq32*>(this->module);
+		assert(module);
+
+		MenuLabel *themeLabel = new MenuLabel();
+		themeLabel->text = "Panel Theme";
+		menu->addChild(themeLabel);
+
+		PanelThemeItem *lightItem = new PanelThemeItem();
+		lightItem->text = "Light";
+		lightItem->module = module;
+		lightItem->theme = 0;
+		menu->addChild(lightItem);
+
+		PanelThemeItem *darkItem = new PanelThemeItem();
+		darkItem->text = "Dark";
+		darkItem->module = module;
+		darkItem->theme = 1;
+		menu->addChild(darkItem);
+
+		return menu;
+	}	
+	
+	
 	PhraseSeq32Widget(PhraseSeq32 *module) : ModuleWidget(module) {
 		// Main panel from Inkscape
-		setPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq32.svg")));
-
+        DynamicPanelWidget *panel = new DynamicPanelWidget();
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq32.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq32.svg")));
+        box.size = panel->box.size;
+        panel->mode = &module->panelTheme;
+        addChild(panel);
 		// Screw holes (optical illustion makes screws look oval, remove for now)
 		/*addChild(new ScrewHole(Vec(15, 0)));
 		addChild(new ScrewHole(Vec(box.size.x-30, 0)));
