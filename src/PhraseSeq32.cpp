@@ -1041,7 +1041,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 	
 	PhraseSeq32Widget(PhraseSeq32 *module) : ModuleWidget(module) {
 		// Main panel from Inkscape
-		setPanel(SVG::load(assetPlugin(plugin, "res/PhraseSeq32.svg")));
+		setPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq32.svg")));
 
 		// Screw holes (optical illustion makes screws look oval, remove for now)
 		/*addChild(new ScrewHole(Vec(15, 0)));

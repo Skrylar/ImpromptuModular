@@ -1111,7 +1111,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 	
 	PhraseSeq16Widget(PhraseSeq16 *module) : ModuleWidget(module) {
 		// Main panel from Inkscape
-		setPanel(SVG::load(assetPlugin(plugin, "res/PhraseSeq16.svg")));
+		setPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq16.svg")));
 
 		// Screw holes (optical illustion makes screws look oval, remove for now)
 		/*addChild(new ScrewHole(Vec(15, 0)));

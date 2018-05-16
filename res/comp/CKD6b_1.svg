@@ -11,11 +11,11 @@
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    width="26"
    height="26"
-   viewBox="0 0 6.8791667 6.8791668"
+   viewBox="0 0 6.8791667 6.8791667"
    version="1.1"
    id="svg12484"
    inkscape:version="0.92.2 (5c3e80d, 2017-08-06)"
-   sodipodi:docname="CKD6b_0.svg">
+   sodipodi:docname="CKD6b_1.svg">
   <defs
      id="defs12478" />
   <sodipodi:namedview
@@ -25,18 +25,18 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="7.919596"
-     inkscape:cx="-54.702797"
-     inkscape:cy="1.2689156"
+     inkscape:zoom="31.678384"
+     inkscape:cx="9.9023419"
+     inkscape:cy="14.611526"
      inkscape:document-units="px"
-     inkscape:current-layer="g12430"
+     inkscape:current-layer="g12476"
      showgrid="false"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
      inkscape:window-width="1920"
-     inkscape:window-height="1017"
+     inkscape:window-height="1018"
      inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
@@ -49,7 +49,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -57,36 +57,36 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-87.43441,-105.16785)">
+     transform="translate(-155.97001,-112.22678)">
     <g
-       transform="matrix(0.27270608,0,0,-0.27270608,12.503198,432.85055)"
-       id="g12430"
+       id="g12476"
+       transform="matrix(0.27270608,0,0,-0.27270608,81.038799,439.90948)"
        style="stroke-width:1.29361904">
       <g
-         transform="matrix(0.92857144,0,0,0.92870818,299.9947,1188.9828)"
-         id="g5959-5"
-         style="stroke-width:1.39302564">
+         id="g12468"
+         transform="matrix(0.92857143,0,0,0.92870817,299.9947,1188.9836)"
+         style="stroke-width:1.39302552">
         <path
-           inkscape:connector-curvature="0"
-           id="path5961-3"
-           style="fill:#212221;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.39302564"
-           d="m 0,0 c 0,-7.5 -6.083,-13.58 -13.584,-13.58 -7.5,0 -13.582,6.08 -13.582,13.58 0,7.503 6.082,13.582 13.582,13.582 C -6.083,13.582 0,7.503 0,0" />
+           d="m 0,0 c 0,-7.5 -6.083,-13.58 -13.584,-13.58 -7.5,0 -13.582,6.08 -13.582,13.58 0,7.503 6.082,13.582 13.582,13.582 C -6.083,13.582 0,7.503 0,0"
+           style="fill:#212221;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.39302552"
+           id="path12466"
+           inkscape:connector-curvature="0" />
       </g>
       <ellipse
-         style="opacity:1;vector-effect:none;fill:#676967;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.29361904;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
-         id="circle12436"
-         cx="287.38193"
-         cy="-1189.6399"
          transform="scale(1,-1)"
-         rx="10.471628"
+         cy="-1188.3207"
+         cx="287.38193"
+         id="circle12472"
+         style="opacity:1;vector-effect:none;fill:#818381;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.29361904;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         rx="10.471627"
          ry="10.473169" />
       <ellipse
-         transform="scale(1,-1)"
-         cy="-1188.9838"
+         style="opacity:1;vector-effect:none;fill:#141514;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.29361904;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         id="circle12474"
          cx="287.38193"
-         id="path12411"
-         style="opacity:1;vector-effect:none;fill:#2b2d2b;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.29361904;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
-         rx="10.471628"
+         cy="-1188.9836"
+         transform="scale(1,-1)"
+         rx="10.471627"
          ry="10.473169" />
     </g>
   </g>
