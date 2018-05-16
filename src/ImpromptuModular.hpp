@@ -64,7 +64,6 @@ static const int offsetTrimpot = 3;//does both h and v
 struct PJ301MPortS : SVGPort {
 	PJ301MPortS() {
 		//setSVG(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
-		//setSVG(SVG::load(assetPlugin(plugin, "res/comp/PJ301M.svg")));
 		setSVG(SVG::load(assetPlugin(plugin, "res/comp/CL1362.svg")));
 		shadow->blurRadius = 10.0;
 		shadow->opacity = 0.8;
@@ -93,7 +92,7 @@ struct Davies1900hBlackKnobNoTick : Davies1900hKnob {// use for infinite rotary 
 
 struct RoundSmallBlackKnobB : RoundKnob {
 	RoundSmallBlackKnobB() {
-		setSVG(SVG::load(assetGlobal("res/ComponentLibrary/RoundSmallBlackKnob.svg")));
+		setSVG(SVG::load(assetPlugin(plugin, "res/comp/RoundSmallBlackKnob.svg")));
 		shadow->blurRadius = 10.0;
 		shadow->opacity = 0.8;
 		shadow->box.pos = Vec(0.0, box.size.y * 0.15);

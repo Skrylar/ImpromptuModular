@@ -29,3 +29,16 @@ struct DynamicPanelWidget : FramebufferWidget {
     void step() override;
 };
 
+
+// Dynamic Jack (WIP)
+
+struct DynamicJackWidget : FramebufferWidget {
+    int* mode;
+    int oldMode;
+    std::vector<std::shared_ptr<SVG>> jacks;
+    SVGWidget* visibleJack;
+
+    DynamicJackWidget();
+    void addJack(std::shared_ptr<SVG> svg);
+    void step() override;
+};
