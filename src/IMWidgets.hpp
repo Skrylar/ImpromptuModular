@@ -31,9 +31,9 @@ struct DynamicPanelWidget : FramebufferWidget {
 };
 
 
-// Dynamic Jack (WIP, started from ValleyWidgets DynamicSwitch)
+// Dynamic Jack (WIP, started from ValleyWidgets DynamicSwitch, perhaps use DynamicKnob?)
 
-struct DynamicJackWidget : SVGPort {
+struct DynamicJackWidget : Port {
     int* mode;
     int oldMode;
     std::vector<std::shared_ptr<SVG>> jacks;
@@ -41,6 +41,7 @@ struct DynamicJackWidget : SVGPort {
 
     DynamicJackWidget();
     void addJack(std::shared_ptr<SVG> svg);
+	//void draw(NVGcontext *vg) override {Port::draw(vg);}
     void step() override;
 };
 
