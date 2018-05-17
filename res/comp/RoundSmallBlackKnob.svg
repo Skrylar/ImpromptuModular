@@ -14,7 +14,7 @@
    viewBox="0 0 7.9995093 7.9995222"
    version="1.1"
    id="svg111794"
-   inkscape:version="0.92.2 5c3e80d, 2017-08-06"
+   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)"
    sodipodi:docname="RoundSmallBlackKnob.svg">
   <defs
      id="defs111788" />
@@ -25,9 +25,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="2.8"
-     inkscape:cx="-87.928177"
-     inkscape:cy="-71.041818"
+     inkscape:zoom="15.839192"
+     inkscape:cx="29.091919"
+     inkscape:cy="11.345197"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -35,11 +35,13 @@
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
-     inkscape:window-width="2560"
-     inkscape:window-height="1422"
-     inkscape:window-x="0"
-     inkscape:window-y="18"
-     inkscape:window-maximized="0" />
+     inkscape:window-width="1920"
+     inkscape:window-height="1018"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:snap-object-midpoints="true"
+     inkscape:snap-global="true" />
   <metadata
      id="metadata111791">
     <rdf:RDF>
@@ -48,7 +50,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -57,15 +59,28 @@
      inkscape:groupmode="layer"
      id="layer1"
      transform="translate(-168.09312,-67.39659)">
-    <path
-       inkscape:connector-curvature="0"
-       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.35277775"
-       d="m 176.09263,71.397045 c 0,2.208995 -1.79006,3.999067 -3.99905,3.999067 -2.20902,0 -4.00046,-1.790072 -4.00046,-3.999067 0,-2.210372 1.79144,-4.000444 4.00046,-4.000444 2.20899,0 3.99905,1.790072 3.99905,4.000444"
-       id="path110598" />
-    <path
-       inkscape:connector-curvature="0"
-       style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.35277775"
-       d="m 172.22587,67.41176 c -0.0427,-0.0097 -0.0868,-0.01517 -0.13229,-0.01517 -0.0455,0 -0.0896,0.0055 -0.13367,0.01517 v 4.034896 h 0.26596 z m 0,0"
-       id="path110600" />
+    <g
+       transform="matrix(0.83430414,0,0,0.83430414,-23.850456,-35.390531)"
+       id="g1521">
+      <path
+         d="m 239.59386,127.49189 c -0.20902,-0.3384 -0.56091,-0.67124 -0.7567,-1.14484 -0.19579,-0.47201 -0.18282,-0.95486 -0.27331,-1.34062 -0.21299,-0.26379 -0.45269,-0.50323 -0.71674,-0.71648 -0.38603,-0.0902 -0.86836,-0.0775 -1.34089,-0.27331 -0.4736,-0.19632 -0.80644,-0.54742 -1.14431,-0.7567 -0.16536,-0.0175 -0.33337,-0.0275 -0.50323,-0.0275 -0.17039,0 -0.3384,0.0101 -0.5035,0.0275 -0.33839,0.20928 -0.67124,0.56038 -1.14483,0.7567 -0.47201,0.19579 -0.95434,0.18309 -1.34063,0.27331 -0.26378,0.21325 -0.50376,0.45269 -0.71648,0.71648 -0.0905,0.38576 -0.0778,0.86861 -0.27384,1.34062 -0.19579,0.4736 -0.54742,0.80644 -0.75617,1.14484 -0.0175,0.16536 -0.0273,0.33337 -0.0273,0.50323 0,0.17013 0.01,0.33813 0.0273,0.50402 0.20875,0.33787 0.56038,0.67071 0.75617,1.14431 0.19605,0.47201 0.18335,0.95487 0.27384,1.34036 0.21272,0.26405 0.4527,0.50376 0.71648,0.71675 0.38629,0.0905 0.86862,0.0775 1.34063,0.27304 0.47359,0.19659 0.80644,0.54795 1.14483,0.75697 0.1651,0.0172 0.33311,0.0273 0.5035,0.0273 0.16986,0 0.33787,-0.0101 0.50323,-0.0273 0.33787,-0.20902 0.67071,-0.56038 1.14431,-0.75697 0.47253,-0.19552 0.95486,-0.18256 1.34089,-0.27304 0.26405,-0.21299 0.50375,-0.4527 0.71674,-0.71675 0.0905,-0.38549 0.0775,-0.86835 0.27331,-1.34036 0.19579,-0.4736 0.54768,-0.80644 0.7567,-1.14431 0.0172,-0.16589 0.027,-0.33389 0.027,-0.50402 0,-0.16986 -0.01,-0.33787 -0.027,-0.50323"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#c8c8c8;stroke-width:0.153;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         id="path6449"
+         inkscape:connector-curvature="0" />
+      <circle
+         r="3.7918866"
+         cy="127.9952"
+         cx="234.82318"
+         id="path6739"
+         style="opacity:1;fill:#464646;fill-opacity:1;stroke:#595959;stroke-width:0.10318182;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+    </g>
+    <rect
+       style="opacity:1;fill:#e7e7e7;fill-opacity:1;stroke:#2b2b2b;stroke-width:0.13338806;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="rect1546-9"
+       width="0.47045693"
+       height="3.314774"
+       x="171.83043"
+       y="67.132812"
+       ry="0.26300001" />
   </g>
 </svg>

@@ -57,7 +57,7 @@ struct GateSeq64 : Module {
 	// Need to save
 	int panelTheme = 0;
 	bool running;
-	int runModeSeq;
+	int runModeSeq[16];
 	int runModeSong;
 	//
 	int sequence;
@@ -124,7 +124,6 @@ struct GateSeq64 : Module {
 		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
 			stepConfig = 2;
 		running = false;
-		runModeSeq = MODE_FWD;
 		runModeSong = MODE_FWD;
 		sequence = 0;
 		phrases = 4;
@@ -132,6 +131,7 @@ struct GateSeq64 : Module {
 			for (int s = 0; s < 64; s++) {
 				attributes[i][s] = 50;
 			}
+			runModeSeq[i] = MODE_FWD;
 			phrase[i] = 0;
 			lengths[i] = 16;
 		}
@@ -157,7 +157,6 @@ struct GateSeq64 : Module {
 			stepConfig = 2;
 		//
 		running = (randomUniform() > 0.5f);
-		runModeSeq = randomu32() % 5;
 		runModeSong = randomu32() % 5;
 		sequence = randomu32() % 16;
 		phrases = 1 + (randomu32() % 16);
@@ -168,6 +167,7 @@ struct GateSeq64 : Module {
 			for (int s = 0; s < 64; s++) {
 				attributes[i][s] = (randomu32() % 101) | (randomu32() & (ATT_MSK_GATEP | ATT_MSK_GATE));
 			}
+			runModeSeq[i] = randomu32() % 5;
 			phrase[i] = randomu32() % 16;
 			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
 		}
@@ -192,12 +192,12 @@ struct GateSeq64 : Module {
 		for (int i = 0; i < 4; i++)
 			gateRandomEnable[i] = false;
 		if (isEditingSequence()) {
-			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
 			for (int i = 0; i < 4; i += stepConfig)
 				gateRandomEnable[i] = calcGateRandomEnable(getGateP(sequence, (i * 16) + stepIndexRun), getGatePVal(sequence, (i * 16) + stepIndexRun));
 		}
 		else {
-			stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
+			stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 			for (int i = 0; i < 4; i += stepConfig)
 				gateRandomEnable[i] = calcGateRandomEnable(getGateP(phrase[phraseIndexRun], (i * 16) + stepIndexRun), getGatePVal(phrase[phraseIndexRun], (i * 16) + stepIndexRun));
 		}
@@ -224,7 +224,10 @@ struct GateSeq64 : Module {
 		json_object_set_new(rootJ, "running", json_boolean(running));
 		
 		// runModeSeq
-		json_object_set_new(rootJ, "runModeSeq", json_integer(runModeSeq));
+		json_t *runModeSeqJ = json_array();
+		for (int i = 0; i < 16; i++)
+			json_array_insert_new(runModeSeqJ, i, json_integer(runModeSeq[i]));
+		json_object_set_new(rootJ, "runModeSeq2", runModeSeqJ);
 
 		// runModeSong
 		json_object_set_new(rootJ, "runModeSong", json_integer(runModeSong));
@@ -270,9 +273,15 @@ struct GateSeq64 : Module {
 			running = json_is_true(runningJ);
 		
 		// runModeSeq
-		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq");
-		if (runModeSeqJ)
-			runModeSeq = json_integer_value(runModeSeqJ);
+		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq2");
+		if (runModeSeqJ) {
+			for (int i = 0; i < 16; i++)
+			{
+				json_t *runModeSeqArrayJ = json_array_get(runModeSeqJ, i);
+				if (runModeSeqArrayJ)
+					runModeSeq[i] = json_integer_value(runModeSeqArrayJ);
+			}			
+		}		
 		
 		// runModeSong
 		json_t *runModeSongJ = json_object_get(rootJ, "runModeSong");
@@ -323,9 +332,9 @@ struct GateSeq64 : Module {
 		
 		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		if (isEditingSequence())
-			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
 		else
-			stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
+			stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 	}
 
 	
@@ -414,9 +423,9 @@ struct GateSeq64 : Module {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 				if (displayState == DISP_MODES) {
 					if (editingSequence) {
-						runModeSeq += deltaKnob;
-						if (runModeSeq < 0) runModeSeq = 0;
-						if (runModeSeq > 4) runModeSeq = 4;
+						runModeSeq[sequence] += deltaKnob;
+						if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
+						if (runModeSeq[sequence] > 4) runModeSeq[sequence] = 4;
 					}
 					else {
 						runModeSong += deltaKnob;
@@ -586,14 +595,14 @@ struct GateSeq64 : Module {
 				for (int i = 0; i < 4; i++)
 					gateRandomEnable[i] = false;
 				if (editingSequence) {
-					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq, &stepIndexRunHistory);
+					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
 					for (int i = 0; i < 4; i += stepConfig)
 						gateRandomEnable[i] = calcGateRandomEnable(getGateP(sequence, (i * 16) + stepIndexRun), getGatePVal(sequence, (i * 16) + stepIndexRun));
 				}
 				else {
-					if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq, &stepIndexRunHistory)) {
+					if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory)) {
 						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
-						stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
+						stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
 					}
 					for (int i = 0; i < 4; i += stepConfig)
 						gateRandomEnable[i] = calcGateRandomEnable(getGateP(phrase[phraseIndexRun], (i * 16) + stepIndexRun), getGatePVal(phrase[phraseIndexRun], (i * 16) + stepIndexRun));
@@ -798,7 +807,7 @@ struct GateSeq64Widget : ModuleWidget {
 						snprintf(displayStr, 4, "L%2u", module->phrases);
 				else if (module->displayState == GateSeq64::DISP_MODES) {
 					if (module->isEditingSequence())
-						runModeToStr(module->runModeSeq);
+						runModeToStr(module->runModeSeq[module->sequence]);
 					else
 						runModeToStr(module->runModeSong);
 				}

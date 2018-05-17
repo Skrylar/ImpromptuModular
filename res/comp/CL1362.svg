@@ -180,7 +180,7 @@
        x2="69.812355"
        y2="90.317513"
        gradientUnits="userSpaceOnUse"
-       gradientTransform="matrix(0.82707751,0,0,0.82707751,38.233026,45.482287)" />
+       gradientTransform="matrix(0.57760085,-0.59197506,0.59197506,0.57760085,-1.0630978,108.02603)" />
     <linearGradient
        inkscape:collect="always"
        xlink:href="#linearGradient7151"
@@ -206,7 +206,7 @@
      inkscape:current-layer="layer1"
      showgrid="false"
      inkscape:window-width="1920"
-     inkscape:window-height="1017"
+     inkscape:window-height="1018"
      inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
@@ -223,7 +223,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -252,7 +252,7 @@
     <path
        inkscape:connector-curvature="0"
        id="path9183"
-       d="m 89.585148,123.37642 c 0,-1.76888 1.434939,-3.20383 3.203822,-3.20383 1.768883,0 3.203821,1.43495 3.203821,3.20383 0,1.77002 -1.434938,3.2038 -3.203821,3.2038 -1.768883,0 -3.203822,-1.43378 -3.203822,-3.2038"
+       d="m 90.551548,125.66953 c -1.266064,-1.23532 -1.29101,-3.26449 -0.05569,-4.53055 1.235324,-1.26607 3.264488,-1.291 4.530552,-0.0557 1.266879,1.23612 1.290989,3.26447 0.05566,4.53053 -1.235323,1.26607 -3.26365,1.29182 -4.53053,0.0557"
        style="fill:url(#linearGradient7173);fill-opacity:1;fill-rule:nonzero;stroke:#797979;stroke-width:0.053;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
     <path
        style="fill:url(#linearGradient7161);fill-opacity:1;fill-rule:nonzero;stroke:#9fa19f;stroke-width:0.05;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"

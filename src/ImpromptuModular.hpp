@@ -92,6 +92,7 @@ struct Davies1900hBlackKnobNoTick : Davies1900hKnob {// use for infinite rotary 
 
 struct RoundSmallBlackKnobB : RoundKnob {
 	RoundSmallBlackKnobB() {
+		//setSVG(SVG::load(assetGlobal("res/ComponentLibrary/RoundSmallBlackKnob.svg")));
 		setSVG(SVG::load(assetPlugin(plugin, "res/comp/RoundSmallBlackKnob.svg")));
 		shadow->blurRadius = 10.0;
 		shadow->opacity = 0.8;

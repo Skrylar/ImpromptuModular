@@ -99,7 +99,7 @@ struct PhraseSeq16 : Module {
 	// Need to save
 	int panelTheme = 0;
 	bool running;
-	int runModeSeq; 
+	int runModeSeq[16]; 
 	int runModeSong; 
 	//
 	int sequence;
@@ -180,7 +180,6 @@ struct PhraseSeq16 : Module {
 
 	void onReset() override {
 		running = false;
-		runModeSeq = MODE_FWD;
 		runModeSong = MODE_FWD;
 		sequence = 0;
 		phrases = 4;
@@ -189,6 +188,7 @@ struct PhraseSeq16 : Module {
 				cv[i][s] = 0.0f;
 				attributes[i][s] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
 			}
+			runModeSeq[i] = MODE_FWD;
 			phrase[i] = 0;
 			lengths[i] = 16;
 			cvCPbuffer[i] = 0.0f;
@@ -212,7 +212,6 @@ struct PhraseSeq16 : Module {
 	
 	void onRandomize() override {
 		running = false;
-		runModeSeq = randomu32() % 5;
 		runModeSong = randomu32() % 5;
 		sequence = randomu32() % 16;
 		phrases = 1 + (randomu32() % 16);
@@ -223,6 +222,7 @@ struct PhraseSeq16 : Module {
 				if (getTied(i,s))
 					attributes[i][s] = ATT_MSK_TIED;// clear other attributes if tied
 			}
+			runModeSeq[i] = randomu32() % 5;
 			phrase[i] = randomu32() % 16;
 			lengths[i] = 1 + (randomu32() % 16);
 			cvCPbuffer[i] = 0.0f;
@@ -249,11 +249,11 @@ struct PhraseSeq16 : Module {
 		phraseIndexEdit = 0;
 		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		if (isEditingSequence()) {
-			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
 			gate1RandomEnable = calcGate1RandomEnable(getGate1P(sequence, stepIndexRun));
 		}
 		else {
-			stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
+			stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 			gate1RandomEnable = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun], stepIndexRun));
 		}
 	}
@@ -279,7 +279,10 @@ struct PhraseSeq16 : Module {
 		json_object_set_new(rootJ, "running", json_boolean(running));
 		
 		// runModeSeq
-		json_object_set_new(rootJ, "runModeSeq", json_integer(runModeSeq));
+		json_t *runModeSeqJ = json_array();
+		for (int i = 0; i < 16; i++)
+			json_array_insert_new(runModeSeqJ, i, json_integer(runModeSeq[i]));
+		json_object_set_new(rootJ, "runModeSeq2", runModeSeqJ);
 
 		// runModeSong
 		json_object_set_new(rootJ, "runModeSong", json_integer(runModeSong));
@@ -336,9 +339,22 @@ struct PhraseSeq16 : Module {
 			running = json_is_true(runningJ);
 
 		// runModeSeq
-		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq");
-		if (runModeSeqJ)
-			runModeSeq = json_integer_value(runModeSeqJ);
+		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq2");
+		if (runModeSeqJ) {
+			for (int i = 0; i < 16; i++)
+			{
+				json_t *runModeSeqArrayJ = json_array_get(runModeSeqJ, i);
+				if (runModeSeqArrayJ)
+					runModeSeq[i] = json_integer_value(runModeSeqArrayJ);
+			}			
+		}		
+		else {// legacy
+			runModeSeqJ = json_object_get(rootJ, "runModeSeq");
+			if (runModeSeqJ)
+				runModeSeq[0] = json_integer_value(runModeSeqJ);
+			for (int i = 1; i < 16; i++)
+				runModeSeq[i] = runModeSeq[0];
+		}
 		
 		// runModeSong
 		json_t *runModeSongJ = json_object_get(rootJ, "runModeSong");
@@ -468,9 +484,9 @@ struct PhraseSeq16 : Module {
 		
 		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		if (isEditingSequence())
-			stepIndexRun = (runModeSeq == MODE_REV ? lengths[sequence] - 1 : 0);
+			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
 		else
-			stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
+			stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 	}
 
 
@@ -690,9 +706,9 @@ struct PhraseSeq16 : Module {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 				if (displayState == DISP_MODE) {
 					if (editingSequence) {
-						runModeSeq += deltaKnob;
-						if (runModeSeq < 0) runModeSeq = 0;
-						if (runModeSeq > 4) runModeSeq = 4;
+						runModeSeq[sequence] += deltaKnob;
+						if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
+						if (runModeSeq[sequence] > 4) runModeSeq[sequence] = 4;
 					}
 					else {
 						runModeSong += deltaKnob;
@@ -849,15 +865,15 @@ struct PhraseSeq16 : Module {
 				float slideToCV = 0.0f;
 				if (editingSequence) {
 					slideFromCV = cv[sequence][stepIndexRun];
-					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq, &stepIndexRunHistory);
+					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
 					slideToCV = cv[sequence][stepIndexRun];
 					gate1RandomEnable = calcGate1RandomEnable(getGate1P(sequence,stepIndexRun));// must be calculated on clock edge only
 				}
 				else {
 					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
-					if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq, &stepIndexRunHistory)) {
+					if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory)) {
 						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
-						stepIndexRun = (runModeSeq == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
+						stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
 					}
 					slideToCV = cv[phrase[phraseIndexRun]][stepIndexRun];
 					gate1RandomEnable = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun],stepIndexRun));// must be calculated on clock edge only
@@ -1095,7 +1111,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 			else {
 				if (module->displayState == PhraseSeq16::DISP_MODE) {
 					if (module->isEditingSequence())
-						runModeToStr(module->runModeSeq);
+						runModeToStr(module->runModeSeq[module->sequence]);
 					else
 						runModeToStr(module->runModeSong);
 				}
