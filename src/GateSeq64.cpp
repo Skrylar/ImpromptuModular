@@ -155,7 +155,6 @@ struct GateSeq64 : Module {
 			stepConfig = 4;
 		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
 			stepConfig = 2;
-		//
 		running = (randomUniform() > 0.5f);
 		runModeSong = randomu32() % 5;
 		sequence = randomu32() % 16;

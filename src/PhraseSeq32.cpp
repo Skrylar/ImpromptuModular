@@ -43,6 +43,7 @@ struct PhraseSeq32 : Module {
 		TIE_PARAM,// Legato
 		CPMODE_PARAM,
 		ENUMS(STEP_PHRASE_PARAMS, 32),
+		CONFIG_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -57,9 +58,12 @@ struct PhraseSeq32 : Module {
 		NUM_INPUTS
 	};
 	enum OutputIds {
-		CV_OUTPUT,
-		GATE1_OUTPUT,
-		GATE2_OUTPUT,
+		CVA_OUTPUT,
+		GATE1A_OUTPUT,
+		GATE2A_OUTPUT,
+		CVB_OUTPUT,
+		GATE1B_OUTPUT,
+		GATE2B_OUTPUT,
 		NUM_OUTPUTS
 	};
 	enum LightIds {
@@ -106,6 +110,7 @@ struct PhraseSeq32 : Module {
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	float editingGateCV;// no need to initialize, this is a companion to editingGate
+	int editingChannel;// 0 means channel A, 1 means channel B. no need to initialize, this is a companion to editingGate
 	int stepIndexRunHistory;// no need to initialize
 	int phraseIndexRunHistory;// no need to initialize
 	int displayState;
@@ -122,7 +127,7 @@ struct PhraseSeq32 : Module {
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
 	int sequenceKnob;// INT_MAX when knob not seen yet
-	bool gate1RandomEnable;
+	bool gate1RandomEnable[2];
 
 
 	SchmittTrigger resetTrigger;
@@ -149,6 +154,8 @@ struct PhraseSeq32 : Module {
 	SchmittTrigger editTriggerInv;
 	SchmittTrigger tiedTrigger;
 	SchmittTrigger stepTriggers[32];
+	SchmittTrigger configTrigger;
+	SchmittTrigger configTriggerInv;
 	
 
 	inline bool getGate1P(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE1P) != 0;}
@@ -163,6 +170,9 @@ struct PhraseSeq32 : Module {
 
 	
 	void onReset() override {
+		int stepConfig = 1;// 2x16
+		if (params[CONFIG_PARAM].value < 0.5f)// 1x32
+			stepConfig = 2;
 		running = false;
 		runModeSong = MODE_FWD;
 		sequence = 0;
@@ -174,11 +184,11 @@ struct PhraseSeq32 : Module {
 			}
 			runModeSeq[i] = MODE_FWD;
 			phrase[i] = 0;
-			lengths[i] = 32;
+			lengths[i] = 16;
 			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
 		}
-		initRun();
+		initRun(stepConfig);
 		lengthCPbuffer = 32;
 		countCP = 32;
 		sequenceKnob = INT_MAX;
@@ -195,6 +205,9 @@ struct PhraseSeq32 : Module {
 	
 
 	void onRandomize() override {
+		int stepConfig = 1;// 2x16
+		if (params[CONFIG_PARAM].value < 0.5f)// 1x32
+			stepConfig = 2;
 		running = false;
 		runModeSong = randomu32() % 5;
 		sequence = randomu32() % 32;
@@ -208,11 +221,11 @@ struct PhraseSeq32 : Module {
 			}
 			runModeSeq[i] = randomu32() % 5;
 			phrase[i] = randomu32() % 32;
-			lengths[i] = 1 + (randomu32() % 32);
+			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
 			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
 		}
-		initRun();
+		initRun(stepConfig);
 		lengthCPbuffer = 32;
 		countCP = 32;
 		sequenceKnob = INT_MAX;
@@ -228,24 +241,28 @@ struct PhraseSeq32 : Module {
 	}
 	
 	
-	void initRun(void) {// run button activated or run edge in run input jack
+	void initRun(int stepConfig) {// run button activated or run edge in run input jack
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
 		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+		gate1RandomEnable[0] = false;
+		gate1RandomEnable[1] = false;
 		if (isEditingSequence()) {
 			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
-			gate1RandomEnable = calcGate1RandomEnable(getGate1P(sequence, stepIndexRun));
+			for (int i = 0; i < 2; i += stepConfig)
+				gate1RandomEnable[i] = calcGate1RandomEnable(getGate1P(sequence, (i * 16) + stepIndexRun));
 		}
 		else {
 			stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
-			gate1RandomEnable = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun], stepIndexRun));
+			for (int i = 0; i < 2; i += stepConfig)
+				gate1RandomEnable[i] = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun], (i * 16) + stepIndexRun));
 		}
 	}
 	
 	
-	void resetModule(void) {// reset button on module or reset edge in reset input jack
+	void resetModule(int stepConfig) {// reset button on module or reset edge in reset input jack
 		sequence = 0;
-		initRun();// must be after sequence reset
+		initRun(stepConfig);// must be after sequence reset
 		resetLight = 1.0f;
 		displayState = DISP_NORMAL;
 		clockTrigger.reset();
@@ -451,11 +468,21 @@ struct PhraseSeq32 : Module {
 			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (32.0f - 1.0f) / 10.0f), 0.0f, (32.0f - 1.0f) );
 		}
 		
+		// Config switch
+		int stepConfig = 1;// 2x16
+		if (params[CONFIG_PARAM].value < 0.5f)// 1x32
+			stepConfig = 2;
+		// Config: set lengths to their new max when move switch
+		if (configTrigger.process(params[CONFIG_PARAM].value) || configTriggerInv.process(1.0f - params[CONFIG_PARAM].value)) {
+			for (int i = 0; i < 32; i++)
+				lengths[i] = 16 * stepConfig;
+		}
+
 		// Run button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			if (running)
-				initRun();
+				initRun(stepConfig);
 			displayState = DISP_NORMAL;
 		}
 
@@ -510,8 +537,11 @@ struct PhraseSeq32 : Module {
 					if ((--sCount) <= 0)
 						break;
 				}	
-				if (params[CPMODE_PARAM].value > 1.5f)// all
+				if (params[CPMODE_PARAM].value > 1.5f) {// all
 					lengths[sequence] = lengthCPbuffer;
+					if (lengths[sequence] > 16 * stepConfig)
+						lengths[sequence] = 16 * stepConfig;
+				}
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -526,6 +556,7 @@ struct PhraseSeq32 : Module {
 				else {			
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = inputs[CV_INPUT].value;
+					editingChannel = stepIndexEdit > 15 ? 1 : 0;
 					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
 					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 					if (params[AUTOSTEP_PARAM].value > 0.5f)
@@ -544,15 +575,13 @@ struct PhraseSeq32 : Module {
 		if (stepPressed != -1) {
 			if (displayState == DISP_LENGTH) {
 				if (editingSequence) {
-					lengths[sequence] = stepPressed + 1;
-					if (lengths[sequence] > 32) lengths[sequence] = 32;
-					if (lengths[sequence] < 1 ) lengths[sequence] = 1;
-					if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = lengths[sequence] - 1;
+					lengths[sequence] = (stepPressed % (16 * stepConfig)) + 1;
+					//if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = lengths[sequence] - 1;
+					if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
+						stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));
 				}
 				else {
 					phrases = stepPressed + 1;
-					if (phrases > 32) phrases = 32;
-					if (phrases < 1 ) phrases = 1;
 					if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
 				}
 			}
@@ -560,12 +589,13 @@ struct PhraseSeq32 : Module {
 				if (!running || !attached) {// don't move heads when attach and running
 					if (editingSequence) {
 						stepIndexEdit = stepPressed;
-						if (stepIndexEdit >= lengths[sequence])
-							stepIndexEdit = lengths[sequence] - 1;
+						if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
+							stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							if (!writeTrig)
 								editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
 							editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+							editingChannel = stepIndexEdit > 15 ? 1 : 0;
 						}
 					}
 					else {
@@ -624,9 +654,11 @@ struct PhraseSeq32 : Module {
 				else if (displayState == DISP_LENGTH) {
 					if (editingSequence) {
 						lengths[sequence] += deltaKnob;
-						if (lengths[sequence] > 32) lengths[sequence] = 32;
+						if (lengths[sequence] > (16 * stepConfig)) lengths[sequence] = (16 * stepConfig);
 						if (lengths[sequence] < 1 ) lengths[sequence] = 1;
-						if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = lengths[sequence] - 1;
+						//if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = lengths[sequence] - 1;
+						if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
+							stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));
 					}
 					else {
 						phrases += deltaKnob;
@@ -703,6 +735,7 @@ struct PhraseSeq32 : Module {
 					}
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = cv[sequence][stepIndexEdit];
+					editingChannel = stepIndexEdit > 15 ? 1 : 0;
 				}
 			}
 		}		
@@ -718,6 +751,7 @@ struct PhraseSeq32 : Module {
 						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 						editingGateCV = cv[sequence][stepIndexEdit];
+						editingChannel = stepIndexEdit > 15 ? 1 : 0;
 					}						
 				}
 				displayState = DISP_NORMAL;
@@ -786,7 +820,8 @@ struct PhraseSeq32 : Module {
 					slideFromCV = cv[sequence][stepIndexRun];
 					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
 					slideToCV = cv[sequence][stepIndexRun];
-					gate1RandomEnable = calcGate1RandomEnable(getGate1P(sequence,stepIndexRun));// must be calculated on clock edge only
+					for (int i = 0; i < 2; i += stepConfig)
+						gate1RandomEnable[i] = calcGate1RandomEnable(getGate1P(sequence, (i * 16) + stepIndexRun));// must be calculated on clock edge only
 				}
 				else {
 					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
@@ -795,7 +830,8 @@ struct PhraseSeq32 : Module {
 						stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
 					}
 					slideToCV = cv[phrase[phraseIndexRun]][stepIndexRun];
-					gate1RandomEnable = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun],stepIndexRun));// must be calculated on clock edge only
+					for (int i = 0; i < 2; i += stepConfig)
+						gate1RandomEnable[i] = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun], (i * 16) + stepIndexRun));// must be calculated on clock edge only
 				}
 				
 				// Slide
@@ -813,7 +849,7 @@ struct PhraseSeq32 : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value))
-			resetModule();
+			resetModule(stepConfig);
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
 		
@@ -824,22 +860,55 @@ struct PhraseSeq32 : Module {
 		if (running) {
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
 			int seq = editingSequence ? sequence : phrase[phraseIndexRun];
-			outputs[CV_OUTPUT].value = cv[seq][stepIndexRun] - slideOffset;
-			outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
-											((attributes[seq][stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
-			outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && 
-											((attributes[seq][stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
+			if (stepConfig == 1) {
+				outputs[CVA_OUTPUT].value = cv[seq][stepIndexRun] - slideOffset;
+				outputs[GATE1A_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
+												((attributes[seq][stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
+				outputs[GATE2A_OUTPUT].value = (clockTrigger.isHigh() && 
+												((attributes[seq][stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
+				outputs[CVB_OUTPUT].value = cv[seq][16 + stepIndexRun] - slideOffset;
+				outputs[GATE1B_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
+												((attributes[seq][16 + stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
+				outputs[GATE2B_OUTPUT].value = (clockTrigger.isHigh() && 
+												((attributes[seq][16 + stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
+			} 
+			else {
+				outputs[CVA_OUTPUT].value = cv[seq][stepIndexRun] - slideOffset;
+				outputs[GATE1A_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
+												((attributes[seq][stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
+				outputs[GATE2A_OUTPUT].value = (clockTrigger.isHigh() && 
+												((attributes[seq][stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
+				outputs[CVB_OUTPUT].value = 0.0f;
+				outputs[GATE1B_OUTPUT].value = 0.0f;
+				outputs[GATE2B_OUTPUT].value = 0.0f;
+			}
 		}
 		else {// not running 
 			if (editingSequence) {// editing sequence while not running
-				outputs[CV_OUTPUT].value = editingGateCV;//cv[sequence][stepIndexEdit];
-				outputs[GATE1_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
-				outputs[GATE2_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+				if (editingChannel == 0) {
+					outputs[CVA_OUTPUT].value = editingGateCV;//cv[sequence][stepIndexEdit];
+					outputs[GATE1A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+					outputs[GATE2A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+					outputs[CVB_OUTPUT].value = 0.0f;
+					outputs[GATE1B_OUTPUT].value = 0.0f;
+					outputs[GATE2B_OUTPUT].value = 0.0f;
+				}
+				else {
+					outputs[CVA_OUTPUT].value = 0.0f;
+					outputs[GATE1A_OUTPUT].value = 0.0f;
+					outputs[GATE2A_OUTPUT].value = 0.0f;
+					outputs[CVB_OUTPUT].value = editingGateCV;
+					outputs[GATE1B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+					outputs[GATE2B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+				}
 			}
 			else {// editing song while not running
-				outputs[CV_OUTPUT].value = 0.0f;
-				outputs[GATE1_OUTPUT].value = 0.0f;
-				outputs[GATE2_OUTPUT].value = 0.0f;
+				outputs[CVA_OUTPUT].value = 0.0f;
+				outputs[GATE1A_OUTPUT].value = 0.0f;
+				outputs[GATE2A_OUTPUT].value = 0.0f;
+				outputs[CVB_OUTPUT].value = 0.0f;
+				outputs[GATE1B_OUTPUT].value = 0.0f;
+				outputs[GATE2B_OUTPUT].value = 0.0f;
 			}
 		}
 		
@@ -858,12 +927,27 @@ struct PhraseSeq32 : Module {
 			for (int i = 0; i < 32; i++) {
 				if (displayState == DISP_LENGTH) {
 					// Length (green)
-					if (editingSequence)
-						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < lengths[sequence]) ? 0.5f : 0.0f);
-					else
-						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
-					// Nothing (red)
-					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = 0.0f;
+					if (editingSequence) {
+						//lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < lengths[sequence]) ? 0.5f : 0.0f);
+						int col = i % (16 * stepConfig);
+						if (col < (lengths[sequence] - 1))
+							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.1f, 0.0f);
+						else if (col == (lengths[sequence] - 1))
+							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 1.0f, 0.0f);
+						else 
+							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.0f, 0.0f);
+					}
+					else {
+						//lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
+						int row = i / 16;
+						int col = i % 16;
+						if (row == 3 && col < (phrases - 1))
+							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.1f, 0.0f);
+						else if (row == 3 && col == (phrases - 1))
+							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 1.0f, 0.0f);
+						else 
+							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.0f, 0.0f);
+					}
 				}
 				else {
 					// Run cursor (green)
@@ -897,7 +981,7 @@ struct PhraseSeq32 : Module {
 				lights[OCTAVE_LIGHTS + i].value = (i == (6 - octLightIndex) ? 1.0f : 0.0f);
 		}
 		
-		// Keyboard lights
+		// Keyboard lights (can only show channel A when running attached in 1x16 mode, does not pose problem for all other situations)
 		float cvValOffset;
 		if (editingSequence) 
 			cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
@@ -911,7 +995,7 @@ struct PhraseSeq32 : Module {
 				lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
 		}			
 		
-		// Gate1, Gate1Prob, Gate2, Slide and Tied lights
+		// Gate1, Gate1Prob, Gate2, Slide and Tied lights (can only show channel A when running attached in 1x16 mode, does not pose problem for all other situations)
 		int attributesVal = attributes[sequence][stepIndexEdit];
 		if (!editingSequence)
 			attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
@@ -953,6 +1037,11 @@ struct PhraseSeq32 : Module {
 
 	}// step()
 	
+	void setGreenRed(int id, float green, float red) {
+		lights[id + 0].value = green;
+		lights[id + 1].value = red;
+	}
+
 	bool calcTiedWarning(long tiedWarning, long tiedWarningInit) {
 		bool warningFlashState = true;
 		if (tiedWarning > (tiedWarningInit * 2l / 4l) && tiedWarning < (tiedWarningInit * 3l / 4l))
@@ -1297,10 +1386,15 @@ struct PhraseSeq32Widget : ModuleWidget {
 		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq32::RUNCV_INPUT, &module->panelTheme, plugin));
 		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, PhraseSeq32::WRITE_INPUT, &module->panelTheme, plugin));
 		// Outputs
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB5, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::CV_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE1_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB7, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE2_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB5, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::CVA_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE1A_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB7, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE2A_OUTPUT, &module->panelTheme, plugin));
 
+		
+		// **** extra ****
+		// Config switch
+		addParam(ParamWidget::create<CKSS>(Vec(440 + hOffsetCKSS, 300 + vOffsetCKSS), module, PhraseSeq32::CONFIG_PARAM, 0.0f, 1.0f, 1.0f));
+		
 	}
 };
 
