@@ -46,7 +46,6 @@ void ScrewCircle::draw(NVGcontext *vg) {
 	nvgStrokeColor(vg, borderColor);
 	nvgStroke(vg);
 }
-
 ScrewSilverRandomRot::ScrewSilverRandomRot() {
 	float angle0_90 = randomUniform()*M_PI/2.0f;
 	//float angle0_90 = randomUniform() > 0.5f ? M_PI/4.0f : 0.0f;// for testing

@@ -743,9 +743,9 @@ struct WriteSeq64Widget : ModuleWidget {
 		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRuler0+hOffsetCKSS, rowRuler1+vOffsetCKSSThree), module, WriteSeq64::PASTESYNC_PARAM, 0.0f, 2.0f, 0.0f));	
 		addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(columnRuler0 + 41, rowRuler1 + 14), module, WriteSeq64::PENDING_LIGHT));
 		// Gate input
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler0, rowRuler2), Port::INPUT, module, WriteSeq64::GATE_INPUT));				
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler0, rowRuler2), Port::INPUT, module, WriteSeq64::GATE_INPUT, &module->panelTheme, plugin));				
 		// Run CV input
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler0, rowRuler3), Port::INPUT, module, WriteSeq64::RUNCV_INPUT));
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler0, rowRuler3), Port::INPUT, module, WriteSeq64::RUNCV_INPUT, &module->panelTheme, plugin));
 		
 		
 		// Column 1
@@ -755,9 +755,9 @@ struct WriteSeq64Widget : ModuleWidget {
 		addParam(ParamWidget::create<LEDBezel>(Vec(columnRuler1+offsetLEDbezel, rowRuler1+offsetLEDbezel), module, WriteSeq64::RUN_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRuler1+offsetLEDbezel+offsetLEDbezelLight, rowRuler1+offsetLEDbezel+offsetLEDbezelLight), module, WriteSeq64::RUN_LIGHT));
 		// CV input
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler1, rowRuler2), Port::INPUT, module, WriteSeq64::CV_INPUT));
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler1, rowRuler2), Port::INPUT, module, WriteSeq64::CV_INPUT, &module->panelTheme, plugin));
 		// Step L input
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler1, rowRuler3), Port::INPUT, module, WriteSeq64::STEPL_INPUT));
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler1, rowRuler3), Port::INPUT, module, WriteSeq64::STEPL_INPUT, &module->panelTheme, plugin));
 		
 		
 		// Column 2
@@ -769,33 +769,33 @@ struct WriteSeq64Widget : ModuleWidget {
 		// Monitor
 		addParam(ParamWidget::create<CKSSH>(Vec(columnRuler2+hOffsetCKSSH, rowRuler2+vOffsetCKSSH), module, WriteSeq64::MONITOR_PARAM, 0.0f, 1.0f, 0.0f));
 		// Step R input
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler2, rowRuler3), Port::INPUT, module, WriteSeq64::STEPR_INPUT));
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler2, rowRuler3), Port::INPUT, module, WriteSeq64::STEPR_INPUT, &module->panelTheme, plugin));
 		
 		
 		// Column 3
 		// Clocks
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler3, rowRuler0), Port::INPUT, module, WriteSeq64::CLOCK12_INPUT));		
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler3, rowRuler1), Port::INPUT, module, WriteSeq64::CLOCK34_INPUT));		
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler3, rowRuler0), Port::INPUT, module, WriteSeq64::CLOCK12_INPUT, &module->panelTheme, plugin));		
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler3, rowRuler1), Port::INPUT, module, WriteSeq64::CLOCK34_INPUT, &module->panelTheme, plugin));		
 		// Reset
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler3, rowRuler2), Port::INPUT, module, WriteSeq64::RESET_INPUT));		
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler3, rowRuler2), Port::INPUT, module, WriteSeq64::RESET_INPUT, &module->panelTheme, plugin));		
 		// Write input
-		addInput(Port::create<PJ301MPortS>(Vec(columnRuler3, rowRuler3), Port::INPUT, module, WriteSeq64::WRITE_INPUT));
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler3, rowRuler3), Port::INPUT, module, WriteSeq64::WRITE_INPUT, &module->panelTheme, plugin));
 		
 					
 		// Column 4 (CVs)
 		// Outputs
-		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler4, rowRuler0), Port::OUTPUT, module, WriteSeq64::CV_OUTPUTS + 0));
-		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler4, rowRuler1), Port::OUTPUT, module, WriteSeq64::CV_OUTPUTS + 1));
-		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler4, rowRuler2), Port::OUTPUT, module, WriteSeq64::CV_OUTPUTS + 2));
-		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler4, rowRuler3), Port::OUTPUT, module, WriteSeq64::CV_OUTPUTS + 3));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler4, rowRuler0), Port::OUTPUT, module, WriteSeq64::CV_OUTPUTS + 0, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler4, rowRuler1), Port::OUTPUT, module, WriteSeq64::CV_OUTPUTS + 1, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler4, rowRuler2), Port::OUTPUT, module, WriteSeq64::CV_OUTPUTS + 2, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler4, rowRuler3), Port::OUTPUT, module, WriteSeq64::CV_OUTPUTS + 3, &module->panelTheme, plugin));
 		
 		
 		// Column 5 (Gates)
 		// Gates
-		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler5, rowRuler0), Port::OUTPUT, module, WriteSeq64::GATE_OUTPUTS + 0));
-		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler5, rowRuler1), Port::OUTPUT, module, WriteSeq64::GATE_OUTPUTS + 1));
-		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler5, rowRuler2), Port::OUTPUT, module, WriteSeq64::GATE_OUTPUTS + 2));
-		addOutput(Port::create<PJ301MPortS>(Vec(columnRuler5, rowRuler3), Port::OUTPUT, module, WriteSeq64::GATE_OUTPUTS + 3));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler5, rowRuler0), Port::OUTPUT, module, WriteSeq64::GATE_OUTPUTS + 0, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler5, rowRuler1), Port::OUTPUT, module, WriteSeq64::GATE_OUTPUTS + 1, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler5, rowRuler2), Port::OUTPUT, module, WriteSeq64::GATE_OUTPUTS + 2, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRuler5, rowRuler3), Port::OUTPUT, module, WriteSeq64::GATE_OUTPUTS + 3, &module->panelTheme, plugin));
 	}
 };
 

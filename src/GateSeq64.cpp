@@ -356,14 +356,13 @@ struct GateSeq64 : Module {
 			stepConfig = 4;
 		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
 			stepConfig = 2;
-		// Config: cap lengths to their new max when move switch
+		// Config: set lengths to their new max when move switch
 		bool configTrigged = configTrigger.process(params[CONFIG_PARAM].value*10.0f - 10.0f) || 
 			configTrigger2.process(params[CONFIG_PARAM].value*10.0f) ||
 			configTrigger3.process(params[CONFIG_PARAM].value*-5.0f + 10.0f);
 		if (configTrigged) {
 			for (int i = 0; i < 16; i++)
-				if (lengths[i] > 16 * stepConfig)
-					lengths[i] = 16 * stepConfig;
+				lengths[i] = 16 * stepConfig;
 			displayProb = -1;
 		}
 		
@@ -967,11 +966,11 @@ struct GateSeq64Widget : ModuleWidget {
 		
 		
 		// Clock input
-		addInput(Port::create<PJ301MPortS>(Vec(colRulerC0, rowRulerC0), Port::INPUT, module, GateSeq64::CLOCK_INPUT));
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(colRulerC0, rowRulerC0), Port::INPUT, module, GateSeq64::CLOCK_INPUT, &module->panelTheme, plugin));
 		// Reset CV
-		addInput(Port::create<PJ301MPortS>(Vec(colRulerC0, rowRulerC1), Port::INPUT, module, GateSeq64::RESET_INPUT));
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(colRulerC0, rowRulerC1), Port::INPUT, module, GateSeq64::RESET_INPUT, &module->panelTheme, plugin));
 		// Seq CV
-		addInput(Port::create<PJ301MPortS>(Vec(colRulerC0, rowRulerC2), Port::INPUT, module, GateSeq64::SEQCV_INPUT));
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(colRulerC0, rowRulerC2), Port::INPUT, module, GateSeq64::SEQCV_INPUT, &module->panelTheme, plugin));
 		
 		
 		// Run LED bezel and light
@@ -981,7 +980,7 @@ struct GateSeq64Widget : ModuleWidget {
 		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC1 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq64::RESET_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC2 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RESET_LIGHT));
 		// Run CV
-		addInput(Port::create<PJ301MPortS>(Vec(colRulerC1, rowRulerC2), Port::INPUT, module, GateSeq64::RUNCV_INPUT));
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(colRulerC1, rowRulerC2), Port::INPUT, module, GateSeq64::RUNCV_INPUT, &module->panelTheme, plugin));
 
 		
 		// Sequence display
@@ -1015,7 +1014,7 @@ struct GateSeq64Widget : ModuleWidget {
 		
 		// Outputs
 		for (int iSides = 0; iSides < 4; iSides++)
-			addOutput(Port::create<PJ301MPortS>(Vec(356, 208 + iSides * 40), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides));
+			addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(356, 208 + iSides * 40), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides, &module->panelTheme, plugin));
 	}
 };
 

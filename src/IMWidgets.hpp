@@ -33,7 +33,7 @@ struct DynamicPanelWidget : FramebufferWidget {
 
 // Dynamic Jack (WIP, started from ValleyWidgets DynamicSwitch, perhaps use DynamicKnob?)
 
-struct DynamicJackWidget : Port {
+struct DynamicJackWidget : Port, FramebufferWidget {
     int* mode;
     int oldMode;
     std::vector<std::shared_ptr<SVG>> jacks;
@@ -41,23 +41,22 @@ struct DynamicJackWidget : Port {
 
     DynamicJackWidget();
     void addJack(std::shared_ptr<SVG> svg);
-	//void draw(NVGcontext *vg) override {Port::draw(vg);}
+	void draw(NVGcontext *vg) override {Port::draw(vg); FramebufferWidget::draw(vg);}
     void step() override;
 };
 
 template <class TDynamicJack>
 DynamicJackWidget* createDynamicJackWidget(Vec pos, Port::PortType type, Module *module, int portId,
                                                int* mode, Plugin* plugin) {
-	DynamicJackWidget *dynJack = new TDynamicJack();
+	DynamicJackWidget *dynJack = new DynamicJackWidget();//Port::create(pos, type, module, portId);
 	dynJack->box.pos = pos;
-	dynJack->type = type;
 	dynJack->module = module;
+	dynJack->type = type;
 	dynJack->portId = portId;
 	
-    dynJack->addJack(SVG::load(assetPlugin(plugin, "res/light/GateSeq64.svg")));
-    dynJack->addJack(SVG::load(assetPlugin(plugin, "res/light/GateSeq64.svg")));
-	//dynJack->box.size = dynJack->box.size;
 	dynJack->mode = mode;
+	dynJack->addJack(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
+    dynJack->addJack(SVG::load(assetPlugin(plugin, "res/comp/CL1362.svg")));
 	
 	return dynJack;
 }

@@ -63,18 +63,18 @@ void DynamicJackWidget::addJack(std::shared_ptr<SVG> svg) {
     jacks.push_back(svg);
     if(!visibleJack->svg) {
         visibleJack->setSVG(svg);
-        box.size = visibleJack->box.size;/*.div(RACK_GRID_SIZE).round().mult(RACK_GRID_SIZE)*/;
+		box.size = visibleJack->box.size;
     }
 }
 
 void DynamicJackWidget::step() {
-    /*if (isNear(gPixelRatio, 1.0)) {
+    if (isNear(gPixelRatio, 1.0)) {
         oversample = 2.f;
-    }*/
+    }
     if(mode != nullptr && *mode != oldMode) {
         visibleJack->setSVG(jacks[*mode]);
         oldMode = *mode;
-        //dirty = true;
+        dirty = true;
     }
 }
 
