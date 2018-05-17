@@ -926,7 +926,6 @@ struct PhraseSeq32 : Module {
 		else {
 			for (int i = 0; i < 32; i++) {
 				if (displayState == DISP_LENGTH) {
-					// Length (green)
 					if (editingSequence) {
 						//lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < lengths[sequence]) ? 0.5f : 0.0f);
 						int col = i % (16 * stepConfig);
@@ -939,30 +938,31 @@ struct PhraseSeq32 : Module {
 					}
 					else {
 						//lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
-						int row = i / 16;
-						int col = i % 16;
-						if (row == 3 && col < (phrases - 1))
+						if (i < phrases - 1)
 							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.1f, 0.0f);
-						else if (row == 3 && col == (phrases - 1))
-							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 1.0f, 0.0f);
-						else 
-							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.0f, 0.0f);
+						else
+							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, (i == phrases - 1) ? 1.0f : 0.0f, 0.0f);
 					}
 				}
-				else {
+				else {// normal led display (i.e. not length)
+					float red = 0.0f;
+					float green = 0.0f;
+					
 					// Run cursor (green)
 					if (editingSequence)
-						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == stepIndexRun)) ? 1.0f : 0.0f);
+						green = ((running && (i % (16 * stepConfig)) == stepIndexRun)) ? 1.0f : 0.0f;
 					else {
-						float green = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
-						green += ((running && (i == stepIndexRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
-						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = clamp(green, 0.0f, 1.0f);
+						green = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
+						green += ((running && ((i % (16 * stepConfig)) == stepIndexRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
+						green = clamp(green, 0.0f, 1.0f);
 					}
 					// Edit cursor (red)
 					if (editingSequence)
-						lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexEdit ? 1.0f : 0.0f);
+						red = (i == stepIndexEdit ? 1.0f : 0.0f);
 					else
-						lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == phraseIndexEdit ? 1.0f : 0.0f);
+						red = (i == phraseIndexEdit ? 1.0f : 0.0f);
+					
+					setGreenRed(STEP_PHRASE_LIGHTS + i * 2, green, red);
 				}
 			}
 		}
@@ -1394,6 +1394,9 @@ struct PhraseSeq32Widget : ModuleWidget {
 		// **** extra ****
 		// Config switch
 		addParam(ParamWidget::create<CKSS>(Vec(440 + hOffsetCKSS, 300 + vOffsetCKSS), module, PhraseSeq32::CONFIG_PARAM, 0.0f, 1.0f, 1.0f));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(450, 100), Port::OUTPUT, module, PhraseSeq32::CVB_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(450, 150), Port::OUTPUT, module, PhraseSeq32::GATE1B_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(450, 200), Port::OUTPUT, module, PhraseSeq32::GATE2B_OUTPUT, &module->panelTheme, plugin));
 		
 	}
 };
