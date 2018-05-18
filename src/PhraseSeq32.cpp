@@ -1211,8 +1211,9 @@ struct PhraseSeq32Widget : ModuleWidget {
 		// ****** Top row ******
 		
 		static const int rowRulerT0 = 48;
-		static const int columnRulerT0 = 40;// Step/Phase LED buttons
-		static const int columnRulerT3 = 400;// Attach (also used to align rest of right side of module)
+		static const int columnRulerT0 = 18;//30;// Step/Phase LED buttons
+		static const int columnRulerT3 = 377;// Attach 
+		static const int columnRulerT4 = 430;// Config 
 
 		// Step/Phrase LED buttons
 		int posX = columnRulerT0;
@@ -1233,6 +1234,8 @@ struct PhraseSeq32Widget : ModuleWidget {
 		// Attach button and light
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerT3 - 4, rowRulerT0 - 6 + 2 + offsetTL1105), module, PhraseSeq32::ATTACH_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerT3 + 12 + offsetMediumLight, rowRulerT0 - 6 + offsetMediumLight), module, PhraseSeq32::ATTACH_LIGHT));		
+		// Config switch
+		addParam(ParamWidget::create<CKSS>(Vec(columnRulerT4 + hOffsetCKSS + 1, rowRulerT0 - 6 + vOffsetCKSS), module, PhraseSeq32::CONFIG_PARAM, 0.0f, 1.0f, 1.0f));
 
 		
 		
@@ -1283,9 +1286,9 @@ struct PhraseSeq32Widget : ModuleWidget {
 		static const int rowRulerMK0 = 101;// Edit mode row
 		static const int rowRulerMK1 = rowRulerMK0 + 56; // Run row
 		static const int rowRulerMK2 = rowRulerMK1 + 54; // Copy-paste Tran/rot row
-		static const int columnRulerMK0 = 276;// Edit mode column
-		static const int columnRulerMK1 = columnRulerMK0 + 59;// Display column
-		static const int columnRulerMK2 = columnRulerT3;// Run mode column
+		static const int columnRulerMK0 = 278;// Edit mode column
+		static const int columnRulerMK2 = columnRulerT4;// Mode/Len column
+		static const int columnRulerMK1 = 353;// Display column
 		
 		// Edit mode switch
 		addParam(ParamWidget::create<CKSS>(Vec(columnRulerMK0 + hOffsetCKSS, rowRulerMK0 + vOffsetCKSS), module, PhraseSeq32::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
@@ -1298,106 +1301,97 @@ struct PhraseSeq32Widget : ModuleWidget {
 		// Run mode button
 		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK0 + 0 + offsetCKD6b), module, PhraseSeq32::RUNMODE_PARAM, 0.0f, 1.0f, 0.0f));
 
-		// Run LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 + offsetLEDbezel, rowRulerMK1 + 7 + offsetLEDbezel), module, PhraseSeq32::RUN_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK1 + 7 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq32::RUN_LIGHT));
+		// Autostep
+		addParam(ParamWidget::create<CKSS>(Vec(columnRulerMK0 + hOffsetCKSS, rowRulerMK1 + 7 + vOffsetCKSS), module, PhraseSeq32::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
 		// Sequence knob
 		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(columnRulerMK1 + 1 + offsetDavies1900, rowRulerMK0 + 55 + offsetDavies1900), module, PhraseSeq32::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f));		
 		// Transpose/rotate button
 		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK1 + 4 + offsetCKD6b), module, PhraseSeq32::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f));
 		
-		
+		// Reset LED bezel and light
+		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 - 17 + offsetLEDbezel, rowRulerMK2 + 5 + offsetLEDbezel), module, PhraseSeq32::RESET_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 - 17 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK2 + 5 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq32::RESET_LIGHT));
+		// Run LED bezel and light
+		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 + 18 + offsetLEDbezel, rowRulerMK2 + 5 + offsetLEDbezel), module, PhraseSeq32::RUN_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 + 18 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK2 + 5 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq32::RUN_LIGHT));
 		// Copy/paste buttons
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 - 10, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq32::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 + 20, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq32::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
 		// Copy-paste mode switch (3 position)
-		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRulerMK2 - 3 + hOffsetCKSS + 1, rowRulerMK2 - 1 + vOffsetCKSSThree), module, PhraseSeq32::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));	// 0.0f is top position
+		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRulerMK2 + hOffsetCKSS + 1, rowRulerMK2 - 3 + vOffsetCKSSThree), module, PhraseSeq32::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));	// 0.0f is top position
 
 		
 		
 		// ****** Gate and slide section ******
 		
 		static const int rowRulerMB0 = 214;
-		static const int rowRulerMB1 = rowRulerMB0 + 55;
-		static const int columnRulerMB0 = 22;
-		static const int columnRulerMBspacing = 62;
-		static const int columnRulerMB1 = columnRulerMB0 + 54;// Gate1 
-		static const int columnRulerMB2 = columnRulerMB1 + columnRulerMBspacing;// Gate2
-		static const int columnRulerMB3 = columnRulerMB2 + columnRulerMBspacing;// Slide
-		static const int columnRulerMB4 = columnRulerMB3 + columnRulerMBspacing;// Tie
+		static const int columnRulerMBspacing = 70;
+		static const int columnRulerMB2 = 130;// Gate2
+		static const int columnRulerMB1 = columnRulerMB2 - columnRulerMBspacing;// Gate1 
+		static const int columnRulerMB3 = columnRulerMB2 + columnRulerMBspacing;// Tie
 		static const int posLEDvsButton = + 25;
 		
 		// Gate 1 light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 - 24 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, PhraseSeq32::GATE1_LIGHT));		
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB1 - 24 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq32::GATE1_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, PhraseSeq32::GATE1_LIGHT));		
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB1 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq32::GATE1_PARAM, 0.0f, 1.0f, 0.0f));
 		// Gate 2 light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB2 - 20 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, PhraseSeq32::GATE2_LIGHT));		
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB2 - 20 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq32::GATE2_PARAM, 0.0f, 1.0f, 0.0f));
-		// Slide light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB3 - 16 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, PhraseSeq32::SLIDE_LIGHT));		
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB3 - 16 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq32::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB2 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, PhraseSeq32::GATE2_LIGHT));		
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB2 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq32::GATE2_PARAM, 0.0f, 1.0f, 0.0f));
 		// Tie light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB4 - 12 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, PhraseSeq32::TIE_LIGHT));		
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB4 - 12 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq32::TIE_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB3 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, PhraseSeq32::TIE_LIGHT));		
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB3 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq32::TIE_PARAM, 0.0f, 1.0f, 0.0f));
+
+						
+		
+		// ****** Bottom two rows ******
+		
+		static const int inputJackSpacingX = 54;
+		static const int outputJackSpacingX = 45;
+		static const int rowRulerB0 = 323;
+		static const int rowRulerB1 = 269;
+		static const int columnRulerB0 = 22;
+		static const int columnRulerB1 = columnRulerB0 + inputJackSpacingX;
+		static const int columnRulerB2 = columnRulerB1 + inputJackSpacingX;
+		static const int columnRulerB3 = columnRulerB2 + inputJackSpacingX;
+		static const int columnRulerB4 = columnRulerB3 + inputJackSpacingX;
+		static const int columnRulerB8 = columnRulerMK2 + 1;
+		static const int columnRulerB7 = columnRulerB8 - outputJackSpacingX;
+		static const int columnRulerB6 = columnRulerB7 - outputJackSpacingX;
+		static const int columnRulerB5 = columnRulerB6 - outputJackSpacingX - 4;// clock and reset
 
 		
 		// Gate 1 probability light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 + posLEDvsButton + offsetMediumLight, rowRulerMB1 + offsetMediumLight), module, PhraseSeq32::GATE1_PROB_LIGHT));		
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMB1 + offsetCKD6b, rowRulerMB1 + offsetCKD6b), module, PhraseSeq32::GATE1_PROB_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerB0 + posLEDvsButton + offsetMediumLight, rowRulerB1 + offsetMediumLight), module, PhraseSeq32::GATE1_PROB_LIGHT));		
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerB0 + offsetCKD6b, rowRulerB1 + offsetCKD6b), module, PhraseSeq32::GATE1_PROB_PARAM, 0.0f, 1.0f, 0.0f));
 		// Gate 1 probability knob
-		addParam(ParamWidget::create<RoundSmallBlackKnobB>(Vec(columnRulerMB2 - 8 + offsetRoundSmallBlackKnob, rowRulerMB1 + offsetRoundSmallBlackKnob), module, PhraseSeq32::GATE1_KNOB_PARAM, 0.0f, 1.0f, 1.0f));
+		addParam(ParamWidget::create<RoundSmallBlackKnobB>(Vec(columnRulerB1 + offsetRoundSmallBlackKnob, rowRulerB1 + offsetRoundSmallBlackKnob), module, PhraseSeq32::GATE1_KNOB_PARAM, 0.0f, 1.0f, 1.0f));
+		// Slide light and button
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerB2 + posLEDvsButton + offsetMediumLight, rowRulerB1 + offsetMediumLight), module, PhraseSeq32::SLIDE_LIGHT));		
+		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerB2 + offsetCKD6b, rowRulerB1 + offsetCKD6b), module, PhraseSeq32::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f));
 		// Slide knob
-		addParam(ParamWidget::create<RoundSmallBlackKnobB>(Vec(columnRulerMB3 - 16 + offsetRoundSmallBlackKnob, rowRulerMB1 + offsetRoundSmallBlackKnob), module, PhraseSeq32::SLIDE_KNOB_PARAM, 0.0f, 2.0f, 0.15f));
-		
-						
-		
-		// ****** All jacks and autostep ******
-		
-		static const int outputJackSpacingX = 54;
-		static const int rowRulerB0 = 323;
-		static const int rowRulerB1 = 269;
-		static const int columnRulerB0 = columnRulerMB0;
-		static const int columnRulerB1 = columnRulerB0 + outputJackSpacingX;
-		static const int columnRulerB2 = columnRulerB1 + outputJackSpacingX;
-		static const int columnRulerB3 = columnRulerB2 + outputJackSpacingX;
-		static const int columnRulerB4 = columnRulerB3 + outputJackSpacingX;
-		static const int columnRulerB7 = columnRulerMK2 + 1;
-		static const int columnRulerB6 = columnRulerB7 - outputJackSpacingX;
-		static const int columnRulerB5 = columnRulerB6 - outputJackSpacingX;
+		addParam(ParamWidget::create<RoundSmallBlackKnobB>(Vec(columnRulerB3 + offsetRoundSmallBlackKnob, rowRulerB1 + offsetRoundSmallBlackKnob), module, PhraseSeq32::SLIDE_KNOB_PARAM, 0.0f, 2.0f, 0.15f));
+		// CV in
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB4, rowRulerB1), Port::INPUT, module, PhraseSeq32::CV_INPUT, &module->panelTheme, plugin));
+		// Clock input
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, PhraseSeq32::CLOCK_INPUT, &module->panelTheme, plugin));
+		// Channel A outputs
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB6, rowRulerB1), Port::OUTPUT, module, PhraseSeq32::CVA_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB7, rowRulerB1), Port::OUTPUT, module, PhraseSeq32::GATE1A_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB8, rowRulerB1), Port::OUTPUT, module, PhraseSeq32::GATE2A_OUTPUT, &module->panelTheme, plugin));
 
-		// Reset LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMB0 + offsetLEDbezel, rowRulerB1 + 1 + offsetLEDbezel), module, PhraseSeq32::RESET_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMB0 + offsetLEDbezel + offsetLEDbezelLight, rowRulerB1 + 1 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq32::RESET_LIGHT));
-		// Autostep and penultimate row jacks
-		addParam(ParamWidget::create<CKSS>(Vec(columnRulerB4 + hOffsetCKSS, rowRulerB1 + vOffsetCKSS), module, PhraseSeq32::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, PhraseSeq32::CV_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, PhraseSeq32::RESET_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB6, rowRulerB1), Port::INPUT, module, PhraseSeq32::CLOCK_INPUT, &module->panelTheme, plugin));
 
-		
-
-		// ****** Bottom row (all aligned) ******
-
-	
 		// CV control Inputs 
 		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq32::SEQCV_INPUT, &module->panelTheme, plugin));
 		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, PhraseSeq32::LEFTCV_INPUT, &module->panelTheme, plugin));
 		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, PhraseSeq32::RIGHTCV_INPUT, &module->panelTheme, plugin));
 		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq32::RUNCV_INPUT, &module->panelTheme, plugin));
 		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, PhraseSeq32::WRITE_INPUT, &module->panelTheme, plugin));
-		// Outputs
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB5, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::CVA_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE1A_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB7, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE2A_OUTPUT, &module->panelTheme, plugin));
-
-		
-		// **** extra ****
-		// Config switch
-		addParam(ParamWidget::create<CKSS>(Vec(440 + hOffsetCKSS, 300 + vOffsetCKSS), module, PhraseSeq32::CONFIG_PARAM, 0.0f, 1.0f, 1.0f));
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(450, 100), Port::OUTPUT, module, PhraseSeq32::CVB_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(450, 150), Port::OUTPUT, module, PhraseSeq32::GATE1B_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(450, 200), Port::OUTPUT, module, PhraseSeq32::GATE2B_OUTPUT, &module->panelTheme, plugin));
-		
+		// Reset input
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB5, rowRulerB0), Port::INPUT, module, PhraseSeq32::RESET_INPUT, &module->panelTheme, plugin));
+		// Channel B outputs
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::CVB_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB7, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE1B_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB8, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE2B_OUTPUT, &module->panelTheme, plugin));
 	}
 };
 
