@@ -50,7 +50,7 @@ void DynamicPanelWidget::step() {
 }
 
 
-// Dynamic Jack (WIP)
+// Dynamic Jack
 
 DynamicJackWidget::DynamicJackWidget() {
     mode = nullptr;;

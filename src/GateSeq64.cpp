@@ -619,26 +619,11 @@ struct GateSeq64 : Module {
 		// Gate outputs
 		if (running) {
 			int seq = editingSequence ? sequence : phrase[phraseIndexRun];
-			if (stepConfig == 1) {
-				for (int i = 0; i < 4; i++) {
-					bool gateOut = gateRandomEnable[i] && clockTrigger.isHigh() && getGate(seq, (i * 16) + stepIndexRun);
-					outputs[GATE_OUTPUTS + i].value = gateOut ? 10.0f : 0.0f;
-				}
-			} 
-			else if (stepConfig == 2) {
-				for (int i = 0; i < 4; i += 2) {
-					bool gateOut = gateRandomEnable[i] && clockTrigger.isHigh() && getGate(seq, (i * 16) + stepIndexRun);
-					outputs[GATE_OUTPUTS + i + 1].value = gateOut ? 10.0f : 0.0f;
-					outputs[GATE_OUTPUTS + i ].value = 0.0f;
-				}
-			}
-			else {// stepConfig == 4
-				bool gateOut = gateRandomEnable[0] && clockTrigger.isHigh() && getGate(seq, stepIndexRun);
-				outputs[GATE_OUTPUTS + 3].value = gateOut ? 10.0f : 0.0f;
-				outputs[GATE_OUTPUTS + 0].value = 0.0f;			
-				outputs[GATE_OUTPUTS + 1].value = 0.0f;			
-				outputs[GATE_OUTPUTS + 2].value = 0.0f;			
-			}
+			bool gateOut[4] = {false, false, false, false};
+			for (int i = 0; i < 4; i += stepConfig)
+				gateOut[i] = gateRandomEnable[i] && clockTrigger.isHigh() && getGate(seq, (i * 16) + stepIndexRun);
+			for (int i = 0; i < 4; i++)
+				outputs[GATE_OUTPUTS + i].value = gateOut[i] ? 10.0f : 0.0f;
 		}
 		else {// not running (no gates, no need to hear anything)
 			for (int i = 0; i < 4; i++)
@@ -906,20 +891,14 @@ struct GateSeq64Widget : ModuleWidget {
 		
 		// ****** Top portion (2 switches and LED button array ******
 		
-		static const int colRuler0 = 20;
 		static const int rowRuler0 = 34;
-		static const int colRulerSteps = 60;
+		static const int colRulerSteps = 15;
 		static const int spacingSteps = 20;
 		static const int spacingSteps4 = 4;
-		static const int spacingRows = 40;
+		static const int spacingRows = 38;
 		
 		
-		// Config switch (3 position)
-		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRuler0 + hOffsetCKSS, rowRuler0 + 43 + vOffsetCKSSThree), module, GateSeq64::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));// 0.0f is top position
-		// Seq/Song selector
-		addParam(ParamWidget::create<CKSS>(Vec(colRuler0 + hOffsetCKSS, rowRuler0 + 100 + vOffsetCKSS), module, GateSeq64::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
-		
-		
+		// Step LED buttons
 		for (int y = 0; y < 4; y++) {
 			int posX = colRulerSteps;
 			for (int x = 0; x < 16; x++) {
@@ -936,13 +915,13 @@ struct GateSeq64Widget : ModuleWidget {
 		// ****** 5x3 Main bottom half Control section ******
 		
 		static const int colRulerC0 = 25;
-		static const int colRulerSpacing = 68;
+		static const int colRulerSpacing = 72;
 		static const int colRulerC1 = colRulerC0 + colRulerSpacing;
 		static const int colRulerC2 = colRulerC1 + colRulerSpacing;
 		static const int colRulerC3 = colRulerC2 + colRulerSpacing;
 		//static const int colRulerC4 = colRulerC3 + colRulerSpacing;
-		static const int rowRulerC0 = 215;
-		static const int rowRulerSpacing = 54;
+		static const int rowRulerC0 = 208;
+		static const int rowRulerSpacing = 56;
 		static const int rowRulerC1 = rowRulerC0 + rowRulerSpacing;
 		static const int rowRulerC2 = rowRulerC1 + rowRulerSpacing;
 		
@@ -955,12 +934,14 @@ struct GateSeq64Widget : ModuleWidget {
 		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(colRulerC0, rowRulerC2), Port::INPUT, module, GateSeq64::SEQCV_INPUT, &module->panelTheme, plugin));
 		
 		
-		// Run LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC1 + offsetLEDbezel, rowRulerC0 + offsetLEDbezel), module, GateSeq64::RUN_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC1 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC0 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RUN_LIGHT));
+		// Seq/Song selector
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerC1 + hOffsetCKSS, rowRulerC0 - 2 + vOffsetCKSS), module, GateSeq64::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
 		// Reset LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC1 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq64::RESET_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC2 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RESET_LIGHT));
+		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC1 - 17 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq64::RESET_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC1 - 17 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RESET_LIGHT));
+		// Run LED bezel and light
+		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC1 + 17 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq64::RUN_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC1 + 17 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RUN_LIGHT));
 		// Run CV
 		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(colRulerC1, rowRulerC2), Port::INPUT, module, GateSeq64::RUNCV_INPUT, &module->panelTheme, plugin));
 
@@ -972,8 +953,10 @@ struct GateSeq64Widget : ModuleWidget {
 		displaySequence->module = module;
 		addChild(displaySequence);
 		// Sequence knob
-		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC2 + 1 + offsetDavies1900, rowRulerC0 + 62 + offsetDavies1900), module, GateSeq64::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f));		
-
+		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC2 + 1 + offsetDavies1900, rowRulerC1 + offsetDavies1900), module, GateSeq64::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f));		
+		// Config switch (3 position)
+		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC2 + hOffsetCKSS, rowRulerC2 - 2 + vOffsetCKSSThree), module, GateSeq64::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));// 0.0f is top position
+		
 
 		// Modes button and light
 		addParam(ParamWidget::create<CKD6b>(Vec(colRulerC3 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq64::MODES_PARAM, 0.0f, 1.0f, 0.0f));
@@ -985,7 +968,7 @@ struct GateSeq64Widget : ModuleWidget {
 
 		// Outputs
 		for (int iSides = 0; iSides < 4; iSides++)
-			addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(356, 208 + iSides * 40), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides, &module->panelTheme, plugin));
+			addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(311, 208 + iSides * 40), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides, &module->panelTheme, plugin));
 	}
 };
 
