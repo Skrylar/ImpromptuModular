@@ -115,7 +115,7 @@ struct PhraseSeq32 : Module {
 	int phraseIndexRunHistory;// no need to initialize
 	int displayState;
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
-	float slideCVdelta;// no need to initialize, this is a companion to slideStepsRemain
+	float slideCVdelta[2];// no need to initialize, this is a companion to slideStepsRemain
 	float cvCPbuffer[32];// copy paste buffer for CVs
 	int attributesCPbuffer[32];// copy paste buffer for attributes
 	int lengthCPbuffer;
@@ -814,24 +814,28 @@ struct PhraseSeq32 : Module {
 		// Clock
 		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
 			if (running && clockIgnoreOnReset == 0l) {
-				float slideFromCV = 0.0f;
-				float slideToCV = 0.0f;
+				float slideFromCV[2] = {0.0f, 0.0f};
+				float slideToCV[2] = {0.0f, 0.0f};
 				if (editingSequence) {
-					slideFromCV = cv[sequence][stepIndexRun];
-					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
-					slideToCV = cv[sequence][stepIndexRun];
 					for (int i = 0; i < 2; i += stepConfig)
+						slideFromCV[i] = cv[sequence][(i * 16) + stepIndexRun];
+					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
+					for (int i = 0; i < 2; i += stepConfig) {
+						slideToCV[i] = cv[sequence][(i * 16) + stepIndexRun];
 						gate1RandomEnable[i] = calcGate1RandomEnable(getGate1P(sequence, (i * 16) + stepIndexRun));// must be calculated on clock edge only
+					}
 				}
 				else {
-					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
+					for (int i = 0; i < 2; i += stepConfig)
+						slideFromCV[i] = cv[phrase[phraseIndexRun]][(i * 16) + stepIndexRun];
 					if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory)) {
 						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
 						stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
 					}
-					slideToCV = cv[phrase[phraseIndexRun]][stepIndexRun];
-					for (int i = 0; i < 2; i += stepConfig)
+					for (int i = 0; i < 2; i += stepConfig) {
+						slideToCV[i] = cv[phrase[phraseIndexRun]][(i * 16) + stepIndexRun];
 						gate1RandomEnable[i] = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun], (i * 16) + stepIndexRun));// must be calculated on clock edge only
+					}
 				}
 				
 				// Slide
@@ -840,7 +844,8 @@ struct PhraseSeq32 : Module {
 					// avtivate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
 					slideStepsRemain =   (unsigned long) (((float)clockPeriod)   * params[SLIDE_KNOB_PARAM].value / 2.0f);// 0-T slide, where T is clock period (can be too long when user does clock gating)
 					//slideStepsRemain = (unsigned long)  (engineGetSampleRate() * params[SLIDE_KNOB_PARAM].value );// 0-2s slide
-					slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
+					for (int i = 0; i < 2; i += stepConfig)
+						slideCVdelta[i] = (slideToCV[i] - slideFromCV[i])/(float)slideStepsRemain;
 				}
 			}
 			clockPeriod = 0ul;
@@ -858,23 +863,25 @@ struct PhraseSeq32 : Module {
 				
 		// CV and gates outputs
 		if (running) {
-			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
+			float slideOffset[2];
+			for (int i = 0; i < 2; i += stepConfig)
+				slideOffset[i] = (slideStepsRemain > 0ul ? (slideCVdelta[i] * (float)slideStepsRemain) : 0.0f);
 			int seq = editingSequence ? sequence : phrase[phraseIndexRun];
 			if (stepConfig == 1) {
-				outputs[CVA_OUTPUT].value = cv[seq][stepIndexRun] - slideOffset;
-				outputs[GATE1A_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
+				outputs[CVA_OUTPUT].value = cv[seq][stepIndexRun] - slideOffset[0];
+				outputs[GATE1A_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable[0] && 
 												((attributes[seq][stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
 				outputs[GATE2A_OUTPUT].value = (clockTrigger.isHigh() && 
 												((attributes[seq][stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
-				outputs[CVB_OUTPUT].value = cv[seq][16 + stepIndexRun] - slideOffset;
-				outputs[GATE1B_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
+				outputs[CVB_OUTPUT].value = cv[seq][16 + stepIndexRun] - slideOffset[1];
+				outputs[GATE1B_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable[1] && 
 												((attributes[seq][16 + stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
 				outputs[GATE2B_OUTPUT].value = (clockTrigger.isHigh() && 
 												((attributes[seq][16 + stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
 			} 
 			else {
-				outputs[CVA_OUTPUT].value = cv[seq][stepIndexRun] - slideOffset;
-				outputs[GATE1A_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
+				outputs[CVA_OUTPUT].value = cv[seq][stepIndexRun] - slideOffset[0];
+				outputs[GATE1A_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable[0] && 
 												((attributes[seq][stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
 				outputs[GATE2A_OUTPUT].value = (clockTrigger.isHigh() && 
 												((attributes[seq][stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
