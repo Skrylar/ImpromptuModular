@@ -31,7 +31,7 @@ struct DynamicPanelWidget : FramebufferWidget {
 };
 
 
-// Dynamic Jack (WIP, started from ValleyWidgets DynamicSwitch, perhaps use DynamicKnob?)
+// Dynamic Jack (started from ValleyWidgets DynamicSwitch and DynamicKnob)
 
 struct DynamicJackWidget : Port, FramebufferWidget {
     int* mode;

@@ -26,7 +26,7 @@ struct GateSeq64 : Module {
 		COPY_PARAM,
 		PASTE_PARAM,
 		RESET_PARAM,
-		PROB_KNOB_PARAM,
+		PROB_KNOB_PARAM,// no longer used
 		EDIT_PARAM,
 		SEQUENCE_PARAM,
 		CPMODE_PARAM,
@@ -86,6 +86,7 @@ struct GateSeq64 : Module {
 	long clockIgnoreOnReset;
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 	int displayProb;// -1 when prob can not be modified, 0 to 63 when prob can be changed.
+	long displayProbInfo;// downward step counter for displayProb feedback
 	int probKnob;// INT_MAX when knob not seen yet
 	int sequenceKnob;// INT_MAX when knob not seen yet
 	bool gateRandomEnable[4] = {};
@@ -142,6 +143,7 @@ struct GateSeq64 : Module {
 		feedbackCP = 0l;
 		displayState = DISP_GATE;
 		displayProb = -1;
+		displayProbInfo = 0l;
 		infoCopyPaste = 0l;
 		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
@@ -177,6 +179,7 @@ struct GateSeq64 : Module {
 		feedbackCP = 0l;
 		displayState = DISP_GATE;
 		displayProb = -1;
+		displayProbInfo = 0l;
 		infoCopyPaste = 0l;
 		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
@@ -341,9 +344,10 @@ struct GateSeq64 : Module {
 	void step() override {
 		static const float feedbackCPinitTime = 3.0f;// seconds
 		static const float copyPasteInfoTime = 0.4f;// seconds
+		static const float displayProbInfoTime = 2.5f;// seconds
 		float engineSampleRate = engineGetSampleRate();
 		feedbackCPinit = (long) (feedbackCPinitTime * engineSampleRate);
-		
+		long displayProbInfoInit = (long) (displayProbInfoTime * engineSampleRate);
 		
 		//********** Buttons, knobs, switches and inputs **********
 		
@@ -394,33 +398,25 @@ struct GateSeq64 : Module {
 			displayProb = -1;
 		}
 				
-		// Prob knob
-		int newProbKnob = (int)roundf(params[PROB_KNOB_PARAM].value * 14.0f);
-		if (probKnob == INT_MAX)
-			probKnob = newProbKnob;
-		if (newProbKnob != probKnob) {
-			if (editingSequence) {
-				if ((abs(newProbKnob - probKnob) <= 3) && displayProb != -1 ) {// avoid discontinuous step (initialize for example)
-					int pval = getGatePVal(sequence, displayProb);
-					pval += (newProbKnob - probKnob) * 2;
-					if (pval > 100)
-						pval = 100;
-					if (pval < 0)
-						pval = 0;
-					attributes[sequence][displayProb] = pval | (attributes[sequence][displayProb] & (ATT_MSK_GATE | ATT_MSK_GATEP));
-				}
-			}
-			probKnob = newProbKnob;// must do this step whether running or not
-		}	
 		
-		// Sequence knob  
+		// Sequence knob (Main knob)
 		int newSequenceKnob = (int)roundf(params[SEQUENCE_PARAM].value*7.0f);
 		if (sequenceKnob == INT_MAX)
 			sequenceKnob = newSequenceKnob;
 		int deltaKnob = newSequenceKnob - sequenceKnob;
 		if (deltaKnob != 0) {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
-				if (displayState == DISP_MODES) {
+				if (displayProb != -1 && editingSequence) {
+						int pval = getGatePVal(sequence, displayProb);
+						pval += deltaKnob * 2;
+						if (pval > 100)
+							pval = 100;
+						if (pval < 0)
+							pval = 0;
+						attributes[sequence][displayProb] = pval | (attributes[sequence][displayProb] & (ATT_MSK_GATE | ATT_MSK_GATEP));
+						displayProbInfo = displayProbInfoInit;
+				}
+				else if (displayState == DISP_MODES) {
 					if (editingSequence) {
 						runModeSeq[sequence] += deltaKnob;
 						if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
@@ -466,7 +462,6 @@ struct GateSeq64 : Module {
 				}					
 			}
 			sequenceKnob = newSequenceKnob;
-			displayProb = -1;
 		}
 
 		// Copy, paste buttons
@@ -547,11 +542,14 @@ struct GateSeq64 : Module {
 					else {
 						if (!getGateP(sequence, stepPressed)) {// clicked active, but not in prob mode
 							displayProb = stepPressed;
+							displayProbInfo = displayProbInfoInit;
 							attributes[sequence][stepPressed] |= ATT_MSK_GATEP;
 						}
 						else {// clicked active, and in prob mode
-							if (displayProb != stepPressed)// coming from elsewhere, so don't change any states, just show its prob
+							if (displayProb != stepPressed) {// coming from elsewhere, so don't change any states, just show its prob
 								displayProb = stepPressed;
+								displayProbInfo = displayProbInfoInit;
+							}
 							else {// coming from current step, so turn off
 								attributes[sequence][stepPressed] &= ~(ATT_MSK_GATEP | ATT_MSK_GATE);
 								displayProb = -1;
@@ -727,6 +725,10 @@ struct GateSeq64 : Module {
 			if (infoCopyPaste < 0l)
 				infoCopyPaste ++;
 		}
+		if (displayProbInfo > 0l)
+			displayProbInfo--;
+		else 
+			displayProb = -1;
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
 	}// step()
@@ -798,77 +800,49 @@ struct GateSeq64Widget : ModuleWidget {
 					snprintf(displayStr, 4, "PST");
 				}
 			}
+			else if (module->displayProb != -1) {
+				int prob = module->getGatePVal(module->sequence, module->displayProb);
+				if ( prob>= 100)
+					snprintf(displayStr, 4, "  1");
+				else if (prob >= 1)
+					snprintf(displayStr, 4, ",%2d", prob);
+				else
+					snprintf(displayStr, 4, " 0");
+			}
+			else if (module->displayState == GateSeq64::DISP_LENGTH) {
+				if (module->isEditingSequence())
+					snprintf(displayStr, 4, "L%2u", module->lengths[module->sequence]);
+				else
+					snprintf(displayStr, 4, "L%2u", module->phrases);
+			}
+			else if (module->displayState == GateSeq64::DISP_MODES) {
+				if (module->isEditingSequence())
+					runModeToStr(module->runModeSeq[module->sequence]);
+				else
+					runModeToStr(module->runModeSong);
+			}
+			else if (module->displayState == GateSeq64::DISP_ROW_SEL) {
+				snprintf(displayStr, 4, "CPY");
+				if (module->cpInfo == 2)
+					snprintf(displayStr, 4, "PST");
+			}
 			else {
-				if (module->displayState == GateSeq64::DISP_LENGTH)
-					if (module->isEditingSequence())
-						snprintf(displayStr, 4, "L%2u", module->lengths[module->sequence]);
-					else
-						snprintf(displayStr, 4, "L%2u", module->phrases);
-				else if (module->displayState == GateSeq64::DISP_MODES) {
-					if (module->isEditingSequence())
-						runModeToStr(module->runModeSeq[module->sequence]);
-					else
-						runModeToStr(module->runModeSong);
-				}
-				else if (module->displayState == GateSeq64::DISP_ROW_SEL) {
-					snprintf(displayStr, 4, "CPY");
-					if (module->cpInfo == 2)
-						snprintf(displayStr, 4, "PST");
-				}
+				int dispVal = 0;
+				if (module->isEditingSequence())
+					dispVal = module->sequence;
 				else {
-					int dispVal = 0;
-					if (module->isEditingSequence())
-						dispVal = module->sequence;
-					else {
-						if (module->running)
-							dispVal = module->phrase[module->phraseIndexRun];
-						else 
-							dispVal = module->phrase[module->phraseIndexEdit];
-					}
-					snprintf(displayStr, 4, " %2u", (unsigned)(dispVal) + 1 );
+					if (module->running)
+						dispVal = module->phrase[module->phraseIndexRun];
+					else 
+						dispVal = module->phrase[module->phraseIndexEdit];
 				}
+				snprintf(displayStr, 4, " %2u", (unsigned)(dispVal) + 1 );
 			}
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};	
 		
 		
-	struct ProbDisplayWidget : TransparentWidget {
-		GateSeq64 *module;
-		std::shared_ptr<Font> font;
-		char displayStr[3];
-		
-		ProbDisplayWidget() {
-			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
-		}
-		
-		void draw(NVGcontext *vg) override {
-			NVGcolor textColor = prepareDisplay(vg, &box);
-			nvgFontFaceId(vg, font->handle);
-			//nvgTextLetterSpacing(vg, 2.5);
-
-			Vec textPos = Vec(6, 24);
-			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
-			nvgText(vg, textPos.x, textPos.y, "~~", NULL);
-			nvgFillColor(vg, textColor);
-			
-			if (module->displayProb != -1) {
-				int prob = module->getGatePVal(module->sequence, module->displayProb);
-				if ( prob>= 100)
-					snprintf(displayStr, 3, "1*");
-				else if (prob >= 1)
-					snprintf(displayStr, 3, "%02d", prob);
-				else
-					snprintf(displayStr, 3, " 0");
-			}
-			else
-				snprintf(displayStr, 3, "--");
-			displayStr[2] = 0;// more safety
-			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
-		}
-	};		
-	
-
 	struct PanelThemeItem : MenuItem {
 		GateSeq64 *module;
 		int theme;
@@ -966,7 +940,7 @@ struct GateSeq64Widget : ModuleWidget {
 		static const int colRulerC1 = colRulerC0 + colRulerSpacing;
 		static const int colRulerC2 = colRulerC1 + colRulerSpacing;
 		static const int colRulerC3 = colRulerC2 + colRulerSpacing;
-		static const int colRulerC4 = colRulerC3 + colRulerSpacing;
+		//static const int colRulerC4 = colRulerC3 + colRulerSpacing;
 		static const int rowRulerC0 = 215;
 		static const int rowRulerSpacing = 54;
 		static const int rowRulerC1 = rowRulerC0 + rowRulerSpacing;
@@ -1009,17 +983,6 @@ struct GateSeq64Widget : ModuleWidget {
 		// Copy paste mode
 		addParam(ParamWidget::create<CKSS>(Vec(colRulerC3 + 2 + hOffsetCKSS, rowRulerC2 - 3 + vOffsetCKSS), module, GateSeq64::CPMODE_PARAM, 0.0f, 1.0f, 1.0f));
 
-		
-		// Probability display
-		ProbDisplayWidget *probDisplay = new ProbDisplayWidget();
-		probDisplay->box.pos = Vec(colRulerC4 - 7, rowRulerC0 + 2 + vOffsetDisplay);
-		probDisplay->box.size = Vec(40, 30);// 3 characters
-		probDisplay->module = module;
-		addChild(probDisplay);
-		// Probability knob
-		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(colRulerC4 + 1 + offsetDavies1900, rowRulerC0 + 62 + offsetDavies1900), module, GateSeq64::PROB_KNOB_PARAM, -INFINITY, INFINITY, 0.0f));	
-
-		
 		// Outputs
 		for (int iSides = 0; iSides < 4; iSides++)
 			addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(356, 208 + iSides * 40), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides, &module->panelTheme, plugin));
