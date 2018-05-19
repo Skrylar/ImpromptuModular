@@ -18,16 +18,18 @@ extern Plugin *plugin;
 
 // All modules that are part of plugin go here
 extern Model *modelTwelveKey;
-extern Model *modelWriteSeq32;
-extern Model *modelWriteSeq64;
 extern Model *modelPhraseSeq16;
 extern Model *modelPhraseSeq32;
 extern Model *modelGateSeq64;
+extern Model *modelWriteSeq32;
+extern Model *modelWriteSeq64;
 extern Model *modelBlankPanel;
 
 
 // General constants
 static const float lightLambda = 0.075f;
+static const std::string lightPanelID = "Classic";
+static const std::string darkPanelID = "Dark-valor";
 
 
 // Constants for displaying notes

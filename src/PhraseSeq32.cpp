@@ -566,6 +566,54 @@ struct PhraseSeq32 : Module {
 			displayState = DISP_NORMAL;
 		}
 		
+		// Left and right CV inputs (TODO not working properly)
+		int delta = 0;
+		if (leftTrigger.process(inputs[LEFTCV_INPUT].value)) { 
+			delta = -1;
+			if (displayState != DISP_LENGTH)
+				displayState = DISP_NORMAL;
+		}
+		if (rightTrigger.process(inputs[RIGHTCV_INPUT].value)) {
+			delta = +1;
+			if (displayState != DISP_LENGTH)
+				displayState = DISP_NORMAL;
+		}
+		if (delta != 0) {
+			if (displayState == DISP_LENGTH) {
+				if (editingSequence) {
+					lengths[sequence] += delta;
+					if (lengths[sequence] > 32) lengths[sequence] = 32;
+					if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+					lengths[sequence] = ((lengths[sequence] - 1) % (16 * stepConfig)) + 1;
+					if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
+						stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));
+				}
+				else {
+					phrases += delta;
+					if (phrases > 16) phrases = 16;
+					if (phrases < 1 ) phrases = 1;
+					if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
+				}
+			}
+			else {
+				if (!running || !attached) {// don't move heads when attach and running
+					if (editingSequence) {
+						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, lengths[sequence]);
+						if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
+							stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));						
+						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
+							if (!writeTrig)
+								editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
+							editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+							editingChannel = stepIndexEdit > 15 ? 1 : 0;
+						}
+					}
+					else
+						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, phrases);
+				}
+			}
+		}
+
 		// Step button presses
 		int stepPressed = -1;
 		for (int i = 0; i < 32; i++) {
@@ -576,7 +624,6 @@ struct PhraseSeq32 : Module {
 			if (displayState == DISP_LENGTH) {
 				if (editingSequence) {
 					lengths[sequence] = (stepPressed % (16 * stepConfig)) + 1;
-					//if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = lengths[sequence] - 1;
 					if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
 						stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));
 				}
@@ -1178,13 +1225,13 @@ struct PhraseSeq32Widget : ModuleWidget {
 		menu->addChild(themeLabel);
 
 		PanelThemeItem *lightItem = new PanelThemeItem();
-		lightItem->text = "Light";
+		lightItem->text = lightPanelID;// ImpromptuModular.hpp
 		lightItem->module = module;
 		lightItem->theme = 0;
 		menu->addChild(lightItem);
 
 		PanelThemeItem *darkItem = new PanelThemeItem();
-		darkItem->text = "Dark";
+		darkItem->text = darkPanelID;// ImpromptuModular.hpp
 		darkItem->module = module;
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
@@ -1316,11 +1363,11 @@ struct PhraseSeq32Widget : ModuleWidget {
 		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK1 + 4 + offsetCKD6b), module, PhraseSeq32::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f));
 		
 		// Reset LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 - 17 + offsetLEDbezel, rowRulerMK2 + 5 + offsetLEDbezel), module, PhraseSeq32::RESET_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 - 17 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK2 + 5 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq32::RESET_LIGHT));
+		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 - 15 + offsetLEDbezel, rowRulerMK2 + 5 + offsetLEDbezel), module, PhraseSeq32::RESET_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 - 15 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK2 + 5 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq32::RESET_LIGHT));
 		// Run LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 + 18 + offsetLEDbezel, rowRulerMK2 + 5 + offsetLEDbezel), module, PhraseSeq32::RUN_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 + 18 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK2 + 5 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq32::RUN_LIGHT));
+		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 + 20 + offsetLEDbezel, rowRulerMK2 + 5 + offsetLEDbezel), module, PhraseSeq32::RUN_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 + 20 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK2 + 5 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq32::RUN_LIGHT));
 		// Copy/paste buttons
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 - 10, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq32::COPY_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 + 20, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq32::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
@@ -1388,9 +1435,9 @@ struct PhraseSeq32Widget : ModuleWidget {
 
 
 		// CV control Inputs 
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq32::SEQCV_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, PhraseSeq32::LEFTCV_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, PhraseSeq32::RIGHTCV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq32::LEFTCV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, PhraseSeq32::RIGHTCV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, PhraseSeq32::SEQCV_INPUT, &module->panelTheme, plugin));
 		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq32::RUNCV_INPUT, &module->panelTheme, plugin));
 		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, PhraseSeq32::WRITE_INPUT, &module->panelTheme, plugin));
 		// Reset input

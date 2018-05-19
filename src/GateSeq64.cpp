@@ -852,13 +852,13 @@ struct GateSeq64Widget : ModuleWidget {
 		menu->addChild(themeLabel);
 
 		PanelThemeItem *lightItem = new PanelThemeItem();
-		lightItem->text = "Light";
+		lightItem->text = lightPanelID;// ImpromptuModular.hpp
 		lightItem->module = module;
 		lightItem->theme = 0;
 		menu->addChild(lightItem);
 
 		PanelThemeItem *darkItem = new PanelThemeItem();
-		darkItem->text = "Dark";
+		darkItem->text = darkPanelID;// ImpromptuModular.hpp
 		darkItem->module = module;
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
@@ -892,10 +892,10 @@ struct GateSeq64Widget : ModuleWidget {
 		// ****** Top portion (2 switches and LED button array ******
 		
 		static const int rowRuler0 = 34;
+		static const int spacingRows = 36;
 		static const int colRulerSteps = 15;
 		static const int spacingSteps = 20;
 		static const int spacingSteps4 = 4;
-		static const int spacingRows = 38;
 		
 		
 		// Step LED buttons
@@ -919,8 +919,7 @@ struct GateSeq64Widget : ModuleWidget {
 		static const int colRulerC1 = colRulerC0 + colRulerSpacing;
 		static const int colRulerC2 = colRulerC1 + colRulerSpacing;
 		static const int colRulerC3 = colRulerC2 + colRulerSpacing;
-		//static const int colRulerC4 = colRulerC3 + colRulerSpacing;
-		static const int rowRulerC0 = 208;
+		static const int rowRulerC0 = 204; 
 		static const int rowRulerSpacing = 56;
 		static const int rowRulerC1 = rowRulerC0 + rowRulerSpacing;
 		static const int rowRulerC2 = rowRulerC1 + rowRulerSpacing;
@@ -968,7 +967,7 @@ struct GateSeq64Widget : ModuleWidget {
 
 		// Outputs
 		for (int iSides = 0; iSides < 4; iSides++)
-			addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(311, 208 + iSides * 40), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides, &module->panelTheme, plugin));
+			addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(311, rowRulerC0 + iSides * 40), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides, &module->panelTheme, plugin));
 	}
 };
 

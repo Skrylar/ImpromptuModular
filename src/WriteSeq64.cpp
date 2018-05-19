@@ -623,13 +623,13 @@ struct WriteSeq64Widget : ModuleWidget {
 		menu->addChild(themeLabel);
 
 		PanelThemeItem *lightItem = new PanelThemeItem();
-		lightItem->text = "Light";
+		lightItem->text = lightPanelID;// ImpromptuModular.hpp
 		lightItem->module = module;
 		lightItem->theme = 0;
 		menu->addChild(lightItem);
 
 		PanelThemeItem *darkItem = new PanelThemeItem();
-		darkItem->text = "Dark";
+		darkItem->text = darkPanelID;// ImpromptuModular.hpp
 		darkItem->module = module;
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
