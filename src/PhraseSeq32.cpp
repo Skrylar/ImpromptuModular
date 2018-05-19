@@ -566,7 +566,7 @@ struct PhraseSeq32 : Module {
 			displayState = DISP_NORMAL;
 		}
 		
-		// Left and right CV inputs (TODO not working properly)
+		// Left and right CV inputs
 		int delta = 0;
 		if (leftTrigger.process(inputs[LEFTCV_INPUT].value)) { 
 			delta = -1;
@@ -582,7 +582,7 @@ struct PhraseSeq32 : Module {
 			if (displayState == DISP_LENGTH) {
 				if (editingSequence) {
 					lengths[sequence] += delta;
-					if (lengths[sequence] > 32) lengths[sequence] = 32;
+					if (lengths[sequence] > (16 * stepConfig)) lengths[sequence] = (16 * stepConfig);
 					if (lengths[sequence] < 1 ) lengths[sequence] = 1;
 					lengths[sequence] = ((lengths[sequence] - 1) % (16 * stepConfig)) + 1;
 					if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
@@ -590,7 +590,7 @@ struct PhraseSeq32 : Module {
 				}
 				else {
 					phrases += delta;
-					if (phrases > 16) phrases = 16;
+					if (phrases > 32) phrases = 32;
 					if (phrases < 1 ) phrases = 1;
 					if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
 				}
@@ -598,9 +598,17 @@ struct PhraseSeq32 : Module {
 			else {
 				if (!running || !attached) {// don't move heads when attach and running
 					if (editingSequence) {
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, lengths[sequence]);
-						if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
-							stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));						
+						stepIndexEdit += delta;
+						if (stepIndexEdit < 0)
+							stepIndexEdit = ((stepConfig == 1) ? 16 : 0) + lengths[sequence] - 1;
+						if (stepConfig == 1) {
+							if (stepIndexEdit >= lengths[sequence] && stepIndexEdit < 16)// if past length in chan A
+								stepIndexEdit = delta > 0 ? 16 : lengths[sequence] - 1;
+							else if (stepIndexEdit >= 16 + lengths[sequence])// if past length in chan A (including >=32)
+								stepIndexEdit = delta > 0 ? 0 : 16 + lengths[sequence] - 1;
+						}
+						else
+							if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = 0;
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							if (!writeTrig)
 								editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
