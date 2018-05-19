@@ -62,3 +62,17 @@ DynamicJackWidget* createDynamicJackWidget(Vec pos, Port::PortType type, Module 
 }
 
 
+// Dynamic Switch (started from SVGSwitch in app.hpp and SVGSwitch.cpp)
+
+struct DynamicSwitchWidget : virtual ParamWidget, FramebufferWidget {
+    int* mode;
+    int oldMode;
+    std::vector<std::shared_ptr<SVG>> frames;
+    SVGWidget* sw;
+
+    DynamicSwitchWidget();
+    void addFrame(std::shared_ptr<SVG> svg);
+	//void draw(NVGcontext *vg) override {Port::draw(vg); FramebufferWidget::draw(vg);}
+    void step() override;
+	void onChange(EventChange &e) override;
+};

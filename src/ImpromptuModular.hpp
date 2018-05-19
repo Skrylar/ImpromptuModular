@@ -151,7 +151,6 @@ struct ScrewCircle : TransparentWidget {
 	ScrewCircle(float _angle);
 	void draw(NVGcontext *vg) override;
 };
-
 struct ScrewSilverRandomRot : FramebufferWidget {// location: include/app.hpp and src/app/SVGScrew.cpp [some code also from src/app/SVGKnob.cpp]
 	SVGWidget *sw;
 	TransformWidget *tw;

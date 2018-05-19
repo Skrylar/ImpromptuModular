@@ -131,6 +131,7 @@ struct PhraseSeq16 : Module {
 	float cvCPbuffer[16];// copy paste buffer for CVs
 	int attributesCPbuffer[16];// copy paste buffer for attributes
 	int lengthCPbuffer;
+	int modeCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
 	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
@@ -196,6 +197,7 @@ struct PhraseSeq16 : Module {
 		}
 		initRun();
 		lengthCPbuffer = 16;
+		modeCPbuffer = MODE_FWD;
 		countCP = 16;
 		sequenceKnob = INT_MAX;
 		editingLength = 0ul;
@@ -230,6 +232,7 @@ struct PhraseSeq16 : Module {
 		}
 		initRun();
 		lengthCPbuffer = 16;
+		modeCPbuffer = MODE_FWD;
 		countCP = 16;
 		sequenceKnob = INT_MAX;
 		editingLength = 0ul;
@@ -584,6 +587,7 @@ struct PhraseSeq16 : Module {
 						break;
 				}
 				lengthCPbuffer = lengths[sequence];
+				modeCPbuffer = runModeSeq[sequence];
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -600,8 +604,10 @@ struct PhraseSeq16 : Module {
 					if ((--sCount) <= 0)
 						break;
 				}
-				if (params[CPMODE_PARAM].value > 1.5f)// all
+				if (params[CPMODE_PARAM].value > 1.5f) {// all
 					lengths[sequence] = lengthCPbuffer;
+					runModeSeq[sequence] = modeCPbuffer;
+				}
 			}
 			displayState = DISP_NORMAL;
 		}

@@ -119,6 +119,7 @@ struct PhraseSeq32 : Module {
 	float cvCPbuffer[32];// copy paste buffer for CVs
 	int attributesCPbuffer[32];// copy paste buffer for attributes
 	int lengthCPbuffer;
+	int modeCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
 	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
@@ -128,7 +129,8 @@ struct PhraseSeq32 : Module {
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
 	int sequenceKnob;// INT_MAX when knob not seen yet
 	bool gate1RandomEnable[2];
-
+	bool attachedChanB;
+	
 
 	SchmittTrigger resetTrigger;
 	SchmittTrigger leftTrigger;
@@ -190,6 +192,7 @@ struct PhraseSeq32 : Module {
 		}
 		initRun(stepConfig);
 		lengthCPbuffer = 32;
+		modeCPbuffer = MODE_FWD;
 		countCP = 32;
 		sequenceKnob = INT_MAX;
 		//editingLength = 0ul;
@@ -201,6 +204,7 @@ struct PhraseSeq32 : Module {
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
+		attachedChanB = false;
 	}
 	
 
@@ -227,6 +231,7 @@ struct PhraseSeq32 : Module {
 		}
 		initRun(stepConfig);
 		lengthCPbuffer = 32;
+		modeCPbuffer = MODE_FWD;
 		countCP = 32;
 		sequenceKnob = INT_MAX;
 		//editingLength = 0ul;
@@ -238,6 +243,7 @@ struct PhraseSeq32 : Module {
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
+		attachedChanB = false;
 	}
 	
 	
@@ -476,6 +482,7 @@ struct PhraseSeq32 : Module {
 		if (configTrigger.process(params[CONFIG_PARAM].value) || configTriggerInv.process(1.0f - params[CONFIG_PARAM].value)) {
 			for (int i = 0; i < 32; i++)
 				lengths[i] = 16 * stepConfig;
+			attachedChanB = false;
 		}
 
 		// Run button
@@ -488,13 +495,20 @@ struct PhraseSeq32 : Module {
 
 		// Attach button
 		if (attachedTrigger.process(params[ATTACH_PARAM].value)) {
-			if (running)
-				attached = !attached;
+			if (running) {
+				if (attached && editingSequence && stepConfig == 1 && !attachedChanB)
+					attachedChanB = true;
+				else {
+					attached = !attached;
+					if (!attached) attachedChanB = false;
+				}
+			}
 			displayState = DISP_NORMAL;			
 		}
 		if (running && attached) {
-			if (editingSequence)
-				stepIndexEdit = stepIndexRun;
+			if (editingSequence) {
+				stepIndexEdit = stepIndexRun + ((attachedChanB && stepConfig == 1) ? 16 : 0);
+			}
 			else
 				phraseIndexEdit = phraseIndexRun;
 		}
@@ -521,6 +535,7 @@ struct PhraseSeq32 : Module {
 						break;
 				}
 				lengthCPbuffer = lengths[sequence];
+				modeCPbuffer = runModeSeq[sequence];
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -541,6 +556,7 @@ struct PhraseSeq32 : Module {
 					lengths[sequence] = lengthCPbuffer;
 					if (lengths[sequence] > 16 * stepConfig)
 						lengths[sequence] = 16 * stepConfig;
+					runModeSeq[sequence] = modeCPbuffer;
 				}
 			}
 			displayState = DISP_NORMAL;
@@ -604,7 +620,7 @@ struct PhraseSeq32 : Module {
 						if (stepConfig == 1) {
 							if (stepIndexEdit >= lengths[sequence] && stepIndexEdit < 16)// if past length in chan A
 								stepIndexEdit = delta > 0 ? 16 : lengths[sequence] - 1;
-							else if (stepIndexEdit >= 16 + lengths[sequence])// if past length in chan A (including >=32)
+							else if (stepIndexEdit >= 16 + lengths[sequence])// if past length in chan B (including >=32)
 								stepIndexEdit = delta > 0 ? 0 : 16 + lengths[sequence] - 1;
 						}
 						else
@@ -641,7 +657,7 @@ struct PhraseSeq32 : Module {
 				}
 			}
 			else {
-				if (!running || !attached) {// don't move heads when attach and running
+				if (!running || !attached) {// not running or detached
 					if (editingSequence) {
 						stepIndexEdit = stepPressed;
 						if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
@@ -657,6 +673,14 @@ struct PhraseSeq32 : Module {
 						phraseIndexEdit = stepPressed;
 						if (phraseIndexEdit >= phrases)
 							phraseIndexEdit = phrases - 1;
+					}
+				}
+				else {// attached and running
+					if (editingSequence) {
+						if ((stepPressed < 16) && attachedChanB)
+							attachedChanB = false;
+						if ((stepPressed >= 16) && !attachedChanB)
+							attachedChanB = true;					
 					}
 				}
 				displayState = DISP_NORMAL;
@@ -1037,7 +1061,7 @@ struct PhraseSeq32 : Module {
 			octCV = cv[phrase[phraseIndexEdit]][stepIndexRun];
 		int octLightIndex = (int) floor(octCV + 3.0f);
 		for (int i = 0; i < 7; i++) {
-			if (!editingSequence && !attached)// no oct lights when song mode and detached (makes no sense, can't mod steps and stepping though seq that may not be playing)
+			if (!editingSequence && (!attached || (stepConfig == 1)))// no oct lights when song mode and detached (makes no sense, can't modify steps and it will be stepping though seq that may not be playing)
 				lights[OCTAVE_LIGHTS + i].value = 0.0f;
 			else
 				lights[OCTAVE_LIGHTS + i].value = (i == (6 - octLightIndex) ? 1.0f : 0.0f);
@@ -1051,7 +1075,7 @@ struct PhraseSeq32 : Module {
 			cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
 		int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
 		for (int i = 0; i < 12; i++) {
-			if (!editingSequence && !attached)// no keyboard lights when song mode and detached (makes no sense, can't mod steps and stepping though seq that may not be playing)
+			if (!editingSequence && (!attached || (stepConfig == 1)))// no oct lights when song mode and detached (makes no sense, can't modify steps and it will be stepping though seq that may not be playing)
 				lights[KEY_LIGHTS + i].value = 0.0f;
 			else
 				lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);

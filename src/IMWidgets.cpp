@@ -78,3 +78,44 @@ void DynamicJackWidget::step() {
     }
 }
 
+
+// Dynamic Switch
+
+DynamicSwitchWidget::DynamicSwitchWidget() {
+    mode = nullptr;;
+    oldMode = -1;
+    sw = new SVGWidget();
+    addChild(sw);
+}
+
+void DynamicSwitchWidget::addFrame(std::shared_ptr<SVG> svg) {
+    frames.push_back(svg);
+    if(!sw->svg) {
+        sw->setSVG(svg);
+		box.size = sw->box.size;
+    }
+}
+
+void DynamicSwitchWidget::step() {
+    if (isNear(gPixelRatio, 1.0)) {
+        oversample = 2.f;
+    }
+    if(mode != nullptr && *mode != oldMode) {
+        sw->setSVG(frames[(*mode) * 2]);
+        oldMode = *mode;
+        dirty = true;
+    }
+}
+
+void DynamicSwitchWidget::onChange(EventChange &e) {
+	assert(frames.size() > 0);
+	float valueScaled = rescale(value, minValue, maxValue, 0, frames.size() - 1);
+	int index = clamp((int) roundf(valueScaled), 0, (int) frames.size() - 1);
+	if (mode != nullptr && frames.size() >= 4)
+		index += (*mode) * 2;
+	if (index >= (int) frames.size()) 
+		index = frames.size() - 1;
+	sw->setSVG(frames[index]);
+	dirty = true;
+	ParamWidget::onChange(e);
+}

@@ -78,6 +78,7 @@ struct GateSeq64 : Module {
 	int phraseIndexRunHistory;// no need to initialize
 	int cpBufAttributes[64] = {};// copy-paste one row or all rows
 	int cpBufLength;// copy-paste only one row
+	int modeCPbuffer;
 	long feedbackCP;// downward step counter for CP feedback
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	float resetLight = 0.0f;
@@ -140,6 +141,7 @@ struct GateSeq64 : Module {
 			cpBufAttributes[i] = 50;
 		initRun(stepConfig);
 		cpBufLength = 16;
+		modeCPbuffer = MODE_FWD;
 		feedbackCP = 0l;
 		displayState = DISP_GATE;
 		displayProb = -1;
@@ -176,6 +178,7 @@ struct GateSeq64 : Module {
 			cpBufAttributes[i] = 50;
 		initRun(stepConfig);
 		cpBufLength = 16;
+		modeCPbuffer = MODE_FWD;
 		feedbackCP = 0l;
 		displayState = DISP_GATE;
 		displayProb = -1;
@@ -479,19 +482,19 @@ struct GateSeq64 : Module {
 					}
 					else {// copy-paste in "all" mode
 						if (copyTrigged) {
-							for (int i = 0; i < 64; i++) {
+							for (int i = 0; i < 64; i++)
 								cpBufAttributes[i] = attributes[sequence][i];
-								cpBufLength = lengths[sequence];
-							}
+							cpBufLength = lengths[sequence];
+							modeCPbuffer = runModeSeq[sequence];
 							infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
 						}
 						else {// paste triggered
-							for (int i = 0; i < 64; i++) {
+							for (int i = 0; i < 64; i++)
 								attributes[sequence][i] = cpBufAttributes[i];
-								lengths[sequence] = cpBufLength;
-								if (lengths[sequence] > 16 * stepConfig)
-									lengths[sequence] = 16 * stepConfig;
-							}
+							lengths[sequence] = cpBufLength;
+							if (lengths[sequence] > 16 * stepConfig)
+								lengths[sequence] = 16 * stepConfig;
+							runModeSeq[sequence] = modeCPbuffer;
 							infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
 						}
 					}
