@@ -872,7 +872,7 @@ struct GateSeq64Widget : ModuleWidget {
 		// Main panel from Inkscape
         DynamicPanelWidget *panel = new DynamicPanelWidget();
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/GateSeq64.svg")));
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/GateSeq64.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/GateSeq64_dark.svg")));
         box.size = panel->box.size;
         panel->mode = &module->panelTheme;
         addChild(panel);

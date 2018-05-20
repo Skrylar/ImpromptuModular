@@ -1275,7 +1275,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 		// Main panel from Inkscape
         DynamicPanelWidget *panel = new DynamicPanelWidget();
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq32.svg")));
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq32.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/PhraseSeq32_dark.svg")));
         box.size = panel->box.size;
         panel->mode = &module->panelTheme;
         addChild(panel);
