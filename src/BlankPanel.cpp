@@ -4,7 +4,6 @@
 
 
 #include "ImpromptuModular.hpp"
-#include "IMWidgets.hpp"
 
 
 struct BlankPanel : Module {
