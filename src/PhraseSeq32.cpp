@@ -1457,27 +1457,27 @@ struct PhraseSeq32Widget : ModuleWidget {
 		// Slide knob
 		addParam(ParamWidget::create<RoundSmallBlackKnobB>(Vec(columnRulerB3 + offsetRoundSmallBlackKnob, rowRulerB1 + offsetRoundSmallBlackKnob), module, PhraseSeq32::SLIDE_KNOB_PARAM, 0.0f, 2.0f, 0.15f));
 		// CV in
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB4, rowRulerB1), Port::INPUT, module, PhraseSeq32::CV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB4, rowRulerB1), Port::INPUT, module, PhraseSeq32::CV_INPUT, &module->panelTheme, plugin));
 		// Clock input
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, PhraseSeq32::CLOCK_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, PhraseSeq32::CLOCK_INPUT, &module->panelTheme, plugin));
 		// Channel A outputs
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB6, rowRulerB1), Port::OUTPUT, module, PhraseSeq32::CVA_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB7, rowRulerB1), Port::OUTPUT, module, PhraseSeq32::GATE1A_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB8, rowRulerB1), Port::OUTPUT, module, PhraseSeq32::GATE2A_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<IMPort>(Vec(columnRulerB6, rowRulerB1), Port::OUTPUT, module, PhraseSeq32::CVA_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<IMPort>(Vec(columnRulerB7, rowRulerB1), Port::OUTPUT, module, PhraseSeq32::GATE1A_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<IMPort>(Vec(columnRulerB8, rowRulerB1), Port::OUTPUT, module, PhraseSeq32::GATE2A_OUTPUT, &module->panelTheme, plugin));
 
 
 		// CV control Inputs 
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq32::LEFTCV_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, PhraseSeq32::RIGHTCV_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, PhraseSeq32::SEQCV_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq32::RUNCV_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, PhraseSeq32::WRITE_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq32::LEFTCV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, PhraseSeq32::RIGHTCV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, PhraseSeq32::SEQCV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq32::RUNCV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, PhraseSeq32::WRITE_INPUT, &module->panelTheme, plugin));
 		// Reset input
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB5, rowRulerB0), Port::INPUT, module, PhraseSeq32::RESET_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB5, rowRulerB0), Port::INPUT, module, PhraseSeq32::RESET_INPUT, &module->panelTheme, plugin));
 		// Channel B outputs
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::CVB_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB7, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE1B_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB8, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE2B_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<IMPort>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::CVB_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<IMPort>(Vec(columnRulerB7, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE1B_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<IMPort>(Vec(columnRulerB8, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE2B_OUTPUT, &module->panelTheme, plugin));
 	}
 };
 

@@ -1356,11 +1356,11 @@ struct PhraseSeq16Widget : ModuleWidget {
 		// Autostep
 		addParam(ParamWidget::create<CKSS>(Vec(columnRulerB4 + hOffsetCKSS, rowRulerB1 + vOffsetCKSS), module, PhraseSeq16::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
 		// CV in
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, PhraseSeq16::CV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, PhraseSeq16::CV_INPUT, &module->panelTheme, plugin));
 		// Clock
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, PhraseSeq16::RESET_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, PhraseSeq16::RESET_INPUT, &module->panelTheme, plugin));
 		// Reset
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB6, rowRulerB1), Port::INPUT, module, PhraseSeq16::CLOCK_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB6, rowRulerB1), Port::INPUT, module, PhraseSeq16::CLOCK_INPUT, &module->panelTheme, plugin));
 
 		
 
@@ -1368,15 +1368,15 @@ struct PhraseSeq16Widget : ModuleWidget {
 
 	
 		// CV control Inputs 
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq16::LEFTCV_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, PhraseSeq16::RIGHTCV_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, PhraseSeq16::SEQCV_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq16::RUNCV_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, PhraseSeq16::WRITE_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq16::LEFTCV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, PhraseSeq16::RIGHTCV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, PhraseSeq16::SEQCV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq16::RUNCV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, PhraseSeq16::WRITE_INPUT, &module->panelTheme, plugin));
 		// Outputs
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB5, rowRulerB0), Port::OUTPUT, module, PhraseSeq16::CV_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, PhraseSeq16::GATE1_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(columnRulerB7, rowRulerB0), Port::OUTPUT, module, PhraseSeq16::GATE2_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<IMPort>(Vec(columnRulerB5, rowRulerB0), Port::OUTPUT, module, PhraseSeq16::CV_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<IMPort>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, PhraseSeq16::GATE1_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicJackWidget<IMPort>(Vec(columnRulerB7, rowRulerB0), Port::OUTPUT, module, PhraseSeq16::GATE2_OUTPUT, &module->panelTheme, plugin));
 
 	}
 };

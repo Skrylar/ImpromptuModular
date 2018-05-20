@@ -929,11 +929,11 @@ struct GateSeq64Widget : ModuleWidget {
 		
 		
 		// Clock input
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(colRulerC0, rowRulerC0), Port::INPUT, module, GateSeq64::CLOCK_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(colRulerC0, rowRulerC0), Port::INPUT, module, GateSeq64::CLOCK_INPUT, &module->panelTheme, plugin));
 		// Reset CV
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(colRulerC0, rowRulerC1), Port::INPUT, module, GateSeq64::RESET_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(colRulerC0, rowRulerC1), Port::INPUT, module, GateSeq64::RESET_INPUT, &module->panelTheme, plugin));
 		// Seq CV
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(colRulerC0, rowRulerC2), Port::INPUT, module, GateSeq64::SEQCV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(colRulerC0, rowRulerC2), Port::INPUT, module, GateSeq64::SEQCV_INPUT, &module->panelTheme, plugin));
 		
 		
 		// Seq/Song selector
@@ -945,7 +945,7 @@ struct GateSeq64Widget : ModuleWidget {
 		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC1 + 17 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq64::RUN_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC1 + 17 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RUN_LIGHT));
 		// Run CV
-		addInput(createDynamicJackWidget<DynamicJackWidget>(Vec(colRulerC1, rowRulerC2), Port::INPUT, module, GateSeq64::RUNCV_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicJackWidget<IMPort>(Vec(colRulerC1, rowRulerC2), Port::INPUT, module, GateSeq64::RUNCV_INPUT, &module->panelTheme, plugin));
 
 		
 		// Sequence display
@@ -970,7 +970,7 @@ struct GateSeq64Widget : ModuleWidget {
 
 		// Outputs
 		for (int iSides = 0; iSides < 4; iSides++)
-			addOutput(createDynamicJackWidget<DynamicJackWidget>(Vec(311, rowRulerC0 + iSides * 40), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides, &module->panelTheme, plugin));
+			addOutput(createDynamicJackWidget<IMPort>(Vec(311, rowRulerC0 + iSides * 40), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides, &module->panelTheme, plugin));
 	}
 };
 

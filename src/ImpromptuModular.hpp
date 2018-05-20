@@ -9,7 +9,7 @@
 
 
 #include "rack.hpp"
-
+#include "IMWidgets.hpp"
 
 using namespace rack;
 
@@ -63,10 +63,13 @@ static const int offsetTrimpot = 3;//does both h and v
 
 // Variations on existing knobs, lights, etc
 
-struct PJ301MPortS : SVGPort {
-	PJ301MPortS() {
+struct IMPort : DynamicJackWidget {// was : SVGPort
+	IMPort() {
 		//setSVG(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
-		setSVG(SVG::load(assetPlugin(plugin, "res/comp/CL1362.svg")));
+		//setSVG(SVG::load(assetPlugin(plugin, "res/comp/CL1362.svg")));
+		addJack(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
+		addJack(SVG::load(assetPlugin(plugin, "res/comp/CL1362.svg")));
+		
 		shadow->blurRadius = 10.0;
 		shadow->opacity = 0.8;
 	}

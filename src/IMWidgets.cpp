@@ -55,6 +55,13 @@ void DynamicPanelWidget::step() {
 DynamicJackWidget::DynamicJackWidget() {
     mode = nullptr;;
     oldMode = -1;
+	
+	shadow = new CircularShadow();
+	addChild(shadow);
+	// Avoid breakage if plugins fail to call setSVG()
+	// In that case, just disable the shadow.
+	shadow->box.size = Vec();
+
     visibleJack = new SVGWidget();
     addChild(visibleJack);
 }
@@ -64,6 +71,8 @@ void DynamicJackWidget::addJack(std::shared_ptr<SVG> svg) {
     if(!visibleJack->svg) {
         visibleJack->setSVG(svg);
 		box.size = visibleJack->box.size;
+		shadow->box.size = visibleJack->box.size;
+		shadow->box.pos = Vec(0, visibleJack->box.size.y * 0.1);	
     }
 }
 

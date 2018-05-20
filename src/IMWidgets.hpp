@@ -5,6 +5,8 @@
 //See ./LICENSE.txt for all licenses
 //***********************************************************************************************
 
+#ifndef IM_WIDGETS_HPP
+#define IM_WIDGETS_HPP
 
 #include "rack.hpp"
 #include "window.hpp"
@@ -38,6 +40,7 @@ struct DynamicJackWidget : Port, FramebufferWidget {
     int oldMode;
     std::vector<std::shared_ptr<SVG>> jacks;
     SVGWidget* visibleJack;
+	CircularShadow *shadow;
 
     DynamicJackWidget();
     void addJack(std::shared_ptr<SVG> svg);
@@ -48,7 +51,7 @@ struct DynamicJackWidget : Port, FramebufferWidget {
 template <class TDynamicJack>
 DynamicJackWidget* createDynamicJackWidget(Vec pos, Port::PortType type, Module *module, int portId,
                                                int* mode, Plugin* plugin) {
-	DynamicJackWidget *dynJack = new DynamicJackWidget();//Port::create(pos, type, module, portId);
+	DynamicJackWidget *dynJack = new TDynamicJack();//Port::create(pos, type, module, portId);
 	dynJack->box.pos = pos;
 	dynJack->module = module;
 	dynJack->type = type;
@@ -93,3 +96,5 @@ DynamicSwitchWidget* createDynamicSwitchWidget(Vec pos, Module *module, int para
 	
 	return dynSwitch;
 }
+
+#endif
