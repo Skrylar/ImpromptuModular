@@ -64,7 +64,7 @@ DynamicJackWidget* createDynamicJackWidget(Vec pos, Port::PortType type, Module 
 
 // Dynamic Switch (started from SVGSwitch in app.hpp and SVGSwitch.cpp)
 
-struct DynamicSwitchWidget : virtual ParamWidget, FramebufferWidget {
+struct DynamicSwitchWidget : virtual ParamWidget, FramebufferWidget, MomentarySwitch {
     int* mode;
     int oldMode;
     std::vector<std::shared_ptr<SVG>> frames;
@@ -72,7 +72,24 @@ struct DynamicSwitchWidget : virtual ParamWidget, FramebufferWidget {
 
     DynamicSwitchWidget();
     void addFrame(std::shared_ptr<SVG> svg);
-	//void draw(NVGcontext *vg) override {Port::draw(vg); FramebufferWidget::draw(vg);}
     void step() override;
 	void onChange(EventChange &e) override;
 };
+
+template <class TDynamicSwitch>
+DynamicSwitchWidget* createDynamicSwitchWidget(Vec pos, Module *module, int paramId, float minValue, float maxValue, float defaultValue,
+                                               int* mode, Plugin* plugin) {
+	DynamicSwitchWidget *dynSwitch = new DynamicSwitchWidget();
+	dynSwitch->box.pos = pos;
+	dynSwitch->module = module;
+	dynSwitch->paramId = paramId;
+	dynSwitch->mode = mode;
+	dynSwitch->addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_0.svg")));
+	dynSwitch->addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_1.svg")));
+	dynSwitch->addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_0.svg")));
+	dynSwitch->addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_1.svg")));	
+	dynSwitch->setLimits(minValue, maxValue);
+	dynSwitch->setDefaultValue(defaultValue);
+	
+	return dynSwitch;
+}
