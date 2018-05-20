@@ -346,22 +346,8 @@ struct TwelveKeyWidget : ModuleWidget {
 		addChild(octaveNumDisplay);
 		
 		// Octave buttons
-		addParam(createDynamicSwitchWidget<DynamicSwitchWidget>(Vec(columnRulerM - 20 + offsetCKD6b, rowRuler2 - 26 + offsetCKD6b), module, TwelveKey::OCTDEC_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));
-		/*DynamicSwitchWidget *tswitch = new DynamicSwitchWidget();
-		tswitch->addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_0.svg")));
-		tswitch->addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_1.svg")));
-		tswitch->addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_1.svg")));
-		tswitch->addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_0.svg")));	
-        tswitch->mode = &module->panelTheme;
-		tswitch->paramId = TwelveKey::OCTDEC_PARAM;
-		tswitch->box.pos = Vec(columnRulerM - 20 + offsetCKD6b, rowRuler2 - 26 + offsetCKD6b);
-		tswitch->module = module;
-		tswitch->setLimits(0.0f, 1.0f);
-		tswitch->setDefaultValue(0.0f);
-		addParam(tswitch);*/
-		
-		//addParam(ParamWidget::create<CKD6b>(Vec(columnRulerM - 20 + offsetCKD6b, rowRuler2 - 26 + offsetCKD6b), module, TwelveKey::OCTDEC_PARAM, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerM + 22 + offsetCKD6b, rowRuler2 - 26 + offsetCKD6b), module, TwelveKey::OCTINC_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(createDynamicSwitchWidget<IMBigPushButton>(Vec(columnRulerM - 20 + offsetCKD6b, rowRuler2 - 26 + offsetCKD6b), module, TwelveKey::OCTDEC_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));
+		addParam(createDynamicSwitchWidget<IMBigPushButton>(Vec(columnRulerM + 22 + offsetCKD6b, rowRuler2 - 26 + offsetCKD6b), module, TwelveKey::OCTINC_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));
 		
 		// Right side outputs
 		addOutput(createDynamicJackWidget<IMPort>(Vec(columnRulerR, rowRuler0), Port::OUTPUT, module, TwelveKey::CV_OUTPUT, &module->panelTheme, plugin));

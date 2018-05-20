@@ -67,7 +67,7 @@ DynamicJackWidget* createDynamicJackWidget(Vec pos, Port::PortType type, Module 
 
 // Dynamic Switch (started from SVGSwitch in app.hpp and SVGSwitch.cpp)
 
-struct DynamicSwitchWidget : virtual ParamWidget, FramebufferWidget, MomentarySwitch {
+struct DynamicSwitchWidget : virtual ParamWidget, FramebufferWidget {
     int* mode;
     int oldMode;
     std::vector<std::shared_ptr<SVG>> frames;
@@ -82,15 +82,11 @@ struct DynamicSwitchWidget : virtual ParamWidget, FramebufferWidget, MomentarySw
 template <class TDynamicSwitch>
 DynamicSwitchWidget* createDynamicSwitchWidget(Vec pos, Module *module, int paramId, float minValue, float maxValue, float defaultValue,
                                                int* mode, Plugin* plugin) {
-	DynamicSwitchWidget *dynSwitch = new DynamicSwitchWidget();
+	DynamicSwitchWidget *dynSwitch = new TDynamicSwitch();
 	dynSwitch->box.pos = pos;
 	dynSwitch->module = module;
 	dynSwitch->paramId = paramId;
 	dynSwitch->mode = mode;
-	dynSwitch->addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_0.svg")));
-	dynSwitch->addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_1.svg")));
-	dynSwitch->addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_0.svg")));
-	dynSwitch->addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_1.svg")));	
 	dynSwitch->setLimits(minValue, maxValue);
 	dynSwitch->setDefaultValue(defaultValue);
 	

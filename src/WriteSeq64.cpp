@@ -701,11 +701,11 @@ struct WriteSeq64Widget : ModuleWidget {
 		static const int rowRulerT1 = 105;
 		
 		// Channel button
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerT0+offsetCKD6b, rowRulerT1+offsetCKD6b), module, WriteSeq64::CHANNEL_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(createDynamicSwitchWidget<IMBigPushButton>(Vec(columnRulerT0+offsetCKD6b, rowRulerT1+offsetCKD6b), module, WriteSeq64::CHANNEL_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));
 		// Step knob
 		addParam(ParamWidget::create<Davies1900hBlackKnobNoTick>(Vec(columnRulerT1+offsetDavies1900, rowRulerT1+offsetDavies1900), module, WriteSeq64::STEP_PARAM, -INFINITY, INFINITY, 0.0f));		
 		// Gate button
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRulerT2-1+offsetCKD6b, rowRulerT1+offsetCKD6b), module, WriteSeq64::GATE_PARAM , 0.0f, 1.0f, 0.0f));
+		addParam(createDynamicSwitchWidget<IMBigPushButton>(Vec(columnRulerT2-1+offsetCKD6b, rowRulerT1+offsetCKD6b), module, WriteSeq64::GATE_PARAM , 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));
 		// Autostep	
 		addParam(ParamWidget::create<CKSS>(Vec(columnRulerT2+53+hOffsetCKSS, rowRulerT1+6+vOffsetCKSS), module, WriteSeq64::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));
 		// Quantize switch
@@ -750,7 +750,7 @@ struct WriteSeq64Widget : ModuleWidget {
 		
 		// Column 1
 		// Step L button
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRuler1+offsetCKD6b, rowRuler0+offsetCKD6b), module, WriteSeq64::STEPL_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(createDynamicSwitchWidget<IMBigPushButton>(Vec(columnRuler1+offsetCKD6b, rowRuler0+offsetCKD6b), module, WriteSeq64::STEPL_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));
 		// Run LED bezel and light
 		addParam(ParamWidget::create<LEDBezel>(Vec(columnRuler1+offsetLEDbezel, rowRuler1+offsetLEDbezel), module, WriteSeq64::RUN_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRuler1+offsetLEDbezel+offsetLEDbezelLight, rowRuler1+offsetLEDbezel+offsetLEDbezelLight), module, WriteSeq64::RUN_LIGHT));
@@ -762,9 +762,9 @@ struct WriteSeq64Widget : ModuleWidget {
 		
 		// Column 2
 		// Step R button
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRuler2+offsetCKD6b, rowRuler0+offsetCKD6b), module, WriteSeq64::STEPR_PARAM, 0.0f, 1.0f, 0.0f));	
+		addParam(createDynamicSwitchWidget<IMBigPushButton>(Vec(columnRuler2+offsetCKD6b, rowRuler0+offsetCKD6b), module, WriteSeq64::STEPR_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));	
 		// Write button and light
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRuler2+offsetCKD6b, rowRuler1+offsetCKD6b), module, WriteSeq64::WRITE_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(createDynamicSwitchWidget<IMBigPushButton>(Vec(columnRuler2+offsetCKD6b, rowRuler1+offsetCKD6b), module, WriteSeq64::WRITE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));
 		addChild(ModuleLightWidget::create<SmallLight<GreenRedLight>>(Vec(columnRuler2 -12, rowRuler1 - 12), module, WriteSeq64::WRITE_LIGHT));
 		// Monitor
 		addParam(ParamWidget::create<CKSSH>(Vec(columnRuler2+hOffsetCKSSH, rowRuler2+vOffsetCKSSH), module, WriteSeq64::MONITOR_PARAM, 0.0f, 1.0f, 0.0f));

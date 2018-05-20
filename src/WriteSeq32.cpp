@@ -655,7 +655,7 @@ struct WriteSeq32Widget : ModuleWidget {
 		
 		// Column 0
 		// Channel button
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRuler0+offsetCKD6b, rowRuler0+offsetCKD6b), module, WriteSeq32::CHANNEL_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(createDynamicSwitchWidget<IMBigPushButton>(Vec(columnRuler0+offsetCKD6b, rowRuler0+offsetCKD6b), module, WriteSeq32::CHANNEL_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));
 		// Channel LEDS
 		static const int chanLEDoffsetX = 25;
 		static const int chanLEDoffsetY[4] = {-20, -8, 4, 16};
@@ -675,7 +675,7 @@ struct WriteSeq32Widget : ModuleWidget {
 		
 		// Column 1
 		// Step L button
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRuler1+offsetCKD6b, rowRuler0+offsetCKD6b), module, WriteSeq32::STEPL_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(createDynamicSwitchWidget<IMBigPushButton>(Vec(columnRuler1+offsetCKD6b, rowRuler0+offsetCKD6b), module, WriteSeq32::STEPL_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));
 		// Run LED bezel and light
 		addParam(ParamWidget::create<LEDBezel>(Vec(columnRuler1+offsetLEDbezel, rowRuler1+offsetLEDbezel), module, WriteSeq32::RUN_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRuler1+offsetLEDbezel+offsetLEDbezelLight, rowRuler1+offsetLEDbezel+offsetLEDbezelLight), module, WriteSeq32::RUN_LIGHT));
@@ -687,9 +687,9 @@ struct WriteSeq32Widget : ModuleWidget {
 		
 		// Column 2
 		// Step R button
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRuler2+offsetCKD6b, rowRuler0+offsetCKD6b), module, WriteSeq32::STEPR_PARAM, 0.0f, 1.0f, 0.0f));	
+		addParam(createDynamicSwitchWidget<IMBigPushButton>(Vec(columnRuler2+offsetCKD6b, rowRuler0+offsetCKD6b), module, WriteSeq32::STEPR_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));	
 		// Write button and light
-		addParam(ParamWidget::create<CKD6b>(Vec(columnRuler2+offsetCKD6b, rowRuler1+offsetCKD6b), module, WriteSeq32::WRITE_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(createDynamicSwitchWidget<IMBigPushButton>(Vec(columnRuler2+offsetCKD6b, rowRuler1+offsetCKD6b), module, WriteSeq32::WRITE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));
 		addChild(ModuleLightWidget::create<SmallLight<GreenRedLight>>(Vec(columnRuler2 -12, rowRuler1 - 12), module, WriteSeq32::WRITE_LIGHT));
 		// CV input
 		addInput(createDynamicJackWidget<IMPort>(Vec(columnRuler2, rowRuler2), Port::INPUT, module, WriteSeq32::CV_INPUT, &module->panelTheme, plugin));		

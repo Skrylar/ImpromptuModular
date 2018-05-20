@@ -65,13 +65,20 @@ static const int offsetTrimpot = 3;//does both h and v
 
 struct IMPort : DynamicJackWidget {// was : SVGPort
 	IMPort() {
-		//setSVG(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
-		//setSVG(SVG::load(assetPlugin(plugin, "res/comp/CL1362.svg")));
 		addJack(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
-		addJack(SVG::load(assetPlugin(plugin, "res/comp/CL1362.svg")));
+		addJack(SVG::load(assetPlugin(plugin, "res/dark/comp/CL1362.svg")));
 		
 		shadow->blurRadius = 10.0;
 		shadow->opacity = 0.8;
+	}
+};
+
+struct IMBigPushButton : DynamicSwitchWidget, MomentarySwitch {// was : SVGSwitch, MomentarySwitch
+	IMBigPushButton() {
+		addFrame(SVG::load(assetPlugin(plugin, "res/light/comp/CKD6b_0.svg")));
+		addFrame(SVG::load(assetPlugin(plugin, "res/light/comp/CKD6b_1.svg")));
+		addFrame(SVG::load(assetPlugin(plugin, "res/dark/comp/CKD6b_0.svg")));
+		addFrame(SVG::load(assetPlugin(plugin, "res/dark/comp/CKD6b_1.svg")));	
 	}
 };
 
@@ -129,12 +136,6 @@ struct CKSSH : SVGSwitch, ToggleSwitch {
 	}
 };
 
-struct CKD6b : SVGSwitch, MomentarySwitch {
-	CKD6b() {
-		addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_0.svg")));
-		addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKD6b_1.svg")));
-	}
-};
 
 struct InvisibleKey : MomentarySwitch {
 	InvisibleKey() {
