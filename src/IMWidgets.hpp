@@ -33,18 +33,15 @@ struct DynamicPanelWidget : FramebufferWidget {
 };
 
 
-// Dynamic SVGPort (started from SVGPort in app.hpp and SVGPort.cpp)
+// Dynamic SVGPort (see SVGPort in app.hpp and SVGPort.cpp)
 
-struct DynamicSVGPort : Port, FramebufferWidget {
+struct DynamicSVGPort : SVGPort {
     int* mode;
     int oldMode;
     std::vector<std::shared_ptr<SVG>> frames;
-    SVGWidget* sw;
-	CircularShadow *shadow;
 
     DynamicSVGPort();
-    void addJack(std::shared_ptr<SVG> svg);
-	void draw(NVGcontext *vg) override {Port::draw(vg); FramebufferWidget::draw(vg);}
+    void addFrame(std::shared_ptr<SVG> svg);
     void step() override;
 };
 
@@ -58,9 +55,6 @@ DynamicSVGPort* createDynamicJackWidget(Vec pos, Port::PortType type, Module *mo
 	dynJack->portId = portId;
 	
 	dynJack->mode = mode;
-	dynJack->addJack(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
-    dynJack->addJack(SVG::load(assetPlugin(plugin, "res/comp/CL1362.svg")));
-	
 	return dynJack;
 }
 

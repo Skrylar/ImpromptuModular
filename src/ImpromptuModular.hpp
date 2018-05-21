@@ -63,10 +63,10 @@ static const int offsetTrimpot = 3;//does both h and v
 
 // Variations on existing knobs, lights, etc
 
-struct IMPort : DynamicSVGPort {// was : SVGPort
+struct IMPort : DynamicSVGPort {
 	IMPort() {
-		addJack(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
-		addJack(SVG::load(assetPlugin(plugin, "res/dark/comp/CL1362.svg")));
+		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
+		addFrame(SVG::load(assetPlugin(plugin, "res/dark/comp/CL1362.svg")));
 		
 		shadow->blurRadius = 10.0;
 		shadow->opacity = 0.8;

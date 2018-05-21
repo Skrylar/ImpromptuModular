@@ -53,27 +53,15 @@ void DynamicPanelWidget::step() {
 // Dynamic SVGPort
 
 DynamicSVGPort::DynamicSVGPort() {
-    mode = nullptr;;
+    mode = nullptr;
     oldMode = -1;
-	
-	shadow = new CircularShadow();
-	addChild(shadow);
-	// Avoid breakage if plugins fail to call setSVG()
-	// In that case, just disable the shadow.
-	shadow->box.size = Vec();
-
-    sw = new SVGWidget();
-    addChild(sw);
+	//SVGPort constructor automatically called
 }
 
-void DynamicSVGPort::addJack(std::shared_ptr<SVG> svg) {
+void DynamicSVGPort::addFrame(std::shared_ptr<SVG> svg) {
     frames.push_back(svg);
-    if(!sw->svg) {
-        sw->setSVG(svg);
-		box.size = sw->box.size;
-		shadow->box.size = sw->box.size;
-		shadow->box.pos = Vec(0, sw->box.size.y * 0.1);	
-    }
+    if(!background->svg)
+        SVGPort::setSVG(svg);
 }
 
 void DynamicSVGPort::step() {
@@ -81,7 +69,7 @@ void DynamicSVGPort::step() {
         oversample = 2.f;
     }
     if(mode != nullptr && *mode != oldMode) {
-        sw->setSVG(frames[*mode]);
+        background->setSVG(frames[*mode]);
         oldMode = *mode;
         dirty = true;
     }
