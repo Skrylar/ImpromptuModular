@@ -61,16 +61,13 @@ DynamicSVGPort* createDynamicJackWidget(Vec pos, Port::PortType type, Module *mo
 
 // Dynamic SVGSwitch (started from SVGSwitch in app.hpp and SVGSwitch.cpp)
 
-struct DynamicSVGSwitch : virtual ParamWidget, FramebufferWidget {
+struct DynamicSVGSwitch : SVGSwitch {
     int* mode;
     int oldMode;
-    std::vector<std::shared_ptr<SVG>> frames;
-    SVGWidget* sw;
 
     DynamicSVGSwitch();
-    void addFrame(std::shared_ptr<SVG> svg);
-    void step() override;
 	void onChange(EventChange &e) override;
+    void step() override;
 };
 
 template <class TDynamicSwitch>
@@ -80,10 +77,10 @@ DynamicSVGSwitch* createDynamicSwitchWidget(Vec pos, Module *module, int paramId
 	dynSwitch->box.pos = pos;
 	dynSwitch->module = module;
 	dynSwitch->paramId = paramId;
-	dynSwitch->mode = mode;
 	dynSwitch->setLimits(minValue, maxValue);
 	dynSwitch->setDefaultValue(defaultValue);
-	
+
+	dynSwitch->mode = mode;
 	return dynSwitch;
 }
 

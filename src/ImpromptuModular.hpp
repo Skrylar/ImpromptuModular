@@ -67,13 +67,12 @@ struct IMPort : DynamicSVGPort {
 	IMPort() {
 		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
 		addFrame(SVG::load(assetPlugin(plugin, "res/dark/comp/CL1362.svg")));
-		
 		shadow->blurRadius = 10.0;
 		shadow->opacity = 0.8;
 	}
 };
 
-struct IMBigPushButton : DynamicSVGSwitch, MomentarySwitch {// was : SVGSwitch, MomentarySwitch
+struct IMBigPushButton : DynamicSVGSwitch, MomentarySwitch {
 	IMBigPushButton() {
 		addFrame(SVG::load(assetPlugin(plugin, "res/light/comp/CKD6b_0.svg")));
 		addFrame(SVG::load(assetPlugin(plugin, "res/light/comp/CKD6b_1.svg")));

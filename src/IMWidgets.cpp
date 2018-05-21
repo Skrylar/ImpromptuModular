@@ -79,18 +79,21 @@ void DynamicSVGPort::step() {
 // Dynamic Switch
 
 DynamicSVGSwitch::DynamicSVGSwitch() {
-    mode = nullptr;;
+    mode = nullptr;
     oldMode = -1;
-    sw = new SVGWidget();
-    addChild(sw);
+	//SVGSwitch constructor automatically called
 }
 
-void DynamicSVGSwitch::addFrame(std::shared_ptr<SVG> svg) {
-    frames.push_back(svg);
-    if(!sw->svg) {
-        sw->setSVG(svg);
-		box.size = sw->box.size;
-    }
+void DynamicSVGSwitch::onChange(EventChange &e) {
+	assert(frames.size() > 0);
+	float valueScaled = rescale(value, minValue, maxValue, 0, frames.size()/2 - 1);
+	int index = clamp((int) roundf(valueScaled), 0, (int) frames.size() - 1);
+	if(mode != nullptr)
+		index += (*mode) * 2;
+	assert(index < (int)frames.size());
+	sw->setSVG(frames[index]);
+	dirty = true;
+	SVGSwitch::onChange(e);
 }
 
 void DynamicSVGSwitch::step() {
@@ -104,14 +107,4 @@ void DynamicSVGSwitch::step() {
     }
 }
 
-void DynamicSVGSwitch::onChange(EventChange &e) {
-	assert(frames.size() > 0);
-	float valueScaled = rescale(value, minValue, maxValue, 0, frames.size()/2 - 1);
-	int index = clamp((int) roundf(valueScaled), 0, (int) frames.size() - 1);
-	if(mode != nullptr)
-		index += (*mode) * 2;
-	assert(index < (int)frames.size());
-	sw->setSVG(frames[index]);
-	dirty = true;
-	ParamWidget::onChange(e);
-}
+
