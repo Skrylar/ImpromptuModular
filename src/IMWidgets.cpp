@@ -1,7 +1,7 @@
 //***********************************************************************************************
 //Impromptu Modular: Modules for VCV Rack by Marc Boulé
 //
-//This is code from Valley Rack Free by Dale Johnson
+//Based on code from Valley Rack Free by Dale Johnson
 //See ./LICENSE.txt for all licenses
 //***********************************************************************************************
 
@@ -9,7 +9,7 @@
 #include "IMWidgets.hpp"
 
 
-// Dynamic Panel
+// Dynamic Panel (From Dale Johnson)
 
 void PanelBorderWidget::draw(NVGcontext *vg) {
     NVGcolor borderColor = nvgRGBAf(0.5, 0.5, 0.5, 0.5);
@@ -50,9 +50,9 @@ void DynamicPanelWidget::step() {
 }
 
 
-// Dynamic Jack
+// Dynamic SVGPort
 
-DynamicJackWidget::DynamicJackWidget() {
+DynamicSVGPort::DynamicSVGPort() {
     mode = nullptr;;
     oldMode = -1;
 	
@@ -62,26 +62,26 @@ DynamicJackWidget::DynamicJackWidget() {
 	// In that case, just disable the shadow.
 	shadow->box.size = Vec();
 
-    visibleJack = new SVGWidget();
-    addChild(visibleJack);
+    sw = new SVGWidget();
+    addChild(sw);
 }
 
-void DynamicJackWidget::addJack(std::shared_ptr<SVG> svg) {
-    jacks.push_back(svg);
-    if(!visibleJack->svg) {
-        visibleJack->setSVG(svg);
-		box.size = visibleJack->box.size;
-		shadow->box.size = visibleJack->box.size;
-		shadow->box.pos = Vec(0, visibleJack->box.size.y * 0.1);	
+void DynamicSVGPort::addJack(std::shared_ptr<SVG> svg) {
+    frames.push_back(svg);
+    if(!sw->svg) {
+        sw->setSVG(svg);
+		box.size = sw->box.size;
+		shadow->box.size = sw->box.size;
+		shadow->box.pos = Vec(0, sw->box.size.y * 0.1);	
     }
 }
 
-void DynamicJackWidget::step() {
+void DynamicSVGPort::step() {
     if (isNear(gPixelRatio, 1.0)) {
         oversample = 2.f;
     }
     if(mode != nullptr && *mode != oldMode) {
-        visibleJack->setSVG(jacks[*mode]);
+        sw->setSVG(frames[*mode]);
         oldMode = *mode;
         dirty = true;
     }
@@ -90,14 +90,14 @@ void DynamicJackWidget::step() {
 
 // Dynamic Switch
 
-DynamicSwitchWidget::DynamicSwitchWidget() {
+DynamicSVGSwitch::DynamicSVGSwitch() {
     mode = nullptr;;
     oldMode = -1;
     sw = new SVGWidget();
     addChild(sw);
 }
 
-void DynamicSwitchWidget::addFrame(std::shared_ptr<SVG> svg) {
+void DynamicSVGSwitch::addFrame(std::shared_ptr<SVG> svg) {
     frames.push_back(svg);
     if(!sw->svg) {
         sw->setSVG(svg);
@@ -105,7 +105,7 @@ void DynamicSwitchWidget::addFrame(std::shared_ptr<SVG> svg) {
     }
 }
 
-void DynamicSwitchWidget::step() {
+void DynamicSVGSwitch::step() {
     if (isNear(gPixelRatio, 1.0)) {
         oversample = 2.f;
     }
@@ -116,7 +116,7 @@ void DynamicSwitchWidget::step() {
     }
 }
 
-void DynamicSwitchWidget::onChange(EventChange &e) {
+void DynamicSVGSwitch::onChange(EventChange &e) {
 	assert(frames.size() > 0);
 	float valueScaled = rescale(value, minValue, maxValue, 0, frames.size()/2 - 1);
 	int index = clamp((int) roundf(valueScaled), 0, (int) frames.size() - 1);

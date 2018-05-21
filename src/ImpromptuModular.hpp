@@ -63,7 +63,7 @@ static const int offsetTrimpot = 3;//does both h and v
 
 // Variations on existing knobs, lights, etc
 
-struct IMPort : DynamicJackWidget {// was : SVGPort
+struct IMPort : DynamicSVGPort {// was : SVGPort
 	IMPort() {
 		addJack(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
 		addJack(SVG::load(assetPlugin(plugin, "res/dark/comp/CL1362.svg")));
@@ -73,7 +73,7 @@ struct IMPort : DynamicJackWidget {// was : SVGPort
 	}
 };
 
-struct IMBigPushButton : DynamicSwitchWidget, MomentarySwitch {// was : SVGSwitch, MomentarySwitch
+struct IMBigPushButton : DynamicSVGSwitch, MomentarySwitch {// was : SVGSwitch, MomentarySwitch
 	IMBigPushButton() {
 		addFrame(SVG::load(assetPlugin(plugin, "res/light/comp/CKD6b_0.svg")));
 		addFrame(SVG::load(assetPlugin(plugin, "res/light/comp/CKD6b_1.svg")));

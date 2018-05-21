@@ -1,7 +1,7 @@
 //***********************************************************************************************
 //Impromptu Modular: Modules for VCV Rack by Marc Boulé
 //
-//This is code from Valley Rack Free by Dale Johnson
+//Based on code from Valley Rack Free by Dale Johnson
 //See ./LICENSE.txt for all licenses
 //***********************************************************************************************
 
@@ -14,7 +14,7 @@
 using namespace rack;
 
 
-// Dynamic Panel
+// Dynamic Panel (From Dale Johnson)
 
 struct PanelBorderWidget : TransparentWidget {
 	void draw(NVGcontext *vg) override;
@@ -33,25 +33,25 @@ struct DynamicPanelWidget : FramebufferWidget {
 };
 
 
-// Dynamic Jack (started from ValleyWidgets DynamicSwitch and DynamicKnob)
+// Dynamic SVGPort (started from SVGPort in app.hpp and SVGPort.cpp)
 
-struct DynamicJackWidget : Port, FramebufferWidget {
+struct DynamicSVGPort : Port, FramebufferWidget {
     int* mode;
     int oldMode;
-    std::vector<std::shared_ptr<SVG>> jacks;
-    SVGWidget* visibleJack;
+    std::vector<std::shared_ptr<SVG>> frames;
+    SVGWidget* sw;
 	CircularShadow *shadow;
 
-    DynamicJackWidget();
+    DynamicSVGPort();
     void addJack(std::shared_ptr<SVG> svg);
 	void draw(NVGcontext *vg) override {Port::draw(vg); FramebufferWidget::draw(vg);}
     void step() override;
 };
 
-template <class TDynamicJack>
-DynamicJackWidget* createDynamicJackWidget(Vec pos, Port::PortType type, Module *module, int portId,
+template <class TDynamicPort>
+DynamicSVGPort* createDynamicJackWidget(Vec pos, Port::PortType type, Module *module, int portId,
                                                int* mode, Plugin* plugin) {
-	DynamicJackWidget *dynJack = new TDynamicJack();//Port::create(pos, type, module, portId);
+	DynamicSVGPort *dynJack = new TDynamicPort();
 	dynJack->box.pos = pos;
 	dynJack->module = module;
 	dynJack->type = type;
@@ -65,24 +65,24 @@ DynamicJackWidget* createDynamicJackWidget(Vec pos, Port::PortType type, Module 
 }
 
 
-// Dynamic Switch (started from SVGSwitch in app.hpp and SVGSwitch.cpp)
+// Dynamic SVGSwitch (started from SVGSwitch in app.hpp and SVGSwitch.cpp)
 
-struct DynamicSwitchWidget : virtual ParamWidget, FramebufferWidget {
+struct DynamicSVGSwitch : virtual ParamWidget, FramebufferWidget {
     int* mode;
     int oldMode;
     std::vector<std::shared_ptr<SVG>> frames;
     SVGWidget* sw;
 
-    DynamicSwitchWidget();
+    DynamicSVGSwitch();
     void addFrame(std::shared_ptr<SVG> svg);
     void step() override;
 	void onChange(EventChange &e) override;
 };
 
 template <class TDynamicSwitch>
-DynamicSwitchWidget* createDynamicSwitchWidget(Vec pos, Module *module, int paramId, float minValue, float maxValue, float defaultValue,
+DynamicSVGSwitch* createDynamicSwitchWidget(Vec pos, Module *module, int paramId, float minValue, float maxValue, float defaultValue,
                                                int* mode, Plugin* plugin) {
-	DynamicSwitchWidget *dynSwitch = new TDynamicSwitch();
+	DynamicSVGSwitch *dynSwitch = new TDynamicSwitch();
 	dynSwitch->box.pos = pos;
 	dynSwitch->module = module;
 	dynSwitch->paramId = paramId;
