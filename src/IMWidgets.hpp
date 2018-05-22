@@ -16,7 +16,7 @@ using namespace rack;
 
 // Dynamic Panel (From Dale Johnson)
 
-struct PanelBorderWidget : TransparentWidget {
+struct PanelBorderWidget : TransparentWidget { // from SVGPanel.cpp
 	void draw(NVGcontext *vg) override;
 };
 
@@ -72,9 +72,10 @@ TDynamicParam* createDynamicParam(Vec pos, Module *module, int paramId, float mi
 struct DynamicSVGSwitch : SVGSwitch {
     int* mode;
     int oldMode;
-
+	std::vector<std::shared_ptr<SVG>> framesAll;
+	
     DynamicSVGSwitch();
-	void onChange(EventChange &e) override;
+	void addFrameAll(std::shared_ptr<SVG> svg);
     void step() override;
 };
 

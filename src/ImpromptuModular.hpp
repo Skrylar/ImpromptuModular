@@ -74,10 +74,10 @@ struct IMPort : DynamicSVGPort {
 
 struct IMBigPushButton : DynamicSVGSwitch, MomentarySwitch {
 	IMBigPushButton() {
-		addFrame(SVG::load(assetPlugin(plugin, "res/light/comp/CKD6b_0.svg")));
-		addFrame(SVG::load(assetPlugin(plugin, "res/light/comp/CKD6b_1.svg")));
-		addFrame(SVG::load(assetPlugin(plugin, "res/dark/comp/CKD6b_0.svg")));
-		addFrame(SVG::load(assetPlugin(plugin, "res/dark/comp/CKD6b_1.svg")));	
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/light/comp/CKD6b_0.svg")));
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/light/comp/CKD6b_1.svg")));
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/dark/comp/CKD6b_0.svg")));
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/dark/comp/CKD6b_1.svg")));	
 	}
 };
 

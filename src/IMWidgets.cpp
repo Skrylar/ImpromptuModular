@@ -11,7 +11,7 @@
 
 // Dynamic Panel (From Dale Johnson)
 
-void PanelBorderWidget::draw(NVGcontext *vg) {
+void PanelBorderWidget::draw(NVGcontext *vg) {  // carbon copy from SVGPanel.cpp
     NVGcolor borderColor = nvgRGBAf(0.5, 0.5, 0.5, 0.5);
     nvgBeginPath(vg);
     nvgRect(vg, 0.5, 0.5, box.size.x - 1.0, box.size.y - 1.0);
@@ -66,6 +66,7 @@ void DynamicSVGPort::addFrame(std::shared_ptr<SVG> svg) {
 
 void DynamicSVGPort::step() {
     if (isNear(gPixelRatio, 1.0)) {
+		// Small details draw poorly at low DPI, so oversample when drawing to the framebuffer
         oversample = 2.f;
     }
     if(mode != nullptr && *mode != oldMode) {
@@ -84,26 +85,30 @@ DynamicSVGSwitch::DynamicSVGSwitch() {
 	//SVGSwitch constructor automatically called
 }
 
-void DynamicSVGSwitch::onChange(EventChange &e) {
-	assert(frames.size() > 0);
-	float valueScaled = rescale(value, minValue, maxValue, 0, frames.size()/2 - 1);
-	int index = clamp((int) roundf(valueScaled), 0, (int) frames.size() - 1);
-	if(mode != nullptr)
-		index += (*mode) * 2;
-	assert(index < (int)frames.size());
-	sw->setSVG(frames[index]);
-	dirty = true;
-	SVGSwitch::onChange(e);
+void DynamicSVGSwitch::addFrameAll(std::shared_ptr<SVG> svg) {
+    framesAll.push_back(svg);
+	if (framesAll.size() == 2) {
+		addFrame(framesAll[0]);
+		addFrame(framesAll[1]);
+	}
 }
 
 void DynamicSVGSwitch::step() {
     if (isNear(gPixelRatio, 1.0)) {
+		// Small details draw poorly at low DPI, so oversample when drawing to the framebuffer
         oversample = 2.f;
     }
     if(mode != nullptr && *mode != oldMode) {
-        sw->setSVG(frames[(*mode) * 2]);
+        if ((*mode) == 0) {
+			frames[0]=framesAll[0];
+			frames[1]=framesAll[1];
+		}
+		else {
+			frames[0]=framesAll[2];
+			frames[1]=framesAll[3];
+		}
         oldMode = *mode;
-        dirty = true;
+		onChange(*(new EventChange()));
     }
 }
 

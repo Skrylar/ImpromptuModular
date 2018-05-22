@@ -256,7 +256,7 @@ struct TwelveKeyWidget : ModuleWidget {
 		return menu;
 	}	
 	
-	
+
 	TwelveKeyWidget(TwelveKey *module) : ModuleWidget(module) {
 		// Main panel from Inkscape
         DynamicPanelWidget *panel = new DynamicPanelWidget();
