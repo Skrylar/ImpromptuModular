@@ -49,7 +49,7 @@ static const int vOffsetCKSSH = 5;
 static const int offsetCKD6 = -1;//does both h and v
 static const int offsetCKD6b = 0;//does both h and v
 static const int vOffsetDisplay = -2;
-static const int offsetDavies1900 = -6;//does both h and v
+static const int offsetIMBigKnob = -6;//does both h and v
 static const int offsetRoundSmallBlackKnob = 1;//does both h and v
 static const int offsetMediumLight = 9;
 static const float offsetLEDbutton = 3.0f;//does both h and v
@@ -81,8 +81,11 @@ struct IMBigPushButton : DynamicSVGSwitch, MomentarySwitch {
 	}
 };
 
-struct Davies1900hBlackSnapKnob : Davies1900hBlackKnob {
-	Davies1900hBlackSnapKnob() {
+struct IMBigKnob : SVGKnob {
+	IMBigKnob() {
+		setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLargeWithMark.svg")));
+		minAngle = -0.83*M_PI;
+		maxAngle = 0.83*M_PI;
 		snap = true;
 		smooth = false;
 		shadow->blurRadius = 10.0;
@@ -90,9 +93,11 @@ struct Davies1900hBlackSnapKnob : Davies1900hBlackKnob {
 	}
 };
 
-struct Davies1900hBlackKnobNoTick : Davies1900hKnob {// use for infinite rotary only
-	Davies1900hBlackKnobNoTick() {
+struct IMBigKnobInf : SVGKnob {// use for infinite rotary only
+	IMBigKnobInf() {
 		setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLarge.svg")));
+		minAngle = -0.83*M_PI;
+		maxAngle = 0.83*M_PI;
 		speed = 0.9f;
 		smooth = false;
 		shadow->blurRadius = 10.0;

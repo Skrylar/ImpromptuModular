@@ -33,8 +33,18 @@ struct DynamicPanelWidget : FramebufferWidget {
 };
 
 
-// Dynamic SVGPort (see SVGPort in app.hpp and SVGPort.cpp)
+// ******** Dynamic Ports ********
 
+// General Dynamic Port creation
+template <class TDynamicPort>
+TDynamicPort* createDynamicPort(Vec pos, Port::PortType type, Module *module, int portId,
+                                               int* mode) {
+	TDynamicPort *dynPort = Port::create<TDynamicPort>(pos, type, module, portId);
+	dynPort->mode = mode;
+	return dynPort;
+}
+
+// Dynamic SVGPort (see SVGPort in app.hpp and SVGPort.cpp)
 struct DynamicSVGPort : SVGPort {
     int* mode;
     int oldMode;
@@ -45,22 +55,20 @@ struct DynamicSVGPort : SVGPort {
     void step() override;
 };
 
-template <class TDynamicPort>
-DynamicSVGPort* createDynamicJackWidget(Vec pos, Port::PortType type, Module *module, int portId,
-                                               int* mode, Plugin* plugin) {// TODO remove *plugin 
-	DynamicSVGPort *dynJack = new TDynamicPort();
-	dynJack->box.pos = pos;
-	dynJack->module = module;
-	dynJack->type = type;
-	dynJack->portId = portId;
-	
-	dynJack->mode = mode;
-	return dynJack;
+
+
+// ******** Dynamic Params ********
+
+// General Dynamic Param creation
+template <class TDynamicParam>
+TDynamicParam* createDynamicParam(Vec pos, Module *module, int paramId, float minValue, float maxValue, float defaultValue,
+                                               int* mode) {
+	TDynamicParam *dynParam = ParamWidget::create<TDynamicParam>(pos, module, paramId, minValue, maxValue, defaultValue);
+	dynParam->mode = mode;
+	return dynParam;
 }
 
-
 // Dynamic SVGSwitch (see SVGSwitch in app.hpp and SVGSwitch.cpp)
-
 struct DynamicSVGSwitch : SVGSwitch {
     int* mode;
     int oldMode;
@@ -70,18 +78,6 @@ struct DynamicSVGSwitch : SVGSwitch {
     void step() override;
 };
 
-template <class TDynamicSwitch>
-DynamicSVGSwitch* createDynamicSwitchWidget(Vec pos, Module *module, int paramId, float minValue, float maxValue, float defaultValue,
-                                               int* mode, Plugin* plugin) {// TODO remove *plugin 
-	DynamicSVGSwitch *dynSwitch = new TDynamicSwitch();
-	dynSwitch->box.pos = pos;
-	dynSwitch->module = module;
-	dynSwitch->paramId = paramId;
-	dynSwitch->setLimits(minValue, maxValue);
-	dynSwitch->setDefaultValue(defaultValue);
 
-	dynSwitch->mode = mode;
-	return dynSwitch;
-}
 
 #endif

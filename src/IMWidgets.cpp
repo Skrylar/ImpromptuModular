@@ -76,7 +76,7 @@ void DynamicSVGPort::step() {
 }
 
 
-// Dynamic Switch
+// Dynamic SVGSwitch
 
 DynamicSVGSwitch::DynamicSVGSwitch() {
     mode = nullptr;

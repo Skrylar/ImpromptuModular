@@ -330,9 +330,9 @@ struct TwelveKeyWidget : ModuleWidget {
 		// Left side inputs
 		
 		
-		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerL, rowRuler0), Port::INPUT, module, TwelveKey::CV_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerL, rowRuler1), Port::INPUT, module, TwelveKey::GATE_INPUT, &module->panelTheme, plugin));
-		addInput(createDynamicJackWidget<IMPort>(Vec(columnRulerL, rowRuler2), Port::INPUT, module, TwelveKey::OCT_INPUT, &module->panelTheme, plugin));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerL, rowRuler0), Port::INPUT, module, TwelveKey::CV_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerL, rowRuler1), Port::INPUT, module, TwelveKey::GATE_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerL, rowRuler2), Port::INPUT, module, TwelveKey::OCT_INPUT, &module->panelTheme));
 
 		// Middle
 		// Press LED (moved other controls below up by 16 px when removed, to better center)
@@ -345,13 +345,13 @@ struct TwelveKeyWidget : ModuleWidget {
 		addChild(octaveNumDisplay);
 		
 		// Octave buttons
-		addParam(createDynamicSwitchWidget<IMBigPushButton>(Vec(columnRulerM - 20 + offsetCKD6b, rowRuler2 - 26 + offsetCKD6b), module, TwelveKey::OCTDEC_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));
-		addParam(createDynamicSwitchWidget<IMBigPushButton>(Vec(columnRulerM + 22 + offsetCKD6b, rowRuler2 - 26 + offsetCKD6b), module, TwelveKey::OCTINC_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme, plugin));
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerM - 20 + offsetCKD6b, rowRuler2 - 26 + offsetCKD6b), module, TwelveKey::OCTDEC_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerM + 22 + offsetCKD6b, rowRuler2 - 26 + offsetCKD6b), module, TwelveKey::OCTINC_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		
 		// Right side outputs
-		addOutput(createDynamicJackWidget<IMPort>(Vec(columnRulerR, rowRuler0), Port::OUTPUT, module, TwelveKey::CV_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<IMPort>(Vec(columnRulerR, rowRuler1), Port::OUTPUT, module, TwelveKey::GATE_OUTPUT, &module->panelTheme, plugin));
-		addOutput(createDynamicJackWidget<IMPort>(Vec(columnRulerR, rowRuler2), Port::OUTPUT, module, TwelveKey::OCT_OUTPUT, &module->panelTheme, plugin));
+		addOutput(createDynamicPort<IMPort>(Vec(columnRulerR, rowRuler0), Port::OUTPUT, module, TwelveKey::CV_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(columnRulerR, rowRuler1), Port::OUTPUT, module, TwelveKey::GATE_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(columnRulerR, rowRuler2), Port::OUTPUT, module, TwelveKey::OCT_OUTPUT, &module->panelTheme));
 	}
 };
 
