@@ -1,11 +1,12 @@
 # Impromptu Modular: Modules for [VCV Rack](https://vcvrack.com) by Marc Boulé
 
-In collaboration with Nigel Sixsmith (module features and improvements, functionality, bug reports and testing, GateSeq64 concept, tutorials) and Xavier Belmont (module features and improvements, bug reports and testing, dark panels and components).
+In collaboration with *Nigel Sixsmith* (module features and improvements, functionality, bug reports and testing, GateSeq64 concept, tutorials) and *Xavier Belmont* (module features and improvements, bug reports and testing, dark panels and components).
 
 ![IM](res/img/Blank.jpg)
 
+Version 0.6.4* 
 
-Version 0.6.4 (for the 0.6.3 readme see [here](https://github.com/MarcBoule/ImpromptuModular/tree/cf63dcdb77934d41903414d20d3b744bd33f0a17))
+   * For the 0.6.3 readme see [here](https://github.com/MarcBoule/ImpromptuModular/tree/cf63dcdb77934d41903414d20d3b744bd33f0a17)
 
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!)
 
@@ -21,18 +22,20 @@ See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
 
 ## Acknowledgements
 
-Thanks to Alfredo Santamaria and Nay Seven for suggestions regarding improvements to Phrase-Seq-16. A very special thank you to Nigel Sixsmith for the many fruitful discussions and numerous design improvements that were suggested to PhraseSeq16/32, for the concept proposal for GateSeq64, and also for the in-depth presentation of Phrase-Seq-16 and Twelve-Key in [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg).
+Thanks to *Alfredo Santamaria* and *Nay Seven* for suggestions regarding improvements to PhraseSeq16. Special thanks to *Xavier Belmont* for suggestions regarding improvements to the PhraseSeq modules, bug reports and for graciously providing the dark panels of the modules. A very special thank you to *Nigel Sixsmith* for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq modules, for the concept proposal and development of GateSeq64, testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg). 
 
 
 # Modules
+
+Each module is available in light (Classic) or dark (Dark-valor) panels, selectable right-clicking the module in Rack).
 
 * [TwelveKey](#twelve-key): Chainable one-octave keyboard controller.
 
 * [PhraseSeq16](#phrase-seq-16): 16-phrase sequencer with 16 steps per sequence with CV in and onboard keyboard for easy sequence programming.
 
-* [PhraseSeq32](#phrase-seq-32): 32-phrase sequencer with 32 steps per sequence with CV in and onboard keyboard for easy sequence programming, can be configured as 1x32 or 2x16.
+* [PhraseSeq32](#phrase-seq-32): 32-phrase sequencer with 32 steps per sequence with CV in and onboard keyboard for easy sequence programming (can be configured as 1x32 or 2x16).
 
-* [GateSeq64](#gate-seq-64): 64-step gate sequencer with per-step probability control, can be configured as 1x64, 2x32, 4x16.
+* [GateSeq64](#gate-seq-64): 64-step gate sequencer with per-step probability control (can be configured as 1x64, 2x32 or 4x16).
 
 * [WriteSeq32](#write-seq-32): 3-channel 32-step sequencer with CV in for easy sequence programming.
 
