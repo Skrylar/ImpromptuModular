@@ -566,7 +566,7 @@ struct WriteSeq32Widget : ModuleWidget {
 	
 	WriteSeq32Widget(WriteSeq32 *module) : ModuleWidget(module) {
 		// Main panel from Inkscape
-        DynamicPanelWidget *panel = new DynamicPanelWidget();
+        DynamicSVGPanel *panel = new DynamicSVGPanel();
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/WriteSeq32.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/WriteSeq32_dark.svg")));
         box.size = panel->box.size;

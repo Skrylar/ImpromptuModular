@@ -20,14 +20,14 @@ struct PanelBorderWidget : TransparentWidget { // from SVGPanel.cpp
 	void draw(NVGcontext *vg) override;
 };
 
-struct DynamicPanelWidget : FramebufferWidget {
+struct DynamicSVGPanel : FramebufferWidget { // like SVGPanel (in app.hpp and SVGPanel.cpp) but with dynmically assignable panel
     int* mode;
     int oldMode;
     std::vector<std::shared_ptr<SVG>> panels;
     SVGWidget* visiblePanel;
     PanelBorderWidget* border;
 
-    DynamicPanelWidget();
+    DynamicSVGPanel();
     void addPanel(std::shared_ptr<SVG> svg);
     void step() override;
 };

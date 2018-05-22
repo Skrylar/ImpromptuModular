@@ -256,10 +256,10 @@ struct TwelveKeyWidget : ModuleWidget {
 		return menu;
 	}	
 	
-
+	
 	TwelveKeyWidget(TwelveKey *module) : ModuleWidget(module) {
 		// Main panel from Inkscape
-        DynamicPanelWidget *panel = new DynamicPanelWidget();
+        DynamicSVGPanel *panel = new DynamicSVGPanel();
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/TwelveKey.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/TwelveKey_dark.svg")));
         box.size = panel->box.size;

@@ -20,7 +20,7 @@ void PanelBorderWidget::draw(NVGcontext *vg) {  // carbon copy from SVGPanel.cpp
     nvgStroke(vg);
 }
 
-DynamicPanelWidget::DynamicPanelWidget() {
+DynamicSVGPanel::DynamicSVGPanel() {
     mode = nullptr;
     oldMode = -1;
     visiblePanel = new SVGWidget();
@@ -29,7 +29,7 @@ DynamicPanelWidget::DynamicPanelWidget() {
     addChild(border);
 }
 
-void DynamicPanelWidget::addPanel(std::shared_ptr<SVG> svg) {
+void DynamicSVGPanel::addPanel(std::shared_ptr<SVG> svg) {
     panels.push_back(svg);
     if(!visiblePanel->svg) {
         visiblePanel->setSVG(svg);
@@ -38,8 +38,9 @@ void DynamicPanelWidget::addPanel(std::shared_ptr<SVG> svg) {
     }
 }
 
-void DynamicPanelWidget::step() {
+void DynamicSVGPanel::step() { // all code except middle if() from SVGPanel::step() in SVGPanel.cpp
     if (isNear(gPixelRatio, 1.0)) {
+		// Small details draw poorly at low DPI, so oversample when drawing to the framebuffer
         oversample = 2.f;
     }
     if(mode != nullptr && *mode != oldMode) {
@@ -47,6 +48,7 @@ void DynamicPanelWidget::step() {
         oldMode = *mode;
         dirty = true;
     }
+	FramebufferWidget::step();
 }
 
 

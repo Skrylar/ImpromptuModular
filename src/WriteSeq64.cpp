@@ -639,7 +639,7 @@ struct WriteSeq64Widget : ModuleWidget {
 	
 	WriteSeq64Widget(WriteSeq64 *module) : ModuleWidget(module) {
 		// Main panel from Inkscape
-        DynamicPanelWidget *panel = new DynamicPanelWidget();
+        DynamicSVGPanel *panel = new DynamicSVGPanel();
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/WriteSeq64.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/WriteSeq64_dark.svg")));
         box.size = panel->box.size;

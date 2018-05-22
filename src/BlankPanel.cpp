@@ -87,7 +87,7 @@ struct BlankPanelWidget : ModuleWidget {
 
 	BlankPanelWidget(BlankPanel *module) : ModuleWidget(module) {
 		// Main panel from Inkscape
-        DynamicPanelWidget *panel = new DynamicPanelWidget();
+        DynamicSVGPanel *panel = new DynamicSVGPanel();
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/BlankPanel.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/BlankPanel_dark.svg")));
         box.size = panel->box.size;

@@ -93,7 +93,7 @@ struct IMBigKnob : SVGKnob {
 	}
 };
 
-struct IMBigKnobInf : SVGKnob {// use for infinite rotary only
+struct IMBigKnobInf : SVGKnob {
 	IMBigKnobInf() {
 		setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLarge.svg")));
 		minAngle = -0.83*M_PI;
@@ -103,7 +103,6 @@ struct IMBigKnobInf : SVGKnob {// use for infinite rotary only
 		shadow->blurRadius = 10.0;
 		shadow->opacity = 0.8;
 	}
-	void randomize() override {}
 };
 
 struct RoundSmallBlackKnobB : RoundKnob {

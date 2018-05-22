@@ -1183,7 +1183,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 	
 	PhraseSeq16Widget(PhraseSeq16 *module) : ModuleWidget(module) {
 		// Main panel from Inkscape
-        DynamicPanelWidget *panel = new DynamicPanelWidget();
+        DynamicSVGPanel *panel = new DynamicSVGPanel();
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq16.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/PhraseSeq16_dark.svg")));
         box.size = panel->box.size;
