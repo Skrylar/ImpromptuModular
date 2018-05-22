@@ -573,7 +573,7 @@ struct PhraseSeq32 : Module {
 					editingGateCV = inputs[CV_INPUT].value;
 					editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
-					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+					applyTiedStep(sequence, stepIndexEdit, ((stepIndexEdit >= 16 && stepConfig == 1) ? 16 : 0) + lengths[sequence]);
 					if (params[AUTOSTEP_PARAM].value > 0.5f)
 						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, lengths[sequence]);
 				}
@@ -808,7 +808,7 @@ struct PhraseSeq32 : Module {
 					newCV = newCV - floor(newCV) + (float) (newOct - 3);
 					if (newCV >= -3.0f && newCV < 4.0f) {
 						cv[sequence][stepIndexEdit] = newCV;
-						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+						applyTiedStep(sequence, stepIndexEdit, ((stepIndexEdit >= 16 && stepConfig == 1) ? 16 : 0) + lengths[sequence]);
 					}
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = cv[sequence][stepIndexEdit];
@@ -825,7 +825,7 @@ struct PhraseSeq32 : Module {
 						tiedWarning = tiedWarningInit;
 					else {			
 						cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
-						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+						applyTiedStep(sequence, stepIndexEdit, ((stepIndexEdit >= 16 && stepConfig == 1) ? 16 : 0) + lengths[sequence]);
 						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 						editingGateCV = cv[sequence][stepIndexEdit];
 						editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
@@ -877,7 +877,7 @@ struct PhraseSeq32 : Module {
 				attributes[sequence][stepIndexEdit] ^= ATT_MSK_TIED;
 				if (getTied(sequence,stepIndexEdit)) {
 					attributes[sequence][stepIndexEdit] &= ~(ATT_MSK_GATE1 | ATT_MSK_GATE1P | ATT_MSK_GATE2 | ATT_MSK_SLIDE);
-					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+					applyTiedStep(sequence, stepIndexEdit, ((stepIndexEdit >= 16 && stepConfig == 1) ? 16 : 0) + lengths[sequence]);
 				}
 				else
 					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE1;
@@ -1135,30 +1135,20 @@ struct PhraseSeq32 : Module {
 		return warningFlashState;
 	}	
 	
-	void applyTiedStep(int seqNum, int indexTied, int numSteps) {
+	void applyTiedStep(int seqNum, int indexTied, int seqLength) {
+		// Start on indexTied and loop until seqLength
 		// Called because either:
 		//   case A: tied was activated for given step
 		//   case B: the given step's CV was modified
 		// These cases are mutually exclusive
 		
-		if (getTied(seqNum,indexTied)) {
-			// copy previous CV over to current step
-			int iSrc = indexTied - 1;
-			if (iSrc < 0) 
-				iSrc = numSteps -1;
-			cv[seqNum][indexTied] = cv[seqNum][iSrc];
-		}
+		// copy previous CV over to current step if tied
+		if (getTied(seqNum,indexTied) && (indexTied > 0))
+			cv[seqNum][indexTied] = cv[seqNum][indexTied - 1];
+		
 		// Affect downstream CVs of subsequent tied note chain (can be 0 length if next note is not tied)
-		int iDest = indexTied + 1;
-		for (int i = 0; i < 16; i++) {// i is a safety counter in case all notes are tied (avoir infinite loop)
-			if (iDest > numSteps - 1) 
-				iDest = 0;
-			if (!getTied(seqNum,iDest))
-				break;
-			// iDest is tied, so set its CV
-			cv[seqNum][iDest] = cv[seqNum][indexTied];
-			iDest++;
-		}
+		for (int i = indexTied + 1; i < seqLength && getTied(seqNum,i); i++) 
+			cv[seqNum][i] = cv[seqNum][indexTied];
 	}
 };
 

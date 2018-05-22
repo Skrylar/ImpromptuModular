@@ -1050,30 +1050,20 @@ struct PhraseSeq16 : Module {
 		return warningFlashState;
 	}	
 	
-	void applyTiedStep(int seqNum, int indexTied, int numSteps) {
+	void applyTiedStep(int seqNum, int indexTied, int seqLength) {
+		// Start on indexTied and loop until seqLength
 		// Called because either:
 		//   case A: tied was activated for given step
 		//   case B: the given step's CV was modified
 		// These cases are mutually exclusive
 		
-		if (getTied(seqNum,indexTied)) {
-			// copy previous CV over to current step
-			int iSrc = indexTied - 1;
-			if (iSrc < 0) 
-				iSrc = numSteps -1;
-			cv[seqNum][indexTied] = cv[seqNum][iSrc];
-		}
+		// copy previous CV over to current step if tied
+		if (getTied(seqNum,indexTied) && (indexTied > 0))
+			cv[seqNum][indexTied] = cv[seqNum][indexTied - 1];
+		
 		// Affect downstream CVs of subsequent tied note chain (can be 0 length if next note is not tied)
-		int iDest = indexTied + 1;
-		for (int i = 0; i < 16; i++) {// i is a safety counter in case all notes are tied (avoir infinite loop)
-			if (iDest > numSteps - 1) 
-				iDest = 0;
-			if (!getTied(seqNum,iDest))
-				break;
-			// iDest is tied, so set its CV
-			cv[seqNum][iDest] = cv[seqNum][indexTied];
-			iDest++;
-		}
+		for (int i = indexTied + 1; i < seqLength && getTied(seqNum,i); i++) 
+			cv[seqNum][i] = cv[seqNum][indexTied];
 	}
 };
 
