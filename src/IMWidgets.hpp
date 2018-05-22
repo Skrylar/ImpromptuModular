@@ -47,7 +47,7 @@ struct DynamicSVGPort : SVGPort {
 
 template <class TDynamicPort>
 DynamicSVGPort* createDynamicJackWidget(Vec pos, Port::PortType type, Module *module, int portId,
-                                               int* mode, Plugin* plugin) {
+                                               int* mode, Plugin* plugin) {// TODO remove *plugin 
 	DynamicSVGPort *dynJack = new TDynamicPort();
 	dynJack->box.pos = pos;
 	dynJack->module = module;
@@ -59,7 +59,7 @@ DynamicSVGPort* createDynamicJackWidget(Vec pos, Port::PortType type, Module *mo
 }
 
 
-// Dynamic SVGSwitch (started from SVGSwitch in app.hpp and SVGSwitch.cpp)
+// Dynamic SVGSwitch (see SVGSwitch in app.hpp and SVGSwitch.cpp)
 
 struct DynamicSVGSwitch : SVGSwitch {
     int* mode;
@@ -72,7 +72,7 @@ struct DynamicSVGSwitch : SVGSwitch {
 
 template <class TDynamicSwitch>
 DynamicSVGSwitch* createDynamicSwitchWidget(Vec pos, Module *module, int paramId, float minValue, float maxValue, float defaultValue,
-                                               int* mode, Plugin* plugin) {
+                                               int* mode, Plugin* plugin) {// TODO remove *plugin 
 	DynamicSVGSwitch *dynSwitch = new TDynamicSwitch();
 	dynSwitch->box.pos = pos;
 	dynSwitch->module = module;

@@ -455,11 +455,9 @@ struct GateSeq64 : Module {
 						}
 					}
 					else {
-						if (!running) {
-							phrase[phraseIndexEdit] += deltaKnob;
-							if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
-							if (phrase[phraseIndexEdit] > 15) phrase[phraseIndexEdit] = 15;
-						}						
+						phrase[phraseIndexEdit] += deltaKnob;
+						if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
+						if (phrase[phraseIndexEdit] > 15) phrase[phraseIndexEdit] = 15;
 					}	
 				}					
 			}
@@ -794,7 +792,7 @@ struct GateSeq64Widget : ModuleWidget {
 				else if (prob >= 1)
 					snprintf(displayStr, 4, ",%2d", prob);
 				else
-					snprintf(displayStr, 4, " 0");
+					snprintf(displayStr, 4, "  0");
 			}
 			else if (module->displayState == GateSeq64::DISP_LENGTH) {
 				if (module->isEditingSequence())

@@ -23,6 +23,30 @@
   <defs
      id="defs12547">
     <linearGradient
+       inkscape:collect="always"
+       id="linearGradient3492">
+      <stop
+         style="stop-color:#ffffff;stop-opacity:0.99152541"
+         offset="0"
+         id="stop3488" />
+      <stop
+         style="stop-color:#ffffff;stop-opacity:0"
+         offset="1"
+         id="stop3490" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient3462"
+       inkscape:collect="always">
+      <stop
+         id="stop3458"
+         offset="0"
+         style="stop-color:#ffffff;stop-opacity:1" />
+      <stop
+         id="stop3460"
+         offset="1"
+         style="stop-color:#ffffff;stop-opacity:0" />
+    </linearGradient>
+    <linearGradient
        id="linearGradient3471"
        inkscape:collect="always">
       <stop
@@ -4660,6 +4684,26 @@
        x2="68.149338"
        y2="213.24872"
        gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3462"
+       id="linearGradient3456"
+       x1="26.758932"
+       y1="162.00005"
+       x2="30.999321"
+       y2="162.00005"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(1,0,0,0.56406449,0,70.45207)" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3492"
+       id="linearGradient3456-9"
+       x1="26.758932"
+       y1="162.00005"
+       x2="30.999321"
+       y2="162.00005"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.99994556,0,0,0.53172821,135.45279,-112.05223)" />
   </defs>
   <sodipodi:namedview
      id="base"
@@ -4668,9 +4712,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="5.2105265"
-     inkscape:cx="88.644697"
-     inkscape:cy="68.627416"
+     inkscape:zoom="16"
+     inkscape:cx="10.433018"
+     inkscape:cy="364.09372"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -4680,7 +4724,7 @@
      fit-margin-bottom="0"
      units="px"
      inkscape:window-width="1920"
-     inkscape:window-height="1017"
+     inkscape:window-height="1018"
      inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
@@ -4689,7 +4733,8 @@
      inkscape:guide-bbox="true"
      inkscape:snap-global="false"
      inkscape:snap-nodes="true"
-     inkscape:snap-object-midpoints="true">
+     inkscape:snap-object-midpoints="true"
+     showborder="false">
     <inkscape:grid
        type="xygrid"
        id="grid12870"
@@ -4701,12 +4746,12 @@
        id="guide1774"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="4.5700757,87.745454"
+       position="0.21543543,107.07141"
        orientation="1,0"
        id="guide2051"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="7.1597853,57.963794"
+       position="1.0771772,107.28684"
        orientation="1,0"
        id="guide2018"
        inkscape:locked="false" />
@@ -4756,7 +4801,7 @@
        id="guide3321"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="41.955834,84.254423"
+       position="-2.2342592,100.23699"
        orientation="0,1"
        id="guide3549"
        inkscape:locked="false" />
@@ -4766,7 +4811,7 @@
        id="guide3664"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="11.171296,74.035227"
+       position="-3.5905905,99.459358"
        orientation="0,1"
        id="guide4120"
        inkscape:locked="false" />
@@ -4799,7 +4844,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -6130,6 +6175,29 @@
        d="m 73.416697,230.20828 c -2.4375,0 -2.48326,0 -2.48326,0"
        id="path2351-5-7-3-9-8-2-9-6-2-81-2-2-1-0"
        inkscape:connector-curvature="0" />
+    <g
+       id="g6615"
+       transform="translate(-0.02547835,-0.09162418)">
+      <rect
+         ry="0.2061033"
+         y="161.61122"
+         x="26.758932"
+         height="0.4386346"
+         width="4.2403884"
+         id="rect3447"
+         style="opacity:1;fill:url(#linearGradient3456);fill-opacity:1;stroke:none;stroke-width:3.25051093;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+      <rect
+         transform="matrix(0.00654967,0.99997855,-0.99973157,0.02316862,0,0)"
+         inkscape:transform-center-y="1.7043546"
+         inkscape:transform-center-x="-0.018217348"
+         ry="0.19428796"
+         y="-26.118992"
+         x="162.21027"
+         height="0.41348886"
+         width="4.2401576"
+         id="rect3447-6"
+         style="opacity:1;fill:url(#linearGradient3456-9);fill-opacity:1;stroke:none;stroke-width:3.15587854;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+    </g>
   </g>
   <g
      inkscape:groupmode="layer"
