@@ -64,8 +64,8 @@ struct WriteSeq32 : Module {
 	int panelTheme = 0;
 	bool running;
 	int indexChannel;
-	float cv[4][32] = {};
-	bool gates[4][32] = {};
+	float cv[4][32];
+	bool gates[4][32];
 
 	// No need to save
 	int indexStep;
@@ -210,7 +210,7 @@ struct WriteSeq32 : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
-		static const float copyPasteInfoTime = 0.4f;// seconds
+		static const float copyPasteInfoTime = 0.5f;// seconds
 		
 		
 		//********** Buttons, knobs, switches and inputs **********

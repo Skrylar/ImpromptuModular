@@ -65,8 +65,8 @@ struct WriteSeq64 : Module {
 	bool running;
 	int indexChannel;
 	int indexSteps[5];// [1;64] each
-	float cv[5][64] = {};
-	bool gates[5][64] = {};
+	float cv[5][64];
+	bool gates[5][64];
 
 	// No need to save
 	int indexStep[5];// [0;63] each
@@ -238,7 +238,7 @@ struct WriteSeq64 : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
-		static const float copyPasteInfoTime = 0.4f;// seconds
+		static const float copyPasteInfoTime = 0.5f;// seconds
 		
 		
 		//********** Buttons, knobs, switches and inputs **********

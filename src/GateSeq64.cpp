@@ -60,13 +60,13 @@ struct GateSeq64 : Module {
 	int runModeSong;
 	//
 	int sequence;
-	int lengths[16] = {};// values are 1 to 16
+	int lengths[16];// values are 1 to 16
 	//
-	int phrase[16] = {};// This is the song (series of phases; a phrase is a patten number)
+	int phrase[16];// This is the song (series of phases; a phrase is a patten number)
 	int phrases;//1 to 16
 	//	
 	bool trig[4] = {false, false, false, false};
-	int attributes[16][64] = {};
+	int attributes[16][64];
 
 	// No need to save
 	int displayState;
@@ -134,7 +134,7 @@ struct GateSeq64 : Module {
 			}
 			runModeSeq[i] = MODE_FWD;
 			phrase[i] = 0;
-			lengths[i] = 16;
+			lengths[i] = 16 * stepConfig;
 		}
 		for (int i = 0; i < 64; i++)
 			cpBufAttributes[i] = 50;
@@ -345,7 +345,7 @@ struct GateSeq64 : Module {
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		static const float feedbackCPinitTime = 3.0f;// seconds
-		static const float copyPasteInfoTime = 0.4f;// seconds
+		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float displayProbInfoTime = 2.5f;// seconds
 		float engineSampleRate = engineGetSampleRate();
 		feedbackCPinit = (long) (feedbackCPinitTime * engineSampleRate);

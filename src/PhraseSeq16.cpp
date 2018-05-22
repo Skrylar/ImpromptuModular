@@ -104,11 +104,11 @@ struct PhraseSeq16 : Module {
 	int sequence;
 	int lengths[16];//1 to 16
 	//
-	int phrase[16] = {};// This is the song (series of phases; a phrase is a patten number)
+	int phrase[16];// This is the song (series of phases; a phrase is a patten number)
 	int phrases;//1 to 16
 	//
-	float cv[16][16] = {};// [-3.0 : 3.917]. First index is patten number, 2nd index is step
-	int attributes[16][16] = {};// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
+	float cv[16][16];// [-3.0 : 3.917]. First index is patten number, 2nd index is step
+	int attributes[16][16];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
 	//
 	bool attached;
 
@@ -520,9 +520,9 @@ struct PhraseSeq16 : Module {
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		static const float gateTime = 0.3f;// seconds
-		static const float copyPasteInfoTime = 0.4f;// seconds
+		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float editLengthTime = 1.6f;// seconds
-		static const float tiedWarningTime = 0.4f;// seconds
+		static const float tiedWarningTime = 0.5f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * engineGetSampleRate());
 		
 		
@@ -540,7 +540,7 @@ struct PhraseSeq16 : Module {
 		
 		// Seq CV input
 		if (inputs[SEQCV_INPUT].active) {
-			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * 15.0f / 10.0f), 0.0f, 15.0f );
+			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (16.0f - 1.0f) / 10.0f), 0.0f, (16.0f - 1.0f) );
 		}
 		
 		// Run button
@@ -1053,7 +1053,7 @@ struct PhraseSeq16 : Module {
 	void applyTiedStep(int seqNum, int indexTied, int numSteps) {
 		// Called because either:
 		//   case A: tied was activated for given step
-		//   case B: the give step's CV was modified
+		//   case B: the given step's CV was modified
 		// These cases are mutually exclusive
 		
 		if (getTied(seqNum,indexTied)) {
@@ -1386,8 +1386,8 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 
 0.6.4:
 turn off keyboard and oct lights when detached in song mode (makes no sense, can't mod steps and shows stepping though seq that may not be playing)
-allow each sequence to have its own length
-removed mode CV input, moved reset button, added paste 4/8/ALL option (ALL copies length also)
+removed mode CV input, added paste 4/8/ALL option (ALL copies length and run mode also)
+allow each sequence to have its own length and run mode
 merged functionalities of transpose and rotate into one knob
 implemented tied notes state bit for each step, and added light to tied steps
 implemented 0-T slide as opposed to 0-2s slide, where T is clock period

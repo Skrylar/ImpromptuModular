@@ -92,11 +92,11 @@ struct PhraseSeq32 : Module {
 	int sequence;
 	int lengths[32];//1 to 32
 	//
-	int phrase[32] = {};// This is the song (series of phases; a phrase is a patten number)
+	int phrase[32];// This is the song (series of phases; a phrase is a patten number)
 	int phrases;//1 to 32
 	//
-	float cv[32][32] = {};// [-3.0 : 3.917]. First index is patten number, 2nd index is step
-	int attributes[32][32] = {};// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
+	float cv[32][32];// [-3.0 : 3.917]. First index is patten number, 2nd index is step
+	int attributes[32][32];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
 	//
 	bool attached;
 
@@ -185,7 +185,7 @@ struct PhraseSeq32 : Module {
 			}
 			runModeSeq[i] = MODE_FWD;
 			phrase[i] = 0;
-			lengths[i] = 16;
+			lengths[i] = 16 * stepConfig;
 			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
 		}
@@ -288,7 +288,7 @@ struct PhraseSeq32 : Module {
 		json_t *runModeSeqJ = json_array();
 		for (int i = 0; i < 16; i++)
 			json_array_insert_new(runModeSeqJ, i, json_integer(runModeSeq[i]));
-		json_object_set_new(rootJ, "runModeSeq2", runModeSeqJ);
+		json_object_set_new(rootJ, "runModeSeq2", runModeSeqJ);// "2" appended so no break patches
 
 		// runModeSong
 		json_object_set_new(rootJ, "runModeSong", json_integer(runModeSong));
@@ -345,7 +345,7 @@ struct PhraseSeq32 : Module {
 			running = json_is_true(runningJ);
 
 		// runModeSeq
-		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq2");
+		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq2");// "2" appended so no break patches
 		if (runModeSeqJ) {
 			for (int i = 0; i < 16; i++)
 			{
@@ -451,8 +451,8 @@ struct PhraseSeq32 : Module {
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		static const float gateTime = 0.3f;// seconds
-		static const float copyPasteInfoTime = 0.4f;// seconds
-		static const float tiedWarningTime = 0.4f;// seconds
+		static const float copyPasteInfoTime = 0.5f;// seconds
+		static const float tiedWarningTime = 0.5f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * engineGetSampleRate());
 		
 		
@@ -571,7 +571,7 @@ struct PhraseSeq32 : Module {
 				else {			
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = inputs[CV_INPUT].value;
-					editingChannel = stepIndexEdit > 15 ? 1 : 0;
+					editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
 					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 					if (params[AUTOSTEP_PARAM].value > 0.5f)
@@ -628,7 +628,7 @@ struct PhraseSeq32 : Module {
 							if (!writeTrig)
 								editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
 							editingGate = (unsigned long) (gateTime * engineGetSampleRate());
-							editingChannel = stepIndexEdit > 15 ? 1 : 0;
+							editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 						}
 					}
 					else
@@ -665,7 +665,7 @@ struct PhraseSeq32 : Module {
 							if (!writeTrig)
 								editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
 							editingGate = (unsigned long) (gateTime * engineGetSampleRate());
-							editingChannel = stepIndexEdit > 15 ? 1 : 0;
+							editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 						}
 					}
 					else {
@@ -734,7 +734,6 @@ struct PhraseSeq32 : Module {
 						lengths[sequence] += deltaKnob;
 						if (lengths[sequence] > (16 * stepConfig)) lengths[sequence] = (16 * stepConfig);
 						if (lengths[sequence] < 1 ) lengths[sequence] = 1;
-						//if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = lengths[sequence] - 1;
 						if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
 							stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));
 					}
@@ -813,7 +812,7 @@ struct PhraseSeq32 : Module {
 					}
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = cv[sequence][stepIndexEdit];
-					editingChannel = stepIndexEdit > 15 ? 1 : 0;
+					editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 				}
 			}
 		}		
@@ -829,7 +828,7 @@ struct PhraseSeq32 : Module {
 						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 						editingGateCV = cv[sequence][stepIndexEdit];
-						editingChannel = stepIndexEdit > 15 ? 1 : 0;
+						editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 					}						
 				}
 				displayState = DISP_NORMAL;
@@ -1139,7 +1138,7 @@ struct PhraseSeq32 : Module {
 	void applyTiedStep(int seqNum, int indexTied, int numSteps) {
 		// Called because either:
 		//   case A: tied was activated for given step
-		//   case B: the give step's CV was modified
+		//   case B: the given step's CV was modified
 		// These cases are mutually exclusive
 		
 		if (getTied(seqNum,indexTied)) {
