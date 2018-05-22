@@ -1011,7 +1011,6 @@ struct PhraseSeq32 : Module {
 			for (int i = 0; i < 32; i++) {
 				if (displayState == DISP_LENGTH) {
 					if (editingSequence) {
-						//lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < lengths[sequence]) ? 0.5f : 0.0f);
 						int col = i % (16 * stepConfig);
 						if (col < (lengths[sequence] - 1))
 							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.1f, 0.0f);
@@ -1021,7 +1020,6 @@ struct PhraseSeq32 : Module {
 							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.0f, 0.0f);
 					}
 					else {
-						//lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
 						if (i < phrases - 1)
 							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.1f, 0.0f);
 						else
@@ -1061,8 +1059,14 @@ struct PhraseSeq32 : Module {
 		for (int i = 0; i < 7; i++) {
 			if (!editingSequence && (!attached || (stepConfig == 1)))// no oct lights when song mode and detached (makes no sense, can't modify steps and it will be stepping though seq that may not be playing)
 				lights[OCTAVE_LIGHTS + i].value = 0.0f;
-			else
-				lights[OCTAVE_LIGHTS + i].value = (i == (6 - octLightIndex) ? 1.0f : 0.0f);
+			else {
+				if (tiedWarning > 0l) {
+					bool warningFlashState = calcTiedWarning(tiedWarning, tiedWarningInit);
+					lights[OCTAVE_LIGHTS + i].value = (warningFlashState && (i == (6 - octLightIndex))) ? 1.0f : 0.0f;
+				}
+				else				
+					lights[OCTAVE_LIGHTS + i].value = (i == (6 - octLightIndex) ? 1.0f : 0.0f);
+			}
 		}
 		
 		// Keyboard lights (can only show channel A when running attached in 1x16 mode, does not pose problem for all other situations)
@@ -1075,8 +1079,14 @@ struct PhraseSeq32 : Module {
 		for (int i = 0; i < 12; i++) {
 			if (!editingSequence && (!attached || (stepConfig == 1)))// no oct lights when song mode and detached (makes no sense, can't modify steps and it will be stepping though seq that may not be playing)
 				lights[KEY_LIGHTS + i].value = 0.0f;
-			else
-				lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+			else {
+				if (tiedWarning > 0l) {
+					bool warningFlashState = calcTiedWarning(tiedWarning, tiedWarningInit);
+					lights[KEY_LIGHTS + i].value = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
+				}
+				else				
+					lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+			}
 		}			
 		
 		// Gate1, Gate1Prob, Gate2, Slide and Tied lights (can only show channel A when running attached in 1x16 mode, does not pose problem for all other situations)

@@ -979,8 +979,14 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 7; i++) {
 			if (!editingSequence && !attached)// no oct lights when song mode and detached (makes no sense, can't mod steps and stepping though seq that may not be playing)
 				lights[OCTAVE_LIGHTS + i].value = 0.0f;
-			else
-				lights[OCTAVE_LIGHTS + i].value = (i == (6 - octLightIndex) ? 1.0f : 0.0f);
+			else {
+				if (tiedWarning > 0l) {
+					bool warningFlashState = calcTiedWarning(tiedWarning, tiedWarningInit);
+					lights[OCTAVE_LIGHTS + i].value = (warningFlashState && (i == (6 - octLightIndex))) ? 1.0f : 0.0f;
+				}
+				else				
+					lights[OCTAVE_LIGHTS + i].value = (i == (6 - octLightIndex) ? 1.0f : 0.0f);
+			}
 		}
 		
 		// Keyboard lights
@@ -993,8 +999,14 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 12; i++) {
 			if (!editingSequence && !attached)// no keyboard lights when song mode and detached (makes no sense, can't mod steps and stepping though seq that may not be playing)
 				lights[KEY_LIGHTS + i].value = 0.0f;
-			else
-				lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+			else {
+				if (tiedWarning > 0l) {
+					bool warningFlashState = calcTiedWarning(tiedWarning, tiedWarningInit);
+					lights[KEY_LIGHTS + i].value = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
+				}
+				else				
+					lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+			}
 		}			
 		
 		// Gate1, Gate1Prob, Gate2, Slide and Tied lights
