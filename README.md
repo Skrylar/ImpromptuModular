@@ -23,13 +23,13 @@ Thanks to **Alfredo Santamaria** and **Nay Seven** for suggestions regarding imp
 
 # Modules
 
-Each module is available in light (Classic) or dark (Dark-valor) panels, selectable right-clicking the module in Rack).
+Each module is available in light (Classic) or dark (Dark-valor) panels, selectable by right-clicking the module in Rack.
 
 * [TwelveKey](#twelve-key): Chainable one-octave keyboard controller.
 
-* [PhraseSeq16](#phrase-seq-16): 16-phrase sequencer with 16 steps per sequence with CV in and onboard keyboard for easy sequence programming.
+* [PhraseSeq16](#phrase-seq-16): 16-phrase sequencer with 16 steps per sequence, with CV in and onboard keyboard for easy sequence programming.
 
-* [PhraseSeq32](#phrase-seq-32): 32-phrase sequencer with 32 steps per sequence with CV in and onboard keyboard for easy sequence programming (can be configured as 1x32 or 2x16).
+* [PhraseSeq32](#phrase-seq-32): 32-phrase sequencer with 32 steps per sequence, with CV in and onboard keyboard for easy sequence programming (can be configured as 1x32 or 2x16).
 
 * [GateSeq64](#gate-seq-64): 64-step gate sequencer with per-step probability control (can be configured as 1x64, 2x32 or 4x16).
 
