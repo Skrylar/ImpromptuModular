@@ -1,12 +1,10 @@
 # Impromptu Modular: Modules for [VCV Rack](https://vcvrack.com) by Marc Boulé
 
-In collaboration with *Nigel Sixsmith* (module features and improvements, functionality, bug reports and testing, GateSeq64 concept, tutorials) and *Xavier Belmont* (module features and improvements, bug reports and testing, dark panels and components).
-
 ![IM](res/img/Blank.jpg)
 
-Version 0.6.4* 
+Version 0.6.4  
 
-   * For the 0.6.3 readme see [here](https://github.com/MarcBoule/ImpromptuModular/tree/cf63dcdb77934d41903414d20d3b744bd33f0a17)
+(For the 0.6.3 readme see [here](https://github.com/MarcBoule/ImpromptuModular/tree/cf63dcdb77934d41903414d20d3b744bd33f0a17))
 
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!)
 
@@ -15,14 +13,12 @@ Available in the VCV Rack [plugin manager](https://vcvrack.com/plugins.html).
 
 ## License
 
-Based on code from the Fundamental and Audible Instruments plugins by Andrew Belt and graphics from the Component Library by Wes Milholen.
-
-See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
+Based on code from the Fundamental and Audible Instruments plugins by Andrew Belt and graphics from the Component Library by Wes Milholen. See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
 
 
 ## Acknowledgements
 
-Thanks to *Alfredo Santamaria* and *Nay Seven* for suggestions regarding improvements to PhraseSeq16. Special thanks to *Xavier Belmont* for suggestions regarding improvements to the PhraseSeq modules, bug reports and for graciously providing the dark panels of the modules. A very special thank you to *Nigel Sixsmith* for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq modules, for the concept proposal and development of GateSeq64, testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg). 
+Thanks to **Alfredo Santamaria** and **Nay Seven** for suggestions regarding improvements to PhraseSeq16. Special thanks to **Xavier Belmont** for suggestions regarding improvements to the PhraseSeq modules, for testing/bug-reports and for graciously providing the dark panels of the modules. A very special thank you to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq modules, for the concept proposal and development of GateSeq64, for testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg). 
 
 
 # Modules
