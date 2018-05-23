@@ -484,11 +484,8 @@ struct PhraseSeq16 : Module {
 		if (attachedJ)
 			attached = !!json_integer_value(attachedJ);
 		
-		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
-		if (isEditingSequence())
-			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
-		else
-			stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
+		// Initialize dependants after everything loaded
+		initRun();
 	}
 
 

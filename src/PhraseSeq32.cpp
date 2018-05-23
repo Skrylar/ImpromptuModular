@@ -419,11 +419,11 @@ struct PhraseSeq32 : Module {
 		if (attachedJ)
 			attached = !!json_integer_value(attachedJ);
 		
-		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
-		if (isEditingSequence())
-			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
-		else
-			stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
+		// Initialize dependants after everything loaded
+		int stepConfig = 1;// 2x16
+		if (params[CONFIG_PARAM].value < 0.5f)// 1x32
+			stepConfig = 2;
+		initRun(stepConfig);
 	}
 
 	void rotateSeq(int seqNum, bool directionRight, int seqLength, bool chanB_16) {
@@ -786,8 +786,16 @@ struct PhraseSeq32 : Module {
 							sequence += deltaKnob;
 							if (sequence < 0) sequence = 0;
 							if (sequence >= 32) sequence = (32 - 1);
-							if (stepIndexEdit >= lengths[sequence])
-								stepIndexEdit = lengths[sequence] - 1;
+							if (stepConfig == 1) {
+								if (stepIndexEdit >= 16 && (stepIndexEdit - 16) >= lengths[sequence])
+									stepIndexEdit = 16 + lengths[sequence] - 1;
+								else if (stepIndexEdit < 16 && (stepIndexEdit) >= lengths[sequence])
+									stepIndexEdit = lengths[sequence] - 1;
+							}
+							else {
+								if (stepIndexEdit >= lengths[sequence]) 
+									stepIndexEdit = lengths[sequence] - 1;
+							}
 						}
 					}
 					else {

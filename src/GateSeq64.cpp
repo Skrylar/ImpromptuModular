@@ -334,11 +334,13 @@ struct GateSeq64 : Module {
 				}
 		}
 		
-		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
-		if (isEditingSequence())
-			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
-		else
-			stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
+		// Initialize dependants after everything loaded
+		int stepConfig = 1;// 4x16
+		if (params[CONFIG_PARAM].value > 1.5f)// 1x64
+			stepConfig = 4;
+		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
+			stepConfig = 2;
+		initRun(stepConfig);
 	}
 
 	
