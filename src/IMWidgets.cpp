@@ -78,6 +78,7 @@ void DynamicSVGPort::step() {
         oldMode = *mode;
         dirty = true;
     }
+	Port::step();
 }
 
 

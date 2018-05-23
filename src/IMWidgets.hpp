@@ -42,12 +42,6 @@ template <class TDynamicPort>
 TDynamicPort* createDynamicPort(Vec pos, Port::PortType type, Module *module, int portId,
                                                int* mode) {
 	TDynamicPort *dynPort = Port::create<TDynamicPort>(pos, type, module, portId);
-	/*TDynamicPort *dynPort = new TDynamicPort();
-	dynPort->box.pos = pos;
-	dynPort->module = module;
-	dynPort->type = type;
-	dynPort->portId = portId;*/
-
 	dynPort->mode = mode;
 	return dynPort;
 }
