@@ -36,7 +36,7 @@ Each module is available in light (Classic) or dark (Dark-valor) panels, selecta
 
 * [WriteSeq64](#write-seq-64): 4-channel 64-step sequencer with CV in for easy sequence programming.
 
-Details about each module are given below. Feedback and bug reports are always appreciated!
+Details about each module are given below. Feedback and bug reports (and [donations!](https://www.paypal.me/marcboule)) are always appreciated!
 
 
 ## General Concepts <a id="general-concepts"></a>
