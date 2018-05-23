@@ -492,28 +492,27 @@ struct PhraseSeq16 : Module {
 	}
 
 
-	void rotateSeq(int sequenceNum, bool directionRight, int numSteps) {
+	void rotateSeq(int seqNum, bool directionRight, int seqLength) {
 		float rotCV;
-		bool rotAttributes;
-		int iRot = 0;
-		int iDelta = 0;
+		int rotAttributes;
+		int iStart = 0;
+		int iEnd = seqLength - 1;
+		int iRot = iStart;
+		int iDelta = 1;
 		if (directionRight) {
-			iRot = numSteps - 1;
+			iRot = iEnd;
 			iDelta = -1;
 		}
-		else {
-			iDelta = 1;
-		}
-		rotCV = cv[sequenceNum][iRot];
-		rotAttributes = attributes[sequenceNum][iRot];
+		rotCV = cv[seqNum][iRot];
+		rotAttributes = attributes[seqNum][iRot];
 		for ( ; ; iRot += iDelta) {
-			if (iDelta == 1 && iRot >= numSteps - 1) break;
-			if (iDelta == -1 && iRot <= 0) break;
-			cv[sequenceNum][iRot] = cv[sequenceNum][iRot + iDelta];
-			attributes[sequenceNum][iRot] = attributes[sequenceNum][iRot + iDelta];
+			if (iDelta == 1 && iRot >= iEnd) break;
+			if (iDelta == -1 && iRot <= iStart) break;
+			cv[seqNum][iRot] = cv[seqNum][iRot + iDelta];
+			attributes[seqNum][iRot] = attributes[seqNum][iRot + iDelta];
 		}
-		cv[sequenceNum][iRot] = rotCV;
-		attributes[sequenceNum][iRot] = rotAttributes;
+		cv[seqNum][iRot] = rotCV;
+		attributes[seqNum][iRot] = rotAttributes;
 	}
 	
 
@@ -855,7 +854,7 @@ struct PhraseSeq16 : Module {
 					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 				}
 				else
-					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE1;
+					attributes[sequence][stepIndexEdit] |= (ATT_MSK_GATE1 | ATT_MSK_GATE2);;
 			}
 			displayState = DISP_NORMAL;
 		}		

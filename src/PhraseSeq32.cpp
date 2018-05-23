@@ -113,7 +113,7 @@ struct PhraseSeq32 : Module {
 	int stepIndexRunHistory;// no need to initialize
 	int phraseIndexRunHistory;// no need to initialize
 	int displayState;
-	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
+	unsigned long slideStepsRemain[2];// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta[2];// no need to initialize, this is a companion to slideStepsRemain
 	float cvCPbuffer[32];// copy paste buffer for CVs
 	int attributesCPbuffer[32];// copy paste buffer for attributes
@@ -198,7 +198,8 @@ struct PhraseSeq32 : Module {
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
-		slideStepsRemain = 0ul;
+		slideStepsRemain[0] = 0ul;
+		slideStepsRemain[1] = 0ul;
 		attached = true;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
@@ -237,7 +238,8 @@ struct PhraseSeq32 : Module {
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
-		slideStepsRemain = 0ul;
+		slideStepsRemain[0] = 0ul;
+		slideStepsRemain[1] = 0ul;
 		attached = true;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
@@ -424,28 +426,29 @@ struct PhraseSeq32 : Module {
 			stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 	}
 
-	void rotateSeq(int sequenceNum, bool directionRight, int numSteps) {
+	void rotateSeq(int seqNum, bool directionRight, int seqLength, bool chanB_16) {
+		// set chanB_16 to false to rotate chan A in 2x16 config (length will be <= 16) or single chan in 1x32 config (length will be <= 32)
+		// set chanB_16 to true  to rotate chan B in 2x16 config (length must be <= 16)
 		float rotCV;
 		int rotAttributes;
-		int iRot = 0;
-		int iDelta = 0;
+		int iStart = chanB_16 ? 16 : 0;
+		int iEnd = iStart + seqLength - 1;
+		int iRot = iStart;
+		int iDelta = 1;
 		if (directionRight) {
-			iRot = numSteps - 1;
+			iRot = iEnd;
 			iDelta = -1;
 		}
-		else {
-			iDelta = 1;
-		}
-		rotCV = cv[sequenceNum][iRot];
-		rotAttributes = attributes[sequenceNum][iRot];
+		rotCV = cv[seqNum][iRot];
+		rotAttributes = attributes[seqNum][iRot];
 		for ( ; ; iRot += iDelta) {
-			if (iDelta == 1 && iRot >= numSteps - 1) break;
-			if (iDelta == -1 && iRot <= 0) break;
-			cv[sequenceNum][iRot] = cv[sequenceNum][iRot + iDelta];
-			attributes[sequenceNum][iRot] = attributes[sequenceNum][iRot + iDelta];
+			if (iDelta == 1 && iRot >= iEnd) break;
+			if (iDelta == -1 && iRot <= iStart) break;
+			cv[seqNum][iRot] = cv[seqNum][iRot + iDelta];
+			attributes[seqNum][iRot] = attributes[seqNum][iRot + iDelta];
 		}
-		cv[sequenceNum][iRot] = rotCV;
-		attributes[sequenceNum][iRot] = rotAttributes;
+		cv[seqNum][iRot] = rotCV;
+		attributes[seqNum][iRot] = rotAttributes;
 	}
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
@@ -751,8 +754,14 @@ struct PhraseSeq32 : Module {
 						if (transposeOffset < -99) transposeOffset = -99;						
 						// Tranpose by this number of semi-tones: deltaKnob
 						float transposeOffsetCV = ((float)(deltaKnob))/12.0f;
-						for (int s = 0; s < 32; s++) {
-							cv[sequence][s] += transposeOffsetCV;
+						if (stepConfig == 1){ // 2x16 (transpose only the 16 steps corresponding to row where stepIndexEdit is located)
+							int offset = stepIndexEdit < 16 ? 0 : 16;
+							for (int s = offset; s < offset + 16; s++) 
+								cv[sequence][s] += transposeOffsetCV;
+						}
+						else { // 1x32 (transpose all 32 steps)
+							for (int s = 0; s < 32; s++) 
+								cv[sequence][s] += transposeOffsetCV;
 						}
 					}
 				}
@@ -763,11 +772,11 @@ struct PhraseSeq32 : Module {
 						if (rotateOffset < -99) rotateOffset = -99;	
 						if (deltaKnob > 0 && deltaKnob < 99) {// Rotate right, 99 is safety
 							for (int i = deltaKnob; i > 0; i--)
-								rotateSeq(sequence, true, lengths[sequence]);
+								rotateSeq(sequence, true, lengths[sequence], stepConfig == 1 && stepIndexEdit >= 16);
 						}
 						if (deltaKnob < 0 && deltaKnob > -99) {// Rotate left, 99 is safety
 							for (int i = deltaKnob; i < 0; i++)
-								rotateSeq(sequence, false, lengths[sequence]);
+								rotateSeq(sequence, false, lengths[sequence], stepConfig == 1 && stepIndexEdit >= 16);
 						}
 					}						
 				}
@@ -880,7 +889,7 @@ struct PhraseSeq32 : Module {
 					applyTiedStep(sequence, stepIndexEdit, ((stepIndexEdit >= 16 && stepConfig == 1) ? 16 : 0) + lengths[sequence]);
 				}
 				else
-					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE1;
+					attributes[sequence][stepIndexEdit] |= (ATT_MSK_GATE1 | ATT_MSK_GATE2);
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -916,13 +925,14 @@ struct PhraseSeq32 : Module {
 				}
 				
 				// Slide
-				if ( (editingSequence && ((attributes[sequence][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) || 
-				    (!editingSequence && ((attributes[phrase[phraseIndexRun]][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) ) {
-					// avtivate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
-					slideStepsRemain =   (unsigned long) (((float)clockPeriod)   * params[SLIDE_KNOB_PARAM].value / 2.0f);// 0-T slide, where T is clock period (can be too long when user does clock gating)
-					//slideStepsRemain = (unsigned long)  (engineGetSampleRate() * params[SLIDE_KNOB_PARAM].value );// 0-2s slide
-					for (int i = 0; i < 2; i += stepConfig)
-						slideCVdelta[i] = (slideToCV[i] - slideFromCV[i])/(float)slideStepsRemain;
+				for (int i = 0; i < 2; i += stepConfig) {
+					if ( ( editingSequence && ((attributes[sequence][(i * 16) + stepIndexRun] & ATT_MSK_SLIDE) != 0) ) || 
+				         (!editingSequence && ((attributes[phrase[phraseIndexRun]][(i * 16) + stepIndexRun] & ATT_MSK_SLIDE) != 0) ) ) {
+						// avtivate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
+						slideStepsRemain[i] =   (unsigned long) (((float)clockPeriod)   * params[SLIDE_KNOB_PARAM].value / 2.0f);// 0-T slide, where T is clock period (can be too long when user does clock gating)
+						//slideStepsRemain[i] = (unsigned long)  (engineGetSampleRate() * params[SLIDE_KNOB_PARAM].value );// 0-2s slide
+						slideCVdelta[i] = (slideToCV[i] - slideFromCV[i])/(float)slideStepsRemain[i];
+					}
 				}
 			}
 			clockPeriod = 0ul;
@@ -942,7 +952,7 @@ struct PhraseSeq32 : Module {
 		if (running) {
 			float slideOffset[2];
 			for (int i = 0; i < 2; i += stepConfig)
-				slideOffset[i] = (slideStepsRemain > 0ul ? (slideCVdelta[i] * (float)slideStepsRemain) : 0.0f);
+				slideOffset[i] = (slideStepsRemain[i] > 0ul ? (slideCVdelta[i] * (float)slideStepsRemain[i]) : 0.0f);
 			int seq = editingSequence ? sequence : phrase[phraseIndexRun];
 			if (stepConfig == 1) {
 				outputs[CVA_OUTPUT].value = cv[seq][stepIndexRun] - slideOffset[0];
@@ -1122,8 +1132,9 @@ struct PhraseSeq32 : Module {
 			if (infoCopyPaste < 0l)
 				infoCopyPaste ++;
 		}
-		if (slideStepsRemain > 0ul)
-			slideStepsRemain--;
+		for (int i = 0; i < 2; i++)
+			if (slideStepsRemain[i] > 0ul)
+				slideStepsRemain[i]--;
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
 		if (tiedWarning > 0l)

@@ -14,7 +14,8 @@
 using namespace rack;
 
 
-// Dynamic Panel (From Dale Johnson)
+
+// Dynamic SVGPanel
 
 struct PanelBorderWidget : TransparentWidget { // from SVGPanel.cpp
 	void draw(NVGcontext *vg) override;
@@ -33,6 +34,7 @@ struct DynamicSVGPanel : FramebufferWidget { // like SVGPanel (in app.hpp and SV
 };
 
 
+
 // ******** Dynamic Ports ********
 
 // General Dynamic Port creation
@@ -40,6 +42,12 @@ template <class TDynamicPort>
 TDynamicPort* createDynamicPort(Vec pos, Port::PortType type, Module *module, int portId,
                                                int* mode) {
 	TDynamicPort *dynPort = Port::create<TDynamicPort>(pos, type, module, portId);
+	/*TDynamicPort *dynPort = new TDynamicPort();
+	dynPort->box.pos = pos;
+	dynPort->module = module;
+	dynPort->type = type;
+	dynPort->portId = portId;*/
+
 	dynPort->mode = mode;
 	return dynPort;
 }

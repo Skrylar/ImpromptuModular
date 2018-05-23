@@ -9,7 +9,8 @@
 #include "IMWidgets.hpp"
 
 
-// Dynamic Panel (From Dale Johnson)
+
+// Dynamic SVGPanel
 
 void PanelBorderWidget::draw(NVGcontext *vg) {  // carbon copy from SVGPanel.cpp
     NVGcolor borderColor = nvgRGBAf(0.5, 0.5, 0.5, 0.5);
@@ -52,6 +53,7 @@ void DynamicSVGPanel::step() { // all code except middle if() from SVGPanel::ste
 }
 
 
+
 // Dynamic SVGPort
 
 DynamicSVGPort::DynamicSVGPort() {
@@ -77,6 +79,7 @@ void DynamicSVGPort::step() {
         dirty = true;
     }
 }
+
 
 
 // Dynamic SVGSwitch
