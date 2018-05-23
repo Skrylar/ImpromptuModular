@@ -39,7 +39,7 @@ Each module is available in light (Classic) or dark (Dark-valor) panels, selecta
 Details about each module are given below. Feedback and bug reports are always appreciated!
 
 
-## General Concepts
+## General Concepts <a id="general-concepts"></a>
 
 Many Impromptu Modular sequencers feature a CV input for entering notes into the sequencers in a quick and natural manner when using, for example:
 
@@ -126,21 +126,7 @@ Step/phrase selection is done by directly clicking the 32 LED buttons at the top
 
 ![IM](res/img/GateSeq64.jpg)
 
-TODO: A four channel 64-step writable sequencer module. This sequencer is based on Write-Seq-32, both of which share many of the same functionalities. Write-Seq-64 has dual clock inputs (each controls a pair of channels). This sequencer is more versatile than Write-Seq-32 since each channel has its own step position and maximum number of steps. Sequences of different lengths can be created, with different starting points.
-
-Here are some specific details on elements of the faceplate.
-
-* **Chan**: Four channels available, with a fifth channel that can be used as a staging area.
-
-* **Gate LED and CV display**: Status of the gate and CV of the currently selected step.
-
-* **Steps**: Sets the number of steps for the currently selected sequence (sequence length). Each channel can have different lengths. This value is included as part of a copy-paste operation.
-
-* **Reset input/button**: Repositions all channels to their first step. A rising edge triggered at 1V will be detected as a reset. Pending pastes are also cleared.
-
-* **Clock 1,2**: Clock signal for channels 1 and 2.
-
-* **Clock 3,4**: Clock signal for channels 3 and 4. If no wire is connected, _Clock 1,2_ is used internally for channels 3 and 4.
+TODO
 
 
 
@@ -152,53 +138,29 @@ A three channel 32-step writable sequencer module. Although the display shows no
 
 Here are some specific details on each element on the faceplate of the module. Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers.
 
-* **Autostep**: Will automatically step the sequencer one step right on each write. No effect on channels 1 to 3 when the sequencer is running. An alternative way of automatically stepping the sequencer each time a note is entered is to send the gate signal of the keyboard to both the write and StepR inputs.
+* **WINDOW**: LED buttons to display/select the active 8-step window within the 32 step sequence (hence four windows). No effect on channels 1 to 3 when the sequencer is running.
 
-* **Window**: LED buttons to display the active 8-step window within the 32 step sequence (hence four windows). No effect on channels 1 to 3 when the sequencer is running.
+* **QUANTIZE**: Quantizes the CV IN input to a regular 12 semi-tone equal temperament scale. Since this quantizes the CV IN, some channels can have quantized CVs while others do not. 
 
-* **Sharp / flat**: Determines whether to display notes corresponding to black keys using either the sharp or flat symbols used in music notation. See _Notes display_ below for more information.
+* **Main display**: Shows the note names for the 8 steps corresponding to the active window. When a stored pitch CV has not been quantized, the display shows the closest such note name. For example, 0.03 Volts is shown as C4, whereas 0.05 Volts is shown as C4 sharp or D4 flat. Octaves above 9 or below 0 are shown with a top bar and an underscore respectively.
 
-* **Quantize**: Quantizes the CV IN input to a regular 12 semi-tone equal temperament scale. Since this quantizes the CV IN, some channels can have quantized CVs while others do not. 
+* **GATES**: LED buttons to show/modify the gates for the 8 steps in the current window. Gates can be toggled whether the sequencer is running or not.
 
-* **Step LEDs**: Shows the current position of the sequencer in the given window.
+* **CHAN**: Selects the channel that is to be displayed/edited in the top part of the module. Even though this is a three channel sequencer, a fourth channel is available for staging a sequence while the sequencer is running (or not). 
 
-* **Notes display**: Shows the note names for the 8 steps corresponding to the active window. When a stored pitch CV has not been quantized, the display shows the closest such note name. For example, 0.03 Volts is shown as C4, whereas 0.05 Volts is shown as C4 sharp or D4 flat. Octaves above 9 or below 0 are shown with a top bar and an underscore respectively.
+* **COPY-PASTE**: Copy and paste the CVs and gates of a channel into another channel. All 32 steps are copied irrespective of the STPES knob setting.
 
-* **Gates**: LED buttons to show/modify the gates for the 8 steps in the current window. See _Gate 1-3_ below for more information on gate signals. Gates can be toggled whether the sequencer is running or not.
+* **PASTE SYNC**: Determines whether to paste in real time (RT), on the next clock (CLK), or at the start of the next sequence (SEQ). Pending pastes are shown by a red LED beside CLK/SEQ, and if the selected channel changes, the paste operation will be performed in the channel that was selected when the paste button was pressed. Pastes into the staging area (channel 4) are always done in real time, irrespective of the state of the paste sync switch. To cancel a pending paste, press the Copy button again.
 
-* **Chan**: Selects the channel that is to be displayed/edited in the top part of the module. Even though this is a three channel sequencer, a fourth channel is available for staging a sequence while the sequencer is running (or not). 
+* **</>**: These buttons step the sequencer one step left or right. No effect on channels 1 to 3 when the sequencer is running. A rising edge on the </> control voltage inputs triggered at 1V will also step the sequencer left/right by one step.
 
-* **Copy-Paste**: Copy and paste the CVs and gates of a channel into another channel. In a given channel, press the left button to copy the channel into a buffer, then select another channel and press the right button to paste. All 32 steps are copied irrespective of the STPES knob setting.
+* **RUN 1-3**: Start/stop the sequencer. When running, the sequencer responds to rising edges of the clock input and will step all channels except the staging area (channel 4). When Run is activated, the sequencer automatically starts playing at the first step. A rising edge on the RUN control voltage input triggered at 1V will also toggle the run mode.
 
-* **Paste sync**: Determines whether to paste in real time (RT), on the next clock (CLK), or at the start of the next sequence (SEQ). Pending pastes are shown by a red LED beside CLK/SEQ, and if the selected channel changes, the paste operation will be performed in the channel that was selected when the paste button was pressed. Pastes into the staging area (channel 4) are always done in real time, irrespective of the state of the paste sync switch. To cancel a pending paste, press the copy button again.
+* **GATE IN**: Allows the gate of the current step/channel to also be written during a Write (see [General Concepts](#general-concepts) above). If no wire is connected, the input is ignored and the currently stored gate is unaffected. No effect on channels 1 to 3 when the sequencer is running.
 
-* **Step L/R**: These buttons step the sequencer one step left or right. No effect on channels 1 to 3 when the sequencer is running.
+* **STEPS**: Sets the number of steps for all the sequences (sequence length).
 
-* **Run 1-3**: Start/stop the sequencer. When running, the sequencer responds to rising edges of the clock input and will step all channels except the staging area (channel 4). When Run is activated, the sequencer automatically starts playing at the first step.
-
-* **Write**: This button is used to trigger the writing of the voltage on the CV IN jack into the CV of the current step of the selected channel. If a wire is connected to GATE IN, this gate input is also written into the gate of the current step/channel. An enabled gate corresponds to a voltage of 1V or higher. The small LED indicates if writing via the write button is possible (green) or not (red).
-
-* **CV In**: This CV is written into the current step of the selected channel. Any voltage between -10V and 10V is supported. See _Notes display_ and _Quantize_ above for more related information. No effect on channels 1 to 3 when the sequencer is running.
-
-* **Gate In**: Allows the gate of the current step/channel to also be written during a Write (see above). If no wire is connected, the input is ignored and the currently stored gate is unaffected. No effect on channels 1 to 3 when the sequencer is running.
-
-* **Steps**: Sets the number of steps for all the sequences (sequence length).
-
-* **Monitor**: This switch determines which CV will be routed to the currently selected channel's CV output when the sequencer is not running. When the switch is in the right position, the CV stored in the sequencer at that step is output; in the left position, the CV applied to the CV IN jack is output.
-
-* **CV 1-3**: CV outputs of each channel at the current step.
-
-* **Gate 1-3**: Gate for each channel at the current step. The duration of the gates corresponds to the high time of the clock signal.
-
-* **Run input**: Control voltage for starting and stopping the sequencer. A rising edge triggered at 1V will toggle the run mode.
-
-* **Write input**: Control voltage for writing CVs into the sequencer (Writebutton). A rising edge triggered at 1V will perform the write action (see _Write_ above).
-
-* **Step L/R inputs**: Control voltages for step selection (Step L/R buttons). A rising edge triggered at 1V will step the sequencer left/right by one step.
-
-* **Reset input**: Repositions the sequencer at the first step. A rising edge triggered at 1V will be detected as a reset. Pending pastes are also cleared.
-
-* **Clock**: When the sequencer is running, each rising edge (1V threshold) will advance the sequencer by one step. The width (duration) of the high pulse of the clock is used as the width (duration) of the gate outputs. 
+* **MONBITOR**: This switch determines which CV will be routed to the currently selected channel's CV output when the sequencer is not running. When the switch is in the right position, the CV stored in the sequencer at that step is output; in the left position, the CV applied to the CV IN jack is output.
 
 
 
@@ -206,23 +168,14 @@ Here are some specific details on each element on the faceplate of the module. F
 
 ![IM](res/img/WriteSeq64.jpg)
 
-A four channel 64-step writable sequencer module. This sequencer is based on Write-Seq-32, both of which share many of the same functionalities. Write-Seq-64 has dual clock inputs (each controls a pair of channels). This sequencer is more versatile than Write-Seq-32 since each channel has its own step position and maximum number of steps. Sequences of different lengths can be created, with different starting points.
+A four channel 64-step writable sequencer module. This sequencer is based on WriteSeq32 (above), both of which share many of the same functionalities. Familiarity with WriteSeq32 is strongly recommended. This sequencer is more versatile than Write-Seq-32 since each channel has its own step position and maximum number of steps (length). Sequences of different lengths can be created, with different starting points. A fifth channel is available to be used as a staging area. 
+
+WriteSeq64 has dual clock inputs, where each controls a pair of channels. When no wire is connected to **CLOCK 3,4**, **CLOCK 1,2** is used internally as the clock for channels 3 and 4. 
 
 Ideas: The first part of the famous [Piano Phase](https://en.wikipedia.org/wiki/Piano_Phase) piece by Steve Reich can be easily programmed into the sequencer by entering the twelve notes into channel 1 with a keyboard, setting STEPS to 12, copy-pasting channel 1 into channel 3, and then driving each clock input with two LFOs that have ever so slightly different frequencies. Exercise left to the reader!
 
-Here are some specific details on elements of the faceplate which differ compared to Write-Seq-32. Familiarity with Write-Seq-32 is strongly recommended.
 
-* **Chan**: Four channels available, with a fifth channel that can be used as a staging area.
 
-* **Gate LED and CV display**: Status of the gate and CV of the currently selected step.
-
-* **Steps**: Sets the number of steps for the currently selected sequence (sequence length). Each channel can have different lengths. This value is included as part of a copy-paste operation.
-
-* **Reset input/button**: Repositions all channels to their first step. A rising edge triggered at 1V will be detected as a reset. Pending pastes are also cleared.
-
-* **Clock 1,2**: Clock signal for channels 1 and 2.
-
-* **Clock 3,4**: Clock signal for channels 3 and 4. If no wire is connected, _Clock 1,2_ is used internally for channels 3 and 4.
 
 
 
