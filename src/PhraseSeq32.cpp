@@ -577,8 +577,17 @@ struct PhraseSeq32 : Module {
 					editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
 					applyTiedStep(sequence, stepIndexEdit, ((stepIndexEdit >= 16 && stepConfig == 1) ? 16 : 0) + lengths[sequence]);
-					if (params[AUTOSTEP_PARAM].value > 0.5f)
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, lengths[sequence]);
+					if (params[AUTOSTEP_PARAM].value > 0.5f) {
+						stepIndexEdit += 1;// TODO this code block is similar in left/right cv inputs, optimize it
+						if (stepConfig == 1) {
+							if (stepIndexEdit >= lengths[sequence] && stepIndexEdit < 16)// if past length in chan A
+								stepIndexEdit = 16;
+							else if (stepIndexEdit >= 16 + lengths[sequence])// if past length in chan B (including >=32)
+								stepIndexEdit = 0;
+						}
+						else
+							if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = 0;						
+					}
 				}
 			}
 			displayState = DISP_NORMAL;
