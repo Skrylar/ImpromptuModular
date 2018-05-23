@@ -160,7 +160,7 @@ Here are some specific details on each element on the faceplate of the module. F
 
 * **STEPS**: Sets the number of steps for all the sequences (sequence length).
 
-* **MONBITOR**: This switch determines which CV will be routed to the currently selected channel's CV output when the sequencer is not running. When the switch is in the right position, the CV stored in the sequencer at that step is output; in the left position, the CV applied to the CV IN jack is output.
+* **MONITOR**: This switch determines which CV will be routed to the currently selected channel's CV output when the sequencer is not running. When the switch is in the right position, the CV stored in the sequencer at that step is output; in the left position, the CV applied to the CV IN jack is output.
 
 
 
