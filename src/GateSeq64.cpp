@@ -348,7 +348,7 @@ struct GateSeq64 : Module {
 	void step() override {
 		static const float feedbackCPinitTime = 3.0f;// seconds
 		static const float copyPasteInfoTime = 0.5f;// seconds
-		static const float displayProbInfoTime = 2.5f;// seconds
+		static const float displayProbInfoTime = 3.0f;// seconds
 		float engineSampleRate = engineGetSampleRate();
 		feedbackCPinit = (long) (feedbackCPinitTime * engineSampleRate);
 		long displayProbInfoInit = (long) (displayProbInfoTime * engineSampleRate);
