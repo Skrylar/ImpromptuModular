@@ -1242,9 +1242,9 @@ struct PhraseSeq32Widget : ModuleWidget {
 				}
 				else if (module->displayState == PhraseSeq32::DISP_LENGTH) {
 					if (module->isEditingSequence())
-						snprintf(displayStr, 4, "L%2u", module->lengths[module->sequence]);
+						snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
 					else
-						snprintf(displayStr, 4, "L%2u", module->phrases);
+						snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
 				}
 				else if (module->displayState == PhraseSeq32::DISP_TRANSPOSE) {
 					snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffset));

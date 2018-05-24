@@ -800,15 +800,15 @@ struct GateSeq64Widget : ModuleWidget {
 				if ( prob>= 100)
 					snprintf(displayStr, 4, "  1");
 				else if (prob >= 1)
-					snprintf(displayStr, 4, ",%2d", prob);
+					snprintf(displayStr, 4, ",%2u", (unsigned) prob);
 				else
 					snprintf(displayStr, 4, "  0");
 			}
 			else if (module->displayState == GateSeq64::DISP_LENGTH) {
 				if (module->isEditingSequence())
-					snprintf(displayStr, 4, "L%2u", module->lengths[module->sequence]);
+					snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
 				else
-					snprintf(displayStr, 4, "L%2u", module->phrases);
+					snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
 			}
 			else if (module->displayState == GateSeq64::DISP_MODES) {
 				if (module->isEditingSequence())
