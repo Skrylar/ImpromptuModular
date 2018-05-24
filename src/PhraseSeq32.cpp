@@ -129,6 +129,7 @@ struct PhraseSeq32 : Module {
 	int sequenceKnob;// INT_MAX when knob not seen yet
 	bool gate1RandomEnable[2];
 	bool attachedChanB;
+	long revertDisplay;
 	
 
 	SchmittTrigger resetTrigger;
@@ -205,6 +206,7 @@ struct PhraseSeq32 : Module {
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 		attachedChanB = false;
+		revertDisplay = 0l;
 	}
 	
 
@@ -245,6 +247,7 @@ struct PhraseSeq32 : Module {
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 		attachedChanB = false;
+		revertDisplay = 0l;
 	}
 	
 	
@@ -456,6 +459,7 @@ struct PhraseSeq32 : Module {
 		static const float gateTime = 0.3f;// seconds
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float tiedWarningTime = 0.5f;// seconds
+		static const float revertDisplayTime = 1.0f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * engineGetSampleRate());
 		
 		
@@ -663,6 +667,7 @@ struct PhraseSeq32 : Module {
 					phrases = stepPressed + 1;
 					if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
 				}
+				revertDisplay = (long) (revertDisplayTime * engineGetSampleRate());
 			}
 			else {
 				if (!running || !attached) {// not running or detached
@@ -1153,6 +1158,11 @@ struct PhraseSeq32 : Module {
 			clockIgnoreOnReset--;
 		if (tiedWarning > 0l)
 			tiedWarning--;
+		if (revertDisplay > 0l) {
+			if (revertDisplay == 1)
+				displayState = DISP_NORMAL;
+			revertDisplay--;
+		}
 
 	}// step()
 	

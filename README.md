@@ -40,7 +40,7 @@ Details about each module are given below. Feedback and bug reports (and [donati
 
 
 ## Known issues
-For modules such as PhraseSeq16 and GateSeq64, it is advisable to have a core audio module added to your patch and assigned to a sound card in order for the response delays in the user interface to be of proper duration (for length selection and probability selection respectively in these two modules, for example). This is a [known artifact](https://github.com/VCVRack/Rack/issues/919) in VCV Rack.
+For modules such as PhraseSeq16 and GateSeq64, it is advisable to have a core audio module added to your patch and assigned to a sound card in order for the response delays in the user interface to be of the proper duration (for length selection and probability selection respectively in these two modules, for example). This is a [known artifact](https://github.com/VCVRack/Rack/issues/919) in VCV Rack.
 
 
 
@@ -123,11 +123,11 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 A 32 phrase sequencer module, where each phrase is an index into a set of 32 sequences of 32 steps (maximum). If you need a 1024-step sequence in a single module, this is the sequencer for you! This sequencer is very similar to [PhraseSeq16](#phrase-seq-16), but with an added configuration switch allowing the sequencer to output dual 16 step sequences (**2x16**) instead of single 32 step sequences (**1x32**).
 
-Step/phrase selection is done by directly clicking the 32 steps at the top, instead cursor buttons as used in PhraseSeq16. When running in the 2x16 configuration and in Seq mode, with **ATTACH** activated, simply click any step in a given row to attach the edit head to that row.
+Step/phrase selection is done by directly clicking the 32 steps at the top, instead of cursor buttons as used in PhraseSeq16. When running in the 2x16 configuration and in Seq mode, with **ATTACH** activated, simply click any step in a given row to attach the edit head to that row. 
 
-The length of sequences can be set using the **MODE/LEN** button (click twice) and then clicking the desired length directly in the steps or turning the main knob below the main display.
+Sequence lengths can be set using the **MODE/LEN** button (click twice), and then either turning the main knob below the main display or clicking the desired length directly in the steps (the second method is the recommended way since the display will automatically return to its default state one second after the click of the step). The **TRAN/ROT** button can be used to transpose or rotate a sequence in Seq mode. When the 2x16 configuration is selected, only the row corresponding to the edit head's position is transposed or rotated.
 
-When the 1x32 configuration is selected, only the top channel outputs are used (labeled A), and when the 2x16 configuration is selected, the top row is sent to the top outputs (CV and gates A), whereas the bottom row of steps is sent to the bottom outputs (CV and gates B). Other than these characteristics, the rest of the functionality of PhraseSeq32 is identical to that of PhraseSeq16.
+When the 1x32 configuration is selected, only the top channel outputs are used (labeled A), and when the 2x16 configuration is selected, the top row is sent to the top outputs (CV and gates A), whereas the bottom row of steps is sent to the bottom outputs (CV and gates B). Other than these characteristics, the rest of PhraseSeq32's functionality is identical to that of PhraseSeq16.
 
 
 
@@ -135,13 +135,15 @@ When the 1x32 configuration is selected, only the top channel outputs are used (
 
 ![IM](res/img/GateSeq64.jpg)
 
-A 64 step gate sequencer, with an added configuration switch allowing the sequencer to output quad 16 step sequences or dual 32 step sequences, instead of single 64 step sequence. The main feature of GateSeq64 is the ability to define **probabilities** for each step. When activating a given step by clicking it once, it will turn green showing that the step is on. Clicking the step again turns it yellow, and the main display shows the probability associated with this step. While the probability remains shown, the probability can be adjusted with the main knob, in 0.02 increments, between 0 and 1. When a yellow step is selected, clicking it again will turn it off.
+A 64 step gate sequencer with the ability to define **probabilities** for each step. A configuration switch allows the sequencer to output quad 16 step sequences, dual 32 step sequences or single 64 step sequences. 
+
+When activating a given step by clicking it once, it will turn green showing that the step is on. Clicking the step again turns it yellow, and the main display shows the probability associated with this step. While the probability remains shown, the probability can be adjusted with the main knob, in 0.02 increments, between 0 and 1. When a yellow step is selected, clicking it again will turn it off.
 
 This sequencer also features the song mode found in [PhraseSeq16](#phrase-seq-16); 16 phrases can be defined, where a phrase is an index into a set of 16 sequences. In GateSeq64, the song steps are shown using the fourth row of steps, overlapped with the actual sequence progression in lighter shades in the lights. 
 
 The **SEQ** CV input and run **MODES** are identical to those found in PhraseSeq16, and selecting sequence lengths is done in the same manner as described in [PhraseSeq32](#phrase-seq-32). Copy-pasting **ALL** also copies the run mode and length of a given sequence, along with gate states and probabilities, whereas only gates and probabilities are copied when **ROW** is selected.
 
-When running in the 4x16 configuration, each of the four rows is sent to the four **GATE** output jacks (jacks 1 to 4, 1 being the top-most jack). In the 2x32 configuration, jacks 1 and 3 are used, and in the 1x64 configuration, only jack 1 is used (top-most jack). The pulse width of the gates emitted corresponds to the pulse width of the clock.
+When running in the 4x16 configuration, each of the four rows is sent to the four **GATE** output jacks (jacks 1 to 4, with jack 1 being the top-most jack). In the 2x32 configuration, jacks 1 and 3 are used, and in the 1x64 configuration, only jack 1 is used (top-most jack). The pulse width of the gates emitted corresponds to the pulse width of the clock.
 
 
 

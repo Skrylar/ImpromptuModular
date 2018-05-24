@@ -90,6 +90,7 @@ struct GateSeq64 : Module {
 	int probKnob;// INT_MAX when knob not seen yet
 	int sequenceKnob;// INT_MAX when knob not seen yet
 	bool gateRandomEnable[4] = {};
+	long revertDisplay;
 
 	
 	SchmittTrigger modesTrigger;
@@ -149,6 +150,7 @@ struct GateSeq64 : Module {
 		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		revertDisplay = 0l;
 	}
 
 	
@@ -186,6 +188,7 @@ struct GateSeq64 : Module {
 		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		revertDisplay = 0l;
 	}
 
 	
@@ -349,6 +352,7 @@ struct GateSeq64 : Module {
 		static const float feedbackCPinitTime = 3.0f;// seconds
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float displayProbInfoTime = 3.0f;// seconds
+		static const float revertDisplayTime = 1.0f;// seconds
 		float engineSampleRate = engineGetSampleRate();
 		feedbackCPinit = (long) (feedbackCPinitTime * engineSampleRate);
 		long displayProbInfoInit = (long) (displayProbInfoTime * engineSampleRate);
@@ -519,6 +523,7 @@ struct GateSeq64 : Module {
 				if (displayState == DISP_LENGTH) {
 					col = stepPressed % (16 * stepConfig);
 					lengths[sequence] = col + 1;
+					revertDisplay = (long) (revertDisplayTime * engineGetSampleRate());
 				}
 				else if (displayState == DISP_ROW_SEL) {
 					row = stepPressed / 16;// copy-paste done on blocks of 16 even when in 2x32 or 1x64 config (and length is not copied)
@@ -569,6 +574,7 @@ struct GateSeq64 : Module {
 						if (phrases > 16) phrases = 16;
 						if (phrases < 1 ) phrases = 1;
 						if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
+						revertDisplay = (long) (revertDisplayTime * engineGetSampleRate());
 					}
 					else if (displayState == DISP_MODES) {
 						if (col >= 11 && col <= 15)
@@ -681,16 +687,13 @@ struct GateSeq64 : Module {
 						setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
 				}
 				else {
-					// Run cursor (green)
 					float green;
 					if (running) 
 						green = (i == (phraseIndexRun + 48)) ? 1.0f : 0.0f;
 					else
 						green = (i == (phraseIndexEdit + 48)) ? 1.0f : 0.0f;
 					green += ((running && (col == stepIndexRun) && i != (phraseIndexEdit + 48)) ? 0.1f : 0.0f);
-					lights[STEP_LIGHTS + i * 2].value = clamp(green, 0.0f, 1.0f);
-					// Edit cursor (red)
-					lights[STEP_LIGHTS + i * 2 + 1].value = (/*i == (phraseIndexEdit + 48) ? 1.0f :*/ 0.0f);					
+					setGreenRed(STEP_LIGHTS + i * 2, clamp(green, 0.0f, 1.0f), 0.0f);
 				}				
 			}
 		}
@@ -718,6 +721,11 @@ struct GateSeq64 : Module {
 			displayProb = -1;
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
+		if (revertDisplay > 0l) {
+			if (revertDisplay == 1)
+				displayState = DISP_GATE;
+			revertDisplay--;
+		}
 	}// step()
 	
 	
