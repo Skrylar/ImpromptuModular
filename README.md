@@ -98,7 +98,7 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 * **MODE**: This controls the run mode of the sequences and the song (one setting for each sequence and one for the song). The modes are: FWD (forward), REV (reverse), PPG (ping-pong, also called forward-reverse), BRN (brownian random), RND (random). For example, setting the run mode to FWD for Seq and to RND for Song will play the phrases that are part of a song randomly, and the probablility of a given phrase playing is proportional to the number of times it appears in the song.
 
-* **TRANS/ROT**: Transpose (Rotate) the currently selected sequence up or down (left or right) by a given number of semi-tones (steps). The main knob is used to set the transposition/rotation amount. Only available in Seq mode.
+* **TRAN/ROT**: Transpose (Rotate) the currently selected sequence up or down (left or right) by a given number of semi-tones (steps). The main knob is used to set the transposition/rotation amount. Only available in Seq mode.
 
 * **COPY-PASTE**: Copy and paste the CVs, gates, slide and tied attributes of part or all of a sequence into another sequence. When ALL is selected, run mode and length are also copied. Only available in Seq mode.
 
@@ -183,10 +183,3 @@ A four channel 64-step writable sequencer module. This sequencer is based on Wri
 WriteSeq64 has dual clock inputs, where each controls a pair of channels. When no wire is connected to **CLOCK 3,4**, **CLOCK 1,2** is used internally as the clock for channels 3 and 4. 
 
 Ideas: The first part of the famous [Piano Phase](https://en.wikipedia.org/wiki/Piano_Phase) piece by Steve Reich can be easily programmed into the sequencer by entering the twelve notes into channel 1 with a keyboard, setting STEPS to 12, copy-pasting channel 1 into channel 3, and then driving each clock input with two LFOs that have ever so slightly different frequencies. Exercise left to the reader!
-
-
-
-
-
-
-
