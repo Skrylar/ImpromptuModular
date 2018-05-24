@@ -2,7 +2,7 @@
 
 Modules for [VCV Rack](https://vcvrack.com), available in the [plugin manager](https://vcvrack.com/plugins.html).
 
-\*\*\* Version 0.6.4 \*\*\*
+Version 0.6.4
 
 (For the 0.6.3 readme see [here](https://github.com/MarcBoule/ImpromptuModular/tree/cf63dcdb77934d41903414d20d3b744bd33f0a17))
 
@@ -16,7 +16,7 @@ Based on code from the Fundamental and Audible Instruments plugins by Andrew Bel
 
 ## Acknowledgements
 
-Thanks to **Alfredo Santamaria** and **Nay Seven** for suggesting improvements to PhraseSeq16. Special thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq modules, for testing/bug-reports and for graciously designing the blank panel and providing the dark panels of all modules. A very special thank you to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq modules, for the concept proposal and development of GateSeq64, for testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg). 
+Thanks to **Alfredo Santamaria** and **Nay Seven** for suggesting improvements to PhraseSeq16. Special thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq modules, for testing/bug-reports and for designing the blank panel and graciously providing the dark panels of all modules. A very special thank you to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq modules, for the concept proposal and development of GateSeq64, for testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg). 
 
 
 
@@ -90,7 +90,7 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 * **LENGTH**: When in Seq mode, allows the arrow buttons to select the length of sequences (number of steps), the default is 16. The sequences can have different lengths. When in Song mode, allows the arrow buttons to select the number of phrases in the song (the default is 4).
 
-* **</>**: These arrow buttons step the sequencer one step left or right. No effect when Attach is activated (see _Attch_ below).
+* **</>**: These arrow buttons step the sequencer one step left or right. No effect when Attach is activated.
 
 * **SEQ#**: In Seq mode, this number determines which sequence is being edited/played. In Song mode, this number determines the sequence index for the currently selected phrase; the selected phrase is shown in the 16 LEDs at the top of the module). When one of the Mode, Transpose, Rotate buttons is pressed, the display instead shows the current run mode (see Mode below), the amount of semi-tones to transpose, and the number of steps to rotate respectively. The SEQ# control voltage can be used to select the active sequence (Seq mode only), whereby a 0 to 10V input is proportionnaly mapped to the 1 to 16 sequence numbers. This can be used to externally control the playing order of the sequences.
 
@@ -116,9 +116,13 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 ![IM](res/img/PhraseSeq32.jpg)
 
-A 32 phrase sequencer module, where each phrase is an index into a set of 32 sequences of 32 steps (maximum). If you need a 1024-step sequence in a single module, this is the sequencer for you! This sequencer is very similar to PhraseSeq16, but with an added configuration switch allowing the sequencer to output dual 16 step sequences instead of single 32 step sequences.
+A 32 phrase sequencer module, where each phrase is an index into a set of 32 sequences of 32 steps (maximum). If you need a 1024-step sequence in a single module, this is the sequencer for you! This sequencer is very similar to PhraseSeq16, but with an added configuration switch allowing the sequencer to output dual 16 step sequences (**2x16**) instead of single 32 step sequences (**1x32**).
 
-Step/phrase selection is done by directly clicking the 32 LED buttons at the top, instead of left and right cursor buttons used in PhraseSeq16. When running in 2x16 configuration and in Seq mode, the attach button cycles between: attach to run head in top sequence, attach to run head in bottom sequence, detach. Other than this, the functionality is identical to that of PhraseSeq16 (see above).
+Step/phrase selection is done by directly clicking the 32 LED buttons at the top, instead of the left and right cursor buttons used in PhraseSeq16. When running in the 2x16 configuration and in Seq mode, with **ATTACH** activated, simply click any step in the top row to attach the edit head to the run head in the top row; similarly, click any step in the bottom row to attach the edit head to the run head in the bottom row. 
+
+Setting the length of sequences is done using the **MODE/LEN** button (click twice), and then clicking the desired length directly in the steps or turning the main knob below the main display.
+
+When the 1x32 configuration is selected, only the top channel outputs are used (labeled A), and when the 2x16 configuration is selected, the top row is sent to the top outputs (CV and gates A), whereas the bottom row of steps is sent to the bottom outputs (CV and gates B). Other than these points above, the rest of the functionality is identical to that of PhraseSeq16 (see above).
 
 
 
@@ -126,7 +130,13 @@ Step/phrase selection is done by directly clicking the 32 LED buttons at the top
 
 ![IM](res/img/GateSeq64.jpg)
 
-TODO
+A 64 step gate sequencer, with an added configuration switch allowing the sequencer to output quad 16 step sequences or dual 32 step sequences, instead of single 64 step sequence. The main feature of GateSeq64 is the ability to define **probabilities** for each step. When activating a given step by clicking it once, it will turn green showing that the step is on. Clicking the step again turns it yellow, and the main display shows the probability associated with this step. While the probability remains shown, the probability can be adjusted with the main knob, in 0,02 increments betweem 0 and 1. When a yellow step is selected, clicking it again will turn it off.
+
+This sequencer also features the song mode found in PhraseSeq16 (16 phrases can be defined, where a phrase is an index into a set of 16 sequences). Please see the [PhraseSeq16](#phrase-seq-16) documentation for more information regarding song mode. In GateSeq64, song steps are shown using the fourth row of steps in the gate grid in the top half of the module, overlapped with the actual sequence progression in lighter shades in the lights. 
+
+The **SEQ** CV input and run modes are identical to those found in PhraseSeq16, and selecting sequence lengths is indentical to that descibed in [PhraseSeq32](#phrase-seq-32). Copy-pasting **ALL** also copies the run mode and length of a given sequence, along with gate states and probabilities, whereas only the gates and probabilities are copied when **ROW** is selected.
+
+When running in the 4x16 configuration, each of the four rows is sent to the four **GATE** output jacks (jacks 1 to 4, 1 being the top-most jack). In the 2x32 configuration, jacks 1 and 3 are used, and in 1x64 only jack 1 is used (top-most jack). The pulse width of the gates emitted corresponds to the pulse width of the clock.
 
 
 

@@ -498,12 +498,9 @@ struct PhraseSeq32 : Module {
 		// Attach button
 		if (attachedTrigger.process(params[ATTACH_PARAM].value)) {
 			if (running) {
-				if (attached && editingSequence && stepConfig == 1 && !attachedChanB)
-					attachedChanB = true;
-				else {
-					attached = !attached;
-					if (!attached) attachedChanB = false;
-				}
+				attached = !attached;
+				if (attached && editingSequence && stepConfig == 1 ) 
+					attachedChanB = stepIndexEdit >= 16;
 			}
 			displayState = DISP_NORMAL;			
 		}
