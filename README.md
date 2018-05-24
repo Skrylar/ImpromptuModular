@@ -4,8 +4,6 @@ Modules for [VCV Rack](https://vcvrack.com), available in the [plugin manager](h
 
 Version 0.6.4
 
-(For the 0.6.3 readme see [here](https://github.com/MarcBoule/ImpromptuModular/tree/cf63dcdb77934d41903414d20d3b744bd33f0a17))
-
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!   120% Zoom for jpgs)
 
 
