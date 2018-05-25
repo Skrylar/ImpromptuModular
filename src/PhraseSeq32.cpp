@@ -459,7 +459,7 @@ struct PhraseSeq32 : Module {
 		static const float gateTime = 0.3f;// seconds
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float tiedWarningTime = 0.5f;// seconds
-		static const float revertDisplayTime = 1.0f;// seconds
+		static const float revertDisplayTime = 0.7f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * engineGetSampleRate());
 		
 		
@@ -700,15 +700,17 @@ struct PhraseSeq32 : Module {
 			}
 		} 
 		
-		// Mode/Length and Transpose/Rotate buttons
+		// Mode/Length button
 		if (modeTrigger.process(params[RUNMODE_PARAM].value)) {
 			if (displayState == DISP_NORMAL || displayState == DISP_TRANSPOSE || displayState == DISP_ROTATE)
-				displayState = DISP_MODE;
-			else if (displayState == DISP_MODE)
 				displayState = DISP_LENGTH;
+			else if (displayState == DISP_LENGTH)
+				displayState = DISP_MODE;
 			else
 				displayState = DISP_NORMAL;
 		}
+		
+		// Transpose/Rotate button
 		if (transposeTrigger.process(params[TRAN_ROT_PARAM].value)) {
 			if (editingSequence) {
 				if (displayState == DISP_NORMAL || displayState == DISP_MODE || displayState == DISP_LENGTH) {
@@ -1517,6 +1519,9 @@ struct PhraseSeq32Widget : ModuleWidget {
 Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromptu Modular", "Phrase-Seq-32", "Phrase-Seq-32", SEQUENCER_TAG);
 
 /*CHANGE LOG
+
+0.6.5:
+swap MODE/LEN so that length happens first (update manual)
 
 0.6.4:
 initial release of PS32

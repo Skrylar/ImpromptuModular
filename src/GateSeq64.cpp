@@ -352,7 +352,7 @@ struct GateSeq64 : Module {
 		static const float feedbackCPinitTime = 3.0f;// seconds
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float displayProbInfoTime = 3.0f;// seconds
-		static const float revertDisplayTime = 1.0f;// seconds
+		static const float revertDisplayTime = 0.7f;// seconds
 		float engineSampleRate = engineGetSampleRate();
 		feedbackCPinit = (long) (feedbackCPinitTime * engineSampleRate);
 		long displayProbInfoInit = (long) (displayProbInfoTime * engineSampleRate);
@@ -395,12 +395,12 @@ struct GateSeq64 : Module {
 			displayProb = -1;
 		}
 		
-		// Modes button
+		// Mode/Length button
 		if (modesTrigger.process(params[MODES_PARAM].value)) {
 			if (displayState == DISP_GATE || displayState == DISP_ROW_SEL)
-				displayState = DISP_MODES;
-			else if (displayState == DISP_MODES)
 				displayState = DISP_LENGTH;
+			else if (displayState == DISP_LENGTH)
+				displayState = DISP_MODES;
 			else
 				displayState = DISP_GATE;
 			displayProb = -1;
@@ -983,3 +983,12 @@ struct GateSeq64Widget : ModuleWidget {
 
 
 Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Modular", "Gate-Seq-64", "Gate-Seq-64", SEQUENCER_TAG);
+
+/*CHANGE LOG
+
+0.6.5:
+swap MODE/LEN so that length happens first (update manual)
+
+0.6.4:
+initial release of GS64
+*/

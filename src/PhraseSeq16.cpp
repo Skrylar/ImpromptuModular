@@ -1382,6 +1382,9 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 
 /*CHANGE LOG
 
+0.6.5:
+
+
 0.6.4:
 turn off keyboard and oct lights when detached in song mode (makes no sense, can't mod steps and shows stepping though seq that may not be playing)
 removed mode CV input, added paste 4/8/ALL option (ALL copies length and run mode also)
