@@ -107,8 +107,8 @@ struct IMBigKnobInf : SVGKnob {
 	}
 };
 
-struct RoundSmallBlackKnobB : RoundKnob {
-	RoundSmallBlackKnobB() {
+struct IMSmallKnob : RoundKnob {
+	IMSmallKnob() {
 		//setSVG(SVG::load(assetGlobal("res/ComponentLibrary/RoundSmallBlackKnob.svg")));
 		setSVG(SVG::load(assetPlugin(plugin, "res/comp/RoundSmallBlackKnob.svg")));
 		shadow->blurRadius = 10.0;

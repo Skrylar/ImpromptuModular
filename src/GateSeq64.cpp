@@ -50,7 +50,7 @@ struct GateSeq64 : Module {
 		NUM_LIGHTS
 	};
 	
-	enum DisplayStateIds {DISP_GATE, DISP_LENGTH, DISP_MODES, DISP_ROW_SEL};// TODO remove DISP_ROW_SEL and make copy paste like in PSxx
+	enum DisplayStateIds {DISP_GATE, DISP_LENGTH, DISP_MODES, DISP_ROW_SEL};
 	enum AttributeBitMasks {ATT_MSK_PROB = 0xFF, ATT_MSK_GATEP = 0x100, ATT_MSK_GATE = 0x200};
 	
 	// Need to save

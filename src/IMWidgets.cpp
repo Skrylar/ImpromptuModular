@@ -126,7 +126,6 @@ void DynamicSVGPanelEx::step() { // all code except two middle if() from SVGPane
 
 
 
-
 // Dynamic SVGPort
 
 DynamicSVGPort::DynamicSVGPort() {

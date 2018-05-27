@@ -37,7 +37,6 @@ struct DynamicSVGPanel : FramebufferWidget { // like SVGPanel (in app.hpp and SV
 
 // Dynamic SVGPanel with expansion module
 
-// TODO: derive this class from DynamicSVGPanel ?
 struct DynamicSVGPanelEx : FramebufferWidget { // like SVGPanel (in app.hpp and SVGPanel.cpp) but with dynmically assignable panel
     int* mode;
     int oldMode;
