@@ -640,13 +640,26 @@ struct PhraseSeq16 : Module {
 		bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 		if (writeTrig) {
 			if (editingSequence) {
-				if (getTied(sequence,stepIndexEdit))
+				if (getTied(sequence,stepIndexEdit) & !inputs[TIEDCV_INPUT].active)
 					tiedWarning = tiedWarningInit;
 				else {			
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = inputs[CV_INPUT].value;
 					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
 					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+					// Extra CVs from expansion panel:
+					if (inputs[TIEDCV_INPUT].active)
+						attributes[sequence][stepIndexEdit] = (inputs[TIEDCV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_TIED) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_TIED);
+					if (getTied(sequence, stepIndexEdit))
+						attributes[sequence][stepIndexEdit] = ATT_MSK_TIED;// clear other attributes if tied
+					else {
+						if (inputs[GATE1CV_INPUT].active)
+							attributes[sequence][stepIndexEdit] = (inputs[GATE1CV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_GATE1) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_GATE1);
+						if (inputs[GATE2CV_INPUT].active)
+							attributes[sequence][stepIndexEdit] = (inputs[GATE2CV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_GATE2) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_GATE2);
+						if (inputs[SLIDECV_INPUT].active)
+							attributes[sequence][stepIndexEdit] = (inputs[SLIDECV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_SLIDE) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_SLIDE);
+					}					// Autostep (after grab all active inputs)
 					if (params[AUTOSTEP_PARAM].value > 0.5f)
 						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, lengths[sequence]);
 				}
@@ -868,7 +881,7 @@ struct PhraseSeq16 : Module {
 			if (editingSequence) {
 				attributes[sequence][stepIndexEdit] ^= ATT_MSK_TIED;
 				if (getTied(sequence,stepIndexEdit)) {
-					attributes[sequence][stepIndexEdit] &= ~(ATT_MSK_GATE1 | ATT_MSK_GATE1P | ATT_MSK_GATE2 | ATT_MSK_SLIDE);
+					attributes[sequence][stepIndexEdit] = ATT_MSK_TIED;// clear other attributes if tied
 					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 				}
 				else
@@ -1438,11 +1451,11 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int rowRulerExpTop = 65;
 		static const int rowSpacingExp = 60;
 		static const int colRulerExp = 497 - 30;// PS16 is 2HP less than PS32
-		addInput(expPorts[0] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, PhraseSeq16::MODECV_INPUT, &module->panelTheme));
-		addInput(expPorts[1] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, PhraseSeq16::GATE1CV_INPUT, &module->panelTheme));
-		addInput(expPorts[2] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, PhraseSeq16::GATE2CV_INPUT, &module->panelTheme));
-		addInput(expPorts[3] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, PhraseSeq16::TIEDCV_INPUT, &module->panelTheme));
-		addInput(expPorts[4] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 4), Port::INPUT, module, PhraseSeq16::SLIDECV_INPUT, &module->panelTheme));
+		addInput(expPorts[0] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, PhraseSeq16::GATE1CV_INPUT, &module->panelTheme));
+		addInput(expPorts[1] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, PhraseSeq16::GATE2CV_INPUT, &module->panelTheme));
+		addInput(expPorts[2] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, PhraseSeq16::TIEDCV_INPUT, &module->panelTheme));
+		addInput(expPorts[3] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, PhraseSeq16::SLIDECV_INPUT, &module->panelTheme));
+		addInput(expPorts[4] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 4), Port::INPUT, module, PhraseSeq16::MODECV_INPUT, &module->panelTheme));
 	}
 };
 
