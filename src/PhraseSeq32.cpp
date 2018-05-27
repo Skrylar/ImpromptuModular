@@ -43,6 +43,7 @@ struct PhraseSeq32 : Module {
 		CPMODE_PARAM,
 		ENUMS(STEP_PHRASE_PARAMS, 32),
 		CONFIG_PARAM,
+		// -- 0.6.4 ^^
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -54,6 +55,12 @@ struct PhraseSeq32 : Module {
 		RIGHTCV_INPUT,
 		RUNCV_INPUT,
 		SEQCV_INPUT,
+		// -- 0.6.4 ^^
+		MODECV_INPUT,
+		GATE1CV_INPUT,
+		GATE2CV_INPUT,
+		TIEDCV_INPUT,
+		SLIDECV_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -85,6 +92,7 @@ struct PhraseSeq32 : Module {
 
 	// Need to save
 	int panelTheme = 0;
+	int expansion = 0;
 	bool running;
 	int runModeSeq[32];
 	int runModeSong; 
@@ -286,6 +294,9 @@ struct PhraseSeq32 : Module {
 		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
 
+		// expansion
+		json_object_set_new(rootJ, "expansion", json_integer(expansion));
+
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
 		
@@ -333,7 +344,7 @@ struct PhraseSeq32 : Module {
 		json_object_set_new(rootJ, "attributes", attributesJ);
 
 		// attached
-		json_object_set_new(rootJ, "attached", json_integer((int)attached));
+		json_object_set_new(rootJ, "attached", json_boolean(attached));
 
 		return rootJ;
 	}
@@ -343,6 +354,11 @@ struct PhraseSeq32 : Module {
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
 			panelTheme = json_integer_value(panelThemeJ);
+
+		// expansion
+		json_t *expansionJ = json_object_get(rootJ, "expansion");
+		if (expansionJ)
+			expansion = json_integer_value(expansionJ);
 
 		// running
 		json_t *runningJ = json_object_get(rootJ, "running");
@@ -420,7 +436,7 @@ struct PhraseSeq32 : Module {
 		// attached
 		json_t *attachedJ = json_object_get(rootJ, "attached");
 		if (attachedJ)
-			attached = !!json_integer_value(attachedJ);
+			attached = json_is_true(attachedJ);
 		
 		// Initialize dependants after everything loaded
 		int stepConfig = 1;// 2x16
@@ -478,6 +494,10 @@ struct PhraseSeq32 : Module {
 		// Seq CV input
 		if (inputs[SEQCV_INPUT].active) {
 			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (32.0f - 1.0f) / 10.0f), 0.0f, (32.0f - 1.0f) );
+		}
+		// Mode CV input
+		if (inputs[MODECV_INPUT].active) {
+			runModeSeq[sequence] = (int) clamp( round(inputs[MODECV_INPUT].value * 4.0f / 10.0f), 0.0f, 4.0f );
 		}
 		
 		// Config switch
@@ -735,9 +755,11 @@ struct PhraseSeq32 : Module {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 				if (displayState == DISP_MODE) {
 					if (editingSequence) {
-						runModeSeq[sequence] += deltaKnob;
-						if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
-						if (runModeSeq[sequence] > 4) runModeSeq[sequence] = 4;
+						if (!inputs[MODECV_INPUT].active) {
+							runModeSeq[sequence] += deltaKnob;
+							if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
+							if (runModeSeq[sequence] > 4) runModeSeq[sequence] = 4;
+						}
 					}
 					else {
 						runModeSong += deltaKnob;
@@ -1202,7 +1224,11 @@ struct PhraseSeq32 : Module {
 
 
 struct PhraseSeq32Widget : ModuleWidget {
-
+	PhraseSeq32 *module;
+	DynamicSVGPanelEx *panel;
+	int oldExpansion;
+	IMPort* expPorts[5];
+	
 	struct SequenceDisplayWidget : TransparentWidget {
 		PhraseSeq32 *module;
 		std::shared_ptr<Font> font;
@@ -1278,6 +1304,12 @@ struct PhraseSeq32Widget : ModuleWidget {
 			rightText = (module->panelTheme == theme) ? "✔" : "";
 		}
 	};
+	struct ExpansionItem : MenuItem {
+		PhraseSeq32 *module;
+		void onAction(EventAction &e) override {
+			module->expansion = module->expansion == 1 ? 0 : 1;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -1303,18 +1335,45 @@ struct PhraseSeq32Widget : ModuleWidget {
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
 
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *expansionLabel = new MenuLabel();
+		expansionLabel->text = "Expansion module";
+		menu->addChild(expansionLabel);
+
+		ExpansionItem *expItem = MenuItem::create<ExpansionItem>(expansionMenuLabel, CHECKMARK(module->expansion != 0));
+		expItem->module = module;
+		menu->addChild(expItem);
 		return menu;
 	}	
 	
+	void step() override {
+		if(module->expansion != oldExpansion) {
+			if (oldExpansion!= -1 && module->expansion == 0) {// if just removed expansion panel, disconnect wires to those jacks
+				for (int i = 0; i < 5; i++)
+					gRackWidget->wireContainer->removeAllWires(expPorts[i]);
+			}
+			oldExpansion = module->expansion;		
+		}
+		box.size = panel->box.size;
+		Widget::step();
+	}
 	
 	PhraseSeq32Widget(PhraseSeq32 *module) : ModuleWidget(module) {
+		this->module = module;
+		oldExpansion = -1;
+		
 		// Main panel from Inkscape
-        DynamicSVGPanel *panel = new DynamicSVGPanel();
+        panel = new DynamicSVGPanelEx();
+        panel->mode = &module->panelTheme;
+        panel->expansion = &module->expansion;
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq32.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/PhraseSeq32_dark.svg")));
+        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/light/PhraseSeqExp.svg")));
+        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/light/PhraseSeqExp.svg")));
         box.size = panel->box.size;
-        panel->mode = &module->panelTheme;
         addChild(panel);
+		
 		// Screw holes (optical illustion makes screws look oval, remove for now)
 		/*addChild(new ScrewHole(Vec(15, 0)));
 		addChild(new ScrewHole(Vec(box.size.x-30, 0)));
@@ -1323,9 +1382,11 @@ struct PhraseSeq32Widget : ModuleWidget {
 		
 		// Screws
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 0)));
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 365)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 365)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x+30, 0)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x+30, 365)));
 
 		
 		
@@ -1513,6 +1574,17 @@ struct PhraseSeq32Widget : ModuleWidget {
 		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::CVB_OUTPUT, &module->panelTheme));
 		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB7, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE1B_OUTPUT, &module->panelTheme));
 		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB8, rowRulerB0), Port::OUTPUT, module, PhraseSeq32::GATE2B_OUTPUT, &module->panelTheme));
+		
+		
+		// Expansion module
+		static const int rowRulerExpTop = 65;
+		static const int rowSpacingExp = 60;
+		static const int colRulerExp = 497;
+		addInput(expPorts[0] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, PhraseSeq32::MODECV_INPUT, &module->panelTheme));
+		addInput(expPorts[1] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, PhraseSeq32::GATE1CV_INPUT, &module->panelTheme));
+		addInput(expPorts[2] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, PhraseSeq32::GATE2CV_INPUT, &module->panelTheme));
+		addInput(expPorts[3] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, PhraseSeq32::TIEDCV_INPUT, &module->panelTheme));
+		addInput(expPorts[4] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 4), Port::INPUT, module, PhraseSeq32::SLIDECV_INPUT, &module->panelTheme));
 	}
 };
 
@@ -1521,6 +1593,9 @@ Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromp
 /*CHANGE LOG
 
 0.6.5:
+add GATE1, GATE2, TIED, SLIDE CV inputs 
+add MODE CV input (affects only selected sequence and in Seq mode)
+add expansion panel option
 swap MODE/LEN so that length happens first (update manual)
 
 0.6.4:

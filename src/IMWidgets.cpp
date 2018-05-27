@@ -54,6 +54,79 @@ void DynamicSVGPanel::step() { // all code except middle if() from SVGPanel::ste
 
 
 
+// Dynamic SVGPanel with expansion
+
+DynamicSVGPanelEx::DynamicSVGPanelEx() {
+    mode = nullptr;
+    oldMode = -1;
+    expansion = nullptr;
+    oldExpansion = -1;
+    visiblePanel = new SVGWidget();
+    addChild(visiblePanel);
+    border = new PanelBorderWidget();
+    addChild(border);
+    visiblePanelEx = new SVGWidget();
+	visiblePanelEx->visible = false;
+    addChild(visiblePanelEx);
+    borderEx = new PanelBorderWidget();
+	borderEx->visible = false;
+    addChild(borderEx);
+}
+
+void DynamicSVGPanelEx::addPanel(std::shared_ptr<SVG> svg) {// must add these before adding expansion panels
+    panels.push_back(svg);
+    if(!visiblePanel->svg) {
+        visiblePanel->setSVG(svg);
+        box.size = visiblePanel->box.size.div(RACK_GRID_SIZE).round().mult(RACK_GRID_SIZE);
+        border->box.size = box.size;
+    }
+}
+
+void DynamicSVGPanelEx::addPanelEx(std::shared_ptr<SVG> svg) {
+    panelsEx.push_back(svg);
+    if(!visiblePanelEx->svg) {
+        visiblePanelEx->setSVG(svg);
+		visiblePanelEx->box.pos.x = visiblePanel->box.size.x;
+		borderEx->box.pos.x = visiblePanel->box.size.x;
+		borderEx->box.size = visiblePanelEx->box.size.div(RACK_GRID_SIZE).round().mult(RACK_GRID_SIZE);
+		if (expansion != nullptr && *expansion != 0)
+			box.size.x = border->box.size.x + borderEx->box.size.x;
+    }
+}
+
+void DynamicSVGPanelEx::step() { // all code except two middle if() from SVGPanel::step() in SVGPanel.cpp
+    if (isNear(gPixelRatio, 1.0)) {
+		// Small details draw poorly at low DPI, so oversample when drawing to the framebuffer
+        oversample = 2.f;
+    }
+    if(mode != nullptr && *mode != oldMode) {
+        visiblePanel->setSVG(panels[*mode]);
+		visiblePanelEx->setSVG(panelsEx[*mode]);
+        oldMode = *mode;
+        dirty = true;
+    }
+    if(expansion != nullptr && *expansion != oldExpansion) {
+		if (*expansion == 0) {
+			if (oldExpansion != -1) {
+				box.size.x = border->box.size.x;
+				borderEx->visible = false;
+				visiblePanelEx->visible = false;
+			}
+		}
+		else {
+			box.size.x = border->box.size.x + borderEx->box.size.x;
+			borderEx->visible = true;
+			visiblePanelEx->visible = true;
+		}
+        oldExpansion = *expansion;
+        dirty = true;
+    }
+	FramebufferWidget::step();
+}
+
+
+
+
 // Dynamic SVGPort
 
 DynamicSVGPort::DynamicSVGPort() {

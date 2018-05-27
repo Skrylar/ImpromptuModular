@@ -156,7 +156,7 @@ struct WriteSeq32 : Module {
 		json_t *gatesJ = json_array();
 		for (int c = 0; c < 4; c++)
 			for (int s = 0; s < 32; s++) {
-				json_array_insert_new(gatesJ, s + (c<<5), json_integer((int) gates[c][s]));
+				json_array_insert_new(gatesJ, s + (c<<5), json_integer((int) gates[c][s]));// json_boolean wil break patches
 			}
 		json_object_set_new(rootJ, "gates", gatesJ);
 
@@ -197,7 +197,7 @@ struct WriteSeq32 : Module {
 				for (int s = 0; s < 32; s++) {
 					json_t *gateJ = json_array_get(gatesJ, s + (c<<5));
 					if (gateJ)
-						gates[c][s] = !!json_integer_value(gateJ);
+						gates[c][s] = !!json_integer_value(gateJ);// json_is_true() will break patches
 				}
 		}
 	}

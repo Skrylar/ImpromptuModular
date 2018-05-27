@@ -65,7 +65,6 @@ struct GateSeq64 : Module {
 	int phrase[16];// This is the song (series of phases; a phrase is a patten number)
 	int phrases;//1 to 16
 	//	
-	bool trig[4] = {false, false, false, false};
 	int attributes[16][64];
 
 	// No need to save
