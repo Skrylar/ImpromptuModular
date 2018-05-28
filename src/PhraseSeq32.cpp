@@ -20,7 +20,7 @@ struct PhraseSeq32 : Module {
 	enum ParamIds {
 		LEFT_PARAM,
 		RIGHT_PARAM,
-		RIGHT8_PARAM,
+		RIGHT8_PARAM,// not used
 		EDIT_PARAM,
 		SEQUENCE_PARAM,
 		RUN_PARAM,
@@ -143,7 +143,6 @@ struct PhraseSeq32 : Module {
 	SchmittTrigger resetTrigger;
 	SchmittTrigger leftTrigger;
 	SchmittTrigger rightTrigger;
-	SchmittTrigger right8Trigger;
 	SchmittTrigger runningTrigger;
 	SchmittTrigger clockTrigger;
 	SchmittTrigger octTriggers[7];
@@ -203,7 +202,6 @@ struct PhraseSeq32 : Module {
 		modeCPbuffer = MODE_FWD;
 		countCP = 32;
 		sequenceKnob = INT_MAX;
-		//editingLength = 0ul;// not needed in PS32 (only PS16)
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
@@ -244,7 +242,6 @@ struct PhraseSeq32 : Module {
 		modeCPbuffer = MODE_FWD;
 		countCP = 32;
 		sequenceKnob = INT_MAX;
-		//editingLength = 0ul;// not needed in PS32 (only PS16)
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
@@ -312,7 +309,7 @@ struct PhraseSeq32 : Module {
 		// sequence
 		json_object_set_new(rootJ, "sequence", json_integer(sequence));
 
-		// lengths 
+		// lengths
 		json_t *lengthsJ = json_array();
 		for (int i = 0; i < 32; i++)
 			json_array_insert_new(lengthsJ, i, json_integer(lengths[i]));
@@ -474,8 +471,8 @@ struct PhraseSeq32 : Module {
 	void step() override {
 		static const float gateTime = 0.4f;// seconds
 		static const float copyPasteInfoTime = 0.5f;// seconds
-		static const float tiedWarningTime = 0.5f;// seconds
 		static const float revertDisplayTime = 0.7f;// seconds
+		static const float tiedWarningTime = 0.5f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * engineGetSampleRate());
 		
 		
@@ -533,9 +530,8 @@ struct PhraseSeq32 : Module {
 			displayState = DISP_NORMAL;			
 		}
 		if (running && attached) {
-			if (editingSequence) {
+			if (editingSequence)
 				stepIndexEdit = stepIndexRun + ((attachedChanB && stepConfig == 1) ? 16 : 0);
-			}
 			else
 				phraseIndexEdit = phraseIndexRun;
 		}

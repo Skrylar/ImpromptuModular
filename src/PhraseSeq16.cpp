@@ -257,6 +257,7 @@ struct PhraseSeq16 : Module {
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
 		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+		gate1RandomEnable = false;
 		if (isEditingSequence()) {
 			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
 			gate1RandomEnable = calcGate1RandomEnable(getGate1P(sequence, stepIndexRun));
@@ -294,7 +295,7 @@ struct PhraseSeq16 : Module {
 		json_t *runModeSeqJ = json_array();
 		for (int i = 0; i < 16; i++)
 			json_array_insert_new(runModeSeqJ, i, json_integer(runModeSeq[i]));
-		json_object_set_new(rootJ, "runModeSeq2", runModeSeqJ);
+		json_object_set_new(rootJ, "runModeSeq2", runModeSeqJ);// "2" appended so no break patches
 
 		// runModeSong
 		json_object_set_new(rootJ, "runModeSong", json_integer(runModeSong));
@@ -332,7 +333,7 @@ struct PhraseSeq16 : Module {
 				json_array_insert_new(attributesJ, s + (i * 16), json_integer(attributes[i][s]));
 			}
 		json_object_set_new(rootJ, "attributes", attributesJ);
-		
+
 		// attached
 		json_object_set_new(rootJ, "attached", json_boolean(attached));
 
@@ -356,7 +357,7 @@ struct PhraseSeq16 : Module {
 			running = json_is_true(runningJ);
 
 		// runModeSeq
-		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq2");
+		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq2");// "2" appended so no break patches
 		if (runModeSeqJ) {
 			for (int i = 0; i < 16; i++)
 			{
@@ -663,7 +664,8 @@ struct PhraseSeq16 : Module {
 							attributes[sequence][stepIndexEdit] = (inputs[GATE2CV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_GATE2) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_GATE2);
 						if (inputs[SLIDECV_INPUT].active)
 							attributes[sequence][stepIndexEdit] = (inputs[SLIDECV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_SLIDE) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_SLIDE);
-					}					// Autostep (after grab all active inputs)
+					}					
+					// Autostep (after grab all active inputs)
 					if (params[AUTOSTEP_PARAM].value > 0.5f)
 						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, lengths[sequence]);
 				}
@@ -790,7 +792,7 @@ struct PhraseSeq16 : Module {
 						if (!inputs[SEQCV_INPUT].active) {
 							sequence += deltaKnob;
 							if (sequence < 0) sequence = 0;
-							if (sequence > 15) sequence = 15;
+							if (sequence >= 16) sequence = (16 - 1);
 							if (stepIndexEdit >= lengths[sequence])
 								stepIndexEdit = lengths[sequence] - 1;
 						}
@@ -798,7 +800,7 @@ struct PhraseSeq16 : Module {
 					else {
 						phrase[phraseIndexEdit] += deltaKnob;
 						if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
-						if (phrase[phraseIndexEdit] > 15) phrase[phraseIndexEdit] = 15;				
+						if (phrase[phraseIndexEdit] >= 16) phrase[phraseIndexEdit] = (16 - 1);				
 					}
 				}
 			}
@@ -892,7 +894,7 @@ struct PhraseSeq16 : Module {
 					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 				}
 				else
-					attributes[sequence][stepIndexEdit] |= (ATT_MSK_GATE1 | ATT_MSK_GATE2);;
+					attributes[sequence][stepIndexEdit] |= (ATT_MSK_GATE1 | ATT_MSK_GATE2);
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -1275,8 +1277,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 		
 		// Screws
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 0)));
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 365)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 365)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x+30, 0)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x+30, 365)));
