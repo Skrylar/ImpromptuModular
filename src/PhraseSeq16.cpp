@@ -563,6 +563,8 @@ struct PhraseSeq16 : Module {
 			running = !running;
 			if (running)
 				initRun();
+			else
+				editingGateCV = cv[sequence][stepIndexEdit];
 			displayState = DISP_NORMAL;
 		}
 
