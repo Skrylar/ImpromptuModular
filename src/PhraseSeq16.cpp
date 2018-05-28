@@ -788,6 +788,7 @@ struct PhraseSeq16 : Module {
 							if (sequence > 15) sequence = 15;
 							if (stepIndexEdit >= lengths[sequence])
 								stepIndexEdit = lengths[sequence] - 1;
+							editingGateCV = cv[sequence][stepIndexEdit];
 						}
 					}
 					else {

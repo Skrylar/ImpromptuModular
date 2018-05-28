@@ -847,6 +847,7 @@ struct PhraseSeq32 : Module {
 								if (stepIndexEdit >= lengths[sequence]) 
 									stepIndexEdit = lengths[sequence] - 1;
 							}
+							editingGateCV = cv[sequence][stepIndexEdit];
 						}
 					}
 					else {
