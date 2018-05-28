@@ -1,23 +1,30 @@
 //***********************************************************************************************
-//Multi-phrase 16 step sequencer module for VCV Rack by Marc Boulé
+//Semi-Modular Synthesizer module for VCV Rack by Marc Boulé and Xavier Belmont
 //
 //Based on code from the Fundamental and AudibleInstruments plugins by Andrew Belt 
 //and graphics from the Component Library by Wes Milholen 
 //See ./LICENSE.txt for all licenses
 //See ./res/fonts/ for font licenses
+//See ./src/FundamentalUtil.hpp for the filter code license (by Miller Puckette)
 //
-//Module inspired by the SA-100 Stepper Acid sequencer by Transistor Sounds Labs
+//Module concept, desing and layout by Xavier Belmont
+//Code by Marc Boulé
 //
 //Acknowledgements: please see README.md
 //***********************************************************************************************
 
 
+// TODO: REMOVE FIRST 3 LAYERS IN SemiModular.svg  !!!!!!!!!!!
+
+
 #include "ImpromptuModular.hpp"
+#include "FundamentalUtil.hpp"
 #include "dsp/digital.hpp"
 
 
-struct PhraseSeq16 : Module {
+struct SemiModularSynth : Module {
 	enum ParamIds {
+		// SEQUENCER
 		LEFT_PARAM,
 		RIGHT_PARAM,
 		LENGTH_PARAM,
@@ -33,54 +40,82 @@ struct PhraseSeq16 : Module {
 		SLIDE_BTN_PARAM,
 		SLIDE_KNOB_PARAM,
 		ATTACH_PARAM,
-		ROTATEL_PARAM,// no longer used
-		ROTATER_PARAM,// no longer used
-		PASTESYNC_PARAM,// no longer used
 		AUTOSTEP_PARAM,
 		ENUMS(KEY_PARAMS, 12),
-		TRANSPOSEU_PARAM,// no longer used
-		TRANSPOSED_PARAM,// no longer used
-		// -- 0.6.2 ^^
 		RUNMODE_PARAM,
 		TRAN_ROT_PARAM,
-		ROTATE_PARAM,//no longer used
 		GATE1_KNOB_PARAM,
-		GATE2_KNOB_PARAM,// no longer used
 		GATE1_PROB_PARAM,
 		TIE_PARAM,// Legato
-		// -- 0.6.3 ^^
 		CPMODE_PARAM,
-		// -- 0.6.4 ^^
+		
+		// VCO
+		VCO_MODE_PARAM,
+		VCO_SYNC_PARAM,
+		VCO_FREQ_PARAM,
+		VCO_FINE_PARAM,
+		VCO_FM_PARAM,
+		VCO_PW_PARAM,
+		VCO_PWM_PARAM,
+
+		// CLK
+		CLK_FREQ_PARAM,
+		CLK_PW_PARAM,
+
+		// VCA
+		VCA_LEVEL1_PARAM,
+		
 		NUM_PARAMS
 	};
 	enum InputIds {
+		// SEQUENCER
 		WRITE_INPUT,
 		CV_INPUT,
 		RESET_INPUT,
 		CLOCK_INPUT,
-		// -- 0.6.2 ^^
 		LEFTCV_INPUT,
 		RIGHTCV_INPUT,
 		RUNCV_INPUT,
 		SEQCV_INPUT,
-		MODECV_INPUT,
-		// -- 0.6.3 ^^
-		// -- 0.6.4 ^^
-		GATE1CV_INPUT,
-		GATE2CV_INPUT,
-		TIEDCV_INPUT,
-		SLIDECV_INPUT,
+		
+		// VCO
+		VCO_PITCH_INPUT,
+		VCO_FM_INPUT,
+		VCO_SYNC_INPUT,
+		VCO_PW_INPUT,
+
+		// CLK
+		// none
+		
+		// VCA
+		VCA_EXP1_INPUT,
+		VCA_LIN1_INPUT,
+		VCA_IN1_INPUT,
+				
 		NUM_INPUTS
 	};
 	enum OutputIds {
+		// SEQUENCER
 		CV_OUTPUT,
 		GATE1_OUTPUT,
 		GATE2_OUTPUT,
-		// -- 0.6.2 ^^
-		// -- 0.6.3 ^^
+		
+		// VCO
+		VCO_SIN_OUTPUT,
+		VCO_TRI_OUTPUT,
+		VCO_SAW_OUTPUT,
+		VCO_SQR_OUTPUT,
+
+		// CLK
+		// none
+		
+		// VCA
+		VCA_OUT1_OUTPUT,
+		
 		NUM_OUTPUTS
 	};
 	enum LightIds {
+		// SEQUENCER
 		ENUMS(STEP_PHRASE_LIGHTS, 16 * 2),// room for GreenRed
 		ENUMS(OCTAVE_LIGHTS, 7),// octaves 1 to 7
 		ENUMS(KEY_LIGHTS, 12),
@@ -90,20 +125,23 @@ struct PhraseSeq16 : Module {
 		GATE2_LIGHT,
 		SLIDE_LIGHT,
 		ATTACH_LIGHT,
-		PENDING_LIGHT,// no longer used
-		// -- 0.6.2 ^^
 		GATE1_PROB_LIGHT,
-		// -- 0.6.3 ^^
 		TIE_LIGHT,
+		
+		// VCO, CLK, VCA
+		// none
+		
 		NUM_LIGHTS
 	};
 	
 	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_TRANSPOSE, DISP_ROTATE};
 	enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_GATE2 = 0x04, ATT_MSK_SLIDE = 0x08, ATT_MSK_TIED = 0x10};
 
+	
+	// SEQUENCER
+	
 	// Need to save
 	int panelTheme = 0;
-	int expansion = 0;
 	bool running;
 	int runModeSeq[16]; 
 	int runModeSong; 
@@ -147,7 +185,17 @@ struct PhraseSeq16 : Module {
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
 	int sequenceKnob;// INT_MAX when knob not seen yet
 	bool gate1RandomEnable;
-
+	
+	
+	// VCO
+	// none
+	
+	// CLK
+	float clkValue;
+	
+	// VCA
+	// none
+	
 
 	SchmittTrigger resetTrigger;
 	SchmittTrigger leftTrigger;
@@ -180,12 +228,17 @@ struct PhraseSeq16 : Module {
 	inline bool calcGate1RandomEnable(bool gate1P) {return (randomUniform() < (params[GATE1_KNOB_PARAM].value)) || !gate1P;}// randomUniform is [0.0, 1.0), see include/util/common.hpp
 	
 	
-	PhraseSeq16() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
+	LowFrequencyOscillator oscillatorClk;
+	VoltageControlledOscillator<16, 16> oscillatorVco;
+
+
+	SemiModularSynth() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
 	}
 	
 
 	void onReset() override {
+		// SEQUENCER
 		running = false;
 		runModeSong = MODE_FWD;
 		sequence = 0;
@@ -215,6 +268,12 @@ struct PhraseSeq16 : Module {
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
+		
+		// VCO
+		// none
+		
+		// CLK
+		clkValue = 0.0f;
 	}
 
 	
@@ -285,9 +344,6 @@ struct PhraseSeq16 : Module {
 		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
 
-		// expansion
-		json_object_set_new(rootJ, "expansion", json_integer(expansion));
-
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
 		
@@ -345,11 +401,6 @@ struct PhraseSeq16 : Module {
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
 			panelTheme = json_integer_value(panelThemeJ);
-
-		// expansion
-		json_t *expansionJ = json_object_get(rootJ, "expansion");
-		if (expansionJ)
-			expansion = json_integer_value(expansionJ);
 
 		// running
 		json_t *runningJ = json_object_get(rootJ, "running");
@@ -531,6 +582,9 @@ struct PhraseSeq16 : Module {
 
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
+
+		// SEQUENCER
+
 		static const float gateTime = 0.4f;// seconds
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float editLengthTime = 1.6f;// seconds
@@ -556,11 +610,6 @@ struct PhraseSeq16 : Module {
 			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (16.0f - 1.0f) / 10.0f), 0.0f, (16.0f - 1.0f) );
 			if (stepIndexEdit >= lengths[sequence])
 				stepIndexEdit = lengths[sequence] - 1;
-		}
-		// Mode CV input
-		if (inputs[MODECV_INPUT].active) {
-			if (editingSequence)
-				runModeSeq[sequence] = (int) clamp( round(inputs[MODECV_INPUT].value * 4.0f / 10.0f), 0.0f, 4.0f );
 		}
 		
 		// Run button
@@ -645,26 +694,13 @@ struct PhraseSeq16 : Module {
 		bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 		if (writeTrig) {
 			if (editingSequence) {
-				if (getTied(sequence,stepIndexEdit) & !inputs[TIEDCV_INPUT].active)
+				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else {			
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = inputs[CV_INPUT].value;
 					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
 					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
-					// Extra CVs from expansion panel:
-					if (inputs[TIEDCV_INPUT].active)
-						attributes[sequence][stepIndexEdit] = (inputs[TIEDCV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_TIED) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_TIED);
-					if (getTied(sequence, stepIndexEdit))
-						attributes[sequence][stepIndexEdit] = ATT_MSK_TIED;// clear other attributes if tied
-					else {
-						if (inputs[GATE1CV_INPUT].active)
-							attributes[sequence][stepIndexEdit] = (inputs[GATE1CV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_GATE1) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_GATE1);
-						if (inputs[GATE2CV_INPUT].active)
-							attributes[sequence][stepIndexEdit] = (inputs[GATE2CV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_GATE2) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_GATE2);
-						if (inputs[SLIDECV_INPUT].active)
-							attributes[sequence][stepIndexEdit] = (inputs[SLIDECV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_SLIDE) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_SLIDE);
-					}					
 					// Autostep (after grab all active inputs)
 					if (params[AUTOSTEP_PARAM].value > 0.5f)
 						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, lengths[sequence]);
@@ -748,11 +784,9 @@ struct PhraseSeq16 : Module {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 				if (displayState == DISP_MODE) {
 					if (editingSequence) {
-						if (!inputs[MODECV_INPUT].active) {
-							runModeSeq[sequence] += deltaKnob;
-							if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
-							if (runModeSeq[sequence] > 4) runModeSeq[sequence] = 4;
-						}
+						runModeSeq[sequence] += deltaKnob;
+						if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
+						if (runModeSeq[sequence] > 4) runModeSeq[sequence] = 4;
 					}
 					else {
 						runModeSong += deltaKnob;
@@ -903,7 +937,8 @@ struct PhraseSeq16 : Module {
 		//********** Clock and reset **********
 		
 		// Clock
-		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
+		float clockInput = inputs[CLOCK_INPUT].active ? inputs[CLOCK_INPUT].value : clkValue;
+		if (clockTrigger.process(clockInput)) {
 			if (running && clockIgnoreOnReset == 0l) {
 				float slideFromCV = 0.0f;
 				float slideToCV = 0.0f;
@@ -1094,6 +1129,50 @@ struct PhraseSeq16 : Module {
 		if (tiedWarning > 0l)
 			tiedWarning--;
 
+		
+		// VCO
+		
+		oscillatorVco.analog = params[VCO_MODE_PARAM].value > 0.0f;
+		oscillatorVco.soft = params[VCO_SYNC_PARAM].value <= 0.0f;
+
+		float pitchFine = 3.0f * quadraticBipolar(params[VCO_FINE_PARAM].value);
+		float pitchCv = 12.0f * (inputs[VCO_PITCH_INPUT].active ? inputs[VCO_PITCH_INPUT].value : outputs[CV_OUTPUT].value);
+		if (inputs[VCO_FM_INPUT].active) {
+			pitchCv += quadraticBipolar(params[VCO_FM_PARAM].value) * 12.0f * inputs[VCO_FM_INPUT].value;
+		}
+		oscillatorVco.setPitch(params[VCO_FREQ_PARAM].value, pitchFine + pitchCv);
+		oscillatorVco.setPulseWidth(params[VCO_PW_PARAM].value + params[VCO_PWM_PARAM].value * inputs[VCO_PW_INPUT].value / 10.0f);
+		oscillatorVco.syncEnabled = inputs[VCO_SYNC_INPUT].active;
+
+		oscillatorVco.process(engineGetSampleTime(), inputs[VCO_SYNC_INPUT].value);
+
+		// Set output
+		if (outputs[VCO_SIN_OUTPUT].active)
+			outputs[VCO_SIN_OUTPUT].value = 5.0f * oscillatorVco.sin();
+		if (outputs[VCO_TRI_OUTPUT].active)
+			outputs[VCO_TRI_OUTPUT].value = 5.0f * oscillatorVco.tri();
+		if (outputs[VCO_SAW_OUTPUT].active)
+			outputs[VCO_SAW_OUTPUT].value = 5.0f * oscillatorVco.saw();
+		//if (outputs[VCO_SQR_OUTPUT].active)
+			outputs[VCO_SQR_OUTPUT].value = 5.0f * oscillatorVco.sqr();		
+			
+			
+		// CLK
+		
+		oscillatorClk.setPitch(params[CLK_FREQ_PARAM].value);
+		oscillatorClk.setPulseWidth(params[CLK_PW_PARAM].value);
+		oscillatorClk.offset = true;//(params[OFFSET_PARAM].value > 0.0f);
+		oscillatorClk.invert = false;//(params[INVERT_PARAM].value <= 0.0f);
+		oscillatorClk.step(engineGetSampleTime());
+		oscillatorClk.setReset(0.0f);//inputs[RESET_INPUT].value);
+		clkValue = 5.0f * oscillatorClk.sqr();		
+		
+		
+		// VCA
+		float vcaIn = inputs[VCA_IN1_INPUT].active ? inputs[VCA_IN1_INPUT].value : outputs[VCO_SQR_OUTPUT].value;
+		stepChannelVCA(vcaIn, params[VCA_LEVEL1_PARAM], inputs[VCA_LIN1_INPUT], inputs[VCA_EXP1_INPUT], outputs[VCA_OUT1_OUTPUT]);
+		
+		
 	}// step()
 	
 	bool calcTiedWarning(long tiedWarning, long tiedWarningInit) {
@@ -1120,18 +1199,26 @@ struct PhraseSeq16 : Module {
 		for (int i = indexTied + 1; i < seqLength && getTied(seqNum,i); i++) 
 			cv[seqNum][i] = cv[seqNum][indexTied];
 	}
+	
+	void stepChannelVCA(float in, Param &level, Input &lin, Input &exp, Output &out) {
+		float v = in * level.value;
+		if (lin.active)
+			v *= clamp(lin.value / 10.0f, 0.0f, 1.0f);
+		const float expBase = 50.0f;
+		if (exp.active)
+			v *= rescale(powf(expBase, clamp(exp.value / 10.0f, 0.0f, 1.0f)), 1.0f, expBase, 0.0f, 1.0f);
+		out.value = v;
+	}
 };
 
 
 
-struct PhraseSeq16Widget : ModuleWidget {
-	PhraseSeq16 *module;
-	DynamicSVGPanelEx *panel;
-	int oldExpansion;
-	IMPort* expPorts[5];
+struct SemiModularSynthWidget : ModuleWidget {
+	SemiModularSynth *module;
+	DynamicSVGPanel *panel;
 
 	struct SequenceDisplayWidget : TransparentWidget {
-		PhraseSeq16 *module;
+		SemiModularSynth *module;
 		std::shared_ptr<Font> font;
 		char displayStr[4];
 		std::string modeLabels[5]={"FWD","REV","PPG","BRN","RND"};
@@ -1163,18 +1250,18 @@ struct PhraseSeq16Widget : ModuleWidget {
 				}
 			}
 			else {
-				if (module->displayState == PhraseSeq16::DISP_MODE) {
+				if (module->displayState == SemiModularSynth::DISP_MODE) {
 					if (module->isEditingSequence())
 						runModeToStr(module->runModeSeq[module->sequence]);
 					else
 						runModeToStr(module->runModeSong);
 				}
-				else if (module->displayState == PhraseSeq16::DISP_TRANSPOSE) {
+				else if (module->displayState == SemiModularSynth::DISP_TRANSPOSE) {
 					snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffset));
 					if (module->transposeOffset < 0)
 						displayStr[0] = '-';
 				}
-				else if (module->displayState == PhraseSeq16::DISP_ROTATE) {
+				else if (module->displayState == SemiModularSynth::DISP_ROTATE) {
 					snprintf(displayStr, 4, ")%2u", (unsigned) abs(module->rotateOffset));
 					if (module->rotateOffset < 0)
 						displayStr[0] = '(';
@@ -1190,7 +1277,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 	};		
 	
 	struct PanelThemeItem : MenuItem {
-		PhraseSeq16 *module;
+		SemiModularSynth *module;
 		int theme;
 		void onAction(EventAction &e) override {
 			module->panelTheme = theme;
@@ -1199,19 +1286,13 @@ struct PhraseSeq16Widget : ModuleWidget {
 			rightText = (module->panelTheme == theme) ? "✔" : "";
 		}
 	};
-	struct ExpansionItem : MenuItem {
-		PhraseSeq16 *module;
-		void onAction(EventAction &e) override {
-			module->expansion = module->expansion == 1 ? 0 : 1;
-		}
-	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
 		MenuLabel *spacerLabel = new MenuLabel();
 		menu->addChild(spacerLabel);
 
-		PhraseSeq16 *module = dynamic_cast<PhraseSeq16*>(this->module);
+		SemiModularSynth *module = dynamic_cast<SemiModularSynth*>(this->module);
 		assert(module);
 
 		MenuLabel *themeLabel = new MenuLabel();
@@ -1230,58 +1311,29 @@ struct PhraseSeq16Widget : ModuleWidget {
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
 
-		menu->addChild(new MenuLabel());// empty line
-		
-		MenuLabel *expansionLabel = new MenuLabel();
-		expansionLabel->text = "Expansion module";
-		menu->addChild(expansionLabel);
-
-		ExpansionItem *expItem = MenuItem::create<ExpansionItem>(expansionMenuLabel, CHECKMARK(module->expansion != 0));
-		expItem->module = module;
-		menu->addChild(expItem);
 		return menu;
 	}	
 	
-	void step() override {
-		if(module->expansion != oldExpansion) {
-			if (oldExpansion!= -1 && module->expansion == 0) {// if just removed expansion panel, disconnect wires to those jacks
-				for (int i = 0; i < 5; i++)
-					gRackWidget->wireContainer->removeAllWires(expPorts[i]);
-			}
-			oldExpansion = module->expansion;		
-		}
-		box.size = panel->box.size;
-		Widget::step();
-	}
-	
-	PhraseSeq16Widget(PhraseSeq16 *module) : ModuleWidget(module) {
+	SemiModularSynthWidget(SemiModularSynth *module) : ModuleWidget(module) {
 		this->module = module;
-		oldExpansion = -1;
+		
+		// SEQUENCER 
 		
 		// Main panel from Inkscape
-        panel = new DynamicSVGPanelEx();
+        panel = new DynamicSVGPanel();
         panel->mode = &module->panelTheme;
-        panel->expansion = &module->expansion;
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq16.svg")));
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/PhraseSeq16_dark.svg")));
-        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/light/PhraseSeqExp.svg")));
-        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/light/PhraseSeqExp.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/SemiModular.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/SemiModular.svg")));
         box.size = panel->box.size;
         addChild(panel);		
-		
-		// Screw holes (optical illustion makes screws look oval, remove for now)
-		/*addChild(new ScrewHole(Vec(15, 0)));
-		addChild(new ScrewHole(Vec(box.size.x-30, 0)));
-		addChild(new ScrewHole(Vec(15, 365)));
-		addChild(new ScrewHole(Vec(box.size.x-30, 365)));*/
 		
 		// Screws
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 0)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 365)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x / 2, 0)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x / 2, 365)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 365)));
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x+30, 0)));
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x+30, 365)));
 
 		
 		
@@ -1294,18 +1346,18 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int columnRulerT3 = columnRulerT2 + 263;// Attach (also used to align rest of right side of module)
 
 		// Length button
-		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerT0 + offsetCKD6b, rowRulerT0 + offsetCKD6b), module, PhraseSeq16::LENGTH_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerT0 + offsetCKD6b, rowRulerT0 + offsetCKD6b), module, SemiModularSynth::LENGTH_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Left/Right buttons
-		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerT1 + offsetCKD6b, rowRulerT0 + offsetCKD6b), module, PhraseSeq16::LEFT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerT1 + 38 + offsetCKD6b, rowRulerT0 + offsetCKD6b), module, PhraseSeq16::RIGHT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerT1 + offsetCKD6b, rowRulerT0 + offsetCKD6b), module, SemiModularSynth::LEFT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerT1 + 38 + offsetCKD6b, rowRulerT0 + offsetCKD6b), module, SemiModularSynth::RIGHT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Step/Phrase lights
 		static const int spLightsSpacing = 15;
 		for (int i = 0; i < 16; i++) {
-			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(columnRulerT2 + spLightsSpacing * i + offsetMediumLight, rowRulerT0 + offsetMediumLight), module, PhraseSeq16::STEP_PHRASE_LIGHTS + (i*2)));
+			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(columnRulerT2 + spLightsSpacing * i + offsetMediumLight, rowRulerT0 + offsetMediumLight), module, SemiModularSynth::STEP_PHRASE_LIGHTS + (i*2)));
 		}
 		// Attach button and light
-		addParam(ParamWidget::create<TL1105>(Vec(columnRulerT3 - 4, rowRulerT0 + 2 + offsetTL1105), module, PhraseSeq16::ATTACH_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerT3 + 12 + offsetMediumLight, rowRulerT0 + offsetMediumLight), module, PhraseSeq16::ATTACH_LIGHT));		
+		addParam(ParamWidget::create<TL1105>(Vec(columnRulerT3 - 4, rowRulerT0 + 2 + offsetTL1105), module, SemiModularSynth::ATTACH_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerT3 + 12 + offsetMediumLight, rowRulerT0 + offsetMediumLight), module, SemiModularSynth::ATTACH_LIGHT));		
 
 		
 		
@@ -1314,8 +1366,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 		// Octave LED buttons
 		static const float octLightsIntY = 20.0f;
 		for (int i = 0; i < 7; i++) {
-			addParam(ParamWidget::create<LEDButton>(Vec(15 + 3, 82 + 24 + i * octLightsIntY- 4.4f), module, PhraseSeq16::OCTAVE_PARAM + i, 0.0f, 1.0f, 0.0f));
-			addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(15 + 3 + 4.4f, 82 + 24 + i * octLightsIntY), module, PhraseSeq16::OCTAVE_LIGHTS + i));
+			addParam(ParamWidget::create<LEDButton>(Vec(15 + 3, 82 + 24 + i * octLightsIntY- 4.4f), module, SemiModularSynth::OCTAVE_PARAM + i, 0.0f, 1.0f, 0.0f));
+			addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(15 + 3 + 4.4f, 82 + 24 + i * octLightsIntY), module, SemiModularSynth::OCTAVE_LIGHTS + i));
 		}
 		// Keys and Key lights
 		static const int keyNudgeX = 7;
@@ -1323,31 +1375,31 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int offsetKeyLEDx = 6;
 		static const int offsetKeyLEDy = 28;
 		// Black keys and lights
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(65+keyNudgeX, 89+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(65+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 1));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(93+keyNudgeX, 89+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(93+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 3));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(150+keyNudgeX, 89+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(150+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 6));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(178+keyNudgeX, 89+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(178+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 8));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(206+keyNudgeX, 89+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(206+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 10));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(65+keyNudgeX, 89+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(65+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 1));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(93+keyNudgeX, 89+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(93+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 3));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(150+keyNudgeX, 89+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(150+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 6));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(178+keyNudgeX, 89+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(178+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 8));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(206+keyNudgeX, 89+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(206+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 10));
 		// White keys and lights
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(51+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(51+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 0));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(79+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(79+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 2));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(107+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(107+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 4));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(136+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(136+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 5));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(164+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(164+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 7));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(192+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(192+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 9));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(220+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(220+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 11));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(51+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(51+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 0));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(79+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(79+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 2));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(107+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(107+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 4));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(136+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(136+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 5));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(164+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(164+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 7));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(192+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(192+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 9));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(220+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(220+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 11));
 		
 		
 		
@@ -1361,7 +1413,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int columnRulerMK2 = columnRulerT3;// Run mode column
 		
 		// Edit mode switch
-		addParam(ParamWidget::create<CKSS>(Vec(columnRulerMK0 + hOffsetCKSS, rowRulerMK0 + vOffsetCKSS), module, PhraseSeq16::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
+		addParam(ParamWidget::create<CKSS>(Vec(columnRulerMK0 + hOffsetCKSS, rowRulerMK0 + vOffsetCKSS), module, SemiModularSynth::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
 		// Sequence display
 		SequenceDisplayWidget *displaySequence = new SequenceDisplayWidget();
 		displaySequence->box.pos = Vec(columnRulerMK1-15, rowRulerMK0 + 3 + vOffsetDisplay);
@@ -1369,24 +1421,24 @@ struct PhraseSeq16Widget : ModuleWidget {
 		displaySequence->module = module;
 		addChild(displaySequence);
 		// Run mode button
-		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK0 + 0 + offsetCKD6b), module, PhraseSeq16::RUNMODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK0 + 0 + offsetCKD6b), module, SemiModularSynth::RUNMODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 
 		// Run LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 + offsetLEDbezel, rowRulerMK1 + 7 + offsetLEDbezel), module, PhraseSeq16::RUN_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK1 + 7 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq16::RUN_LIGHT));
+		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 + offsetLEDbezel, rowRulerMK1 + 7 + offsetLEDbezel), module, SemiModularSynth::RUN_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK1 + 7 + offsetLEDbezel + offsetLEDbezelLight), module, SemiModularSynth::RUN_LIGHT));
 		// Sequence knob
-		addParam(ParamWidget::create<IMBigKnobInf>(Vec(columnRulerMK1 + 1 + offsetIMBigKnob, rowRulerMK0 + 55 + offsetIMBigKnob), module, PhraseSeq16::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f));		
+		addParam(ParamWidget::create<IMBigKnobInf>(Vec(columnRulerMK1 + 1 + offsetIMBigKnob, rowRulerMK0 + 55 + offsetIMBigKnob), module, SemiModularSynth::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f));		
 		// Transpose/rotate button
-		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK1 + 4 + offsetCKD6b), module, PhraseSeq16::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK1 + 4 + offsetCKD6b), module, SemiModularSynth::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		
 		// Reset LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 + offsetLEDbezel, rowRulerMK2 + 5 + offsetLEDbezel), module, PhraseSeq16::RESET_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK2 + 5 + offsetLEDbezel + offsetLEDbezelLight), module, PhraseSeq16::RESET_LIGHT));
+		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerMK0 + offsetLEDbezel, rowRulerMK2 + 5 + offsetLEDbezel), module, SemiModularSynth::RESET_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerMK0 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK2 + 5 + offsetLEDbezel + offsetLEDbezelLight), module, SemiModularSynth::RESET_LIGHT));
 		// Copy/paste buttons
-		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 - 10, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq16::COPY_PARAM, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 + 20, rowRulerMK2 + 5 + offsetTL1105), module, PhraseSeq16::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 - 10, rowRulerMK2 + 5 + offsetTL1105), module, SemiModularSynth::COPY_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<TL1105>(Vec(columnRulerMK1 + 20, rowRulerMK2 + 5 + offsetTL1105), module, SemiModularSynth::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
 		// Copy-paste mode switch (3 position)
-		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRulerMK2 + hOffsetCKSS + 1, rowRulerMK2 - 3 + vOffsetCKSSThree), module, PhraseSeq16::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));	// 0.0f is top position
+		addParam(ParamWidget::create<CKSSThreeInv>(Vec(columnRulerMK2 + hOffsetCKSS + 1, rowRulerMK2 - 3 + vOffsetCKSSThree), module, SemiModularSynth::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));	// 0.0f is top position
 
 		
 		
@@ -1400,14 +1452,14 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int posLEDvsButton = + 25;
 		
 		// Gate 1 light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, PhraseSeq16::GATE1_LIGHT));		
-		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB1 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq16::GATE1_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB1 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, SemiModularSynth::GATE1_LIGHT));		
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB1 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, SemiModularSynth::GATE1_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Gate 2 light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB2 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, PhraseSeq16::GATE2_LIGHT));		
-		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB2 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq16::GATE2_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB2 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, SemiModularSynth::GATE2_LIGHT));		
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB2 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, SemiModularSynth::GATE2_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Tie light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB3 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, PhraseSeq16::TIE_LIGHT));		
-		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB3 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, PhraseSeq16::TIE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerMB3 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, SemiModularSynth::TIE_LIGHT));		
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB3 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, SemiModularSynth::TIE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 
 						
 		
@@ -1427,23 +1479,23 @@ struct PhraseSeq16Widget : ModuleWidget {
 
 		
 		// Gate 1 probability light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerB0 + posLEDvsButton + offsetMediumLight, rowRulerB1 + offsetMediumLight), module, PhraseSeq16::GATE1_PROB_LIGHT));		
-		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerB0 + offsetCKD6b, rowRulerB1 + offsetCKD6b), module, PhraseSeq16::GATE1_PROB_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerB0 + posLEDvsButton + offsetMediumLight, rowRulerB1 + offsetMediumLight), module, SemiModularSynth::GATE1_PROB_LIGHT));		
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerB0 + offsetCKD6b, rowRulerB1 + offsetCKD6b), module, SemiModularSynth::GATE1_PROB_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Gate 1 probability knob
-		addParam(ParamWidget::create<IMSmallKnob>(Vec(columnRulerB1 + offsetIMSmallKnob, rowRulerB1 + offsetIMSmallKnob), module, PhraseSeq16::GATE1_KNOB_PARAM, 0.0f, 1.0f, 1.0f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(columnRulerB1 + offsetIMSmallKnob, rowRulerB1 + offsetIMSmallKnob), module, SemiModularSynth::GATE1_KNOB_PARAM, 0.0f, 1.0f, 1.0f));
 		// Slide light and button
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerB2 + posLEDvsButton + offsetMediumLight, rowRulerB1 + offsetMediumLight), module, PhraseSeq16::SLIDE_LIGHT));		
-		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerB2 + offsetCKD6b, rowRulerB1 + offsetCKD6b), module, PhraseSeq16::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerB2 + posLEDvsButton + offsetMediumLight, rowRulerB1 + offsetMediumLight), module, SemiModularSynth::SLIDE_LIGHT));		
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerB2 + offsetCKD6b, rowRulerB1 + offsetCKD6b), module, SemiModularSynth::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Slide knob
-		addParam(ParamWidget::create<IMSmallKnob>(Vec(columnRulerB3 + offsetIMSmallKnob, rowRulerB1 + offsetIMSmallKnob), module, PhraseSeq16::SLIDE_KNOB_PARAM, 0.0f, 2.0f, 0.2f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(columnRulerB3 + offsetIMSmallKnob, rowRulerB1 + offsetIMSmallKnob), module, SemiModularSynth::SLIDE_KNOB_PARAM, 0.0f, 2.0f, 0.2f));
 		// Autostep
-		addParam(ParamWidget::create<CKSS>(Vec(columnRulerB4 + hOffsetCKSS, rowRulerB1 + vOffsetCKSS), module, PhraseSeq16::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
+		addParam(ParamWidget::create<CKSS>(Vec(columnRulerB4 + hOffsetCKSS, rowRulerB1 + vOffsetCKSS), module, SemiModularSynth::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
 		// CV in
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, PhraseSeq16::CV_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, SemiModularSynth::CV_INPUT, &module->panelTheme));
 		// Clock
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, PhraseSeq16::RESET_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, SemiModularSynth::RESET_INPUT, &module->panelTheme));
 		// Reset
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB6, rowRulerB1), Port::INPUT, module, PhraseSeq16::CLOCK_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB6, rowRulerB1), Port::INPUT, module, SemiModularSynth::CLOCK_INPUT, &module->panelTheme));
 
 		
 
@@ -1451,52 +1503,75 @@ struct PhraseSeq16Widget : ModuleWidget {
 
 	
 		// CV control Inputs 
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, PhraseSeq16::LEFTCV_INPUT, &module->panelTheme));
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, PhraseSeq16::RIGHTCV_INPUT, &module->panelTheme));
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, PhraseSeq16::SEQCV_INPUT, &module->panelTheme));
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, PhraseSeq16::RUNCV_INPUT, &module->panelTheme));
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, PhraseSeq16::WRITE_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, SemiModularSynth::LEFTCV_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, SemiModularSynth::RIGHTCV_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, SemiModularSynth::SEQCV_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, SemiModularSynth::RUNCV_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, SemiModularSynth::WRITE_INPUT, &module->panelTheme));
 		// Outputs
-		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB5, rowRulerB0), Port::OUTPUT, module, PhraseSeq16::CV_OUTPUT, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, PhraseSeq16::GATE1_OUTPUT, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB7, rowRulerB0), Port::OUTPUT, module, PhraseSeq16::GATE2_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB5, rowRulerB0), Port::OUTPUT, module, SemiModularSynth::CV_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, SemiModularSynth::GATE1_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB7, rowRulerB0), Port::OUTPUT, module, SemiModularSynth::GATE2_OUTPUT, &module->panelTheme));
+		
+		
+		// VCO
+		static const int rowRulerVCO0 = 62;// Freq
+		static const int rowRulerVCO1 = rowRulerVCO0 + 40;// Fine, PW
+		static const int rowRulerVCO2 = rowRulerVCO1 + 35;// FM, PWM, exact value from svg
+		static const int rowRulerVCO3 = rowRulerVCO2 + 46;// switches (Don't change this, tweak the switches' v offset instead since jacks lines up with this)
+		static const int rowRulerSpacingJacks = 35;// exact value from svg
+		static const int rowRulerVCO4 = rowRulerVCO3 + rowRulerSpacingJacks;// jack row 1
+		static const int rowRulerVCO5 = rowRulerVCO4 + rowRulerSpacingJacks;// jack row 2
+		static const int rowRulerVCO6 = rowRulerVCO5 + rowRulerSpacingJacks;// jack row 3
+		static const int rowRulerVCO7 = rowRulerVCO6 + rowRulerSpacingJacks;// jack row 4
+		static const int colRulerVCO0 = 456;
+		static const int colRulerVCO1 = colRulerVCO0 + 55;// exact value from svg
+
+		addParam(ParamWidget::create<IMBigKnob>(Vec(colRulerVCO0 + offsetIMBigKnob + 55 / 2, rowRulerVCO0 + offsetIMBigKnob), module, SemiModularSynth::VCO_FREQ_PARAM, -54.0f, 54.0f, 0.0f));
+		
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVCO0 + offsetIMSmallKnob, rowRulerVCO1 + offsetIMSmallKnob), module, SemiModularSynth::VCO_FINE_PARAM, -1.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVCO1 + offsetIMSmallKnob, rowRulerVCO1 + offsetIMSmallKnob), module, SemiModularSynth::VCO_PW_PARAM, 0.0f, 1.0f, 0.5f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVCO0 + offsetIMSmallKnob, rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCO_FM_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVCO1 + offsetIMSmallKnob, rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCO_PWM_PARAM, 0.0f, 1.0f, 0.0f));
+
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerVCO0 + hOffsetCKSS, rowRulerVCO3 + vOffsetCKSS), module, SemiModularSynth::VCO_MODE_PARAM, 0.0f, 1.0f, 1.0f));
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerVCO1 + hOffsetCKSS, rowRulerVCO3 + vOffsetCKSS), module, SemiModularSynth::VCO_SYNC_PARAM, 0.0f, 1.0f, 1.0f));
+
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO0, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::VCO_SIN_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO1, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::VCO_TRI_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO0, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCO_SAW_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCO_SQR_OUTPUT, &module->panelTheme));		
+		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCO0, rowRulerVCO6), Port::INPUT, module, SemiModularSynth::VCO_PITCH_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCO1, rowRulerVCO6), Port::INPUT, module, SemiModularSynth::VCO_FM_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCO0, rowRulerVCO7), Port::INPUT, module, SemiModularSynth::VCO_SYNC_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCO1, rowRulerVCO7), Port::INPUT, module, SemiModularSynth::VCO_PW_INPUT, &module->panelTheme));
 
 		
-		// Expansion module
-		static const int rowRulerExpTop = 65;
-		static const int rowSpacingExp = 60;
-		static const int colRulerExp = 497 - 30;// PS16 is 2HP less than PS32
-		addInput(expPorts[0] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, PhraseSeq16::GATE1CV_INPUT, &module->panelTheme));
-		addInput(expPorts[1] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, PhraseSeq16::GATE2CV_INPUT, &module->panelTheme));
-		addInput(expPorts[2] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, PhraseSeq16::TIEDCV_INPUT, &module->panelTheme));
-		addInput(expPorts[3] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, PhraseSeq16::SLIDECV_INPUT, &module->panelTheme));
-		addInput(expPorts[4] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 4), Port::INPUT, module, PhraseSeq16::MODECV_INPUT, &module->panelTheme));
+		// CLK
+		static const int rowRulerClk0 = 37;
+		static const int rowRulerClk1 = rowRulerClk0 + 45;// exact value from svg
+		static const int colRulerClk0 = colRulerVCO1 + 54;// exact value from svg is 54.103
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk0 + offsetIMSmallKnob), module, SemiModularSynth::CLK_FREQ_PARAM, -8.0f, 6.0f, -1.0f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk1 + offsetIMSmallKnob), module, SemiModularSynth::CLK_PW_PARAM, 0.0f, 1.0f, 0.5f));
+		
+		
+		// VCA
+		static const int colRulerVca1 = colRulerClk0 + 54;// exact value from svg is 53.888
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCA_LEVEL1_PARAM, 0.0f, 1.0f, 0.5f));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO3), Port::INPUT, module, SemiModularSynth::VCA_EXP1_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::VCA_LIN1_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO5), Port::INPUT, module, SemiModularSynth::VCA_IN1_INPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCA_OUT1_OUTPUT, &module->panelTheme));
+		
+		
 	}
 };
 
-Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromptu Modular", "Phrase-Seq-16", "Phrase-Seq-16", SEQUENCER_TAG);
+Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthWidget>("Impromptu Modular", "Semi-Modular Synth", "Semi-Modular Synth", SEQUENCER_TAG, OSCILLATOR_TAG);
 
 /*CHANGE LOG
 
 0.6.5:
-add GATE1, GATE2, TIED, SLIDE CV inputs 
-add MODE CV input (affects only selected sequence and in Seq mode)
-add expansion panel option
-
-0.6.4:
-turn off keyboard and oct lights when detached in song mode (makes no sense, can't mod steps and shows stepping though seq that may not be playing)
-removed mode CV input, added paste 4/8/ALL option (ALL copies length and run mode also)
-allow each sequence to have its own length and run mode
-merged functionalities of transpose and rotate into one knob
-implemented tied notes state bit for each step, and added light to tied steps
-implemented 0-T slide as opposed to 0-2s slide, where T is clock period
-changed copy-paste indication, now uses display rather than keyboard lights
-
-0.6.3: 
-added tie step macro button
-added gate probabilities (one prob setting for all steps)
-removed paste-sync
-
-0.6.2:
-initial release of PS16
+initial release of SMS
 */

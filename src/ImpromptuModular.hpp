@@ -22,6 +22,7 @@ extern Model *modelTwelveKey;
 extern Model *modelPhraseSeq16;
 extern Model *modelPhraseSeq32;
 extern Model *modelGateSeq64;
+extern Model *modelSemiModularSynth;
 extern Model *modelWriteSeq32;
 extern Model *modelWriteSeq64;
 extern Model *modelBlankPanel;
@@ -52,7 +53,7 @@ static const int offsetCKD6 = -1;//does both h and v
 static const int offsetCKD6b = 0;//does both h and v
 static const int vOffsetDisplay = -2;
 static const int offsetIMBigKnob = -6;//does both h and v
-static const int offsetRoundSmallBlackKnob = 1;//does both h and v
+static const int offsetIMSmallKnob = 1;//does both h and v
 static const int offsetMediumLight = 9;
 static const float offsetLEDbutton = 3.0f;//does both h and v
 static const float offsetLEDbuttonLight = 4.4f;//does both h and v
