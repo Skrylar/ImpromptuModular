@@ -553,10 +553,13 @@ struct PhraseSeq16 : Module {
 		// Seq CV input
 		if (inputs[SEQCV_INPUT].active) {
 			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (16.0f - 1.0f) / 10.0f), 0.0f, (16.0f - 1.0f) );
+			if (stepIndexEdit >= lengths[sequence])
+				stepIndexEdit = lengths[sequence] - 1;
 		}
 		// Mode CV input
 		if (inputs[MODECV_INPUT].active) {
-			runModeSeq[sequence] = (int) clamp( round(inputs[MODECV_INPUT].value * 4.0f / 10.0f), 0.0f, 4.0f );
+			if (editingSequence)
+				runModeSeq[sequence] = (int) clamp( round(inputs[MODECV_INPUT].value * 4.0f / 10.0f), 0.0f, 4.0f );
 		}
 		
 		// Run button
@@ -1275,6 +1278,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 365)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 365)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x+30, 0)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x+30, 365)));
 
 		
 		

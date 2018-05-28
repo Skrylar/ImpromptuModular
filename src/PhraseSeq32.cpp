@@ -495,10 +495,13 @@ struct PhraseSeq32 : Module {
 		// Seq CV input
 		if (inputs[SEQCV_INPUT].active) {
 			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (32.0f - 1.0f) / 10.0f), 0.0f, (32.0f - 1.0f) );
+			if (stepIndexEdit >= lengths[sequence])
+				stepIndexEdit = lengths[sequence] - 1;
 		}
 		// Mode CV input
 		if (inputs[MODECV_INPUT].active) {
-			runModeSeq[sequence] = (int) clamp( round(inputs[MODECV_INPUT].value * 4.0f / 10.0f), 0.0f, 4.0f );
+			if (editingSequence)
+				runModeSeq[sequence] = (int) clamp( round(inputs[MODECV_INPUT].value * 4.0f / 10.0f), 0.0f, 4.0f );
 		}
 		
 		// Config switch
