@@ -114,9 +114,9 @@ struct PhraseSeq32 : Module {
 	int stepIndexRun;
 	int phraseIndexEdit;
 	int phraseIndexRun;
-	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
-	float editingGateCV;// no need to initialize, this is a companion to editingGate
+	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
+	float editingGateCV;// no need to initialize, this is a companion to editingGate (output this only when editingGate > 0)
 	int editingChannel;// 0 means channel A, 1 means channel B. no need to initialize, this is a companion to editingGate
 	int stepIndexRunHistory;// no need to initialize
 	int phraseIndexRunHistory;// no need to initialize
@@ -472,7 +472,7 @@ struct PhraseSeq32 : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
-		static const float gateTime = 0.3f;// seconds
+		static const float gateTime = 0.4f;// seconds
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float tiedWarningTime = 0.5f;// seconds
 		static const float revertDisplayTime = 0.7f;// seconds
@@ -488,8 +488,9 @@ struct PhraseSeq32 : Module {
 		// * Whenever cv[][] is modified or tied[] is activated for a step, call applyTiedStep(sequence,stepIndexEdit,steps)
 		
 		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
-		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) )
+		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) ) {
 			displayState = DISP_NORMAL;
+		}
 		
 		// Seq CV input
 		if (inputs[SEQCV_INPUT].active) {
@@ -516,8 +517,6 @@ struct PhraseSeq32 : Module {
 			running = !running;
 			if (running)
 				initRun(stepConfig);
-			else
-				editingGateCV = cv[sequence][stepIndexEdit];
 			displayState = DISP_NORMAL;
 		}
 
@@ -629,7 +628,6 @@ struct PhraseSeq32 : Module {
 			}
 			displayState = DISP_NORMAL;
 		}
-		
 		// Left and right CV inputs
 		int delta = 0;
 		if (leftTrigger.process(inputs[LEFTCV_INPUT].value)) { 
@@ -649,8 +647,9 @@ struct PhraseSeq32 : Module {
 					if (lengths[sequence] > (16 * stepConfig)) lengths[sequence] = (16 * stepConfig);
 					if (lengths[sequence] < 1 ) lengths[sequence] = 1;
 					lengths[sequence] = ((lengths[sequence] - 1) % (16 * stepConfig)) + 1;
-					if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
+					if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence]) {
 						stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));
+					}
 				}
 				else {
 					phrases += delta;
@@ -674,10 +673,11 @@ struct PhraseSeq32 : Module {
 						else
 							if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = 0;
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
-							if (!writeTrig)
-								editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
-							editingGate = (unsigned long) (gateTime * engineGetSampleRate());
-							editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
+							if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
+								editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+								editingGateCV = cv[sequence][stepIndexEdit];
+								editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
+							}
 						}
 					}
 					else
@@ -712,9 +712,8 @@ struct PhraseSeq32 : Module {
 						if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
 							stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
-							if (!writeTrig)
-								editingGateCV = cv[sequence][stepIndexEdit];// don't overwrite when simultaneous writeCV and stepCV
 							editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+							editingGateCV = cv[sequence][stepIndexEdit];
 							editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 						}
 					}
@@ -847,7 +846,6 @@ struct PhraseSeq32 : Module {
 								if (stepIndexEdit >= lengths[sequence]) 
 									stepIndexEdit = lengths[sequence] - 1;
 							}
-							editingGateCV = cv[sequence][stepIndexEdit];
 						}
 					}
 					else {
@@ -1040,7 +1038,7 @@ struct PhraseSeq32 : Module {
 		else {// not running 
 			if (editingSequence) {// editing sequence while not running
 				if (editingChannel == 0) {
-					outputs[CVA_OUTPUT].value = editingGateCV;//cv[sequence][stepIndexEdit];
+					outputs[CVA_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[sequence][stepIndexEdit];
 					outputs[GATE1A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 					outputs[GATE2A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 					outputs[CVB_OUTPUT].value = 0.0f;
@@ -1051,7 +1049,7 @@ struct PhraseSeq32 : Module {
 					outputs[CVA_OUTPUT].value = 0.0f;
 					outputs[GATE1A_OUTPUT].value = 0.0f;
 					outputs[GATE2A_OUTPUT].value = 0.0f;
-					outputs[CVB_OUTPUT].value = editingGateCV;
+					outputs[CVB_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[sequence][stepIndexEdit];
 					outputs[GATE1B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 					outputs[GATE2B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 				}
@@ -1127,7 +1125,10 @@ struct PhraseSeq32 : Module {
 			octCV = cv[phrase[phraseIndexEdit]][stepIndexRun];
 		int octLightIndex = (int) floor(octCV + 3.0f);
 		for (int i = 0; i < 7; i++) {
-			if (!editingSequence && (!attached || (stepConfig == 1)))// no oct lights when song mode and detached (makes no sense, can't modify steps and it will be stepping though seq that may not be playing)
+			if (!editingSequence && (!attached || !running || (stepConfig == 1)))// no oct lights when song mode and either (detached [1] or stopped [2] or 2x16config [3])
+											// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
+											// [2] CV is set to 0V when not running and in song mode, so cv[][] makes no sense to display
+											// [3] makes no sense, which sequence would be displayed, top or bottom row!
 				lights[OCTAVE_LIGHTS + i].value = 0.0f;
 			else {
 				if (tiedWarning > 0l) {
@@ -1147,7 +1148,10 @@ struct PhraseSeq32 : Module {
 			cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
 		int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
 		for (int i = 0; i < 12; i++) {
-			if (!editingSequence && (!attached || (stepConfig == 1)))// no oct lights when song mode and detached (makes no sense, can't modify steps and it will be stepping though seq that may not be playing)
+			if (!editingSequence && (!attached || !running || (stepConfig == 1)))// no oct lights when song mode and either (detached [1] or stopped [2] or 2x16config [3])
+											// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
+											// [2] CV is set to 0V when not running and in song mode, so cv[][] makes no sense to display
+											// [3] makes no sense, which sequence would be displayed, top or bottom row!
 				lights[KEY_LIGHTS + i].value = 0.0f;
 			else {
 				if (tiedWarning > 0l) {
