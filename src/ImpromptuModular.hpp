@@ -66,12 +66,35 @@ static const int offsetTrimpot = 3;//does both h and v
 
 // Variations on existing knobs, lights, etc
 
+
+// Ports
+
 struct IMPort : DynamicSVGPort {
 	IMPort() {
 		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
 		addFrame(SVG::load(assetPlugin(plugin, "res/dark/comp/CL1362.svg")));
 		shadow->blurRadius = 10.0;
 		shadow->opacity = 0.8;
+	}
+};
+
+
+// Buttons and switches
+
+struct CKSSH : SVGSwitch, ToggleSwitch {
+	CKSSH() {
+		addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKSSH_0.svg")));
+		addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKSSH_1.svg")));
+		sw->wrap();
+		box.size = sw->box.size;
+	}
+};
+
+struct CKSSThreeInv : SVGSwitch, ToggleSwitch {
+	CKSSThreeInv() {
+		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/CKSSThree_2.svg")));
+		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/CKSSThree_1.svg")));
+		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/CKSSThree_0.svg")));
 	}
 };
 
@@ -84,45 +107,53 @@ struct IMBigPushButton : DynamicSVGSwitch, MomentarySwitch {
 	}
 };
 
-struct IMBigKnob : SVGKnob {
+
+// Knobs
+
+struct IMKnob : SVGKnob {
+	IMKnob() {
+		minAngle = -0.83*M_PI;
+		maxAngle = 0.83*M_PI;
+		shadow->blurRadius = 10.0;
+		shadow->opacity = 0.8;
+	}
+};
+
+struct IMBigKnob : IMKnob {
 	IMBigKnob() {
 		setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLargeWithMark.svg")));
-		minAngle = -0.83*M_PI;
-		maxAngle = 0.83*M_PI;
+	}
+};
+
+struct IMBigSnapKnob : IMBigKnob {
+	IMBigSnapKnob() {
 		snap = true;
 		smooth = false;
-		shadow->blurRadius = 10.0;
-		shadow->opacity = 0.8;
 	}
 };
 
-struct IMBigKnobInf : SVGKnob {
+struct IMBigKnobInf : IMKnob {
 	IMBigKnobInf() {
 		setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLarge.svg")));
-		minAngle = -0.83*M_PI;
-		maxAngle = 0.83*M_PI;
 		speed = 0.9f;
-		smooth = false;
-		shadow->blurRadius = 10.0;
-		shadow->opacity = 0.8;
+		//smooth = false;
 	}
 };
 
-struct IMSmallKnob : RoundKnob {
+struct IMSmallKnob : IMKnob {
 	IMSmallKnob() {
 		//setSVG(SVG::load(assetGlobal("res/ComponentLibrary/RoundSmallBlackKnob.svg")));
 		setSVG(SVG::load(assetPlugin(plugin, "res/comp/RoundSmallBlackKnob.svg")));
-		shadow->blurRadius = 10.0;
-		shadow->opacity = 0.8;
 		shadow->box.pos = Vec(0.0, box.size.y * 0.15);
 	}
 };
 
-struct CKSSThreeInv : SVGSwitch, ToggleSwitch {
-	CKSSThreeInv() {
-		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/CKSSThree_2.svg")));
-		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/CKSSThree_1.svg")));
-		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/CKSSThree_0.svg")));
+
+// Lights
+
+struct OrangeLight : GrayModuleLightWidget {
+	OrangeLight() {
+		addBaseColor(COLOR_ORANGE);
 	}
 };
 
@@ -133,15 +164,8 @@ struct MuteLight : BASE {
 	}
 };
 
-struct CKSSH : SVGSwitch, ToggleSwitch {
-	CKSSH() {
-		addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKSSH_0.svg")));
-		addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKSSH_1.svg")));
-		sw->wrap();
-		box.size = sw->box.size;
-	}
-};
 
+// Other
 
 struct InvisibleKey : MomentarySwitch {
 	InvisibleKey() {
@@ -172,12 +196,6 @@ struct ScrewHole : TransparentWidget {
 	ScrewHole(Vec posGiven);
 	void draw(NVGcontext *vg) override;
 };	
-
-struct OrangeLight : GrayModuleLightWidget {
-	OrangeLight() {
-		addBaseColor(COLOR_ORANGE);
-	}
-};
 
 
 enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, NUM_MODES};

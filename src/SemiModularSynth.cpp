@@ -15,9 +15,6 @@
 
 
 // TODO: REMOVE FIRST 3 LAYERS IN SemiModular.svg  !!!!!!!!!!!
-// TODO: horizontal placement and centering of VCO not optimal
-// TODO: missing label on ADSR gate input (probably by design)
-// TODO: distinction input vs output (if destined to novices)
 
 
 #include "ImpromptuModular.hpp"
@@ -80,6 +77,11 @@ struct SemiModularSynth : Module {
 		VCF_FREQ_CV_PARAM,
 		VCF_DRIVE_PARAM,
 		
+		// LFO
+		LFO_FREQ_PARAM,
+		LFO_GAIN_PARAM,
+		LFO_OFFSET_PARAM,
+				
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -116,6 +118,9 @@ struct SemiModularSynth : Module {
 		VCF_DRIVE_INPUT,
 		VCF_IN_INPUT,
 		
+		// LFO
+		LFO_RESET_INPUT,
+		
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -142,6 +147,10 @@ struct SemiModularSynth : Module {
 		// VCF
 		VCF_LPF_OUTPUT,
 		VCF_HPF_OUTPUT,
+		
+		// LFO
+		LFO_SIN_OUTPUT,
+		LFO_TRI_OUTPUT,
 		
 		NUM_OUTPUTS
 	};
@@ -267,6 +276,7 @@ struct SemiModularSynth : Module {
 	
 	
 	LowFrequencyOscillator oscillatorClk;
+	LowFrequencyOscillator oscillatorLfo;
 	VoltageControlledOscillator<16, 16> oscillatorVco;
 
 
@@ -1263,25 +1273,34 @@ struct SemiModularSynth : Module {
 		input *= gain;
 		// Add -60dB noise to bootstrap self-oscillation
 		input += 1e-6f * (2.0f*randomUniform() - 1.0f);
-
 		// Set resonance
 		float res = params[VCF_RES_PARAM].value + inputs[VCF_RES_INPUT].value / 5.0f;
 		res = 5.5f * clamp(res, 0.0f, 1.0f);
 		filter.resonance = res;
-
 		// Set cutoff frequency
 		float cutoffExp = params[VCF_FREQ_PARAM].value + params[VCF_FREQ_CV_PARAM].value * inputs[VCF_FREQ_INPUT].value / 5.0f;
 		cutoffExp = clamp(cutoffExp, 0.0f, 1.0f);
 		const float minCutoff = 15.0f;
 		const float maxCutoff = 8400.0f;
 		filter.cutoff = minCutoff * powf(maxCutoff / minCutoff, cutoffExp);
-
 		// Push a sample to the state filter
 		filter.process(input, 1.0f/engineGetSampleRate());
-
 		// Set outputs
 		outputs[VCF_LPF_OUTPUT].value = 5.0f * filter.state[3];
 		outputs[VCF_HPF_OUTPUT].value = 5.0f * (input - filter.state[3]);		
+		
+		
+		// LFO
+		oscillatorLfo.setPitch(params[LFO_FREQ_PARAM].value);
+		oscillatorLfo.setPulseWidth(0.5f);//params[PW_PARAM].value + params[PWM_PARAM].value * inputs[PW_INPUT].value / 10.0f);
+		oscillatorLfo.offset = false;//(params[OFFSET_PARAM].value > 0.0f);
+		oscillatorLfo.invert = false;//(params[INVERT_PARAM].value <= 0.0f);
+		oscillatorLfo.step(engineGetSampleTime());
+		oscillatorLfo.setReset(inputs[LFO_RESET_INPUT].value);
+		float lfoGain = params[LFO_GAIN_PARAM].value;
+		float lfoOffset = (2.0f - lfoGain) * params[LFO_OFFSET_PARAM].value;
+		outputs[LFO_SIN_OUTPUT].value = 5.0f * (lfoOffset + lfoGain * oscillatorLfo.sin());
+		outputs[LFO_TRI_OUTPUT].value = 5.0f * (lfoOffset + lfoGain * oscillatorLfo.tri());	
 		
 	}// step()
 	
@@ -1662,7 +1681,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static const int rowRulerClk0 = 37;
 		static const int rowRulerClk1 = rowRulerClk0 + 45;// exact value from svg
 		static const int colRulerClk0 = colRulerVCO1 + 54;// exact value from svg is 54.103
-		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk0 + offsetIMSmallKnob), module, SemiModularSynth::CLK_FREQ_PARAM, -8.0f, 6.0f, -1.0f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk0 + offsetIMSmallKnob), module, SemiModularSynth::CLK_FREQ_PARAM, -4.0f, 6.0f, 1.0f));// 120 BMP is default value
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk1 + offsetIMSmallKnob), module, SemiModularSynth::CLK_PW_PARAM, 0.0f, 1.0f, 0.5f));
 		
 		
@@ -1673,6 +1692,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::VCA_LIN1_INPUT, &module->panelTheme));
 		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO5), Port::INPUT, module, SemiModularSynth::VCA_IN1_INPUT, &module->panelTheme));
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCA_OUT1_OUTPUT, &module->panelTheme));
+		
 		
 		// ADSR
 		static const int rowRulerAdsr0 = rowRulerClk0;
@@ -1686,9 +1706,10 @@ struct SemiModularSynthWidget : ModuleWidget {
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO3), Port::OUTPUT, module, SemiModularSynth::ADSR_ENVELOPE_OUTPUT, &module->panelTheme));
 		addInput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::ADSR_GATE_INPUT, &module->panelTheme));
 
+		
 		// VCF
 		static const int colRulerVCF0 = colRulerVca1 + 54;// exact value from svg
-		static const int colRulerVCF1 = colRulerVca1 + 55;// exact value from svg is 54.917
+		static const int colRulerVCF1 = colRulerVCF0 + 55;// exact value from svg is 54.917
 		addParam(ParamWidget::create<IMBigKnob>(Vec(colRulerVCF0 + offsetIMBigKnob + 55 / 2, rowRulerVCO0 + offsetIMBigKnob), module, SemiModularSynth::VCF_FREQ_PARAM, 0.0f, 1.0f, 0.5f));
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVCF0 + offsetIMSmallKnob + 55 / 2, rowRulerVCO1 + offsetIMSmallKnob), module, SemiModularSynth::VCF_RES_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVCF0 + offsetIMSmallKnob , rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCF_FREQ_CV_PARAM, -1.0f, 1.0f, 0.0f));
@@ -1697,8 +1718,21 @@ struct SemiModularSynthWidget : ModuleWidget {
 		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF1, rowRulerVCO3), Port::INPUT, module, SemiModularSynth::VCF_RES_INPUT, &module->panelTheme));
 		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF0, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::VCF_DRIVE_INPUT, &module->panelTheme));
 		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF0, rowRulerVCO5), Port::INPUT, module, SemiModularSynth::VCF_IN_INPUT, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCF1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCF_HPF_OUTPUT, &module->panelTheme));		
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCF1, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::VCF_HPF_OUTPUT, &module->panelTheme));		
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCF1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCF_LPF_OUTPUT, &module->panelTheme));
+		
+		
+		// LFO
+		static const int colRulerLfo = colRulerVCF1 + 56;// exact value from svg
+		static const int rowRulerLfo0 = rowRulerAdsr0;
+		static const int rowRulerLfo2 = rowRulerVCO2;
+		static const int rowRulerLfo1 = rowRulerLfo0 + (rowRulerLfo2 - rowRulerLfo0) / 2;
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerLfo + offsetIMSmallKnob, rowRulerLfo0 + offsetIMSmallKnob), module, SemiModularSynth::LFO_FREQ_PARAM, -8.0f, 6.0f, -1.0f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerLfo + offsetIMSmallKnob, rowRulerLfo1 + offsetIMSmallKnob), module, SemiModularSynth::LFO_GAIN_PARAM, 0.0f, 1.0f, 0.5f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerLfo + offsetIMSmallKnob, rowRulerLfo2 + offsetIMSmallKnob), module, SemiModularSynth::LFO_OFFSET_PARAM, -1.0f, 1.0f, 0.0f));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerLfo, rowRulerVCO3), Port::OUTPUT, module, SemiModularSynth::LFO_TRI_OUTPUT, &module->panelTheme));		
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerLfo, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::LFO_SIN_OUTPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerLfo, rowRulerVCO5), Port::INPUT, module, SemiModularSynth::LFO_RESET_INPUT, &module->panelTheme));
 	}
 };
 
