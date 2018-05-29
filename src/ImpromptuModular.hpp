@@ -72,7 +72,7 @@ static const int offsetTrimpot = 3;//does both h and v
 struct IMPort : DynamicSVGPort {
 	IMPort() {
 		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
-		addFrame(SVG::load(assetPlugin(plugin, "res/dark/comp/CL1362.svg")));
+		addFrame(SVG::load(assetPlugin(plugin, "res/dark/comp/PJ301M.svg")));
 		shadow->blurRadius = 10.0;
 		shadow->opacity = 0.8;
 	}
