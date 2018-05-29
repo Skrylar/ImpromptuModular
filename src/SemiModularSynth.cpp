@@ -15,6 +15,8 @@
 
 
 // TODO: REMOVE FIRST 3 LAYERS IN SemiModular.svg  !!!!!!!!!!!
+// TODO: horizontal placement and centering of VCO not optimal
+// TODO: missing label on ADSR gate input (probably by design)
 
 
 #include "ImpromptuModular.hpp"
@@ -65,6 +67,12 @@ struct SemiModularSynth : Module {
 		// VCA
 		VCA_LEVEL1_PARAM,
 		
+		// ADSR
+		ADSR_ATTACK_PARAM,
+		ADSR_DECAY_PARAM,
+		ADSR_SUSTAIN_PARAM,
+		ADSR_RELEASE_PARAM,
+		
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -91,6 +99,9 @@ struct SemiModularSynth : Module {
 		VCA_EXP1_INPUT,
 		VCA_LIN1_INPUT,
 		VCA_IN1_INPUT,
+		
+		// ADSR
+		ADSR_GATE_INPUT,
 				
 		NUM_INPUTS
 	};
@@ -111,6 +122,9 @@ struct SemiModularSynth : Module {
 		
 		// VCA
 		VCA_OUT1_OUTPUT,
+		
+		// ADSR
+		ADSR_ENVELOPE_OUTPUT,
 		
 		NUM_OUTPUTS
 	};
@@ -195,6 +209,10 @@ struct SemiModularSynth : Module {
 	
 	// VCA
 	// none
+	
+	// ADSR
+	bool decaying = false;
+	float env = 0.0f;
 	
 
 	SchmittTrigger resetTrigger;
@@ -1170,7 +1188,55 @@ struct SemiModularSynth : Module {
 		
 		// VCA
 		float vcaIn = inputs[VCA_IN1_INPUT].active ? inputs[VCA_IN1_INPUT].value : outputs[VCO_SQR_OUTPUT].value;
-		stepChannelVCA(vcaIn, params[VCA_LEVEL1_PARAM], inputs[VCA_LIN1_INPUT], inputs[VCA_EXP1_INPUT], outputs[VCA_OUT1_OUTPUT]);
+		float vcaLin = inputs[VCA_LIN1_INPUT].active ? inputs[VCA_LIN1_INPUT].value : outputs[ADSR_ENVELOPE_OUTPUT].value;
+		stepChannelVCA(vcaIn, params[VCA_LEVEL1_PARAM], vcaLin, inputs[VCA_EXP1_INPUT], outputs[VCA_OUT1_OUTPUT]);
+		
+		// ADSR
+		float attack = clamp(params[ADSR_ATTACK_PARAM].value, 0.0f, 1.0f);
+		float decay = clamp(params[ADSR_DECAY_PARAM].value, 0.0f, 1.0f);
+		float sustain = clamp(params[ADSR_SUSTAIN_PARAM].value, 0.0f, 1.0f);
+		float release = clamp(params[ADSR_RELEASE_PARAM].value, 0.0f, 1.0f);
+		// Gate
+		float adsrIn = inputs[ADSR_GATE_INPUT].active ? inputs[ADSR_GATE_INPUT].value : outputs[GATE1_OUTPUT].value;
+		bool gated = adsrIn >= 1.0f;
+		const float base = 20000.0f;
+		const float maxTime = 10.0f;
+		if (gated) {
+			if (decaying) {
+				// Decay
+				if (decay < 1e-4) {
+					env = sustain;
+				}
+				else {
+					env += powf(base, 1 - decay) / maxTime * (sustain - env) * engineGetSampleTime();
+				}
+			}
+			else {
+				// Attack
+				// Skip ahead if attack is all the way down (infinitely fast)
+				if (attack < 1e-4) {
+					env = 1.0f;
+				}
+				else {
+					env += powf(base, 1 - attack) / maxTime * (1.01f - env) * engineGetSampleTime();
+				}
+				if (env >= 1.0f) {
+					env = 1.0f;
+					decaying = true;
+				}
+			}
+		}
+		else {
+			// Release
+			if (release < 1e-4) {
+				env = 0.0f;
+			}
+			else {
+				env += powf(base, 1 - release) / maxTime * (0.0f - env) * engineGetSampleTime();
+			}
+			decaying = false;
+		}
+		outputs[ADSR_ENVELOPE_OUTPUT].value = 10.0f * env;
 		
 		
 	}// step()
@@ -1200,10 +1266,9 @@ struct SemiModularSynth : Module {
 			cv[seqNum][i] = cv[seqNum][indexTied];
 	}
 	
-	void stepChannelVCA(float in, Param &level, Input &lin, Input &exp, Output &out) {
+	void stepChannelVCA(float in, Param &level, float lin, Input &exp, Output &out) {
 		float v = in * level.value;
-		if (lin.active)
-			v *= clamp(lin.value / 10.0f, 0.0f, 1.0f);
+		v *= clamp(lin / 10.0f, 0.0f, 1.0f);
 		const float expBase = 50.0f;
 		if (exp.active)
 			v *= rescale(powf(expBase, clamp(exp.value / 10.0f, 0.0f, 1.0f)), 1.0f, expBase, 0.0f, 1.0f);
@@ -1492,10 +1557,10 @@ struct SemiModularSynthWidget : ModuleWidget {
 		addParam(ParamWidget::create<CKSS>(Vec(columnRulerB4 + hOffsetCKSS, rowRulerB1 + vOffsetCKSS), module, SemiModularSynth::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
 		// CV in
 		addInput(createDynamicPort<IMPort>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, SemiModularSynth::CV_INPUT, &module->panelTheme));
-		// Clock
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, SemiModularSynth::RESET_INPUT, &module->panelTheme));
 		// Reset
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB6, rowRulerB1), Port::INPUT, module, SemiModularSynth::CLOCK_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB6, rowRulerB1), Port::INPUT, module, SemiModularSynth::RESET_INPUT, &module->panelTheme));
+		// Clock
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, SemiModularSynth::CLOCK_INPUT, &module->panelTheme));
 
 		
 
@@ -1564,7 +1629,18 @@ struct SemiModularSynthWidget : ModuleWidget {
 		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO5), Port::INPUT, module, SemiModularSynth::VCA_IN1_INPUT, &module->panelTheme));
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCA_OUT1_OUTPUT, &module->panelTheme));
 		
-		
+		// ADSR
+		static const int rowRulerAdsr0 = rowRulerClk0;
+		static const int rowRulerAdsr3 = rowRulerVCO2 + 7;
+		static const int rowRulerAdsr1 = rowRulerAdsr0 + (rowRulerAdsr3 - rowRulerAdsr0) * 1 / 3;
+		static const int rowRulerAdsr2 = rowRulerAdsr0 + (rowRulerAdsr3 - rowRulerAdsr0) * 2 / 3;
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr0 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_ATTACK_PARAM, 0.0f, 1.0f, 0.5f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr1 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_DECAY_PARAM, 0.0f, 1.0f, 0.5f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr2 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_SUSTAIN_PARAM, 0.0f, 1.0f, 0.5f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr3 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_RELEASE_PARAM, 0.0f, 1.0f, 0.5f));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO3), Port::OUTPUT, module, SemiModularSynth::ADSR_ENVELOPE_OUTPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::ADSR_GATE_INPUT, &module->panelTheme));
+
 	}
 };
 
