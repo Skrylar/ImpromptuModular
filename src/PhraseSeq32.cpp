@@ -569,7 +569,7 @@ struct PhraseSeq32 : Module {
 				int sStart = ((countCP == 32) ? 0 : stepIndexEdit);
 				int sCount = countCP;
 				for (int i = 0, s = sStart; i < countCP; i++, s++) {
-					if (s >= 32) s = 0;
+					if (s >= 32) break;
 					cv[sequence][s] = cvCPbuffer[i];
 					attributes[sequence][s] = attributesCPbuffer[i];
 					if ((--sCount) <= 0)
@@ -1066,8 +1066,7 @@ struct PhraseSeq32 : Module {
 		// Step/phrase lights
 		if (infoCopyPaste != 0l) {
 			for (int i = 0; i < 32; i++) {
-				if ( (i >= stepIndexEdit && i < (stepIndexEdit + countCP)) || 
-				     i < ((stepIndexEdit + countCP) - 32) || (countCP == 32)  )
+				if ( (i >= stepIndexEdit && i < (stepIndexEdit + countCP)) || (countCP == 32) )
 					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.5f;// Green when copy interval
 				else
 					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.0f; // Green (nothing)
