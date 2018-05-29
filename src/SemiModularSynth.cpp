@@ -17,6 +17,7 @@
 // TODO: REMOVE FIRST 3 LAYERS IN SemiModular.svg  !!!!!!!!!!!
 // TODO: horizontal placement and centering of VCO not optimal
 // TODO: missing label on ADSR gate input (probably by design)
+// TODO: distinction input vs output (if destined to novices)
 
 
 #include "ImpromptuModular.hpp"
@@ -73,6 +74,12 @@ struct SemiModularSynth : Module {
 		ADSR_SUSTAIN_PARAM,
 		ADSR_RELEASE_PARAM,
 		
+		// VCF
+		VCF_FREQ_PARAM,
+		VCF_RES_PARAM,
+		VCF_FREQ_CV_PARAM,
+		VCF_DRIVE_PARAM,
+		
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -102,7 +109,13 @@ struct SemiModularSynth : Module {
 		
 		// ADSR
 		ADSR_GATE_INPUT,
-				
+
+		// VCF
+		VCF_FREQ_INPUT,
+		VCF_RES_INPUT,
+		VCF_DRIVE_INPUT,
+		VCF_IN_INPUT,
+		
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -125,6 +138,10 @@ struct SemiModularSynth : Module {
 		
 		// ADSR
 		ADSR_ENVELOPE_OUTPUT,
+		
+		// VCF
+		VCF_LPF_OUTPUT,
+		VCF_HPF_OUTPUT,
 		
 		NUM_OUTPUTS
 	};
@@ -214,6 +231,9 @@ struct SemiModularSynth : Module {
 	bool decaying = false;
 	float env = 0.0f;
 	
+	// VCF
+	LadderFilter filter;
+	
 
 	SchmittTrigger resetTrigger;
 	SchmittTrigger leftTrigger;
@@ -292,6 +312,9 @@ struct SemiModularSynth : Module {
 		
 		// CLK
 		clkValue = 0.0f;
+		
+		// VCF
+		filter.reset();
 	}
 
 	
@@ -956,7 +979,7 @@ struct SemiModularSynth : Module {
 		//********** Clock and reset **********
 		
 		// Clock
-		float clockInput = inputs[CLOCK_INPUT].active ? inputs[CLOCK_INPUT].value : clkValue;
+		float clockInput = inputs[CLOCK_INPUT].active ? inputs[CLOCK_INPUT].value : clkValue;// Pre-patching
 		if (clockTrigger.process(clockInput)) {
 			if (running && clockIgnoreOnReset == 0l) {
 				float slideFromCV = 0.0f;
@@ -1149,22 +1172,17 @@ struct SemiModularSynth : Module {
 
 		
 		// VCO
-		
 		oscillatorVco.analog = params[VCO_MODE_PARAM].value > 0.0f;
 		oscillatorVco.soft = params[VCO_SYNC_PARAM].value <= 0.0f;
-
 		float pitchFine = 3.0f * quadraticBipolar(params[VCO_FINE_PARAM].value);
-		float pitchCv = 12.0f * (inputs[VCO_PITCH_INPUT].active ? inputs[VCO_PITCH_INPUT].value : outputs[CV_OUTPUT].value);
+		float pitchCv = 12.0f * (inputs[VCO_PITCH_INPUT].active ? inputs[VCO_PITCH_INPUT].value : outputs[CV_OUTPUT].value);// Pre-patching
 		if (inputs[VCO_FM_INPUT].active) {
 			pitchCv += quadraticBipolar(params[VCO_FM_PARAM].value) * 12.0f * inputs[VCO_FM_INPUT].value;
 		}
 		oscillatorVco.setPitch(params[VCO_FREQ_PARAM].value, pitchFine + pitchCv);
 		oscillatorVco.setPulseWidth(params[VCO_PW_PARAM].value + params[VCO_PWM_PARAM].value * inputs[VCO_PW_INPUT].value / 10.0f);
 		oscillatorVco.syncEnabled = inputs[VCO_SYNC_INPUT].active;
-
 		oscillatorVco.process(engineGetSampleTime(), inputs[VCO_SYNC_INPUT].value);
-
-		// Set output
 		if (outputs[VCO_SIN_OUTPUT].active)
 			outputs[VCO_SIN_OUTPUT].value = 5.0f * oscillatorVco.sin();
 		if (outputs[VCO_TRI_OUTPUT].active)
@@ -1176,7 +1194,6 @@ struct SemiModularSynth : Module {
 			
 			
 		// CLK
-		
 		oscillatorClk.setPitch(params[CLK_FREQ_PARAM].value);
 		oscillatorClk.setPulseWidth(params[CLK_PW_PARAM].value);
 		oscillatorClk.offset = true;//(params[OFFSET_PARAM].value > 0.0f);
@@ -1187,8 +1204,8 @@ struct SemiModularSynth : Module {
 		
 		
 		// VCA
-		float vcaIn = inputs[VCA_IN1_INPUT].active ? inputs[VCA_IN1_INPUT].value : outputs[VCO_SQR_OUTPUT].value;
-		float vcaLin = inputs[VCA_LIN1_INPUT].active ? inputs[VCA_LIN1_INPUT].value : outputs[ADSR_ENVELOPE_OUTPUT].value;
+		float vcaIn = inputs[VCA_IN1_INPUT].active ? inputs[VCA_IN1_INPUT].value : outputs[VCO_SQR_OUTPUT].value;// Pre-patching
+		float vcaLin = inputs[VCA_LIN1_INPUT].active ? inputs[VCA_LIN1_INPUT].value : outputs[ADSR_ENVELOPE_OUTPUT].value;// Pre-patching
 		stepChannelVCA(vcaIn, params[VCA_LEVEL1_PARAM], vcaLin, inputs[VCA_EXP1_INPUT], outputs[VCA_OUT1_OUTPUT]);
 		
 		// ADSR
@@ -1197,7 +1214,7 @@ struct SemiModularSynth : Module {
 		float sustain = clamp(params[ADSR_SUSTAIN_PARAM].value, 0.0f, 1.0f);
 		float release = clamp(params[ADSR_RELEASE_PARAM].value, 0.0f, 1.0f);
 		// Gate
-		float adsrIn = inputs[ADSR_GATE_INPUT].active ? inputs[ADSR_GATE_INPUT].value : outputs[GATE1_OUTPUT].value;
+		float adsrIn = inputs[ADSR_GATE_INPUT].active ? inputs[ADSR_GATE_INPUT].value : outputs[GATE1_OUTPUT].value;// Pre-patching
 		bool gated = adsrIn >= 1.0f;
 		const float base = 20000.0f;
 		const float maxTime = 10.0f;
@@ -1239,6 +1256,33 @@ struct SemiModularSynth : Module {
 		outputs[ADSR_ENVELOPE_OUTPUT].value = 10.0f * env;
 		
 		
+		// VCF
+		float input = (inputs[VCF_IN_INPUT].active ? inputs[VCF_IN_INPUT].value : outputs[VCA_OUT1_OUTPUT].value) / 5.0f;// Pre-patching
+		float drive = params[VCF_DRIVE_PARAM].value + inputs[VCF_DRIVE_INPUT].value / 10.0f;
+		float gain = powf(100.0f, drive);
+		input *= gain;
+		// Add -60dB noise to bootstrap self-oscillation
+		input += 1e-6f * (2.0f*randomUniform() - 1.0f);
+
+		// Set resonance
+		float res = params[VCF_RES_PARAM].value + inputs[VCF_RES_INPUT].value / 5.0f;
+		res = 5.5f * clamp(res, 0.0f, 1.0f);
+		filter.resonance = res;
+
+		// Set cutoff frequency
+		float cutoffExp = params[VCF_FREQ_PARAM].value + params[VCF_FREQ_CV_PARAM].value * inputs[VCF_FREQ_INPUT].value / 5.0f;
+		cutoffExp = clamp(cutoffExp, 0.0f, 1.0f);
+		const float minCutoff = 15.0f;
+		const float maxCutoff = 8400.0f;
+		filter.cutoff = minCutoff * powf(maxCutoff / minCutoff, cutoffExp);
+
+		// Push a sample to the state filter
+		filter.process(input, 1.0f/engineGetSampleRate());
+
+		// Set outputs
+		outputs[VCF_LPF_OUTPUT].value = 5.0f * filter.state[3];
+		outputs[VCF_HPF_OUTPUT].value = 5.0f * (input - filter.state[3]);		
+		
 	}// step()
 	
 	bool calcTiedWarning(long tiedWarning, long tiedWarningInit) {
@@ -1266,6 +1310,7 @@ struct SemiModularSynth : Module {
 			cv[seqNum][i] = cv[seqNum][indexTied];
 	}
 	
+	// From Fundamental VCA.cpp
 	void stepChannelVCA(float in, Param &level, float lin, Input &exp, Output &out) {
 		float v = in * level.value;
 		v *= clamp(lin / 10.0f, 0.0f, 1.0f);
@@ -1635,12 +1680,25 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static const int rowRulerAdsr1 = rowRulerAdsr0 + (rowRulerAdsr3 - rowRulerAdsr0) * 1 / 3;
 		static const int rowRulerAdsr2 = rowRulerAdsr0 + (rowRulerAdsr3 - rowRulerAdsr0) * 2 / 3;
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr0 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_ATTACK_PARAM, 0.0f, 1.0f, 0.5f));
-		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr1 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_DECAY_PARAM, 0.0f, 1.0f, 0.5f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr1 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_DECAY_PARAM,  0.0f, 1.0f, 0.5f));
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr2 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_SUSTAIN_PARAM, 0.0f, 1.0f, 0.5f));
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr3 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_RELEASE_PARAM, 0.0f, 1.0f, 0.5f));
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO3), Port::OUTPUT, module, SemiModularSynth::ADSR_ENVELOPE_OUTPUT, &module->panelTheme));
 		addInput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::ADSR_GATE_INPUT, &module->panelTheme));
 
+		// VCF
+		static const int colRulerVCF0 = colRulerVca1 + 54;// exact value from svg
+		static const int colRulerVCF1 = colRulerVca1 + 55;// exact value from svg is 54.917
+		addParam(ParamWidget::create<IMBigKnob>(Vec(colRulerVCF0 + offsetIMBigKnob + 55 / 2, rowRulerVCO0 + offsetIMBigKnob), module, SemiModularSynth::VCF_FREQ_PARAM, 0.0f, 1.0f, 0.5f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVCF0 + offsetIMSmallKnob + 55 / 2, rowRulerVCO1 + offsetIMSmallKnob), module, SemiModularSynth::VCF_RES_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVCF0 + offsetIMSmallKnob , rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCF_FREQ_CV_PARAM, -1.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVCF1 + offsetIMSmallKnob , rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCF_DRIVE_PARAM, 0.0f, 1.0f, 0.0f));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF0, rowRulerVCO3), Port::INPUT, module, SemiModularSynth::VCF_FREQ_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF1, rowRulerVCO3), Port::INPUT, module, SemiModularSynth::VCF_RES_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF0, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::VCF_DRIVE_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF0, rowRulerVCO5), Port::INPUT, module, SemiModularSynth::VCF_IN_INPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCF1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCF_HPF_OUTPUT, &module->panelTheme));		
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCF1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCF_LPF_OUTPUT, &module->panelTheme));
 	}
 };
 
