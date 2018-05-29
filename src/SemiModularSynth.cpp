@@ -1474,14 +1474,14 @@ struct SemiModularSynthWidget : ModuleWidget {
         addChild(panel);		
 		
 		// Screws
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 0)));
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 365)));
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x / 3 - 7.5, 0)));
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x / 3 - 7.5, 365)));
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x * 2 / 3 - 7.5, 0)));
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x * 2 / 3 - 7.5, 365)));
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 0)));
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 365)));
+		addChild(createDynamicScrew<IMScrew>(Vec(15, 0), &module->portTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(15, 365), &module->portTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec((box.size.x - 90) * 1 / 3 + 30 , 0), &module->portTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec((box.size.x - 90) * 1 / 3 + 30 , 365), &module->portTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec((box.size.x - 90) * 2 / 3 + 45 , 0), &module->portTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec((box.size.x - 90) * 2 / 3 + 45 , 365), &module->portTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->portTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->portTheme));
 
 		
 		

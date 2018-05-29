@@ -29,24 +29,7 @@ void init(rack::Plugin *p) {
 }
 
 
-ScrewCircle::ScrewCircle(float _angle) {
-	static const float highRadius = 1.4f;// radius for 0 degrees (screw looks like a +)
-	static const float lowRadius = 1.1f;// radius for 45 degrees (screw looks like an x)
-	angle = _angle;
-	_angle = fabs(angle - M_PI/4.0f);
-	radius = ((highRadius - lowRadius)/(M_PI/4.0f)) * _angle + lowRadius;
-}
-void ScrewCircle::draw(NVGcontext *vg) {
-	NVGcolor backgroundColor = nvgRGB(0x72, 0x72, 0x72); 
-	NVGcolor borderColor = nvgRGB(0x72, 0x72, 0x72);
-	nvgBeginPath(vg);
-	nvgCircle(vg, box.size.x/2.0f, box.size.y/2.0f, radius);// box, radius
-	nvgFillColor(vg, backgroundColor);
-	nvgFill(vg);
-	nvgStrokeWidth(vg, 1.0);
-	nvgStrokeColor(vg, borderColor);
-	nvgStroke(vg);
-}
+
 ScrewSilverRandomRot::ScrewSilverRandomRot() {
 	float angle0_90 = randomUniform()*M_PI/2.0f;
 	//float angle0_90 = randomUniform() > 0.5f ? M_PI/4.0f : 0.0f;// for testing

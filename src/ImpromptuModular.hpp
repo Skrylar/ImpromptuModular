@@ -7,6 +7,9 @@
 //See ./res/fonts/ for font licenses
 //***********************************************************************************************
 
+#ifndef IMPROMPU_MODULAR_HPP
+#define IMPROMPU_MODULAR_HPP
+
 
 #include "rack.hpp"
 #include "IMWidgets.hpp"
@@ -65,6 +68,15 @@ static const int offsetTrimpot = 3;//does both h and v
 
 
 // Variations on existing knobs, lights, etc
+
+
+// Screws
+
+struct IMScrew : DynamicSVGScrew {
+	IMScrew() {
+		addSVGalt(SVG::load(assetPlugin(plugin, "res/dark/comp/ScrewSilver.svg")));
+	}
+};
 
 
 // Ports
@@ -188,12 +200,6 @@ struct InvisibleKeySmall : MomentarySwitch {
 	}
 };
 
-struct ScrewCircle : TransparentWidget {
-	float angle = 0.0f;
-	float radius = 2.0f;
-	ScrewCircle(float _angle);
-	void draw(NVGcontext *vg) override;
-};
 struct ScrewSilverRandomRot : FramebufferWidget {// location: include/app.hpp and src/app/SVGScrew.cpp [some code also from src/app/SVGKnob.cpp]
 	SVGWidget *sw;
 	TransformWidget *tw;
@@ -212,3 +218,6 @@ enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, NUM_MODES};
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box);
 int moveIndex(int index, int indexNext, int numSteps);
 bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history);
+
+
+#endif
