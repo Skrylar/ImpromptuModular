@@ -53,7 +53,7 @@ static const int offsetCKD6 = -1;//does both h and v
 static const int offsetCKD6b = 0;//does both h and v
 static const int vOffsetDisplay = -2;
 static const int offsetIMBigKnob = -6;//does both h and v
-static const int offsetIMSmallKnob = 1;//does both h and v
+static const int offsetIMSmallKnob = 0;//does both h and v
 static const int offsetMediumLight = 9;
 static const float offsetLEDbutton = 3.0f;//does both h and v
 static const float offsetLEDbuttonLight = 4.4f;//does both h and v
@@ -145,6 +145,15 @@ struct IMSmallKnob : IMKnob {
 		//setSVG(SVG::load(assetGlobal("res/ComponentLibrary/RoundSmallBlackKnob.svg")));
 		setSVG(SVG::load(assetPlugin(plugin, "res/comp/RoundSmallBlackKnob.svg")));
 		shadow->box.pos = Vec(0.0, box.size.y * 0.15);
+	}
+};
+
+struct IMFivePosSmallKnob : IMSmallKnob {
+	IMFivePosSmallKnob() {
+		minAngle = -0.5*M_PI;
+		maxAngle = 0.5*M_PI;
+		snap = true;
+		smooth = false;
 	}
 };
 

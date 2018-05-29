@@ -51,7 +51,7 @@ struct SemiModularSynth : Module {
 		
 		// VCO
 		VCO_MODE_PARAM,
-		VCO_SYNC_PARAM,
+		VCO_OCT_PARAM,
 		VCO_FREQ_PARAM,
 		VCO_FINE_PARAM,
 		VCO_FM_PARAM,
@@ -1188,13 +1188,14 @@ struct SemiModularSynth : Module {
 		
 		// VCO
 		oscillatorVco.analog = params[VCO_MODE_PARAM].value > 0.0f;
-		oscillatorVco.soft = params[VCO_SYNC_PARAM].value <= 0.0f;
+		oscillatorVco.soft = false;//params[VCO_SYNC_PARAM].value <= 0.0f;
 		float pitchFine = 3.0f * quadraticBipolar(params[VCO_FINE_PARAM].value);
 		float pitchCv = 12.0f * (inputs[VCO_PITCH_INPUT].active ? inputs[VCO_PITCH_INPUT].value : outputs[CV_OUTPUT].value);// Pre-patching
+		float pitchOctOffset = 12.0f * params[VCO_OCT_PARAM].value;
 		if (inputs[VCO_FM_INPUT].active) {
 			pitchCv += quadraticBipolar(params[VCO_FM_PARAM].value) * 12.0f * inputs[VCO_FM_INPUT].value;
 		}
-		oscillatorVco.setPitch(params[VCO_FREQ_PARAM].value, pitchFine + pitchCv);
+		oscillatorVco.setPitch(params[VCO_FREQ_PARAM].value, pitchFine + pitchCv + pitchOctOffset);
 		oscillatorVco.setPulseWidth(params[VCO_PW_PARAM].value + params[VCO_PWM_PARAM].value * inputs[VCO_PW_INPUT].value / 10.0f);
 		oscillatorVco.syncEnabled = inputs[VCO_SYNC_INPUT].active;
 		oscillatorVco.process(engineGetSampleTime(), inputs[VCO_SYNC_INPUT].value);
@@ -1468,15 +1469,17 @@ struct SemiModularSynthWidget : ModuleWidget {
         panel = new DynamicSVGPanel();
         panel->mode = &module->panelTheme;
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/SemiModular.svg")));
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/SemiModular.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/SemiModular.svg")));
         box.size = panel->box.size;
         addChild(panel);		
 		
 		// Screws
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 0)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(15, 365)));
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x / 2, 0)));
-		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x / 2, 365)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x / 3 - 7.5, 0)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x / 3 - 7.5, 365)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x * 2 / 3 - 7.5, 0)));
+		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x * 2 / 3 - 7.5, 365)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 0)));
 		addChild(Widget::create<ScrewSilverRandomRot>(Vec(box.size.x-30, 365)));
 
@@ -1484,8 +1487,8 @@ struct SemiModularSynthWidget : ModuleWidget {
 		
 		// ****** Top row ******
 		
-		static const int rowRulerT0 = 48;
-		static const int columnRulerT0 = 15;// Length button
+		static const int rowRulerT0 = 52;
+		static const int columnRulerT0 = 19;// Length button
 		static const int columnRulerT1 = columnRulerT0 + 47;// Left/Right buttons
 		static const int columnRulerT2 = columnRulerT1 + 75;// Step/Phase lights
 		static const int columnRulerT3 = columnRulerT2 + 263;// Attach (also used to align rest of right side of module)
@@ -1511,8 +1514,8 @@ struct SemiModularSynthWidget : ModuleWidget {
 		// Octave LED buttons
 		static const float octLightsIntY = 20.0f;
 		for (int i = 0; i < 7; i++) {
-			addParam(ParamWidget::create<LEDButton>(Vec(15 + 3, 82 + 24 + i * octLightsIntY- 4.4f), module, SemiModularSynth::OCTAVE_PARAM + i, 0.0f, 1.0f, 0.0f));
-			addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(15 + 3 + 4.4f, 82 + 24 + i * octLightsIntY), module, SemiModularSynth::OCTAVE_LIGHTS + i));
+			addParam(ParamWidget::create<LEDButton>(Vec(columnRulerT0 + 3, 86 + 24 + i * octLightsIntY- 4.4f), module, SemiModularSynth::OCTAVE_PARAM + i, 0.0f, 1.0f, 0.0f));
+			addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerT0 + 3 + 4.4f, 86 + 24 + i * octLightsIntY), module, SemiModularSynth::OCTAVE_LIGHTS + i));
 		}
 		// Keys and Key lights
 		static const int keyNudgeX = 7;
@@ -1520,40 +1523,40 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static const int offsetKeyLEDx = 6;
 		static const int offsetKeyLEDy = 28;
 		// Black keys and lights
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(65+keyNudgeX, 89+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(65+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 1));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(93+keyNudgeX, 89+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(93+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 3));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(150+keyNudgeX, 89+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(150+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 6));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(178+keyNudgeX, 89+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(178+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 8));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(206+keyNudgeX, 89+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(206+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 10));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(69+keyNudgeX, 93+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(69+keyNudgeX+offsetKeyLEDx, 93+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 1));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(97+keyNudgeX, 93+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(97+keyNudgeX+offsetKeyLEDx, 93+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 3));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(154+keyNudgeX, 93+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(154+keyNudgeX+offsetKeyLEDx, 93+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 6));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(182+keyNudgeX, 93+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(182+keyNudgeX+offsetKeyLEDx, 93+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 8));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(210+keyNudgeX, 93+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(210+keyNudgeX+offsetKeyLEDx, 93+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 10));
 		// White keys and lights
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(51+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(51+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 0));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(79+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(79+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 2));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(107+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(107+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 4));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(136+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(136+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 5));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(164+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(164+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 7));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(192+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(192+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 9));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(220+keyNudgeX, 139+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(220+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 11));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(55+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(55+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 0));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(83+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(83+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 2));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(111+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(111+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 4));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(140+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(140+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 5));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(168+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(168+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 7));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(196+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(196+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 9));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(224+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(224+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 11));
 		
 		
 		
 		// ****** Right side control area ******
 
-		static const int rowRulerMK0 = 101;// Edit mode row
+		static const int rowRulerMK0 = 105;// Edit mode row
 		static const int rowRulerMK1 = rowRulerMK0 + 56; // Run row
 		static const int rowRulerMK2 = rowRulerMK1 + 54; // Reset row
-		static const int columnRulerMK0 = 276;// Edit mode column
+		static const int columnRulerMK0 = 280;// Edit mode column
 		static const int columnRulerMK1 = columnRulerMK0 + 59;// Display column
 		static const int columnRulerMK2 = columnRulerT3;// Run mode column
 		
@@ -1589,9 +1592,9 @@ struct SemiModularSynthWidget : ModuleWidget {
 		
 		// ****** Gate and slide section ******
 		
-		static const int rowRulerMB0 = 214;
+		static const int rowRulerMB0 = 218;
 		static const int columnRulerMBspacing = 70;
-		static const int columnRulerMB2 = 130;// Gate2
+		static const int columnRulerMB2 = 134;// Gate2
 		static const int columnRulerMB1 = columnRulerMB2 - columnRulerMBspacing;// Gate1 
 		static const int columnRulerMB3 = columnRulerMB2 + columnRulerMBspacing;// Tie
 		static const int posLEDvsButton = + 25;
@@ -1611,9 +1614,9 @@ struct SemiModularSynthWidget : ModuleWidget {
 		// ****** Bottom two rows ******
 		
 		static const int outputJackSpacingX = 54;
-		static const int rowRulerB0 = 323;
-		static const int rowRulerB1 = 269;
-		static const int columnRulerB0 = 22;
+		static const int rowRulerB0 = 327;
+		static const int rowRulerB1 = 273;
+		static const int columnRulerB0 = 26;
 		static const int columnRulerB1 = columnRulerB0 + outputJackSpacingX;
 		static const int columnRulerB2 = columnRulerB1 + outputJackSpacingX;
 		static const int columnRulerB3 = columnRulerB2 + outputJackSpacingX;
@@ -1660,7 +1663,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		
 		
 		// VCO
-		static const int rowRulerVCO0 = 62;// Freq
+		static const int rowRulerVCO0 = 66;// Freq
 		static const int rowRulerVCO1 = rowRulerVCO0 + 40;// Fine, PW
 		static const int rowRulerVCO2 = rowRulerVCO1 + 35;// FM, PWM, exact value from svg
 		static const int rowRulerVCO3 = rowRulerVCO2 + 46;// switches (Don't change this, tweak the switches' v offset instead since jacks lines up with this)
@@ -1669,7 +1672,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static const int rowRulerVCO5 = rowRulerVCO4 + rowRulerSpacingJacks;// jack row 2
 		static const int rowRulerVCO6 = rowRulerVCO5 + rowRulerSpacingJacks;// jack row 3
 		static const int rowRulerVCO7 = rowRulerVCO6 + rowRulerSpacingJacks;// jack row 4
-		static const int colRulerVCO0 = 456;
+		static const int colRulerVCO0 = 460;
 		static const int colRulerVCO1 = colRulerVCO0 + 55;// exact value from svg
 
 		addParam(ParamWidget::create<IMBigKnob>(Vec(colRulerVCO0 + offsetIMBigKnob + 55 / 2, rowRulerVCO0 + offsetIMBigKnob), module, SemiModularSynth::VCO_FREQ_PARAM, -54.0f, 54.0f, 0.0f));
@@ -1680,7 +1683,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVCO1 + offsetIMSmallKnob, rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCO_PWM_PARAM, 0.0f, 1.0f, 0.0f));
 
 		addParam(ParamWidget::create<CKSS>(Vec(colRulerVCO0 + hOffsetCKSS, rowRulerVCO3 + vOffsetCKSS), module, SemiModularSynth::VCO_MODE_PARAM, 0.0f, 1.0f, 1.0f));
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerVCO1 + hOffsetCKSS, rowRulerVCO3 + vOffsetCKSS), module, SemiModularSynth::VCO_SYNC_PARAM, 0.0f, 1.0f, 1.0f));
+		addParam(ParamWidget::create<IMFivePosSmallKnob>(Vec(colRulerVCO1 + offsetIMSmallKnob, rowRulerVCO3 + offsetIMSmallKnob), module, SemiModularSynth::VCO_OCT_PARAM, -2.0f, 2.0f, 0.0f));
 
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO0, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::VCO_SIN_OUTPUT, &module->portTheme));
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO1, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::VCO_TRI_OUTPUT, &module->portTheme));
@@ -1694,15 +1697,15 @@ struct SemiModularSynthWidget : ModuleWidget {
 
 		
 		// CLK
-		static const int rowRulerClk0 = 37;
+		static const int rowRulerClk0 = 41;
 		static const int rowRulerClk1 = rowRulerClk0 + 45;// exact value from svg
-		static const int colRulerClk0 = colRulerVCO1 + 54;// exact value from svg is 54.103
-		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk0 + offsetIMSmallKnob), module, SemiModularSynth::CLK_FREQ_PARAM, -4.0f, 6.0f, 1.0f));// 120 BMP is default value
+		static const int colRulerClk0 = colRulerVCO1 + 55;// exact value from svg
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk0 + offsetIMSmallKnob), module, SemiModularSynth::CLK_FREQ_PARAM, -4.0f, 6.0f, 1.0f));// 120 BMP when default value
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk1 + offsetIMSmallKnob), module, SemiModularSynth::CLK_PW_PARAM, 0.0f, 1.0f, 0.5f));
 		
 		
 		// VCA
-		static const int colRulerVca1 = colRulerClk0 + 54;// exact value from svg is 53.888
+		static const int colRulerVca1 = colRulerClk0 + 55;// exact value from svg
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCA_LEVEL1_PARAM, 0.0f, 1.0f, 0.5f));
 		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO3), Port::INPUT, module, SemiModularSynth::VCA_EXP1_INPUT, &module->portTheme));
 		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::VCA_LIN1_INPUT, &module->portTheme));
@@ -1712,7 +1715,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		
 		// ADSR
 		static const int rowRulerAdsr0 = rowRulerClk0;
-		static const int rowRulerAdsr3 = rowRulerVCO2 + 7;
+		static const int rowRulerAdsr3 = rowRulerVCO2 + 6;
 		static const int rowRulerAdsr1 = rowRulerAdsr0 + (rowRulerAdsr3 - rowRulerAdsr0) * 1 / 3;
 		static const int rowRulerAdsr2 = rowRulerAdsr0 + (rowRulerAdsr3 - rowRulerAdsr0) * 2 / 3;
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr0 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_ATTACK_PARAM, 0.0f, 1.0f, 0.5f));
@@ -1724,8 +1727,8 @@ struct SemiModularSynthWidget : ModuleWidget {
 
 		
 		// VCF
-		static const int colRulerVCF0 = colRulerVca1 + 54;// exact value from svg
-		static const int colRulerVCF1 = colRulerVCF0 + 55;// exact value from svg is 54.917
+		static const int colRulerVCF0 = colRulerVca1 + 55;// exact value from svg
+		static const int colRulerVCF1 = colRulerVCF0 + 55;// exact value from svg
 		addParam(ParamWidget::create<IMBigKnob>(Vec(colRulerVCF0 + offsetIMBigKnob + 55 / 2, rowRulerVCO0 + offsetIMBigKnob), module, SemiModularSynth::VCF_FREQ_PARAM, 0.0f, 1.0f, 0.5f));
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVCF0 + offsetIMSmallKnob + 55 / 2, rowRulerVCO1 + offsetIMSmallKnob), module, SemiModularSynth::VCF_RES_PARAM, 0.0f, 1.0f, 0.0f));
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVCF0 + offsetIMSmallKnob , rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCF_FREQ_CV_PARAM, -1.0f, 1.0f, 0.0f));
@@ -1739,7 +1742,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		
 		
 		// LFO
-		static const int colRulerLfo = colRulerVCF1 + 56;// exact value from svg
+		static const int colRulerLfo = colRulerVCF1 + 55;// exact value from svg
 		static const int rowRulerLfo0 = rowRulerAdsr0;
 		static const int rowRulerLfo2 = rowRulerVCO2;
 		static const int rowRulerLfo1 = rowRulerLfo0 + (rowRulerLfo2 - rowRulerLfo0) / 2;

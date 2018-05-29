@@ -1606,6 +1606,8 @@ Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromp
 /*CHANGE LOG
 
 0.6.5:
+paste 4, 8 doesn't loop over to overwrite first steps
+small adjustements to gates and CVs used in monitoring write operations
 add GATE1, GATE2, TIED, SLIDE CV inputs 
 add MODE CV input (affects only selected sequence and in Seq mode)
 add expansion panel option

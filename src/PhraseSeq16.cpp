@@ -1473,6 +1473,8 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 /*CHANGE LOG
 
 0.6.5:
+paste 4, 8 doesn't loop over to overwrite first steps
+small adjustements to gates and CVs used in monitoring write operations
 add GATE1, GATE2, TIED, SLIDE CV inputs 
 add MODE CV input (affects only selected sequence and in Seq mode)
 add expansion panel option
