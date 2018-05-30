@@ -2,7 +2,7 @@
 
 Modules for [VCV Rack](https://vcvrack.com), available in the [plugin manager](https://vcvrack.com/plugins.html).
 
-Version 0.6.4
+Version 0.6.5
 
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!   120% Zoom for jpgs)
 
@@ -13,8 +13,11 @@ Based on code from the Fundamental and Audible Instruments plugins by Andrew Bel
 
 
 ## Acknowledgements
+Impromptu Modular is not a single-person endeavor:
 
-Thanks to **Alfredo Santamaria**, **Nay Seven** and **Latif Fital** for suggesting improvements to PhraseSeq16. Special thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq modules, for testing/bug-reports, for designing the blank panel and the SMS-16, and for graciously providing the dark panels of all modules. A very special thank you to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the [in-depth presentation](https://www.youtube.com/watch?v=KOpo2oUPTjg) of PhraseSeq16 and TwelveKey. 
+* Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the [in-depth presentation](https://www.youtube.com/watch?v=KOpo2oUPTjg) of PhraseSeq16 and TwelveKey. 
+* Thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq modules, for testing/bug-reports, for designing the SMS-16 module and the blank panel, and for graciously providing the dark panels of all modules. 
+* Thanks to **Alfredo Santamaria**, **Nay Seven** and **Latif Fital** for suggesting improvements to the PhraseSeq series of sequencers.
 
 
 
@@ -30,6 +33,8 @@ Each module is available in light (Classic) or dark (Dark-valor) panels, selecta
 
 * [GateSeq64](#gate-seq-64): 16-phrase gate sequencer with 64 steps per sequence and per-step gate probability control, perfect for adding controlled randomness to your drum patterns (can be configured as 1x64, 2x32 or 4x16).
 
+* [Semi-Modular Synth](#sms-16): Internally pre-patched all in one synthesizer for quickly getting sounds and learning the basics of modular synthesis.
+
 * [WriteSeq32](#write-seq-32): 3-channel 32-step sequencer with CV input for easy sequence programming.
 
 * [WriteSeq64](#write-seq-64): 4-channel 64-step sequencer with CV input for easy sequence programming.
@@ -39,6 +44,8 @@ Details about each module are given below. Feedback and bug reports (and [donati
 
 ## Known issues
 For modules such as PhraseSeq16 and GateSeq64, it is advisable to have a core audio module added to your patch and assigned to a sound card in order for the response delays in the user interface to be of the proper duration (for length selection and probability selection respectively in these two modules, for example). This is a [known artifact](https://github.com/VCVRack/Rack/issues/919) in VCV Rack.
+
+For the Semi-Modular Synth, the high-pass output of the VCF is currently non-functional.
 
 
 
@@ -142,6 +149,14 @@ This sequencer also features the song mode found in [PhraseSeq16](#phrase-seq-16
 The **SEQ** CV input and run **MODES** are identical to those found in PhraseSeq16, and selecting sequence lengths is done in the same manner as described in [PhraseSeq32](#phrase-seq-32). Copy-pasting **ALL** also copies the run mode and length of a given sequence, along with gate states and probabilities, whereas only gates and probabilities are copied when **ROW** is selected.
 
 When running in the 4x16 configuration, each of the four rows is sent to the four **GATE** output jacks (jacks 1 to 4, with jack 1 being the top-most jack). In the 2x32 configuration, jacks 1 and 3 are used, and in the 1x64 configuration, only jack 1 is used (top-most jack). The pulse width of the gates emitted corresponds to the pulse width of the clock.
+
+
+
+## Semi-Modular Synth <a id="sms-16"></a>
+
+![IM](res/img/SemiModularSynth.jpg)
+
+An all-in-one pre-patched semi-modular synthesizer. Based on the [PhraseSeq16](#phrase-seq-16) sequencer by Impromptu Modular and the [Fundamental](https://vcvrack.com/Fundamental.html) modules by VCV. A typical signal flow is patched by a set of internal default connections, the majority of which are shown by interconnecting lines on the face-plate of the module. These internal connections are overridden by any cables patched into those related jacks.
 
 
 
