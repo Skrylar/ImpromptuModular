@@ -120,6 +120,8 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 * **TIED STEP**: When CVs are intended to be held across subsequent steps, this button can be used to tie the CV of the previous step to the current step; when tied, the gates of the current step are automatically turned off. If the CV of the head note changes, all consecutive tied notes are updated automatically.
 
+An expansion panel is also available to provide additional CV inputs for the module. The expansion panel can be added by right-clicking the module; please note that an extra 4 HP is added on the right side of the module, thus it is advidable to first make room in your Rack for this.
+
 
 
 ## PhraseSeq32 <a id="phrase-seq-32"></a>
@@ -130,7 +132,7 @@ A 32 phrase sequencer module, where each phrase is an index into a set of 32 seq
 
 Step/phrase selection is done by directly clicking the 32 steps at the top, instead of cursor buttons as used in PhraseSeq16. When running in the 2x16 configuration and in Seq mode, with **ATTACH** activated, simply click any step in a given row to attach the edit head to that row. 
 
-Sequence lengths can be set using the **MODE/LEN** button (click twice), and then either turning the main knob below the main display or clicking the desired length directly in the steps (the second method is the recommended way since the display will automatically return to its default state one second after the click of the step). The **TRAN/ROT** button can be used to transpose or rotate a sequence in Seq mode. When the 2x16 configuration is selected, only the row corresponding to the edit head's position is transposed or rotated.
+Sequence lengths can be set clicking the **LEN/MODE** button once, and then either turning the main knob below the main display or clicking the desired length directly in the steps (the second method is the recommended way since the display will automatically return to its default state one second after the click of the step). The run modes can be set by clicking the LEN/MODE button twice starting from its initial state. The **TRAN/ROT** button can be used to transpose or rotate a sequence in Seq mode. When the 2x16 configuration is selected, only the row corresponding to the edit head's position is transposed or rotated.
 
 When the 1x32 configuration is selected, only the top channel outputs are used (labeled A), and when the 2x16 configuration is selected, the top row is sent to the top outputs (CV and gates A), whereas the bottom row of steps is sent to the bottom outputs (CV and gates B). Other than these characteristics, the rest of PhraseSeq32's functionality is identical to that of PhraseSeq16.
 
@@ -156,7 +158,11 @@ When running in the 4x16 configuration, each of the four rows is sent to the fou
 
 ![IM](res/img/SemiModularSynth.jpg)
 
-An all-in-one pre-patched semi-modular synthesizer. Based on the [PhraseSeq16](#phrase-seq-16) sequencer by Impromptu Modular and the [Fundamental](https://vcvrack.com/Fundamental.html) modules by VCV. Please see those links for the respective manuals, while keeping in mind that not all features of the Fundamental modules were implemented in Semi-Modular Synth 16. A typical signal flow is patched by a set of internal default connections, the majority of which are shown by interconnecting lines on the faceplate of the module. These internal connections are overridden by any cables patched into those related jacks.
+An all-in-one pre-patched semi-modular synthesizer. Based on the [PhraseSeq16](#phrase-seq-16) sequencer by Impromptu Modular and the [Fundamental](https://vcvrack.com/Fundamental.html) modules by VCV. Please see those links for the respective manuals, while keeping in mind that not all features of the Fundamental modules were implemented in Semi-Modular Synth 16. (SMS-16) A typical signal flow is patched by a set of internal default connections, the majority of which are shown by interconnecting lines on the faceplate of the module. The majority of the internal connections are overridden by any cables patched into those related jacks.
+
+This module can be used for quickly exploring ideas for sequences, and also for those new to modular synthesis before learning how to fill the screen with cables! Also note that the VCF module has the final output, and is purposely placed after the VCA in the signal flow, such that the VCF can be lightly saturated for a thicker sound, especially when the Drive knob is turned up.
+
+Ideas: a melodic line can be quickly developed in SMS-16 and then partially transferred to another Impromptu sequencer by clocking both sequencers and sending the CV and Gate outputs of one sequencer into the CV in and Gate inputs and making proper use of the Write CV input on the receiving sequencer (note: remember to activate the expansion panel on PS16 or PS32 to reveal the gate inputs).
 
 
 
