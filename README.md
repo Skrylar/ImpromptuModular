@@ -158,11 +158,9 @@ When running in the 4x16 configuration, each of the four rows is sent to the fou
 
 ![IM](res/img/SemiModularSynth.jpg)
 
-An all-in-one pre-patched semi-modular synthesizer. Based on the [PhraseSeq16](#phrase-seq-16) sequencer by Impromptu Modular and the [Fundamental](https://vcvrack.com/Fundamental.html) modules by VCV. Please see those links for the respective manuals, while keeping in mind that not all features of the Fundamental modules were implemented in Semi-Modular Synth 16. (SMS-16) A typical signal flow is patched by a set of internal default connections, the majority of which are shown by interconnecting lines on the faceplate of the module. The majority of the internal connections are overridden by any cables patched into those related jacks.
+An all-in-one pre-patched semi-modular synthesizer. Based on the [Fundamental](https://vcvrack.com/Fundamental.html) modules by VCV and the [PhraseSeq16](#phrase-seq-16) sequencer (above). Please see those links for the respective manuals, while keeping in mind that not all features of the Fundamental modules were implemented in Semi-Modular Synth 16. (SMS-16) A typical signal flow is internally patched by default, as shown by the interconnecting lines on the faceplate of the module. The majority of the internal connections can be overridden by any cables patched into those related jacks.
 
-This module can be used for quickly exploring ideas for sequences, and also for those new to modular synthesis before learning how to fill the screen with cables! Also note that the VCF module has the final output, and is purposely placed after the VCA in the signal flow, such that the VCF can be lightly saturated for a thicker sound, especially when the Drive knob is turned up.
-
-Ideas: a melodic line can be quickly developed in SMS-16 and then partially transferred to another Impromptu sequencer by clocking both sequencers and sending the CV and Gate outputs of one sequencer into the CV in and Gate inputs and making proper use of the Write CV input on the receiving sequencer (note: remember to activate the expansion panel on PS16 or PS32 to reveal the gate inputs).
+This module can be used for quickly exploring ideas for sequences, and is also useful for those new to modular synthesis before learning how to fill the screen with cables! Also note that final output is the low-pass output of the VCF module (Voltage Controlled Filter). The VCF is purposely placed after the VCA (Voltage Controlled Amplifier) in the signal flow, such that the VCF can be lightly saturated, producing a thicker sound, especially when the Drive knob is turned up.
 
 
 
