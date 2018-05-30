@@ -14,7 +14,7 @@ Based on code from the Fundamental and Audible Instruments plugins by Andrew Bel
 
 ## Acknowledgements
 
-Thanks to **Alfredo Santamaria** and **Nay Seven** for suggesting improvements to PhraseSeq16. Special thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq modules, for testing/bug-reports, for designing the blank panel and for graciously providing the dark panels of all modules. A very special thank you to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the [in-depth presentation](https://www.youtube.com/watch?v=KOpo2oUPTjg) of PhraseSeq16 and TwelveKey. 
+Thanks to **Alfredo Santamaria**, **Nay Seven** and **Latif Fital** for suggesting improvements to PhraseSeq16. Special thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq modules, for testing/bug-reports, for designing the blank panel and the SMS-16, and for graciously providing the dark panels of all modules. A very special thank you to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the [in-depth presentation](https://www.youtube.com/watch?v=KOpo2oUPTjg) of PhraseSeq16 and TwelveKey. 
 
 
 

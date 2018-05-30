@@ -105,7 +105,6 @@ struct SemiModularSynth : Module {
 		// none
 		
 		// VCA
-		VCA_EXP1_INPUT,
 		VCA_LIN1_INPUT,
 		VCA_IN1_INPUT,
 		
@@ -136,7 +135,7 @@ struct SemiModularSynth : Module {
 		VCO_SQR_OUTPUT,
 
 		// CLK
-		// none
+		CLK_OUT_OUTPUT,
 		
 		// VCA
 		VCA_OUT1_OUTPUT,
@@ -1215,15 +1214,19 @@ struct SemiModularSynth : Module {
 		oscillatorClk.offset = true;//(params[OFFSET_PARAM].value > 0.0f);
 		oscillatorClk.invert = false;//(params[INVERT_PARAM].value <= 0.0f);
 		oscillatorClk.step(engineGetSampleTime());
-		oscillatorClk.setReset(0.0f);//inputs[RESET_INPUT].value);
-		clkValue = 5.0f * oscillatorClk.sqr();		
+		oscillatorClk.setReset(inputs[RESET_INPUT].value + params[RESET_PARAM].value + params[RUN_PARAM].value + inputs[RUNCV_INPUT].value);//inputs[RESET_INPUT].value);
+		clkValue = 5.0f * oscillatorClk.sqr();	
+		outputs[CLK_OUT_OUTPUT].value = clkValue;
 		
 		
 		// VCA
 		float vcaIn = inputs[VCA_IN1_INPUT].active ? inputs[VCA_IN1_INPUT].value : outputs[VCO_SQR_OUTPUT].value;// Pre-patching
 		float vcaLin = inputs[VCA_LIN1_INPUT].active ? inputs[VCA_LIN1_INPUT].value : outputs[ADSR_ENVELOPE_OUTPUT].value;// Pre-patching
-		stepChannelVCA(vcaIn, params[VCA_LEVEL1_PARAM], vcaLin, inputs[VCA_EXP1_INPUT], outputs[VCA_OUT1_OUTPUT]);
-		
+		float v = vcaIn * params[VCA_LEVEL1_PARAM].value;
+		v *= clamp(vcaLin / 10.0f, 0.0f, 1.0f);
+		outputs[VCA_OUT1_OUTPUT].value = v;
+
+				
 		// ADSR
 		float attack = clamp(params[ADSR_ATTACK_PARAM].value, 0.0f, 1.0f);
 		float decay = clamp(params[ADSR_DECAY_PARAM].value, 0.0f, 1.0f);
@@ -1333,16 +1336,6 @@ struct SemiModularSynth : Module {
 		// Affect downstream CVs of subsequent tied note chain (can be 0 length if next note is not tied)
 		for (int i = indexTied + 1; i < seqLength && getTied(seqNum,i); i++) 
 			cv[seqNum][i] = cv[seqNum][indexTied];
-	}
-	
-	// From Fundamental VCA.cpp
-	void stepChannelVCA(float in, Param &level, float lin, Input &exp, Output &out) {
-		float v = in * level.value;
-		v *= clamp(lin / 10.0f, 0.0f, 1.0f);
-		const float expBase = 50.0f;
-		if (exp.active)
-			v *= rescale(powf(expBase, clamp(exp.value / 10.0f, 0.0f, 1.0f)), 1.0f, expBase, 0.0f, 1.0f);
-		out.value = v;
 	}
 };
 
@@ -1699,15 +1692,16 @@ struct SemiModularSynthWidget : ModuleWidget {
 		// CLK
 		static const int rowRulerClk0 = 41;
 		static const int rowRulerClk1 = rowRulerClk0 + 45;// exact value from svg
+		static const int rowRulerClk2 = rowRulerClk1 + 38;
 		static const int colRulerClk0 = colRulerVCO1 + 55;// exact value from svg
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk0 + offsetIMSmallKnob), module, SemiModularSynth::CLK_FREQ_PARAM, -4.0f, 6.0f, 1.0f));// 120 BMP when default value
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk1 + offsetIMSmallKnob), module, SemiModularSynth::CLK_PW_PARAM, 0.0f, 1.0f, 0.5f));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerClk2), Port::OUTPUT, module, SemiModularSynth::CLK_OUT_OUTPUT, &module->portTheme));
 		
 		
 		// VCA
 		static const int colRulerVca1 = colRulerClk0 + 55;// exact value from svg
-		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCA_LEVEL1_PARAM, 0.0f, 1.0f, 0.5f));
-		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO3), Port::INPUT, module, SemiModularSynth::VCA_EXP1_INPUT, &module->portTheme));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerVCO3 + offsetIMSmallKnob), module, SemiModularSynth::VCA_LEVEL1_PARAM, 0.0f, 1.0f, 0.5f));
 		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::VCA_LIN1_INPUT, &module->portTheme));
 		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO5), Port::INPUT, module, SemiModularSynth::VCA_IN1_INPUT, &module->portTheme));
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCA_OUT1_OUTPUT, &module->portTheme));

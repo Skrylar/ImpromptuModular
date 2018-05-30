@@ -1265,7 +1265,7 @@ struct PhraseSeq16Widget : ModuleWidget {
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq16.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/PhraseSeq16_dark.svg")));
         panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/light/PhraseSeqExp.svg")));
-        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/light/PhraseSeqExp.svg")));
+        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/dark/PhraseSeqExp_dark.svg")));
         box.size = panel->box.size;
         addChild(panel);		
 		
