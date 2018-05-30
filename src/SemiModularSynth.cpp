@@ -1463,7 +1463,7 @@ struct SemiModularSynthWidget : ModuleWidget {
         panel = new DynamicSVGPanel();
         panel->mode = &module->panelTheme;
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/SemiModular.svg")));
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/SemiModular.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/SemiModular_dark.svg")));
         box.size = panel->box.size;
         addChild(panel);		
 		
