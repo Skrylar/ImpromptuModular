@@ -225,6 +225,7 @@ struct WriteSeq32 : Module {
 				indexStep = 0;
 				indexStepStage = 0;
 			}
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 		
 		// Copy button

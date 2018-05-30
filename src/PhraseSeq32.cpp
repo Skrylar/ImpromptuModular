@@ -208,7 +208,7 @@ struct PhraseSeq32 : Module {
 		slideStepsRemain[0] = 0ul;
 		slideStepsRemain[1] = 0ul;
 		attached = true;
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 		attachedChanB = false;
@@ -248,7 +248,7 @@ struct PhraseSeq32 : Module {
 		slideStepsRemain[0] = 0ul;
 		slideStepsRemain[1] = 0ul;
 		attached = true;
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 		attachedChanB = false;
@@ -272,6 +272,7 @@ struct PhraseSeq32 : Module {
 			for (int i = 0; i < 2; i += stepConfig)
 				gate1RandomEnable[i] = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun], (i * 16) + stepIndexRun));
 		}
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 	
 	
@@ -281,7 +282,7 @@ struct PhraseSeq32 : Module {
 		resetLight = 1.0f;
 		displayState = DISP_NORMAL;
 		clockTrigger.reset();
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());	
+		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());	
 	}
 	
 

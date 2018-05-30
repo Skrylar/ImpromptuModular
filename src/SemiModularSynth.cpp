@@ -313,7 +313,7 @@ struct SemiModularSynth : Module {
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
 		attached = true;
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 		
@@ -357,7 +357,7 @@ struct SemiModularSynth : Module {
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
 		attached = true;
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 	}
@@ -376,6 +376,7 @@ struct SemiModularSynth : Module {
 			stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 			gate1RandomEnable = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun], stepIndexRun));
 		}
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());	
 	}
 	
 	
@@ -385,7 +386,7 @@ struct SemiModularSynth : Module {
 		resetLight = 1.0f;
 		displayState = DISP_NORMAL;
 		clockTrigger.reset();
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());	
+		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());	
 	}
 	
 

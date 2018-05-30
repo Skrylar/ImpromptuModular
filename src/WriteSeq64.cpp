@@ -251,6 +251,7 @@ struct WriteSeq64 : Module {
 				for (int c = 0; c < 5; c++) 
 					indexStep[c] = 0;
 			}
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 	
 		// Copy button

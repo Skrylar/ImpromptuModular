@@ -148,7 +148,7 @@ struct GateSeq64 : Module {
 		infoCopyPaste = 0l;
 		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		revertDisplay = 0l;
 	}
 
@@ -186,7 +186,7 @@ struct GateSeq64 : Module {
 		infoCopyPaste = 0l;
 		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		revertDisplay = 0l;
 	}
 
@@ -207,6 +207,7 @@ struct GateSeq64 : Module {
 			for (int i = 0; i < 4; i += stepConfig)
 				gateRandomEnable[i] = calcGateRandomEnable(getGateP(phrase[phraseIndexRun], (i * 16) + stepIndexRun), getGatePVal(phrase[phraseIndexRun], (i * 16) + stepIndexRun));
 		}
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 	
 	
@@ -216,7 +217,7 @@ struct GateSeq64 : Module {
 		resetLight = 1.0f;
 		displayState = DISP_GATE;
 		clockTrigger.reset();
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());	
+		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());	
 	}
 		
 	
