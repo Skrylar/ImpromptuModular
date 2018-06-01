@@ -180,8 +180,8 @@ struct SemiModularSynth : Module {
 	// SEQUENCER
 	
 	// Need to save
-	int panelTheme = 0;
-	int portTheme = 0;
+	int panelTheme = 1;
+	int portTheme = 1;
 	bool running;
 	int runModeSeq[16]; 
 	int runModeSong; 
@@ -1306,7 +1306,7 @@ struct SemiModularSynth : Module {
 		oscillatorLfo.offset = false;//(params[OFFSET_PARAM].value > 0.0f);
 		oscillatorLfo.invert = false;//(params[INVERT_PARAM].value <= 0.0f);
 		oscillatorLfo.step(engineGetSampleTime());
-		oscillatorLfo.setReset(inputs[LFO_RESET_INPUT].value);
+		oscillatorLfo.setReset(inputs[LFO_RESET_INPUT].value + inputs[RESET_INPUT].value + params[RESET_PARAM].value + params[RUN_PARAM].value + inputs[RUNCV_INPUT].value);
 		float lfoGain = params[LFO_GAIN_PARAM].value;
 		float lfoOffset = (2.0f - lfoGain) * params[LFO_OFFSET_PARAM].value;
 		outputs[LFO_SIN_OUTPUT].value = 5.0f * (lfoOffset + lfoGain * oscillatorLfo.sin());
@@ -1713,7 +1713,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static const int rowRulerAdsr3 = rowRulerVCO2 + 6;
 		static const int rowRulerAdsr1 = rowRulerAdsr0 + (rowRulerAdsr3 - rowRulerAdsr0) * 1 / 3;
 		static const int rowRulerAdsr2 = rowRulerAdsr0 + (rowRulerAdsr3 - rowRulerAdsr0) * 2 / 3;
-		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr0 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_ATTACK_PARAM, 0.0f, 1.0f, 0.5f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr0 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_ATTACK_PARAM, 0.0f, 1.0f, 0.1f));
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr1 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_DECAY_PARAM,  0.0f, 1.0f, 0.5f));
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr2 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_SUSTAIN_PARAM, 0.0f, 1.0f, 0.5f));
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr3 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_RELEASE_PARAM, 0.0f, 1.0f, 0.5f));
