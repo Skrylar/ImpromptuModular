@@ -15,8 +15,8 @@ Based on code from the Fundamental and Audible Instruments plugins by Andrew Bel
 ## Acknowledgements
 Impromptu Modular is not a single-person endeavor:
 
-* Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the [in-depth presentation](https://www.youtube.com/watch?v=KOpo2oUPTjg) of PhraseSeq16 and TwelveKey. 
-* Thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq modules, for testing/bug-reports, for designing the SMS-16 module and the blank panel, and for graciously providing the dark panels of all modules. 
+* Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in Talking Rackheads [epsiode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg), as well as PhraseSeq32 and GateSeq64 in [episode 10](https://www.youtube.com/watch?v=bjqWwTKqERQ). 
+* Thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq modules, for testing/bug-reports, for designing the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
 * Thanks to **Alfredo Santamaria**, **Nay Seven** and **Latif Fital** for suggesting improvements to the PhraseSeq series of sequencers.
 
 
@@ -158,7 +158,7 @@ When running in the 4x16 configuration, each of the four rows is sent to the fou
 
 ![IM](res/img/SemiModularSynth.jpg)
 
-An all-in-one pre-patched semi-modular synthesizer. Based on the [Fundamental](https://vcvrack.com/Fundamental.html) modules by VCV and the [PhraseSeq16](#phrase-seq-16) sequencer (above). Please see those links for the respective manuals, while keeping in mind that not all features of the Fundamental modules were implemented in Semi-Modular Synth 16 (SMS-16). A typical signal flow is internally patched by default, as shown by the interconnecting lines on the faceplate of the module. The majority of the internal connections can be overridden by any cables patched into those related jacks. 
+An all-in-one pre-patched semi-modular synthesizer. Based on the [Fundamental](https://vcvrack.com/Fundamental.html) modules by VCV and the [PhraseSeq16](#phrase-seq-16) sequencer (above). Please see those links for the respective manuals, while keeping in mind that not all features of the Fundamental modules were implemented in Semi-Modular Synth 16 (SMS16). A typical signal flow is internally patched by default, as shown by the interconnecting lines on the faceplate of the module. The majority of the internal connections can be overridden by any cables patched into those related jacks. 
 
 This module can be used for quickly exploring ideas for sequences, and is also useful for those new to modular synthesis before learning how to fill the screen with cables! Also note that the final output is the low-pass output of the VCF module (Voltage Controlled Filter). The VCF is purposely placed after the VCA (Voltage Controlled Amplifier) in the signal flow, such that the VCF can be lightly saturated, producing a thicker sound, especially when the Drive knob is turned up.
 
