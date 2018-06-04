@@ -14,9 +14,6 @@
 //***********************************************************************************************
 
 
-// TODO: REMOVE FIRST 3 LAYERS IN SemiModular.svg  !!!!!!!!!!!
-
-
 #include "ImpromptuModular.hpp"
 #include "FundamentalUtil.hpp"
 #include "dsp/digital.hpp"
@@ -289,6 +286,7 @@ struct SemiModularSynth : Module {
 		// SEQUENCER
 		running = false;
 		runModeSong = MODE_FWD;
+		stepIndexEdit = 0;
 		sequence = 0;
 		phrases = 4;
 		for (int i = 0; i < 16; i++) {
@@ -313,7 +311,6 @@ struct SemiModularSynth : Module {
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
 		attached = true;
-		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 		
@@ -331,14 +328,17 @@ struct SemiModularSynth : Module {
 	void onRandomize() override {
 		running = false;
 		runModeSong = randomu32() % 5;
+		stepIndexEdit = 0;
 		sequence = randomu32() % 16;
 		phrases = 1 + (randomu32() % 16);
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 16; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 				attributes[i][s] = randomu32() % 32;// 32 because 5 attributes
-				if (getTied(i,s))
+				if (getTied(i,s)) {
 					attributes[i][s] = ATT_MSK_TIED;// clear other attributes if tied
+					applyTiedStep(i, s, lengths[i]);
+				}
 			}
 			runModeSeq[i] = randomu32() % 5;
 			phrase[i] = randomu32() % 16;
@@ -357,14 +357,12 @@ struct SemiModularSynth : Module {
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
 		attached = true;
-		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 	}
 	
 	
 	void initRun(void) {// run button activated or run edge in run input jack
-		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
 		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		gate1RandomEnable = false;
@@ -381,12 +379,12 @@ struct SemiModularSynth : Module {
 	
 	
 	void resetModule(void) {// reset button on module or reset edge in reset input jack
+		stepIndexEdit = 0;
 		sequence = 0;
 		initRun();// must be after sequence reset
 		resetLight = 1.0f;
 		displayState = DISP_NORMAL;
 		clockTrigger.reset();
-		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());	
 	}
 	
 
@@ -658,6 +656,7 @@ struct SemiModularSynth : Module {
 		
 		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) ) {
+			stepIndexRun = 0;
 			displayState = DISP_NORMAL;
 		}
 		
@@ -1038,26 +1037,20 @@ struct SemiModularSynth : Module {
 		//********** Outputs and lights **********
 				
 		// CV and gates outputs
+		int seq = editingSequence ? (sequence) : (running ? phrase[phraseIndexRun] : phrase[phraseIndexEdit]);
+		int step = editingSequence ? (running ? stepIndexRun : stepIndexEdit) : (stepIndexRun);
 		if (running) {
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
-			int seq = editingSequence ? sequence : phrase[phraseIndexRun];
-			outputs[CV_OUTPUT].value = cv[seq][stepIndexRun] - slideOffset;
+			outputs[CV_OUTPUT].value = cv[seq][step] - slideOffset;
 			outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
-											((attributes[seq][stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
+											((attributes[seq][step] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
 			outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && 
-											((attributes[seq][stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
+											((attributes[seq][step] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
 		}
 		else {// not running 
-			if (editingSequence) {// editing sequence while not running
-				outputs[CV_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[sequence][stepIndexEdit];
-				outputs[GATE1_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
-				outputs[GATE2_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
-			}
-			else {// editing song while not running
-				outputs[CV_OUTPUT].value = 0.0f;
-				outputs[GATE1_OUTPUT].value = 0.0f;
-				outputs[GATE2_OUTPUT].value = 0.0f;
-			}
+			outputs[CV_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
+			outputs[GATE1_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+			outputs[GATE2_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 		}
 		
 		// Step/phrase lights

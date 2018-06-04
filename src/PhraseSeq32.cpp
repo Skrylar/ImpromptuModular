@@ -184,6 +184,7 @@ struct PhraseSeq32 : Module {
 			stepConfig = 2;
 		running = false;
 		runModeSong = MODE_FWD;
+		stepIndexEdit = 0;
 		sequence = 0;
 		phrases = 4;
 		for (int i = 0; i < 32; i++) {
@@ -208,7 +209,6 @@ struct PhraseSeq32 : Module {
 		slideStepsRemain[0] = 0ul;
 		slideStepsRemain[1] = 0ul;
 		attached = true;
-		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 		attachedChanB = false;
@@ -222,14 +222,17 @@ struct PhraseSeq32 : Module {
 			stepConfig = 2;
 		running = false;
 		runModeSong = randomu32() % 5;
+		stepIndexEdit = 0;
 		sequence = randomu32() % 32;
 		phrases = 1 + (randomu32() % 32);
 		for (int i = 0; i < 32; i++) {
 			for (int s = 0; s < 32; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 				attributes[i][s] = randomu32() % 32;// 32 because 5 attributes
-				if (getTied(i,s))
+				if (getTied(i,s)) {
 					attributes[i][s] = ATT_MSK_TIED;// clear other attributes if tied
+					applyTiedStep(i, s, lengths[i]);
+				}
 			}
 			runModeSeq[i] = randomu32() % 5;
 			phrase[i] = randomu32() % 32;
@@ -248,7 +251,6 @@ struct PhraseSeq32 : Module {
 		slideStepsRemain[0] = 0ul;
 		slideStepsRemain[1] = 0ul;
 		attached = true;
-		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 		attachedChanB = false;
@@ -257,7 +259,6 @@ struct PhraseSeq32 : Module {
 	
 	
 	void initRun(int stepConfig) {// run button activated or run edge in run input jack
-		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
 		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		gate1RandomEnable[0] = false;
@@ -277,12 +278,12 @@ struct PhraseSeq32 : Module {
 	
 	
 	void resetModule(int stepConfig) {// reset button on module or reset edge in reset input jack
+		stepIndexEdit = 0;
 		sequence = 0;
 		initRun(stepConfig);// must be after sequence reset
 		resetLight = 1.0f;
 		displayState = DISP_NORMAL;
 		clockTrigger.reset();
-		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());	
 	}
 	
 
@@ -487,6 +488,7 @@ struct PhraseSeq32 : Module {
 		
 		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) ) {
+			stepIndexRun = 0;
 			displayState = DISP_NORMAL;
 		}
 		
@@ -1007,60 +1009,51 @@ struct PhraseSeq32 : Module {
 		//********** Outputs and lights **********
 				
 		// CV and gates outputs
+		int seq = editingSequence ? (sequence) : (running ? phrase[phraseIndexRun] : phrase[phraseIndexEdit]);
+		int step = editingSequence ? (running ? stepIndexRun : stepIndexEdit) : (stepIndexRun);
 		if (running) {
 			float slideOffset[2];
 			for (int i = 0; i < 2; i += stepConfig)
 				slideOffset[i] = (slideStepsRemain[i] > 0ul ? (slideCVdelta[i] * (float)slideStepsRemain[i]) : 0.0f);
-			int seq = editingSequence ? sequence : phrase[phraseIndexRun];
 			if (stepConfig == 1) {
-				outputs[CVA_OUTPUT].value = cv[seq][stepIndexRun] - slideOffset[0];
+				outputs[CVA_OUTPUT].value = cv[seq][step] - slideOffset[0];
 				outputs[GATE1A_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable[0] && 
-												((attributes[seq][stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
+												((attributes[seq][step] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
 				outputs[GATE2A_OUTPUT].value = (clockTrigger.isHigh() && 
-												((attributes[seq][stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
-				outputs[CVB_OUTPUT].value = cv[seq][16 + stepIndexRun] - slideOffset[1];
+												((attributes[seq][step] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
+				outputs[CVB_OUTPUT].value = cv[seq][16 + step] - slideOffset[1];
 				outputs[GATE1B_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable[1] && 
-												((attributes[seq][16 + stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
+												((attributes[seq][16 + step] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
 				outputs[GATE2B_OUTPUT].value = (clockTrigger.isHigh() && 
-												((attributes[seq][16 + stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
+												((attributes[seq][16 + step] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
 			} 
 			else {
-				outputs[CVA_OUTPUT].value = cv[seq][stepIndexRun] - slideOffset[0];
+				outputs[CVA_OUTPUT].value = cv[seq][step] - slideOffset[0];
 				outputs[GATE1A_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable[0] && 
-												((attributes[seq][stepIndexRun] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
+												((attributes[seq][step] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
 				outputs[GATE2A_OUTPUT].value = (clockTrigger.isHigh() && 
-												((attributes[seq][stepIndexRun] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
+												((attributes[seq][step] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
 				outputs[CVB_OUTPUT].value = 0.0f;
 				outputs[GATE1B_OUTPUT].value = 0.0f;
 				outputs[GATE2B_OUTPUT].value = 0.0f;
 			}
 		}
 		else {// not running 
-			if (editingSequence) {// editing sequence while not running
-				if (editingChannel == 0) {
-					outputs[CVA_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[sequence][stepIndexEdit];
-					outputs[GATE1A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
-					outputs[GATE2A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
-					outputs[CVB_OUTPUT].value = 0.0f;
-					outputs[GATE1B_OUTPUT].value = 0.0f;
-					outputs[GATE2B_OUTPUT].value = 0.0f;
-				}
-				else {
-					outputs[CVA_OUTPUT].value = 0.0f;
-					outputs[GATE1A_OUTPUT].value = 0.0f;
-					outputs[GATE2A_OUTPUT].value = 0.0f;
-					outputs[CVB_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[sequence][stepIndexEdit];
-					outputs[GATE1B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
-					outputs[GATE2B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
-				}
-			}
-			else {// editing song while not running
-				outputs[CVA_OUTPUT].value = 0.0f;
-				outputs[GATE1A_OUTPUT].value = 0.0f;
-				outputs[GATE2A_OUTPUT].value = 0.0f;
+			if (editingChannel == 0) {
+				outputs[CVA_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
+				outputs[GATE1A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+				outputs[GATE2A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 				outputs[CVB_OUTPUT].value = 0.0f;
 				outputs[GATE1B_OUTPUT].value = 0.0f;
 				outputs[GATE2B_OUTPUT].value = 0.0f;
+			}
+			else {
+				outputs[CVA_OUTPUT].value = 0.0f;
+				outputs[GATE1A_OUTPUT].value = 0.0f;
+				outputs[GATE2A_OUTPUT].value = 0.0f;
+				outputs[CVB_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
+				outputs[GATE1B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+				outputs[GATE2B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 			}
 		}
 		
