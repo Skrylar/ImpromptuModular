@@ -22,6 +22,7 @@ extern Plugin *plugin;
 
 // All modules that are part of plugin go here
 extern Model *modelTwelveKey;
+extern Model *modelClocked;
 extern Model *modelPhraseSeq16;
 extern Model *modelPhraseSeq32;
 extern Model *modelGateSeq64;
