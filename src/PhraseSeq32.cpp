@@ -139,6 +139,9 @@ struct PhraseSeq32 : Module {
 	bool attachedChanB;
 	long revertDisplay;
 	
+	static constexpr float CONFIG_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
+	int stepConfigLast;
+	
 
 	SchmittTrigger resetTrigger;
 	SchmittTrigger leftTrigger;
@@ -163,8 +166,6 @@ struct PhraseSeq32 : Module {
 	SchmittTrigger editTriggerInv;
 	SchmittTrigger tiedTrigger;
 	SchmittTrigger stepTriggers[32];
-	SchmittTrigger configTrigger;
-	SchmittTrigger configTriggerInv;
 	
 
 	inline bool getGate1P(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE1P) != 0;}
@@ -178,10 +179,13 @@ struct PhraseSeq32 : Module {
 	}
 
 	
+	// widgets are not yet created when module is created (and when onReset() is called by constructor)
+	// onReset() is also called when right-click initialization of module
 	void onReset() override {
 		int stepConfig = 1;// 2x16
-		if (params[CONFIG_PARAM].value < 0.5f)// 1x32
+		if (CONFIG_PARAM_INIT_VALUE < 0.5f)// 1x32
 			stepConfig = 2;
+		stepConfigLast = stepConfig;
 		running = false;
 		runModeSong = MODE_FWD;
 		stepIndexEdit = 0;
@@ -215,11 +219,13 @@ struct PhraseSeq32 : Module {
 		revertDisplay = 0l;
 	}
 	
-
+	
+	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
 		int stepConfig = 1;// 2x16
 		if (params[CONFIG_PARAM].value < 0.5f)// 1x32
 			stepConfig = 2;
+		stepConfigLast = stepConfig;			
 		running = false;
 		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
@@ -277,16 +283,6 @@ struct PhraseSeq32 : Module {
 	}
 	
 	
-	void resetModule(int stepConfig) {// reset button on module or reset edge in reset input jack
-		stepIndexEdit = 0;
-		sequence = 0;
-		initRun(stepConfig);// must be after sequence reset
-		resetLight = 1.0f;
-		displayState = DISP_NORMAL;
-		clockTrigger.reset();
-	}
-	
-
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
@@ -348,6 +344,8 @@ struct PhraseSeq32 : Module {
 		return rootJ;
 	}
 
+	
+	// widgets loaded before this fromJson() is called
 	void fromJson(json_t *rootJ) override {
 		// panelTheme
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
@@ -437,10 +435,11 @@ struct PhraseSeq32 : Module {
 		if (attachedJ)
 			attached = json_is_true(attachedJ);
 		
-		// Initialize dependants after everything loaded
+		// Initialize dependants after everything loaded (widgets already loaded when reach here)
 		int stepConfig = 1;// 2x16
 		if (params[CONFIG_PARAM].value < 0.5f)// 1x32
 			stepConfig = 2;
+		stepConfigLast = stepConfig;			
 		initRun(stepConfig);
 	}
 
@@ -509,10 +508,11 @@ struct PhraseSeq32 : Module {
 		if (params[CONFIG_PARAM].value < 0.5f)// 1x32
 			stepConfig = 2;
 		// Config: set lengths to their new max when move switch
-		if (configTrigger.process(params[CONFIG_PARAM].value) || configTriggerInv.process(1.0f - params[CONFIG_PARAM].value)) {
+		if (stepConfigLast != stepConfig) {
 			for (int i = 0; i < 32; i++)
 				lengths[i] = 16 * stepConfig;
 			attachedChanB = false;
+			stepConfigLast = stepConfig;
 		}
 
 		// Run button
@@ -1000,8 +1000,14 @@ struct PhraseSeq32 : Module {
 		clockPeriod++;
 		
 		// Reset
-		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value))
-			resetModule(stepConfig);
+		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
+			stepIndexEdit = 0;
+			sequence = 0;
+			initRun(stepConfig);// must be after sequence reset
+			resetLight = 1.0f;
+			displayState = DISP_NORMAL;
+			clockTrigger.reset();
+		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
 		
@@ -1424,7 +1430,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 		addParam(ParamWidget::create<TL1105>(Vec(columnRulerT3 - 4, rowRulerT0 - 6 + 2 + offsetTL1105), module, PhraseSeq32::ATTACH_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(columnRulerT3 + 12 + offsetMediumLight, rowRulerT0 - 6 + offsetMediumLight), module, PhraseSeq32::ATTACH_LIGHT));		
 		// Config switch
-		addParam(ParamWidget::create<CKSS>(Vec(columnRulerT4 + hOffsetCKSS + 1, rowRulerT0 - 6 + vOffsetCKSS), module, PhraseSeq32::CONFIG_PARAM, 0.0f, 1.0f, 1.0f));
+		addParam(ParamWidget::create<CKSS>(Vec(columnRulerT4 + hOffsetCKSS + 1, rowRulerT0 - 6 + vOffsetCKSS), module, PhraseSeq32::CONFIG_PARAM, 0.0f, 1.0f, PhraseSeq32::CONFIG_PARAM_INIT_VALUE));
 
 		
 		

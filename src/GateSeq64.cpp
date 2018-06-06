@@ -91,7 +91,10 @@ struct GateSeq64 : Module {
 	bool gateRandomEnable[4] = {};
 	long revertDisplay;
 
-	
+	static constexpr float CONFIG_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget initialization, since module created before widget
+	int stepConfigLast;
+
+
 	SchmittTrigger modesTrigger;
 	SchmittTrigger stepTriggers[64];
 	SchmittTrigger copyTrigger;
@@ -99,9 +102,6 @@ struct GateSeq64 : Module {
 	SchmittTrigger runningTrigger;
 	SchmittTrigger clockTrigger;
 	SchmittTrigger resetTrigger;
-	SchmittTrigger configTrigger;
-	SchmittTrigger configTrigger2;
-	SchmittTrigger configTrigger3;
 	SchmittTrigger editTrigger;
 	SchmittTrigger editTriggerInv;
 
@@ -118,12 +118,15 @@ struct GateSeq64 : Module {
 	}
 
 	
+	// widgets are not yet created when module is created (and when onReset() is called by constructor)
+	// onReset() is also called when right-click initialization of module
 	void onReset() override {
 		int stepConfig = 1;// 4x16
-		if (params[CONFIG_PARAM].value > 1.5f)// 1x64
+		if (CONFIG_PARAM_INIT_VALUE > 1.5f)// 1x64
 			stepConfig = 4;
-		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
+		else if (CONFIG_PARAM_INIT_VALUE > 0.5f)// 2x32
 			stepConfig = 2;
+		stepConfigLast = stepConfig;
 		running = false;
 		runModeSong = MODE_FWD;
 		sequence = 0;
@@ -148,11 +151,11 @@ struct GateSeq64 : Module {
 		infoCopyPaste = 0l;
 		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
-		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		revertDisplay = 0l;
 	}
 
 	
+	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
 		int stepConfig = 1;// 4x16
 		if (params[CONFIG_PARAM].value > 1.5f)// 1x64
@@ -163,9 +166,6 @@ struct GateSeq64 : Module {
 		runModeSong = randomu32() % 5;
 		sequence = randomu32() % 16;
 		phrases = 1 + (randomu32() % 16);
-		configTrigger.reset();
-		configTrigger2.reset();
-		configTrigger3.reset();
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 64; s++) {
 				attributes[i][s] = (randomu32() % 101) | (randomu32() & (ATT_MSK_GATEP | ATT_MSK_GATE));
@@ -186,7 +186,6 @@ struct GateSeq64 : Module {
 		infoCopyPaste = 0l;
 		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
-		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		revertDisplay = 0l;
 	}
 
@@ -210,16 +209,6 @@ struct GateSeq64 : Module {
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 	
-	
-	void resetModule(int stepConfig) {// reset button on module or reset edge in reset input jack
-		sequence = 0;
-		initRun(stepConfig);// must be after sequence reset
-		resetLight = 1.0f;
-		displayState = DISP_GATE;
-		clockTrigger.reset();
-		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());	
-	}
-		
 	
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
@@ -268,6 +257,8 @@ struct GateSeq64 : Module {
 		return rootJ;
 	}
 
+	
+	// widgets loaded before this fromJson() is called
 	void fromJson(json_t *rootJ) override {
 		// panelTheme
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
@@ -343,6 +334,7 @@ struct GateSeq64 : Module {
 			stepConfig = 4;
 		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
 			stepConfig = 2;
+		stepConfigLast = stepConfig;
 		initRun(stepConfig);
 	}
 
@@ -377,13 +369,11 @@ struct GateSeq64 : Module {
 		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
 			stepConfig = 2;
 		// Config: set lengths to their new max when move switch
-		bool configTrigged = configTrigger.process(params[CONFIG_PARAM].value*10.0f - 10.0f) || 
-			configTrigger2.process(params[CONFIG_PARAM].value*10.0f) ||
-			configTrigger3.process(params[CONFIG_PARAM].value*-5.0f + 10.0f);
-		if (configTrigged) {
+		if (stepConfigLast != stepConfig) {
 			for (int i = 0; i < 16; i++)
 				lengths[i] = 16 * stepConfig;
 			displayProb = -1;
+			stepConfigLast = stepConfig;
 		}
 		
 		// Run state button
@@ -616,8 +606,13 @@ struct GateSeq64 : Module {
 		}	
 		
 		// Reset
-		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value))
-			resetModule(stepConfig);
+		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
+			sequence = 0;
+			initRun(stepConfig);// must be after sequence reset
+			resetLight = 1.0f;
+			displayState = DISP_GATE;
+			clockTrigger.reset();
+		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
 	
@@ -958,7 +953,7 @@ struct GateSeq64Widget : ModuleWidget {
 		// Sequence knob
 		addParam(ParamWidget::create<IMBigKnobInf>(Vec(colRulerC2 + 1 + offsetIMBigKnob, rowRulerC1 + offsetIMBigKnob), module, GateSeq64::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f));		
 		// Config switch (3 position)
-		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC2 + hOffsetCKSS, rowRulerC2 - 2 + vOffsetCKSSThree), module, GateSeq64::CONFIG_PARAM, 0.0f, 2.0f, 0.0f));// 0.0f is top position
+		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC2 + hOffsetCKSS, rowRulerC2 - 2 + vOffsetCKSSThree), module, GateSeq64::CONFIG_PARAM, 0.0f, 2.0f, GateSeq64::CONFIG_PARAM_INIT_VALUE));// 0.0f is top position
 		
 
 		// Modes button and light
