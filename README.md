@@ -17,7 +17,7 @@ Impromptu Modular is not a single-person endeavor:
 
 * Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in Talking Rackheads [epsiode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg), as well as PhraseSeq32 and GateSeq64 in [episode 10](https://www.youtube.com/watch?v=bjqWwTKqERQ). 
 * Thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq modules, for testing/bug-reports, for designing the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
-* Thanks to **Alfredo Santamaria**, **Nay Seven** and **Latif Fital** for suggesting improvements to the PhraseSeq series of sequencers.
+* Thanks to **Alfredo Santamaria**, **Nay Seven** and **Latif Fital** for suggesting improvements to the PhraseSeq series of sequencers, and to **Omri Cohen** for bug reports and testing.
 
 
 

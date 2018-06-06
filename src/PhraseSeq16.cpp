@@ -504,6 +504,7 @@ struct PhraseSeq16 : Module {
 		
 		// Initialize dependants after everything loaded
 		initRun();
+		sequenceKnob = INT_MAX;
 	}
 
 

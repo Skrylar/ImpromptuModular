@@ -441,6 +441,7 @@ struct PhraseSeq32 : Module {
 			stepConfig = 2;
 		stepConfigLast = stepConfig;			
 		initRun(stepConfig);
+		sequenceKnob = INT_MAX;
 	}
 
 	void rotateSeq(int seqNum, bool directionRight, int seqLength, bool chanB_16) {

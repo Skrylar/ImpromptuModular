@@ -607,6 +607,7 @@ struct SemiModularSynth : Module {
 		
 		// Initialize dependants after everything loaded
 		initRun();
+		sequenceKnob = INT_MAX;
 	}
 
 

@@ -328,7 +328,7 @@ struct GateSeq64 : Module {
 				}
 		}
 		
-		// Initialize dependants after everything loaded
+		// Initialize dependants after everything loaded (widgets already loaded when reach here)
 		int stepConfig = 1;// 4x16
 		if (params[CONFIG_PARAM].value > 1.5f)// 1x64
 			stepConfig = 4;
@@ -336,6 +336,8 @@ struct GateSeq64 : Module {
 			stepConfig = 2;
 		stepConfigLast = stepConfig;
 		initRun(stepConfig);
+		probKnob = INT_MAX;
+		sequenceKnob = INT_MAX;
 	}
 
 	
