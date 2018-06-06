@@ -109,6 +109,8 @@ struct ClockedWidget : ModuleWidget {
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
 			snprintf(displayStr, 4, "120");
+			if (!isBPM)
+				snprintf(displayStr, 4, "*16");
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};		
