@@ -271,16 +271,6 @@ struct PhraseSeq16 : Module {
 	}
 	
 	
-	void resetModule(void) {// reset button on module or reset edge in reset input jack
-		stepIndexEdit = 0;
-		sequence = 0;
-		initRun();// must be after sequence reset
-		resetLight = 1.0f;
-		displayState = DISP_NORMAL;
-		clockTrigger.reset();
-	}
-	
-
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
@@ -942,8 +932,14 @@ struct PhraseSeq16 : Module {
 		clockPeriod++;
 		
 		// Reset
-		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value))
-			resetModule();
+		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
+			stepIndexEdit = 0;
+			sequence = 0;
+			initRun();// must be after sequence reset
+			resetLight = 1.0f;
+			displayState = DISP_NORMAL;
+			clockTrigger.reset();
+		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
 		
@@ -1469,6 +1465,9 @@ struct PhraseSeq16Widget : ModuleWidget {
 Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromptu Modular", "Phrase-Seq-16", "Phrase-Seq-16", SEQUENCER_TAG);
 
 /*CHANGE LOG
+
+0.6.6:
+knob bug fixes when loading patch
 
 0.6.5:
 paste 4, 8 doesn't loop over to overwrite first steps

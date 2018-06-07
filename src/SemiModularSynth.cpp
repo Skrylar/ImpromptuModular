@@ -378,16 +378,6 @@ struct SemiModularSynth : Module {
 	}
 	
 	
-	void resetModule(void) {// reset button on module or reset edge in reset input jack
-		stepIndexEdit = 0;
-		sequence = 0;
-		initRun();// must be after sequence reset
-		resetLight = 1.0f;
-		displayState = DISP_NORMAL;
-		clockTrigger.reset();
-	}
-	
-
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
@@ -1029,8 +1019,14 @@ struct SemiModularSynth : Module {
 		clockPeriod++;
 		
 		// Reset
-		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value))
-			resetModule();
+		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
+			stepIndexEdit = 0;
+			sequence = 0;
+			initRun();// must be after sequence reset
+			resetLight = 1.0f;
+			displayState = DISP_NORMAL;
+			clockTrigger.reset();
+		}
 		else
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
 		
@@ -1747,6 +1743,10 @@ struct SemiModularSynthWidget : ModuleWidget {
 Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthWidget>("Impromptu Modular", "Semi-Modular Synth", "Semi-Modular Synth", SEQUENCER_TAG, OSCILLATOR_TAG);
 
 /*CHANGE LOG
+
+0.6.6:
+knob bug fixes when loading patch
+dark by default when create new instance of module
 
 0.6.5:
 initial release of SMS

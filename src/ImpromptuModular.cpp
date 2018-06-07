@@ -19,7 +19,7 @@ void init(rack::Plugin *p) {
 	p->version = TOSTRING(VERSION);
 
 	p->addModel(modelTwelveKey);
-	p->addModel(modelClocked);
+	//p->addModel(modelClocked);
 	p->addModel(modelPhraseSeq16);
 	p->addModel(modelPhraseSeq32);
 	p->addModel(modelGateSeq64);

@@ -1606,6 +1606,9 @@ Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromp
 
 /*CHANGE LOG
 
+0.6.6:
+config and knob bug fixes when loading patch
+
 0.6.5:
 paste 4, 8 doesn't loop over to overwrite first steps
 small adjustements to gates and CVs used in monitoring write operations

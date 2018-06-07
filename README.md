@@ -2,7 +2,7 @@
 
 Modules for [VCV Rack](https://vcvrack.com), available in the [plugin manager](https://vcvrack.com/plugins.html).
 
-Version 0.6.5
+Version 0.6.6
 
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!   120% Zoom for jpgs)
 

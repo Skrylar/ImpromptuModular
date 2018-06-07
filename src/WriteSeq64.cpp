@@ -78,8 +78,8 @@ struct WriteSeq64 : Module {
 	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq, destination channel in next msbits
 	long clockIgnoreOnReset;
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
-	int stepKnob = 0;// INT_MAX when knob not seen yet
-	int stepsKnob = 0;// INT_MAX when knob not seen yet
+	int stepKnob;// INT_MAX when knob not seen yet
+	int stepsKnob;// INT_MAX when knob not seen yet
 
 	
 	SchmittTrigger clock12Trigger;

@@ -977,6 +977,9 @@ Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Mod
 
 /*CHANGE LOG
 
+0.6.6:
+config and knob bug fixes when loading patch
+
 0.6.5:
 swap MODE/LEN so that length happens first (update manual)
 
