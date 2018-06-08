@@ -78,9 +78,7 @@ struct Clocked : Module {
 	
 	// Need to save
 	int panelTheme = 0;
-	int ratios[4];// master bpm is index 0, clock ratios multiplied by 2 are in indexes 1 to 3
 	bool running;
-	long periodStep;
 	
 	// No need to save
 	float resetLight = 0.0f;
@@ -98,12 +96,10 @@ struct Clocked : Module {
 
 	void onReset() override {
 		running = false;
-		periodStep = 0l;
 	}
 
 	void onRandomize() override {
 		running = false;
-		periodStep = 0l;
 	}
 
 	json_t *toJson() override {
@@ -135,9 +131,9 @@ struct Clocked : Module {
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
 		float bpm = getBeatsPerMinute();
-		float bps = bpm / 60.0f;
-		float ratios[3] = {getRatio(0), getRatio(1), getRatio(2)};
-		float sampleRate = engineGetSampleRate();
+		//float bps = bpm / 60.0f;
+		//float ratios[3] = {getRatio(0), getRatio(1), getRatio(2)};
+		//float sampleRate = engineGetSampleRate();
 		float sampleTime = engineGetSampleTime();
 
 
@@ -208,7 +204,7 @@ struct ClockedWidget : ModuleWidget {
 					ratio *= -1.0f;
 					isNegative = true;
 				}
-				int ratioDoubled = (int) round((2.0f * ratio));
+				int ratioDoubled = (int) ((2.0f * ratio) + 0.5f);
 				if ( (ratioDoubled % 2) == 1 )
 					snprintf(displayStr, 4, "%c,5", 0x30 + ratioDoubled / 2);
 				else {
@@ -218,11 +214,7 @@ struct ClockedWidget : ModuleWidget {
 				}
 			}
 			else {// BPM to display
-				int bpm = module->getBeatsPerMinute();
-				if (bpm < 0)
-					snprintf(displayStr, 4, "SLV");
-				else
-					snprintf(displayStr, 4, "%3u", (unsigned) bpm);
+				snprintf(displayStr, 4, "%3u", (unsigned) (module->getBeatsPerMinute() + 0.5f));
 			}
 			displayStr[3] = 0;// more safety
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
