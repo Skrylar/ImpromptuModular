@@ -51,21 +51,16 @@ struct Clocked : Module {
 	// BPM info
 	static const int bpmMax = 350;
 	static const int bpmMin = 10;
+	static const int bpmRange = bpmMax - bpmMin;
 		
 	// Knob utilities
-	int getBeatsPerMinute(void) {
-		// returns -1.0f if slave
-		int bpm = (int) round( params[RATIO_PARAMS + 0].value );
+	float getBeatsPerMinute(void) {
+		float bpm = 0.0f;
 		if (inputs[IN_INPUT].active)
-			bpm = -1;
+			bpm = round( (inputs[IN_INPUT].value / 10.0f) * bpmRange + bpmMin );
+		else
+			bpm = round( params[RATIO_PARAMS + 0].value );
 		return bpm;
-	}
-	float getBeatsPerSecond(void) {
-		// returns -1.0f if slave
-		float bps = round( params[RATIO_PARAMS + 0].value ) /  60.0f;
-		if (inputs[IN_INPUT].active)
-			bps = -1.0f;
-		return bps;
 	}
 	float getRatio(int ratioKnobIndex) {
 		// ratioKnobIndex is 0 for first ratio knob
@@ -92,9 +87,9 @@ struct Clocked : Module {
 	
 	
 	SchmittTrigger resetTrigger;
-	SchmittTrigger runningTrigger;
-	SchmittTrigger inTrigger;
-	PulseGenerator outPulse;
+	SchmittTrigger runTrigger;
+	PulseGenerator resetPulse;
+	PulseGenerator runPulse;
 	
 
 	Clocked() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -139,49 +134,41 @@ struct Clocked : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
-		float bps = getBeatsPerSecond();// is -1.0f when slave
+		float bpm = getBeatsPerMinute();
+		float bps = bpm / 60.0f;
 		float ratios[3] = {getRatio(0), getRatio(1), getRatio(2)};
-		
+		float sampleRate = engineGetSampleRate();
+		float sampleTime = engineGetSampleTime();
+
 
 		//********** Buttons, knobs, switches and inputs **********
 		
 		// Run button
-		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUN_INPUT].value)) {
+		if (runTrigger.process(params[RUN_PARAM].value + inputs[RUN_INPUT].value)) {
 			running = !running;
+			runPulse.trigger(0.001f);
 		}
 		
 		
 		//********** Clock and reset **********
 		
 		// Clock
-		bool inTrig = inTrigger.process(inputs[IN_INPUT].value);
-		if (bps > 0.0f) {// master mode (generate clock)
-			periodStep++;
-			if ( periodStep > (engineGetSampleRate()) / bps ) {
-				periodStep = 0l;
-				outPulse.trigger(0.001f);
-			}
-		}
-		else {// slave mode (detect clock)
-			if (inTrig) {
-				periodStep = 0l;
-				outPulse.trigger(0.001f);// TODO to reduce latency, the in_input should be sent to out_output
-			}
-			else
-				periodStep++;		
-		}
+		
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			resetLight = 1.0f;
+			resetPulse.trigger(0.001f);
 		}
 		else
-			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();		
+			resetLight -= (resetLight / lightLambda) * sampleTime;		
 		
 		
 		//********** Outputs and lights **********
 			
-		outputs[OUT_OUTPUT].value = (outPulse.process(engineGetSampleTime()) ? 10.0f : 0.0f);
+		outputs[RESET_OUTPUT].value = (resetPulse.process(sampleTime) ? 10.0f : 0.0f);
+		outputs[RUN_OUTPUT].value = (runPulse.process(sampleTime) ? 10.0f : 0.0f);
+		outputs[OUT_OUTPUT].value =  (inputs[IN_INPUT].active ? inputs[IN_INPUT].value : ( (bpm - bpmMin) / bpmRange ) * 10.0f );
 			
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
