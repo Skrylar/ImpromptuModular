@@ -356,6 +356,7 @@ struct GateSeq64 : Module {
 		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) ) {
 			displayState = DISP_GATE;
+			stepIndexRun = 0;
 			displayProb = -1;
 		}
 
