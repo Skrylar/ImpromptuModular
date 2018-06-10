@@ -148,8 +148,12 @@ struct IMBigSnapKnob : IMBigKnob {
 struct IMBigKnobInf : IMKnob {
 	IMBigKnobInf() {
 		setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLarge.svg")));
-		speed = 0.9f;
+		speed = 0.9f;		
 		//smooth = false;
+		SVGWidget *effects = new SVGWidget();
+		effects->setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLargeEffects.svg")));
+		addChild(effects);
+		
 	}
 };
 
