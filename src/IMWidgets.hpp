@@ -31,7 +31,7 @@ struct ScrewCircle : TransparentWidget {
 	ScrewCircle(float _angle);
 	void draw(NVGcontext *vg) override;
 };
-struct DynamicSVGScrew : FramebufferWidget { // like SVGPanel (in app.hpp and SVGPanel.cpp) but with dynmically assignable panel
+struct DynamicSVGScrew : FramebufferWidget {
     int* mode;
     int oldMode;
 	// for random rotated screw used in primary mode

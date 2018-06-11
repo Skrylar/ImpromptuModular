@@ -6,6 +6,8 @@
 //See ./LICENSE.txt for all licenses
 //See ./res/fonts/ for font licenses
 //
+//Module concept and design by Marc Boulé, Nigel Sixsmith and Xavier Belmont
+//
 //***********************************************************************************************
 
 
@@ -267,10 +269,13 @@ struct Clocked : Module {
 		float ret = 0.0f;
 		
 		if (steps[clkIndex] > 0) {
+			float swParam = params[SWING_PARAMS + clkIndex].value;
+			swParam *= (swParam * (swParam > 0.0f ? 1.0f : -1.0f));// non-linear behavior for more sensitivity at center: f(x) = x^2 * sign(x)
+			
 			// all following values are in samples numbers, whether long or float
 			float onems = sampleRate / 1000.0f;
 			float period = ((float)lengths[clkIndex]) / 2.0f;
-			float swing = (period - 2.0f * onems) * params[SWING_PARAMS + clkIndex].value;
+			float swing = (period - 2.0f * onems) * swParam;
 			float p2min = onems;
 			float p2max = period - onems - fabs(swing);
 			if (p2max < p2min) {

@@ -134,7 +134,11 @@ struct IMKnob : SVGKnob {
 
 struct IMBigKnob : IMKnob {
 	IMBigKnob() {
-		setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLargeWithMark.svg")));
+		setSVG(SVG::load(assetPlugin(plugin, "res/light/comp/BlackKnobLargeWithMark.svg")));
+		
+		/*SVGWidget *effects = new SVGWidget();
+		effects->setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLargeWithMarkEffects.svg")));
+		addChild(effects);*/
 	}
 };
 
@@ -147,21 +151,25 @@ struct IMBigSnapKnob : IMBigKnob {
 
 struct IMBigKnobInf : IMKnob {
 	IMBigKnobInf() {
-		setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLarge.svg")));
+		setSVG(SVG::load(assetPlugin(plugin, "res/light/comp/BlackKnobLarge.svg")));
 		speed = 0.9f;		
 		//smooth = false;
-		SVGWidget *effects = new SVGWidget();
-		effects->setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLargeEffects.svg")));
-		addChild(effects);
 		
+		/*SVGWidget *effects = new SVGWidget();
+		effects->setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLargeEffects.svg")));
+		addChild(effects);*/
 	}
 };
 
 struct IMSmallKnob : IMKnob {
 	IMSmallKnob() {
 		//setSVG(SVG::load(assetGlobal("res/ComponentLibrary/RoundSmallBlackKnob.svg")));
-		setSVG(SVG::load(assetPlugin(plugin, "res/comp/RoundSmallBlackKnob.svg")));
+		setSVG(SVG::load(assetPlugin(plugin, "res/light/comp/RoundSmallBlackKnob.svg")));
 		shadow->box.pos = Vec(0.0, box.size.y * 0.15);
+		
+		/*SVGWidget *effects = new SVGWidget();
+		effects->setSVG(SVG::load(assetPlugin(plugin, "res/comp/RoundSmallBlackKnobEffects.svg")));
+		addChild(effects);*/
 	}
 };
 
