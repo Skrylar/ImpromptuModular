@@ -270,13 +270,16 @@ struct Clocked : Module {
 			// all following values are in samples numbers, whether long or float
 			float onems = sampleRate / 1000.0f;
 			float period = ((float)lengths[clkIndex]) / 2.0f;
+			float swing = (period - 2.0f * onems) * params[SWING_PARAMS + clkIndex].value;
 			float p2min = onems;
-			float p2max = period - onems;
+			float p2max = period - onems - fabs(swing);
+			if (p2max < p2min)
+				p2max = p2min;
 			
 			//long p1 = 1;// implicit, no need 
 			long p2 = (long)((p2max - p2min) * params[PW_PARAMS + clkIndex].value + p2min + 0.5f);
-			long p3 = (long)period;// + p1
-			long p4 = ((long)period) + p2;
+			long p3 = (long)(period + swing);
+			long p4 = ((long)(period + swing)) + p2;
 			
 			ret = ( ((steps[clkIndex] < p2)) || ((steps[clkIndex] < p4) && (steps[clkIndex] > p3)) ) ? 10.0f : 0.0f;
 		}
@@ -385,7 +388,7 @@ struct ClockedWidget : ModuleWidget {
 		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->panelTheme));
 
 
-		static const int rowRuler0 = 54;//reset,run inputs, master knob and bpm display
+		static const int rowRuler0 = 50;//reset,run inputs, master knob and bpm display
 		static const int rowRuler1 = rowRuler0 + 55;// reset,run switches
 		//
 		static const int rowRuler2 = rowRuler1 + 55;// clock 1
@@ -437,7 +440,7 @@ struct ClockedWidget : ModuleWidget {
 		// PW master input
 		addInput(createDynamicPort<IMPort>(Vec(colRulerT2, rowRuler1), Port::INPUT, module, Clocked::PW_INPUTS + 0, &module->panelTheme));
 		// Swing master knob
-		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerT3 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 0, -0.5f, 0.5f, 0.0f));
+		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerT3 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 0, -1.0f, 1.0f, 0.0f));
 		// PW master knob
 		addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerT4 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::PW_PARAMS + 0, 0.0f, 1.0f, 0.5f));
 		// Clock master out
@@ -458,7 +461,7 @@ struct ClockedWidget : ModuleWidget {
 			// Sync light
 			addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(colRulerM1 + 62, rowRuler2 + i * rowSpacingClks + 10), module, Clocked::CLK_LIGHTS + i + 1));		
 			// Swing knobs
-			addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerM2 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 1 + i, -0.5f, 0.5f, 0.0f));
+			addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerM2 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 1 + i, -1.0f, 1.0f, 0.0f));
 			// PW knobs
 			addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerM3 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::PW_PARAMS + 1 + i, 0.0f, 1.0f, 0.5f));
 			// Clock outs
