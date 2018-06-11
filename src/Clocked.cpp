@@ -273,8 +273,9 @@ struct Clocked : Module {
 			float swing = (period - 2.0f * onems) * params[SWING_PARAMS + clkIndex].value;
 			float p2min = onems;
 			float p2max = period - onems - fabs(swing);
-			if (p2max < p2min)
+			if (p2max < p2min) {
 				p2max = p2min;
+			}
 			
 			//long p1 = 1;// implicit, no need 
 			long p2 = (long)((p2max - p2min) * params[PW_PARAMS + clkIndex].value + p2min + 0.5f);
@@ -376,7 +377,7 @@ struct ClockedWidget : ModuleWidget {
 		// Main panel from Inkscape
         DynamicSVGPanel *panel = new DynamicSVGPanel();
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Clocked.svg")));
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Clocked.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/Clocked_dark.svg")));
         box.size = panel->box.size;
         panel->mode = &module->panelTheme;
         addChild(panel);
