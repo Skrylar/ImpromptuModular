@@ -26,19 +26,20 @@ struct Clocked : Module {
 		ENUMS(PW_INPUTS, 4),// master is index 0
 		RESET_INPUT,
 		RUN_INPUT,
-		IN_INPUT,
+		BPM_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
 		ENUMS(CLK_OUTPUTS, 4),// master is index 0
 		RESET_OUTPUT,
 		RUN_OUTPUT,
-		OUT_OUTPUT,
+		BPM_OUTPUT,
 		NUM_OUTPUTS
 	};
 	enum LightIds {
 		RESET_LIGHT,
 		RUN_LIGHT,
+		ENUMS(CLK_LIGHTS, 4),// master is index 0
 		NUM_LIGHTS
 	};
 	
@@ -56,24 +57,30 @@ struct Clocked : Module {
 	// Knob utilities
 	float getBeatsPerMinute(void) {
 		float bpm = 0.0f;
-		if (inputs[IN_INPUT].active)
-			bpm = round( (inputs[IN_INPUT].value / 10.0f) * bpmRange + bpmMin );
+		if (inputs[BPM_INPUT].active)
+			bpm = round( (inputs[BPM_INPUT].value / 10.0f) * bpmRange + bpmMin );
 		else
 			bpm = round( params[RATIO_PARAMS + 0].value );
 		return bpm;
 	}
 	float getRatio(int ratioKnobIndex) {
-		// ratioKnobIndex is 0 for first ratio knob
-		bool isNegative = false;
-		int i = (int) round( params[RATIO_PARAMS + 1 + ratioKnobIndex].value );// [ -(numRatios-1) ; (numRatios-1) ]
-		if (i < 0) {
-			i *= -1;
-			isNegative = true;
+		// ratioKnobIndex is 1 for first ratio knob, 0 is master BPM ratio, which is implicitly 1.0f
+		float ret = 1.0f;
+		if (ratioKnobIndex > 0) {
+			bool isDivision = false;
+			int i = (int) round( params[RATIO_PARAMS + ratioKnobIndex].value );// [ -(numRatios-1) ; (numRatios-1) ]
+			if (i < 0) {
+				i *= -1;
+				isDivision = true;
+			}
+			if (i >= numRatios) {
+				i = numRatios - 1;
+			}
+			ret = ratioValues[i];
+			if (isDivision) 
+				ret = 1.0f / ret;
 		}
-		if (i >= numRatios) {
-			i = numRatios - 1;
-		}
-		return ratioValues[i] * (isNegative ? -1.0f : 1.0f);
+		return ret;
 	}
 	
 	// Need to save
@@ -82,6 +89,11 @@ struct Clocked : Module {
 	
 	// No need to save
 	float resetLight = 0.0f;
+	float bpm;
+	long steps[4];// 0 when stopped, [1 to 2*sampleRate] for clock steps (*2 is because of swing, so we do groups of 2 periods)
+	long lengths[4];// dependant of steps[], irrelevant values when a step is 0
+	float ratios[4];// dependant of steps[], irrelevant outside of step()
+	float newRatios[4];// dependant of steps[], irrelevant outside of step()
 	
 	
 	SchmittTrigger resetTrigger;
@@ -93,15 +105,28 @@ struct Clocked : Module {
 	Clocked() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
 	}
+	
 
+	// widgets are not yet created when module is created (and when onReset() is called by constructor)
+	// onReset() is also called when right-click initialization of module
 	void onReset() override {
 		running = false;
+		bpm = -1.0f;// unseen
+		for (int i = 0; i < 4; i++) {
+			steps[i] = 0;
+			lengths[i] = 0;
+			ratios[i] = 0.0f;
+			newRatios[i] = 0.0f;
+		}
 	}
-
+	
+	
+	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
-		running = false;
+		onReset();
 	}
 
+	
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 		
@@ -114,7 +139,11 @@ struct Clocked : Module {
 		return rootJ;
 	}
 
+
+	// widgets loaded before this fromJson() is called
 	void fromJson(json_t *rootJ) override {
+		onReset();
+		
 		// panelTheme
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
@@ -130,31 +159,73 @@ struct Clocked : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
-		float bpm = getBeatsPerMinute();
-		//float bps = bpm / 60.0f;
-		//float ratios[3] = {getRatio(0), getRatio(1), getRatio(2)};
-		//float sampleRate = engineGetSampleRate();
+		float sampleRate = engineGetSampleRate();
 		float sampleTime = engineGetSampleTime();
-
+		
 
 		//********** Buttons, knobs, switches and inputs **********
 		
 		// Run button
 		if (runTrigger.process(params[RUN_PARAM].value + inputs[RUN_INPUT].value)) {
 			running = !running;
+			if (!running) {
+				onReset();
+			}
 			runPulse.trigger(0.001f);
+		}
+
+		// BPM input and knob
+		float newBpm = getBeatsPerMinute();
+		if (newBpm != bpm) {
+			bpm = newBpm; 
+			for (int i = 0; i < 4; i++) {
+				steps[i] = 0;// retrigger everything
+			}
+		}
+		float bps = bpm / 60.0f;
+
+		// Ratio knobs
+		bool syncRatios[4] = {false, false, false, false};// 0 index unused
+		for (int i = 1; i < 4; i++) {
+			newRatios[i] = getRatio(i);
+			if (newRatios[i] != ratios[i])
+				syncRatios[i] = true;
 		}
 		
 		
 		//********** Clock and reset **********
 		
 		// Clock
+		if (running) {
+			// master clock
+			if (steps[0] == 0) {
+				lengths[0] = (long) (2.0f * sampleRate / (bps));
+				steps[0] = 1;// the 0 step does not actually to consume a sample step, it is used to reset every double-period so that lengths can be re-computed
+				for (int i = 1; i < 4; i++) {// see if ratio knobs uninitialized or changed
+					if (syncRatios[i]) {
+						steps[i] = 0;// force refresh of that sub-clock
+						ratios[i] = newRatios[i];
+						syncRatios[i] = false;
+					}
+				}
+			}
+			// three sub-clocks
+			for (int i = 1; i < 4; i++) {
+				if (steps[i] == 0) {
+					lengths[i] = (long) (2.0f * sampleRate / (bps * ratios[i]));
+					steps[i] = 1;// the 0 step does not actually to consume a sample step, it is used to reset every double-period so that lengths can be re-computed
+				}
+			}
+		}
 		
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			resetLight = 1.0f;
 			resetPulse.trigger(0.001f);
+			for (int i = 0; i < 4; i++) {
+				steps[i] = 0;
+			}
 		}
 		else
 			resetLight -= (resetLight / lightLambda) * sampleTime;		
@@ -162,16 +233,54 @@ struct Clocked : Module {
 		
 		//********** Outputs and lights **********
 			
+		// Clock outputs
+		for (int i = 0; i < 4; i++) {
+			outputs[CLK_OUTPUTS + i].value = calcClock(i, sampleRate);
+		}
+		
 		outputs[RESET_OUTPUT].value = (resetPulse.process(sampleTime) ? 10.0f : 0.0f);
 		outputs[RUN_OUTPUT].value = (runPulse.process(sampleTime) ? 10.0f : 0.0f);
-		outputs[OUT_OUTPUT].value =  (inputs[IN_INPUT].active ? inputs[IN_INPUT].value : ( (bpm - bpmMin) / bpmRange ) * 10.0f );
+		outputs[BPM_OUTPUT].value =  (inputs[BPM_INPUT].active ? inputs[BPM_INPUT].value : ( (bpm - bpmMin) / bpmRange ) * 10.0f );
 			
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
 		
 		// Run light
 		lights[RUN_LIGHT].value = running;
+		
+		// Sync lights
+		for (int i = 1; i < 4; i++) {
+			lights[CLK_LIGHTS + i].value = (syncRatios[i] && running) ? 1.0f: 0.0f;
+		}
 
+		for (int i = 0; i < 4; i++) {
+			if (steps[i] != 0) {
+				if (steps[i] >= lengths[i])
+					steps[i] = 0;
+				else 
+					steps[i]++;
+			}
+		}
+	}
+	
+	float calcClock(int clkIndex, float sampleRate) {
+		float ret = 0.0f;
+		
+		if (steps[clkIndex] > 0) {
+			// all following values are in samples numbers, whether long or float
+			float onems = sampleRate / 1000.0f;
+			float period = ((float)lengths[clkIndex]) / 2.0f;
+			float p2min = onems;
+			float p2max = period - onems;
+			
+			//long p1 = 1;// implicit, no need 
+			long p2 = (long)((p2max - p2min) * params[PW_PARAMS + clkIndex].value + p2min + 0.5f);
+			long p3 = (long)period;// + p1
+			long p4 = ((long)period) + p2;
+			
+			ret = ( ((steps[clkIndex] < p2)) || ((steps[clkIndex] < p4) && (steps[clkIndex] > p3)) ) ? 10.0f : 0.0f;
+		}
+		return ret;
 	}
 };
 
@@ -198,23 +307,23 @@ struct ClockedWidget : ModuleWidget {
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
 			if (knobIndex > 0) {// ratio to display
-				bool isNegative = false;
-				float ratio = module->getRatio(knobIndex - 1);
-				if (ratio < 0.0f) {
-					ratio *= -1.0f;
-					isNegative = true;
+				bool isDivision = false;
+				float ratio = module->getRatio(knobIndex);
+				if (ratio < 1.0f) {
+					ratio = 1.0f / ratio;
+					isDivision = true;
 				}
 				int ratioDoubled = (int) ((2.0f * ratio) + 0.5f);
 				if ( (ratioDoubled % 2) == 1 )
 					snprintf(displayStr, 4, "%c,5", 0x30 + ratioDoubled / 2);
 				else {
 					snprintf(displayStr, 4, "X%2u", ratioDoubled / 2);
-					if (isNegative)
+					if (isDivision)
 						displayStr[0] = '/';
 				}
 			}
 			else {// BPM to display
-				snprintf(displayStr, 4, "%3u", (unsigned) (module->getBeatsPerMinute() + 0.5f));
+				snprintf(displayStr, 4, "%3u", (unsigned) (fabs(module->getBeatsPerMinute()) + 0.5f));
 			}
 			displayStr[3] = 0;// more safety
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
@@ -307,7 +416,7 @@ struct ClockedWidget : ModuleWidget {
 		// Run input
 		addInput(createDynamicPort<IMPort>(Vec(colRulerT1, rowRuler0), Port::INPUT, module, Clocked::RUN_INPUT, &module->panelTheme));
 		// In input
-		addInput(createDynamicPort<IMPort>(Vec(colRulerT2, rowRuler0), Port::INPUT, module, Clocked::IN_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerT2, rowRuler0), Port::INPUT, module, Clocked::BPM_INPUT, &module->panelTheme));
 		// Master knob
 		addParam(ParamWidget::create<IMBigSnapKnob>(Vec(colRulerT3 + 6 + offsetIMBigKnob, rowRuler0 + offsetIMBigKnob), module, Clocked::RATIO_PARAMS + 0, (float)(module->bpmMin), (float)(module->bpmMax), 120.0f));		
 		// BPM display
@@ -346,9 +455,11 @@ struct ClockedWidget : ModuleWidget {
 			displayRatios[i + 1]->module = module;
 			displayRatios[i + 1]->knobIndex = i + 1;
 			addChild(displayRatios[i + 1]);
+			// Sync light
+			addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(colRulerM1 + 62, rowRuler2 + i * rowSpacingClks + 10), module, Clocked::CLK_LIGHTS + i + 1));		
 			// Swing knobs
 			addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerM2 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 1 + i, -0.5f, 0.5f, 0.0f));
-			// Param knobs
+			// PW knobs
 			addParam(ParamWidget::create<IMSmallKnob>(Vec(colRulerM3 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::PW_PARAMS + 1 + i, 0.0f, 1.0f, 0.5f));
 			// Clock outs
 			addOutput(createDynamicPort<IMPort>(Vec(colRulerM4, rowRuler2 + i * rowSpacingClks), Port::OUTPUT, module, Clocked::CLK_OUTPUTS + 1 + i, &module->panelTheme));
@@ -360,7 +471,7 @@ struct ClockedWidget : ModuleWidget {
 		// Run out
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerT1, rowRuler5), Port::OUTPUT, module, Clocked::RUN_OUTPUT, &module->panelTheme));
 		// Out out
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT2, rowRuler5), Port::OUTPUT, module, Clocked::OUT_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT2, rowRuler5), Port::OUTPUT, module, Clocked::BPM_OUTPUT, &module->panelTheme));
 		// PW 1 input
 		addInput(createDynamicPort<IMPort>(Vec(colRulerT3, rowRuler5), Port::INPUT, module, Clocked::PW_INPUTS + 1, &module->panelTheme));
 		// PW 2 input
