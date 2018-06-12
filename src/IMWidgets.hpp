@@ -137,5 +137,18 @@ struct DynamicSVGSwitch : SVGSwitch {
     void step() override;
 };
 
+// Dynamic SVGKnob (see SVGKnob in app.hpp and SVGKnob.cpp)
+struct DynamicSVGKnob : SVGKnob {
+    int* mode;
+    int oldMode;
+	std::vector<std::shared_ptr<SVG>> framesAll;
+	SVGWidget* effect;
+	
+    DynamicSVGKnob();
+	void addFrameAll(std::shared_ptr<SVG> svg);
+	void addEffect(std::shared_ptr<SVG> svg);// do this last
+    void step() override;
+};
+
 
 #endif

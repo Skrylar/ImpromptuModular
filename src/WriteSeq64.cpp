@@ -699,7 +699,7 @@ struct WriteSeq64Widget : ModuleWidget {
 		// Channel button
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerT0+offsetCKD6b, rowRulerT1+offsetCKD6b), module, WriteSeq64::CHANNEL_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Step knob
-		addParam(ParamWidget::create<IMBigKnobInf>(Vec(columnRulerT1+offsetIMBigKnob, rowRulerT1+offsetIMBigKnob), module, WriteSeq64::STEP_PARAM, -INFINITY, INFINITY, 0.0f));		
+		addParam(createDynamicParam<IMBigKnobInf>(Vec(columnRulerT1+offsetIMBigKnob, rowRulerT1+offsetIMBigKnob), module, WriteSeq64::STEP_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
 		// Gate button
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerT2-1+offsetCKD6b, rowRulerT1+offsetCKD6b), module, WriteSeq64::GATE_PARAM , 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Autostep	
@@ -710,7 +710,7 @@ struct WriteSeq64Widget : ModuleWidget {
 		addParam(ParamWidget::create<LEDBezel>(Vec(columnRulerT2+164+offsetLEDbezel, rowRulerT1+6+offsetLEDbezel), module, WriteSeq64::RESET_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(columnRulerT2+164+offsetLEDbezel+offsetLEDbezelLight, rowRulerT1+6+offsetLEDbezel+offsetLEDbezelLight), module, WriteSeq64::RESET_LIGHT));
 		// Steps knob
-		addParam(ParamWidget::create<IMBigKnobInf>(Vec(columnRulerT4+offsetIMBigKnob, rowRulerT1+offsetIMBigKnob), module, WriteSeq64::STEPS_PARAM, -INFINITY, INFINITY, 0.0f));		
+		addParam(createDynamicParam<IMBigKnobInf>(Vec(columnRulerT4+offsetIMBigKnob, rowRulerT1+offsetIMBigKnob), module, WriteSeq64::STEPS_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
 	
 		
 		// ****** Bottom portion ******

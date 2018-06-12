@@ -123,7 +123,7 @@ struct IMBigPushButton : DynamicSVGSwitch, MomentarySwitch {
 
 // Knobs
 
-struct IMKnob : SVGKnob {
+struct IMKnob : DynamicSVGKnob {
 	IMKnob() {
 		minAngle = -0.83*M_PI;
 		maxAngle = 0.83*M_PI;
@@ -134,14 +134,11 @@ struct IMKnob : SVGKnob {
 
 struct IMBigKnob : IMKnob {
 	IMBigKnob() {
-		setSVG(SVG::load(assetPlugin(plugin, "res/light/comp/BlackKnobLargeWithMark.svg")));
-		
-		/*SVGWidget *effects = new SVGWidget();
-		effects->setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLargeWithMarkEffects.svg")));
-		addChild(effects);*/
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/light/comp/BlackKnobLargeWithMark.svg")));
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/dark/comp/BlackKnobLargeWithMark.svg")));
+		addEffect(SVG::load(assetPlugin(plugin, "res/dark/comp/BlackKnobLargeWithMarkEffects.svg")));
 	}
 };
-
 struct IMBigSnapKnob : IMBigKnob {
 	IMBigSnapKnob() {
 		snap = true;
@@ -151,25 +148,20 @@ struct IMBigSnapKnob : IMBigKnob {
 
 struct IMBigKnobInf : IMKnob {
 	IMBigKnobInf() {
-		setSVG(SVG::load(assetPlugin(plugin, "res/light/comp/BlackKnobLarge.svg")));
-		speed = 0.9f;		
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/light/comp/BlackKnobLarge.svg")));
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/dark/comp/BlackKnobLarge.svg")));
+		addEffect(SVG::load(assetPlugin(plugin, "res/dark/comp/BlackKnobLargeEffects.svg")));
+		speed = 0.9f;				
 		//smooth = false;
-		
-		/*SVGWidget *effects = new SVGWidget();
-		effects->setSVG(SVG::load(assetPlugin(plugin, "res/comp/BlackKnobLargeEffects.svg")));
-		addChild(effects);*/
 	}
 };
 
 struct IMSmallKnob : IMKnob {
 	IMSmallKnob() {
-		//setSVG(SVG::load(assetGlobal("res/ComponentLibrary/RoundSmallBlackKnob.svg")));
-		setSVG(SVG::load(assetPlugin(plugin, "res/light/comp/RoundSmallBlackKnob.svg")));
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/light/comp/RoundSmallBlackKnob.svg")));
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/dark/comp/RoundSmallBlackKnob.svg")));
+		addEffect(SVG::load(assetPlugin(plugin, "res/dark/comp/RoundSmallBlackKnobEffects.svg")));		
 		shadow->box.pos = Vec(0.0, box.size.y * 0.15);
-		
-		/*SVGWidget *effects = new SVGWidget();
-		effects->setSVG(SVG::load(assetPlugin(plugin, "res/comp/RoundSmallBlackKnobEffects.svg")));
-		addChild(effects);*/
 	}
 };
 

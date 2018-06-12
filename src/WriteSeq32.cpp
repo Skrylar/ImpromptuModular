@@ -699,7 +699,7 @@ struct WriteSeq32Widget : ModuleWidget {
 		displaySteps->valueKnob = &module->params[WriteSeq32::STEPS_PARAM].value;
 		addChild(displaySteps);
 		// Steps knob
-		addParam(ParamWidget::create<IMBigSnapKnob>(Vec(columnRuler3+offsetIMBigKnob, rowRuler1+offsetIMBigKnob), module, WriteSeq32::STEPS_PARAM, 1.0f, 32.0f, 32.0f));		
+		addParam(createDynamicParam<IMBigSnapKnob>(Vec(columnRuler3+offsetIMBigKnob, rowRuler1+offsetIMBigKnob), module, WriteSeq32::STEPS_PARAM, 1.0f, 32.0f, 32.0f, &module->panelTheme));		
 		// Monitor
 		addParam(ParamWidget::create<CKSSH>(Vec(columnRuler3+hOffsetCKSSH, rowRuler2+vOffsetCKSSH), module, WriteSeq32::MONITOR_PARAM, 0.0f, 1.0f, 0.0f));		
 		// Write input

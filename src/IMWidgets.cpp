@@ -279,3 +279,47 @@ void DynamicSVGSwitch::step() {
 }
 
 
+
+// Dynamic SVGKnob
+
+DynamicSVGKnob::DynamicSVGKnob() {
+    mode = nullptr;
+    oldMode = -1;
+	effect = new SVGWidget();
+	//SVGKnob constructor automatically called
+}
+
+void DynamicSVGKnob::addFrameAll(std::shared_ptr<SVG> svg) {
+    framesAll.push_back(svg);
+	if (framesAll.size() == 1) {
+		setSVG(svg);
+	}
+}
+
+void DynamicSVGKnob::addEffect(std::shared_ptr<SVG> svg) {
+    effect->setSVG(svg);
+	addChild(effect);
+}
+
+void DynamicSVGKnob::step() {
+    if (isNear(gPixelRatio, 1.0)) {
+		// Small details draw poorly at low DPI, so oversample when drawing to the framebuffer
+        oversample = 2.f;
+    }
+    if(mode != nullptr && *mode != oldMode) {
+        if ((*mode) == 0) {
+			setSVG(framesAll[0]);
+			effect->visible = false;
+		}
+		else {
+			setSVG(framesAll[1]);
+			effect->visible = true;
+		}
+        oldMode = *mode;
+		onChange(*(new EventChange()));
+    }
+	SVGKnob::step();
+}
+
+
+
