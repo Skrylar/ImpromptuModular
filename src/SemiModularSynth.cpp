@@ -633,7 +633,7 @@ struct SemiModularSynth : Module {
 		static const float gateTime = 0.4f;// seconds
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float editLengthTime = 1.6f;// seconds
-		static const float tiedWarningTime = 0.5f;// seconds
+		static const float tiedWarningTime = 0.7f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * engineGetSampleRate());
 		
 		

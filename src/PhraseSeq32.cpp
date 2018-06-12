@@ -474,7 +474,7 @@ struct PhraseSeq32 : Module {
 		static const float gateTime = 0.4f;// seconds
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float revertDisplayTime = 0.7f;// seconds
-		static const float tiedWarningTime = 0.5f;// seconds
+		static const float tiedWarningTime = 0.7f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * engineGetSampleRate());
 		
 		
