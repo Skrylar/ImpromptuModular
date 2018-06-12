@@ -179,7 +179,7 @@ struct Clocked : Module {
 	void step() override {		
 		float sampleRate = engineGetSampleRate();
 		float sampleTime = engineGetSampleTime();
-		static const float swingInfoTime = 2.0f;// seconds
+		static const float swingInfoTime = 1.7f;// seconds
 		long swingInfoInit = (long) (swingInfoTime * sampleRate);
 		
 
@@ -353,9 +353,12 @@ struct ClockedWidget : ModuleWidget {
 			if (module->swingInfo[knobIndex] > 0)
 			{
 				float swValue = module->swingVal[knobIndex];
-				snprintf(displayStr, 4, " %2u", (unsigned) (fabs(swValue * 99.0f) + 0.5f));
-				if (swValue < 0.0f)
+				int swInt = (int)(swValue * 99.0f + 0.5f);
+				snprintf(displayStr, 4, " %2u", (unsigned) abs(swInt));
+				if (swInt < 0)
 					displayStr[0] = '-';
+				if (swInt > 0)
+					displayStr[0] = '+';
 			}
 			else {
 				if (knobIndex > 0) {// ratio to display
