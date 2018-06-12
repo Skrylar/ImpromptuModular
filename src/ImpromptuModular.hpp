@@ -21,6 +21,7 @@ using namespace rack;
 extern Plugin *plugin;
 
 // All modules that are part of plugin go here
+extern Model *modelTact;
 extern Model *modelTwelveKey;
 extern Model *modelClocked;
 extern Model *modelPhraseSeq16;
@@ -173,6 +174,14 @@ struct IMFivePosSmallKnob : IMSmallKnob {
 		smooth = false;
 	}
 };
+
+struct IMTactile : Knob {
+	IMTactile() {
+		this->box.size = Vec(50,200);
+		smooth = false;
+	}
+};
+
 
 
 // Lights
