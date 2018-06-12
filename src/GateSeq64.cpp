@@ -93,6 +93,9 @@ struct GateSeq64 : Module {
 
 	static constexpr float CONFIG_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget initialization, since module created before widget
 	int stepConfigLast;
+	static constexpr float EDIT_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
+	bool editingSequence;
+	bool editingSequenceLast;
 
 
 	SchmittTrigger modesTrigger;
@@ -102,8 +105,6 @@ struct GateSeq64 : Module {
 	SchmittTrigger runningTrigger;
 	SchmittTrigger clockTrigger;
 	SchmittTrigger resetTrigger;
-	SchmittTrigger editTrigger;
-	SchmittTrigger editTriggerInv;
 
 	
 	inline bool getGate(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE) != 0;}
@@ -152,6 +153,8 @@ struct GateSeq64 : Module {
 		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
 		revertDisplay = 0l;
+		editingSequence = EDIT_PARAM_INIT_VALUE > 0.5f;
+		editingSequenceLast = editingSequence;
 	}
 
 	
@@ -187,6 +190,8 @@ struct GateSeq64 : Module {
 		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
 		revertDisplay = 0l;
+		editingSequence = isEditingSequence();
+		editingSequenceLast = editingSequence;
 	}
 
 	
@@ -196,7 +201,7 @@ struct GateSeq64 : Module {
 		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		for (int i = 0; i < 4; i++)
 			gateRandomEnable[i] = false;
-		if (isEditingSequence()) {
+		if (editingSequence) {
 			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
 			for (int i = 0; i < 4; i += stepConfig)
 				gateRandomEnable[i] = calcGateRandomEnable(getGateP(sequence, (i * 16) + stepIndexRun), getGatePVal(sequence, (i * 16) + stepIndexRun));
@@ -338,6 +343,8 @@ struct GateSeq64 : Module {
 		initRun(stepConfig);
 		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
+		editingSequence = isEditingSequence();
+		editingSequenceLast = editingSequence;
 	}
 
 	
@@ -353,18 +360,6 @@ struct GateSeq64 : Module {
 		
 		//********** Buttons, knobs, switches and inputs **********
 		
-		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
-		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) ) {
-			displayState = DISP_GATE;
-			stepIndexRun = 0;
-			displayProb = -1;
-		}
-
-		// Seq CV input
-		if (inputs[SEQCV_INPUT].active) {
-			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * 15.0f / 10.0f), 0.0f, 15.0f );
-		}
-
 		// Config switch
 		int stepConfig = 1;// 4x16
 		if (params[CONFIG_PARAM].value > 1.5f)// 1x64
@@ -378,7 +373,22 @@ struct GateSeq64 : Module {
 			displayProb = -1;
 			stepConfigLast = stepConfig;
 		}
-		
+				
+		// Edit mode		
+		editingSequence = isEditingSequence();// true = editing sequence, false = editing song
+		if (editingSequenceLast != editingSequence) {
+			if (running)
+				initRun(stepConfig);
+			displayState = DISP_GATE;
+			displayProb = -1;
+			editingSequenceLast = editingSequence;
+		}
+
+		// Seq CV input
+		if (inputs[SEQCV_INPUT].active) {
+			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * 15.0f / 10.0f), 0.0f, 15.0f );
+		}
+
 		// Run state button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
@@ -803,13 +813,13 @@ struct GateSeq64Widget : ModuleWidget {
 					snprintf(displayStr, 4, "  0");
 			}
 			else if (module->displayState == GateSeq64::DISP_LENGTH) {
-				if (module->isEditingSequence())
+				if (module->editingSequence)
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
 				else
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
 			}
 			else if (module->displayState == GateSeq64::DISP_MODES) {
-				if (module->isEditingSequence())
+				if (module->editingSequence)
 					runModeToStr(module->runModeSeq[module->sequence]);
 				else
 					runModeToStr(module->runModeSong);
@@ -821,7 +831,7 @@ struct GateSeq64Widget : ModuleWidget {
 			}
 			else {
 				int dispVal = 0;
-				if (module->isEditingSequence())
+				if (module->editingSequence)
 					dispVal = module->sequence;
 				else {
 					if (module->running)
@@ -936,7 +946,7 @@ struct GateSeq64Widget : ModuleWidget {
 		
 		
 		// Seq/Song selector
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerC1 + hOffsetCKSS, rowRulerC0 - 2 + vOffsetCKSS), module, GateSeq64::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerC1 + hOffsetCKSS, rowRulerC0 - 2 + vOffsetCKSS), module, GateSeq64::EDIT_PARAM, 0.0f, 1.0f, GateSeq64::EDIT_PARAM_INIT_VALUE));
 		// Reset LED bezel and light
 		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC1 - 17 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq64::RESET_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC1 - 17 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RESET_LIGHT));

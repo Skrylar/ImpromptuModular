@@ -125,7 +125,7 @@ struct Clocked : Module {
 			ratios[i] = 0.0f;
 			newRatios[i] = 0.0f;
 			swingVal[i] = SWING_PARAM_INIT_VALUE;
-			swingLast[i] = SWING_PARAM_INIT_VALUE;
+			swingLast[i] = swingVal[i];
 			swingInfo[i] = 0;
 		}
 	}

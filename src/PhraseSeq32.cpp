@@ -141,6 +141,9 @@ struct PhraseSeq32 : Module {
 	
 	static constexpr float CONFIG_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
 	int stepConfigLast;
+	static constexpr float EDIT_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
+	bool editingSequence;
+	bool editingSequenceLast;
 	
 
 	SchmittTrigger resetTrigger;
@@ -162,8 +165,6 @@ struct PhraseSeq32 : Module {
 	SchmittTrigger modeTrigger;
 	SchmittTrigger rotateTrigger;
 	SchmittTrigger transposeTrigger;
-	SchmittTrigger editTrigger;
-	SchmittTrigger editTriggerInv;
 	SchmittTrigger tiedTrigger;
 	SchmittTrigger stepTriggers[32];
 	
@@ -217,6 +218,8 @@ struct PhraseSeq32 : Module {
 		tiedWarning = 0ul;
 		attachedChanB = false;
 		revertDisplay = 0l;
+		editingSequence = EDIT_PARAM_INIT_VALUE > 0.5f;
+		editingSequenceLast = editingSequence;
 	}
 	
 	
@@ -261,15 +264,17 @@ struct PhraseSeq32 : Module {
 		tiedWarning = 0ul;
 		attachedChanB = false;
 		revertDisplay = 0l;
+		editingSequence = isEditingSequence();
+		editingSequenceLast = editingSequence;
 	}
 	
 	
-	void initRun(int stepConfig) {// run button activated or run edge in run input jack
+	void initRun(int stepConfig) {// run button activated or run edge in run input jack or edit mode toggled
 		phraseIndexEdit = 0;
 		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		gate1RandomEnable[0] = false;
 		gate1RandomEnable[1] = false;
-		if (isEditingSequence()) {
+		if (editingSequence) {
 			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
 			for (int i = 0; i < 2; i += stepConfig)
 				gate1RandomEnable[i] = calcGate1RandomEnable(getGate1P(sequence, (i * 16) + stepIndexRun));
@@ -442,6 +447,8 @@ struct PhraseSeq32 : Module {
 		stepConfigLast = stepConfig;			
 		initRun(stepConfig);
 		sequenceKnob = INT_MAX;
+		editingSequence = isEditingSequence();
+		editingSequenceLast = editingSequence;
 	}
 
 	void rotateSeq(int seqNum, bool directionRight, int seqLength, bool chanB_16) {
@@ -486,10 +493,26 @@ struct PhraseSeq32 : Module {
 		//   however, paste, transpose, rotate obviously can.
 		// * Whenever cv[][] is modified or tied[] is activated for a step, call applyTiedStep(sequence,stepIndexEdit,steps)
 		
-		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
-		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) ) {
-			stepIndexRun = 0;
+
+		// Config switch
+		int stepConfig = 1;// 2x16
+		if (params[CONFIG_PARAM].value < 0.5f)// 1x32
+			stepConfig = 2;
+		// Config: set lengths to their new max when move switch
+		if (stepConfigLast != stepConfig) {
+			for (int i = 0; i < 32; i++)
+				lengths[i] = 16 * stepConfig;
+			attachedChanB = false;
+			stepConfigLast = stepConfig;
+		}
+
+		// Edit mode
+		editingSequence = isEditingSequence();// true = editing sequence, false = editing song
+		if (editingSequenceLast != editingSequence) {
+			if (running)
+				initRun(stepConfig);
 			displayState = DISP_NORMAL;
+			editingSequenceLast = editingSequence;
 		}
 		
 		// Seq CV input
@@ -504,18 +527,6 @@ struct PhraseSeq32 : Module {
 				runModeSeq[sequence] = (int) clamp( round(inputs[MODECV_INPUT].value * 4.0f / 10.0f), 0.0f, 4.0f );
 		}
 		
-		// Config switch
-		int stepConfig = 1;// 2x16
-		if (params[CONFIG_PARAM].value < 0.5f)// 1x32
-			stepConfig = 2;
-		// Config: set lengths to their new max when move switch
-		if (stepConfigLast != stepConfig) {
-			for (int i = 0; i < 32; i++)
-				lengths[i] = 16 * stepConfig;
-			attachedChanB = false;
-			stepConfigLast = stepConfig;
-		}
-
 		// Run button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
@@ -1283,13 +1294,13 @@ struct PhraseSeq32Widget : ModuleWidget {
 			}
 			else {
 				if (module->displayState == PhraseSeq32::DISP_MODE) {
-					if (module->isEditingSequence())
+					if (module->editingSequence)
 						runModeToStr(module->runModeSeq[module->sequence]);
 					else
 						runModeToStr(module->runModeSong);
 				}
 				else if (module->displayState == PhraseSeq32::DISP_LENGTH) {
-					if (module->isEditingSequence())
+					if (module->editingSequence)
 						snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
 					else
 						snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
@@ -1305,7 +1316,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 						displayStr[0] = '(';
 				}
 				else {// DISP_NORMAL
-					snprintf(displayStr, 4, " %2u", (unsigned) (module->isEditingSequence() ? 
+					snprintf(displayStr, 4, " %2u", (unsigned) (module->editingSequence ? 
 						module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
 				}
 			}
@@ -1487,7 +1498,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 		static const int columnRulerMK1 = 353;// Display column
 		
 		// Edit mode switch
-		addParam(ParamWidget::create<CKSS>(Vec(columnRulerMK0 + hOffsetCKSS, rowRulerMK0 + vOffsetCKSS), module, PhraseSeq32::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
+		addParam(ParamWidget::create<CKSS>(Vec(columnRulerMK0 + hOffsetCKSS, rowRulerMK0 + vOffsetCKSS), module, PhraseSeq32::EDIT_PARAM, 0.0f, 1.0f, PhraseSeq32::EDIT_PARAM_INIT_VALUE));
 		// Sequence display
 		SequenceDisplayWidget *displaySequence = new SequenceDisplayWidget();
 		displaySequence->box.pos = Vec(columnRulerMK1-15, rowRulerMK0 + 3 + vOffsetDisplay);

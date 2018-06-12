@@ -223,7 +223,10 @@ struct SemiModularSynth : Module {
 	int sequenceKnob;// INT_MAX when knob not seen yet
 	bool gate1RandomEnable;
 	
-	
+	static constexpr float EDIT_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
+	bool editingSequence;
+	bool editingSequenceLast;
+
 	// VCO
 	// none
 	
@@ -261,8 +264,6 @@ struct SemiModularSynth : Module {
 	SchmittTrigger modeTrigger;
 	SchmittTrigger rotateTrigger;
 	SchmittTrigger transposeTrigger;
-	SchmittTrigger editTrigger;
-	SchmittTrigger editTriggerInv;
 	SchmittTrigger tiedTrigger;
 
 	
@@ -313,6 +314,8 @@ struct SemiModularSynth : Module {
 		attached = true;
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
+		editingSequence = EDIT_PARAM_INIT_VALUE > 0.5f;
+		editingSequenceLast = editingSequence;
 		
 		// VCO
 		// none
@@ -359,14 +362,16 @@ struct SemiModularSynth : Module {
 		attached = true;
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
+		editingSequence = isEditingSequence();
+		editingSequenceLast = editingSequence;
 	}
 	
 	
-	void initRun(void) {// run button activated or run edge in run input jack
+	void initRun(void) {// run button activated or run edge in run input jack or edit mode toggled
 		phraseIndexEdit = 0;
 		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		gate1RandomEnable = false;
-		if (isEditingSequence()) {
+		if (editingSequence) {
 			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
 			gate1RandomEnable = calcGate1RandomEnable(getGate1P(sequence, stepIndexRun));
 		}
@@ -452,7 +457,7 @@ struct SemiModularSynth : Module {
 			running = json_is_true(runningJ);
 
 		// runModeSeq
-		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq2");// "2" appended so no break patches
+		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq2");// "2" was in PS16. No legacy in SMS16 though
 		if (runModeSeqJ) {
 			for (int i = 0; i < 16; i++)
 			{
@@ -461,13 +466,6 @@ struct SemiModularSynth : Module {
 					runModeSeq[i] = json_integer_value(runModeSeqArrayJ);
 			}			
 		}		
-		else {// legacy
-			runModeSeqJ = json_object_get(rootJ, "runModeSeq");
-			if (runModeSeqJ)
-				runModeSeq[0] = json_integer_value(runModeSeqJ);
-			for (int i = 1; i < 16; i++)
-				runModeSeq[i] = runModeSeq[0];
-		}
 		
 		// runModeSong
 		json_t *runModeSongJ = json_object_get(rootJ, "runModeSong");
@@ -488,14 +486,6 @@ struct SemiModularSynth : Module {
 				if (lengthsArrayJ)
 					lengths[i] = json_integer_value(lengthsArrayJ);
 			}			
-		}
-		else {// legacy
-			json_t *stepsJ = json_object_get(rootJ, "steps");
-			if (stepsJ) {
-				int steps = json_integer_value(stepsJ);
-				for (int i = 0; i < 16; i++)
-					lengths[i] = steps;
-			}
 		}
 		
 		// phrase
@@ -534,61 +524,6 @@ struct SemiModularSynth : Module {
 						attributes[i][s] = json_integer_value(attributesArrayJ);
 				}
 		}
-		else {// legacy
-			for (int i = 0; i < 16; i++)
-				for (int s = 0; s < 16; s++)
-					attributes[i][s] = 0;
-			// gate1
-			json_t *gate1J = json_object_get(rootJ, "gate1");
-			if (gate1J) {
-				for (int i = 0; i < 16; i++)
-					for (int s = 0; s < 16; s++) {
-						json_t *gate1arrayJ = json_array_get(gate1J, s + (i * 16));
-						if (gate1arrayJ)
-							if (!!json_integer_value(gate1arrayJ)) attributes[i][s] |= ATT_MSK_GATE1;
-					}
-			}
-			// gate1Prob
-			json_t *gate1ProbJ = json_object_get(rootJ, "gate1Prob");
-			if (gate1ProbJ) {
-				for (int i = 0; i < 16; i++)
-					for (int s = 0; s < 16; s++) {
-						json_t *gate1ProbarrayJ = json_array_get(gate1ProbJ, s + (i * 16));
-						if (gate1ProbarrayJ)
-							if (!!json_integer_value(gate1ProbarrayJ)) attributes[i][s] |= ATT_MSK_GATE1P;
-					}
-			}
-			// gate2
-			json_t *gate2J = json_object_get(rootJ, "gate2");
-			if (gate2J) {
-				for (int i = 0; i < 16; i++)
-					for (int s = 0; s < 16; s++) {
-						json_t *gate2arrayJ = json_array_get(gate2J, s + (i * 16));
-						if (gate2arrayJ)
-							if (!!json_integer_value(gate2arrayJ)) attributes[i][s] |= ATT_MSK_GATE2;
-					}
-			}
-			// slide
-			json_t *slideJ = json_object_get(rootJ, "slide");
-			if (slideJ) {
-				for (int i = 0; i < 16; i++)
-					for (int s = 0; s < 16; s++) {
-						json_t *slideArrayJ = json_array_get(slideJ, s + (i * 16));
-						if (slideArrayJ)
-							if (!!json_integer_value(slideArrayJ)) attributes[i][s] |= ATT_MSK_SLIDE;
-					}
-			}
-			// tied
-			json_t *tiedJ = json_object_get(rootJ, "tied");
-			if (tiedJ) {
-				for (int i = 0; i < 16; i++)
-					for (int s = 0; s < 16; s++) {
-						json_t *tiedArrayJ = json_array_get(tiedJ, s + (i * 16));
-						if (tiedArrayJ)
-							if (!!json_integer_value(tiedArrayJ)) attributes[i][s] |= ATT_MSK_TIED;
-					}
-			}
-		}
 	
 		// attached
 		json_t *attachedJ = json_object_get(rootJ, "attached");
@@ -598,6 +533,8 @@ struct SemiModularSynth : Module {
 		// Initialize dependants after everything loaded
 		initRun();
 		sequenceKnob = INT_MAX;
+		editingSequence = isEditingSequence();
+		editingSequenceLast = editingSequence;
 	}
 
 
@@ -645,10 +582,12 @@ struct SemiModularSynth : Module {
 		//   however, paste, transpose, rotate obviously can.
 		// * Whenever cv[][] is modified or tied[] is activated for a step, call applyTiedStep(sequence,stepIndexEdit,steps)
 		
-		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
-		if ( editTrigger.process(params[EDIT_PARAM].value) || editTriggerInv.process(1.0f - params[EDIT_PARAM].value) ) {
+		// Edit mode
+		editingSequence = isEditingSequence();// true = editing sequence, false = editing song
+		if (editingSequenceLast != editingSequence) {
 			stepIndexRun = 0;
 			displayState = DISP_NORMAL;
+			editingSequenceLast = editingSequence;
 		}
 		
 		// Seq CV input
@@ -1370,7 +1309,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 			}
 			else {
 				if (module->displayState == SemiModularSynth::DISP_MODE) {
-					if (module->isEditingSequence())
+					if (module->editingSequence)
 						runModeToStr(module->runModeSeq[module->sequence]);
 					else
 						runModeToStr(module->runModeSong);
@@ -1386,7 +1325,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 						displayStr[0] = '(';
 				}
 				else {// DISP_NORMAL
-					snprintf(displayStr, 4, " %2u", (unsigned) (module->isEditingSequence() ? 
+					snprintf(displayStr, 4, " %2u", (unsigned) (module->editingSequence ? 
 						module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
 				}
 			}
@@ -1545,7 +1484,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static const int columnRulerMK2 = columnRulerT3;// Run mode column
 		
 		// Edit mode switch
-		addParam(ParamWidget::create<CKSS>(Vec(columnRulerMK0 + hOffsetCKSS, rowRulerMK0 + vOffsetCKSS), module, SemiModularSynth::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
+		addParam(ParamWidget::create<CKSS>(Vec(columnRulerMK0 + hOffsetCKSS, rowRulerMK0 + vOffsetCKSS), module, SemiModularSynth::EDIT_PARAM, 0.0f, 1.0f, SemiModularSynth::EDIT_PARAM_INIT_VALUE));
 		// Sequence display
 		SequenceDisplayWidget *displaySequence = new SequenceDisplayWidget();
 		displaySequence->box.pos = Vec(columnRulerMK1-15, rowRulerMK0 + 3 + vOffsetDisplay);
