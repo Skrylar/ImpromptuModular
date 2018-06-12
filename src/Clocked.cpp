@@ -96,7 +96,12 @@ struct Clocked : Module {
 	long lengths[4];// dependant of steps[], irrelevant values when a step is 0
 	float ratios[4];// dependant of steps[], irrelevant outside of step()
 	float newRatios[4];// dependant of steps[], irrelevant outside of step()
+	long swingInfo[4];// downward step counter when swing to be displayed, 0 when normal display
 	
+	static constexpr float SWING_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget initialization, since module created before widget
+	float swingVal[4];
+	float swingLast[4];
+
 	
 	SchmittTrigger resetTrigger;
 	SchmittTrigger runTrigger;
@@ -119,6 +124,9 @@ struct Clocked : Module {
 			lengths[i] = 0;
 			ratios[i] = 0.0f;
 			newRatios[i] = 0.0f;
+			swingVal[i] = SWING_PARAM_INIT_VALUE;
+			swingLast[i] = SWING_PARAM_INIT_VALUE;
+			swingInfo[i] = 0;
 		}
 	}
 	
@@ -126,6 +134,10 @@ struct Clocked : Module {
 	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
 		onReset();
+		for (int i = 0; i < 4; i++) {
+			swingVal[i] = params[SWING_PARAMS + i].value;
+			swingLast[i] = swingVal[i];
+		}
 	}
 
 	
@@ -156,6 +168,10 @@ struct Clocked : Module {
 		if (runningJ)
 			running = json_is_true(runningJ);
 
+		for (int i = 0; i < 4; i++) {
+			swingVal[i] = params[SWING_PARAMS + i].value;
+			swingLast[i] = swingVal[i];
+		}
 	}
 
 	
@@ -163,6 +179,8 @@ struct Clocked : Module {
 	void step() override {		
 		float sampleRate = engineGetSampleRate();
 		float sampleTime = engineGetSampleTime();
+		static const float swingInfoTime = 2.0f;// seconds
+		long swingInfoInit = (long) (swingInfoTime * sampleRate);
 		
 
 		//********** Buttons, knobs, switches and inputs **********
@@ -190,9 +208,20 @@ struct Clocked : Module {
 		bool syncRatios[4] = {false, false, false, false};// 0 index unused
 		for (int i = 1; i < 4; i++) {
 			newRatios[i] = getRatio(i);
-			if (newRatios[i] != ratios[i])
+			if (newRatios[i] != ratios[i]) {
 				syncRatios[i] = true;
+			}
 		}
+		
+		// Swing changed (for swing info)
+		for (int i = 0; i < 4; i++) {
+			swingVal[i] = params[SWING_PARAMS + i].value;
+			if (swingLast[i] != swingVal[i]) {
+				swingInfo[i] = swingInfoInit;// trigger swing info on channel i
+				swingLast[i] = swingVal[i];
+			}
+		}			
+
 		
 		
 		//********** Clock and reset **********
@@ -201,7 +230,7 @@ struct Clocked : Module {
 		if (running) {
 			// master clock
 			if (steps[0] == 0) {
-				lengths[0] = (long) (2.0f * sampleRate / (bps));
+				lengths[0] = (long) (2.0f * sampleRate / bps);
 				steps[0] = 1;// the 0 step does not actually to consume a sample step, it is used to reset every double-period so that lengths can be re-computed
 				for (int i = 1; i < 4; i++) {// see if ratio knobs uninitialized or changed
 					if (syncRatios[i]) {
@@ -255,13 +284,19 @@ struct Clocked : Module {
 			lights[CLK_LIGHTS + i].value = (syncRatios[i] && running) ? 1.0f: 0.0f;
 		}
 
+		// incr/decr all counters related to step()
 		for (int i = 0; i < 4; i++) {
+			// steps
 			if (steps[i] != 0) {
 				if (steps[i] >= lengths[i])
 					steps[i] = 0;
 				else 
 					steps[i]++;
 			}
+			
+			// swing info
+			if (swingInfo[i] > 0)
+				swingInfo[i]--;
 		}
 	}
 	
@@ -269,7 +304,7 @@ struct Clocked : Module {
 		float ret = 0.0f;
 		
 		if (steps[clkIndex] > 0) {
-			float swParam = params[SWING_PARAMS + clkIndex].value;
+			float swParam = swingVal[clkIndex];//params[SWING_PARAMS + clkIndex].value;
 			swParam *= (swParam * (swParam > 0.0f ? 1.0f : -1.0f));// non-linear behavior for more sensitivity at center: f(x) = x^2 * sign(x)
 			
 			// all following values are in samples numbers, whether long or float
@@ -283,7 +318,7 @@ struct Clocked : Module {
 			}
 			
 			//long p1 = 1;// implicit, no need 
-			long p2 = (long)((p2max - p2min) * params[PW_PARAMS + clkIndex].value + p2min + 0.5f);
+			long p2 = (long)((p2max - p2min) * params[PW_PARAMS + clkIndex].value + p2min);
 			long p3 = (long)(period + swing);
 			long p4 = ((long)(period + swing)) + p2;
 			
@@ -315,24 +350,33 @@ struct ClockedWidget : ModuleWidget {
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
-			if (knobIndex > 0) {// ratio to display
-				bool isDivision = false;
-				float ratio = module->getRatio(knobIndex);
-				if (ratio < 1.0f) {
-					ratio = 1.0f / ratio;
-					isDivision = true;
-				}
-				int ratioDoubled = (int) ((2.0f * ratio) + 0.5f);
-				if ( (ratioDoubled % 2) == 1 )
-					snprintf(displayStr, 4, "%c,5", 0x30 + ratioDoubled / 2);
-				else {
-					snprintf(displayStr, 4, "X%2u", ratioDoubled / 2);
-					if (isDivision)
-						displayStr[0] = '/';
-				}
+			if (module->swingInfo[knobIndex] > 0)
+			{
+				float swValue = module->swingVal[knobIndex];
+				snprintf(displayStr, 4, " %2u", (unsigned) (fabs(swValue * 99.0f) + 0.5f));
+				if (swValue < 0.0f)
+					displayStr[0] = '-';
 			}
-			else {// BPM to display
-				snprintf(displayStr, 4, "%3u", (unsigned) (fabs(module->getBeatsPerMinute()) + 0.5f));
+			else {
+				if (knobIndex > 0) {// ratio to display
+					bool isDivision = false;
+					float ratio = module->getRatio(knobIndex);
+					if (ratio < 1.0f) {
+						ratio = 1.0f / ratio;
+						isDivision = true;
+					}
+					int ratioDoubled = (int) ((2.0f * ratio) + 0.5f);
+					if ( (ratioDoubled % 2) == 1 )
+						snprintf(displayStr, 4, "%c,5", 0x30 + ratioDoubled / 2);
+					else {
+						snprintf(displayStr, 4, "X%2u", ratioDoubled / 2);
+						if (isDivision)
+							displayStr[0] = '/';
+					}
+				}
+				else {// BPM to display
+					snprintf(displayStr, 4, "%3u", (unsigned) (fabs(module->getBeatsPerMinute()) + 0.5f));
+				}
 			}
 			displayStr[3] = 0;// more safety
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
@@ -446,7 +490,7 @@ struct ClockedWidget : ModuleWidget {
 		// PW master input
 		addInput(createDynamicPort<IMPort>(Vec(colRulerT2, rowRuler1), Port::INPUT, module, Clocked::PW_INPUTS + 0, &module->panelTheme));
 		// Swing master knob
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT3 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 0, -1.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT3 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 0, -1.0f, 1.0f, Clocked::SWING_PARAM_INIT_VALUE, &module->panelTheme));
 		// PW master knob
 		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT4 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::PW_PARAMS + 0, 0.0f, 1.0f, 0.5f, &module->panelTheme));
 		// Clock master out
@@ -467,7 +511,7 @@ struct ClockedWidget : ModuleWidget {
 			// Sync light
 			addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(colRulerM1 + 62, rowRuler2 + i * rowSpacingClks + 10), module, Clocked::CLK_LIGHTS + i + 1));		
 			// Swing knobs
-			addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM2 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 1 + i, -1.0f, 1.0f, 0.0f, &module->panelTheme));
+			addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM2 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 1 + i, -1.0f, 1.0f, Clocked::SWING_PARAM_INIT_VALUE, &module->panelTheme));
 			// PW knobs
 			addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM3 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::PW_PARAMS + 1 + i, 0.0f, 1.0f, 0.5f, &module->panelTheme));
 			// Clock outs
