@@ -46,6 +46,9 @@ struct Tact : Module {
 	float tactLast[2];
 	
 	
+	inline bool isLinked(void) {return params[LINK_PARAM].value > 0.5f;}
+
+	
 	Tact() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
 	}
@@ -114,9 +117,11 @@ struct Tact : Module {
 		
 	
 		// Outputs
-		outputs[CV_OUTPUTS + 0].value = cv[0] * params[ATTV_PARAMS + 0].value;
-		outputs[CV_OUTPUTS + 1].value = cv[1] * params[ATTV_PARAMS + 1].value;
-	
+		for (int i = 0; i < 2; i++) {
+			int readChan = isLinked() ? 0 : i;
+			outputs[CV_OUTPUTS + i].value = cv[readChan] * params[ATTV_PARAMS + readChan].value;
+		}
+		
 		// Tactile lights
 		setTLights(0);
 		setTLights(1);
@@ -125,17 +130,21 @@ struct Tact : Module {
 			if (slewStepsRemain[i] > 0)
 				slewStepsRemain[i]--;
 		}
+		if (isLinked())
+			slewStepsRemain[1] = 0;
 	}
 	
 	void setTLights(int chan) {
 		// TODO change color on top, mid and bot lights when exactly 10V, 5V, 0V respectively, with micro epsilon (account for attv effect obviously)
+		
+		int readChan = isLinked() ? 0 : chan;
 		for (int i = 0; i < numLights; i++) {
 			// Green
-			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 0].value = (  params[TACT_PARAMS + chan].value > (((float)(i)) - 0.5f) && 
-																					params[TACT_PARAMS + chan].value <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;// lights are up-side down because of module origin at top-left
+			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 0].value = (  params[TACT_PARAMS + readChan].value > (((float)(i)) - 0.5f) && 
+																					params[TACT_PARAMS + readChan].value <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;// lights are up-side down because of module origin at top-left
 			// Red
-			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 1].value = (  cv[chan] > (((float)(i)) - 0.5f) && 
-																					cv[chan] <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;// lights are up-side down because of module origin at top-left
+			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 1].value = (  cv[readChan] > (((float)(i)) - 0.5f) && 
+																					cv[readChan] <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;// lights are up-side down because of module origin at top-left
 		}
 	}
 };
