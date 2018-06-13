@@ -175,9 +175,9 @@ struct IMFivePosSmallKnob : IMSmallKnob {
 	}
 };
 
-struct IMTactile : Knob {
+struct IMTactile : DynamicIMTactile {
 	IMTactile() {
-		this->box.size = Vec(45,200);
+		addHandle(SVG::load(assetPlugin(plugin, "res/comp/TactHandle.svg")));
 		smooth = false;
 	}
 };

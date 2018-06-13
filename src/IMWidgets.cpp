@@ -274,7 +274,8 @@ void DynamicSVGSwitch::step() {
 			frames[1]=framesAll[3];
 		}
         oldMode = *mode;
-		onChange(*(new EventChange()));
+		onChange(*(new EventChange()));// required because of the way SVGSwitch changes images, we only change the frames above.
+		//dirty = true;// dirty is not sufficient when changing via frames assignments above (i.e. onChange() is required)
     }
 }
 
@@ -316,10 +317,68 @@ void DynamicSVGKnob::step() {
 			effect->visible = true;
 		}
         oldMode = *mode;
-		onChange(*(new EventChange()));
+		dirty = true;
     }
 	SVGKnob::step();
 }
 
+
+
+// Dynamic IMTactile
+
+DynamicIMTactile::DynamicIMTactile() {
+	wider = NULL;
+	oldWider = -1.0f;
+
+	handle = new SVGWidget();
+	addChild(handle);
+	
+	box.size = Vec(45,200);
+	maxHandlePos = Vec(box.size.x / 2.0f, 0.0f);
+	minHandlePos = Vec(box.size.x / 2.0f, box.size.y);
+	
+}
+
+void DynamicIMTactile::addHandle(std::shared_ptr<SVG> svg) {
+	handle->setSVG(svg);
+	maxHandlePos.x -= handle->box.size.x / 2.0f;
+	minHandlePos.x -= handle->box.size.x / 2.0f;
+	maxHandlePos.y -= handle->box.size.y / 2.0f;
+	minHandlePos.y -= handle->box.size.y / 2.0f;
+	handle->visible = false;
+}
+
+void DynamicIMTactile::step() {
+   if(wider != nullptr && *wider != oldWider) {
+        if ((*wider) > 0.5f) {
+			box.size = Vec(130,200);
+		}
+		else {
+			box.size = Vec(45,200);		
+		}
+        oldWider = *wider;
+    }	
+	if (dirty) {
+		// Interpolate handle position
+		handle->box.pos = Vec(rescale(value, minValue, maxValue, minHandlePos.x, maxHandlePos.x), rescale(value, minValue, maxValue, minHandlePos.y, maxHandlePos.y));
+	}	
+	FramebufferWidget::step();
+}
+
+void DynamicIMTactile::onChange(EventChange &e) {
+	dirty = true;
+	Knob::onChange(e);
+}
+
+
+void DynamicIMTactile::onDragStart(EventDragStart &e) {
+	handle->visible = true;
+	Knob::onDragStart(e);
+}
+
+void DynamicIMTactile::onDragEnd(EventDragEnd &e) {
+	handle->visible = false;
+	Knob::onDragEnd(e);
+}
 
 
