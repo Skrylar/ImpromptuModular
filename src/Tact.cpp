@@ -1,5 +1,5 @@
 //***********************************************************************************************
-//Tactile controller module for VCV Rack by Marc Boulé
+//Tactile CV controller module for VCV Rack by Marc Boulé
 //
 //Based on code from the Fundamental and Audible Instruments plugins by Andrew Belt and graphics  
 //  from the Component Library by Wes Milholen. 
@@ -17,7 +17,7 @@ struct Tact : Module {
 
 	enum ParamIds {
 		ENUMS(TACT_PARAMS, 2),// touch pads
-		ENUMS(MAX_PARAMS, 2),// max knobs
+		ENUMS(ATTV_PARAMS, 2),// max knobs
 		ENUMS(SLEW_PARAMS, 2),// slew knobs
 		LINK_PARAM,
 		NUM_PARAMS
@@ -30,7 +30,7 @@ struct Tact : Module {
 		NUM_OUTPUTS
 	};
 	enum LightIds {
-		ENUMS(TACT_LIGHTS, numLights * 2), // first 11 lights for channel L, other 11 for channel R
+		ENUMS(TACT_LIGHTS, numLights * 2 + numLights * 2), // first 11 lights for channel L, other 11 for channel R (*2 for GreenRed)
 		NUM_LIGHTS
 	};
 	
@@ -38,19 +38,40 @@ struct Tact : Module {
 	int panelTheme = 0;
 	
 	// No need to save
-	
-	
+	float cv[2];// actual Tact CV since Tactknob can be different than these when slewing
+	unsigned long slewStepsRemain[2];// 0 when no slew under way, downward step counter when slewing
+	float slewCVdelta[2];// no need to initialize, this is a companion to slideStepsRemain
 
+	static constexpr float TACT_INIT_VALUE = 5.0f;// so that module constructor is coherent with widget initialization, since module created before widget
+	float tactLast[2];
+	
+	
 	Tact() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
 	}
 
+	
+	// widgets are not yet created when module is created (and when onReset() is called by constructor)
+	// onReset() is also called when right-click initialization of module
 	void onReset() override {
+		for (int i = 0; i < 2; i++) {
+			cv[i] = TACT_INIT_VALUE;
+			tactLast[i] = cv[i];
+			slewStepsRemain[i] = 0;
+		}
 	}
 
+	
+	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
+		for (int i = 0; i < 2; i++) {
+			cv[i] = params[TACT_PARAMS + i].value;
+			tactLast[i] = cv[i];
+			slewStepsRemain[i] = 0;
+		}
 	}
 
+	
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
@@ -60,31 +81,61 @@ struct Tact : Module {
 		return rootJ;
 	}
 
+	
+	// widgets loaded before this fromJson() is called
 	void fromJson(json_t *rootJ) override {
 		// panelTheme
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
 			panelTheme = json_integer_value(panelThemeJ);
+
+		for (int i = 0; i < 2; i++) {
+			cv[i] = params[TACT_PARAMS + i].value;
+			tactLast[i] = cv[i];
+			slewStepsRemain[i] = 0;
+		}
 	}
 
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
 		
+		// cv
+		for (int i = 0; i < 2; i++) {
+			if (tactLast[i] != params[TACT_PARAMS + i].value) {
+				tactLast[i] = params[TACT_PARAMS + i].value;
+				slewStepsRemain[i] = (unsigned long) (params[SLEW_PARAMS + i].value * engineGetSampleRate()) + 1ul;
+				slewCVdelta[i] = (tactLast[i] - cv[i])/((float)slewStepsRemain[i]);
+			}
+			if (slewStepsRemain[i] > 0) {
+				cv[i] += slewCVdelta[i];
+			}
+		}
+		
 	
 		// Outputs
-		outputs[CV_OUTPUTS + 0].value = params[TACT_PARAMS + 0].value * params[MAX_PARAMS + 0].value;
-		outputs[CV_OUTPUTS + 1].value = params[TACT_PARAMS + 1].value * params[MAX_PARAMS + 0].value;
+		outputs[CV_OUTPUTS + 0].value = cv[0] * params[ATTV_PARAMS + 0].value;
+		outputs[CV_OUTPUTS + 1].value = cv[1] * params[ATTV_PARAMS + 1].value;
 	
 		// Tactile lights
 		setTLights(0);
 		setTLights(1);
+		
+		for (int i = 0; i < 2; i++) {
+			if (slewStepsRemain[i] > 0)
+				slewStepsRemain[i]--;
+		}
 	}
 	
 	void setTLights(int chan) {
+		// TODO change color on top, mid and bot lights when exactly 10V, 5V, 0V respectively, with micro epsilon (account for attv effect obviously)
 		for (int i = 0; i < numLights; i++) {
-			lights[TACT_LIGHTS + chan * numLights + (numLights - 1 - i)].value = (  params[TACT_PARAMS + chan].value > (((float)(i))/10.0f - 0.05f) && 
-																					params[TACT_PARAMS + chan].value <= (((float)(i+1))/10.0f - 0.05f)  ) ? 1.0f : 0.0f;// lights are up-side down because of module origin at top-left
+			// Green
+			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 0].value = (  params[TACT_PARAMS + chan].value > (((float)(i)) - 0.5f) && 
+																					params[TACT_PARAMS + chan].value <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;// lights are up-side down because of module origin at top-left
+			// Red
+			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 1].value = (  cv[chan] > (((float)(i)) - 0.5f) && 
+																					cv[chan] <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;// lights are up-side down because of module origin at top-left
 		}
 	}
 };
@@ -156,13 +207,13 @@ struct TactWidget : ModuleWidget {
 		
 		
 		// Tactile touch pads
-		addParam(ParamWidget::create<IMTactile>(Vec(colRulerT0, rowRuler0), module, Tact::TACT_PARAMS + 0, 0.0, 1.0, 0.5));// size is in ImpromptuModular.hpp
-		addParam(ParamWidget::create<IMTactile>(Vec(colRulerT1, rowRuler0), module, Tact::TACT_PARAMS + 1, 0.0, 1.0, 0.5));// size is in ImpromptuModular.hpp
+		addParam(ParamWidget::create<IMTactile>(Vec(colRulerT0, rowRuler0), module, Tact::TACT_PARAMS + 0, 0.0, 10.0, Tact::TACT_INIT_VALUE));// size is in ImpromptuModular.hpp
+		addParam(ParamWidget::create<IMTactile>(Vec(colRulerT1, rowRuler0), module, Tact::TACT_PARAMS + 1, 0.0, 10.0, Tact::TACT_INIT_VALUE));// size is in ImpromptuModular.hpp
 
 		// Tactile lights
 		for (int i = 0 ; i < Tact::numLights; i++) {
-			addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerT0 + lightsOffsetX, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact::TACT_LIGHTS + i));
-			addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerT1 + lightsOffsetX, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact::TACT_LIGHTS + Tact::numLights + i));
+			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(colRulerT0 + lightsOffsetX, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact::TACT_LIGHTS + i * 2));
+			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(colRulerT1 + lightsOffsetX, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact::TACT_LIGHTS + (Tact::numLights + i) * 2));
 		}
 
 
@@ -170,19 +221,19 @@ struct TactWidget : ModuleWidget {
 		static const int maxOffsetX = 2;
 		static const int slewOffsetX = 40;
 
-		// Max knobs
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT0 + maxOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::MAX_PARAMS + 0, -10.0f, 10.0f, 10.0f, &module->panelTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT1 + maxOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::MAX_PARAMS + 1, -10.0f, 10.0f, 10.0f, &module->panelTheme));
+		// Attv knobs
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT0 + maxOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::ATTV_PARAMS + 0, -1.0f, 1.0f, 1.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT1 + maxOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::ATTV_PARAMS + 1, -1.0f, 1.0f, 1.0f, &module->panelTheme));
 		// Slew knobs
 		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT0 + slewOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::SLEW_PARAMS + 0, 0.0f, 10.0f, 1.0f, &module->panelTheme));// in seconds
 		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT1 + slewOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::SLEW_PARAMS + 1, 0.0f, 10.0f, 1.0f, &module->panelTheme));// in seconds
 		
 				
 		// Outputs
-		addOutput(createDynamicPort<IMPort>(Vec(35, 315), Port::OUTPUT, module, Tact::CV_OUTPUTS + 0, &module->panelTheme));		
-		addOutput(createDynamicPort<IMPort>(Vec(120, 315), Port::OUTPUT, module, Tact::CV_OUTPUTS + 1, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(33, 315), Port::OUTPUT, module, Tact::CV_OUTPUTS + 0, &module->panelTheme));		
+		addOutput(createDynamicPort<IMPort>(Vec(121, 315), Port::OUTPUT, module, Tact::CV_OUTPUTS + 1, &module->panelTheme));
 		// Link switch
-		addParam(ParamWidget::create<CKSS>(Vec(80 + hOffsetCKSS, 315 + vOffsetCKSS), module, Tact::LINK_PARAM, 0.0f, 1.0f, 1.0f));		
+		addParam(ParamWidget::create<CKSS>(Vec(78 + hOffsetCKSS, 315 + vOffsetCKSS), module, Tact::LINK_PARAM, 0.0f, 1.0f, 0.0f));		
 		
 	}
 };

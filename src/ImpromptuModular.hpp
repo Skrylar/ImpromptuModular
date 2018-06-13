@@ -177,7 +177,7 @@ struct IMFivePosSmallKnob : IMSmallKnob {
 
 struct IMTactile : Knob {
 	IMTactile() {
-		this->box.size = Vec(50,200);
+		this->box.size = Vec(45,200);
 		smooth = false;
 	}
 };

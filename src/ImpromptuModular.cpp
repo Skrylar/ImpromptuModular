@@ -18,7 +18,7 @@ void init(rack::Plugin *p) {
 	p->slug = TOSTRING(SLUG);
 	p->version = TOSTRING(VERSION);
 
-	//p->addModel(modelTact);
+	p->addModel(modelTact);
 	p->addModel(modelTwelveKey);
 	p->addModel(modelClocked);
 	p->addModel(modelPhraseSeq16);
