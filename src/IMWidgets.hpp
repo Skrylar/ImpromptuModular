@@ -158,6 +158,7 @@ struct DynamicIMTactile : Knob, FramebufferWidget {
 	SVGWidget *handle;
 	/** Intermediate positions will be interpolated between these positions */
 	Vec minHandlePos, maxHandlePos;
+	float dragY;
 	
 	DynamicIMTactile();
 	void addHandle(std::shared_ptr<SVG> svg);
@@ -165,6 +166,10 @@ struct DynamicIMTactile : Knob, FramebufferWidget {
 	void onChange(EventChange &e) override;
 	void onDragStart(EventDragStart &e) override;
 	void onDragEnd(EventDragEnd &e) override;
+	void onDragMove(EventDragMove &e) override;	
+	//void onMouseMove(EventMouseMove &e) override;	
+	void onMouseDown(EventMouseDown &e) override;
+	//void onMouseUp(EventMouseUp &e) override;
 };
 
 
