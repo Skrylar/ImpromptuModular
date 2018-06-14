@@ -150,12 +150,21 @@ struct DynamicSVGKnob : SVGKnob {
     void step() override;
 };
 
+
+
+// General Dynamic Param creation version 2 (must use this or else param not registered properly and reset() won't work (initialize)
+template <class TDynamicParam>
+TDynamicParam* createDynamicParam2(Vec pos, Module *module, int paramId, float minValue, float maxValue, float defaultValue,
+                                               float* wider) {
+	TDynamicParam *dynParam = ParamWidget::create<TDynamicParam>(pos, module, paramId, minValue, maxValue, defaultValue);
+	dynParam->wider = wider;
+	return dynParam;
+}
+
 // Dynamic Tactile pad (see Knob in app.hpp and Knob.cpp, and see SVGSlider in SVGSlider.cpp and app.hpp)
-// No creation function created, since not used a lot
-struct DynamicIMTactile : ParamWidget {
+struct DynamicIMTactile : ParamWidget, FramebufferWidget {
 	float* wider;// > 0.5f = true
 	float oldWider;
-	SVGWidget *handle;
 	float dragY;
 	float dragValue;
 	bool snap;

@@ -327,12 +327,9 @@ void DynamicSVGKnob::step() {
 // Dynamic IMTactile
 
 DynamicIMTactile::DynamicIMTactile() {
-	randomizable = false;
 	snap = false;
-	
-	wider = NULL;
+	wider = nullptr;
 	oldWider = -1.0f;
-
 	box.size = Vec(45,200);
 }
 
@@ -342,11 +339,11 @@ void DynamicIMTactile::step() {
 			box.size = Vec(130,200);
 		}
 		else {
-			box.size = Vec(45,200);		
+			box.size = Vec(45,200);
 		}
         oldWider = *wider;
     }	
-	ParamWidget::step();
+	FramebufferWidget::step();
 }
 
 void DynamicIMTactile::onDragStart(EventDragStart &e) {
@@ -362,18 +359,15 @@ void DynamicIMTactile::onDragMove(EventDragMove &e) {
 	dragValue += delta;
 	float dragValueClamped = clamp2(dragValue, minValue, maxValue);
 	if (snap)
-		setValue(roundf(dragValueClamped));
-	else
-		setValue(dragValueClamped);
+		dragValueClamped = roundf(dragValueClamped);
+	setValue(dragValueClamped);
 }
 
 void DynamicIMTactile::onMouseDown(EventMouseDown &e) {
 	float val = rescale(e.pos.y, box.size.y, 0.0f , minValue, maxValue);
 	if (snap)
-		setValue(roundf(val));
-	else
-		setValue(val);
+		val = roundf(val);
+	setValue(val);
 	ParamWidget::onMouseDown(e);
 }
-
 
