@@ -152,24 +152,19 @@ struct DynamicSVGKnob : SVGKnob {
 
 // Dynamic Tactile pad (see Knob in app.hpp and Knob.cpp, and see SVGSlider in SVGSlider.cpp and app.hpp)
 // No creation function created, since not used a lot
-struct DynamicIMTactile : Knob, FramebufferWidget {
+struct DynamicIMTactile : ParamWidget {
 	float* wider;// > 0.5f = true
 	float oldWider;
 	SVGWidget *handle;
-	/** Intermediate positions will be interpolated between these positions */
-	Vec minHandlePos, maxHandlePos;
 	float dragY;
+	float dragValue;
+	bool snap;
 	
 	DynamicIMTactile();
-	void addHandle(std::shared_ptr<SVG> svg);
 	void step() override;
-	void onChange(EventChange &e) override;
 	void onDragStart(EventDragStart &e) override;
-	void onDragEnd(EventDragEnd &e) override;
 	void onDragMove(EventDragMove &e) override;	
-	//void onMouseMove(EventMouseMove &e) override;	
 	void onMouseDown(EventMouseDown &e) override;
-	//void onMouseUp(EventMouseUp &e) override;
 };
 
 

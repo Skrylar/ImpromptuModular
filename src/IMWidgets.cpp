@@ -327,25 +327,13 @@ void DynamicSVGKnob::step() {
 // Dynamic IMTactile
 
 DynamicIMTactile::DynamicIMTactile() {
+	randomizable = false;
+	snap = false;
+	
 	wider = NULL;
 	oldWider = -1.0f;
 
-	handle = new SVGWidget();
-	addChild(handle);
-	
 	box.size = Vec(45,200);
-	maxHandlePos = Vec(box.size.x / 2.0f, 0.0f);
-	minHandlePos = Vec(box.size.x / 2.0f, box.size.y);
-	
-}
-
-void DynamicIMTactile::addHandle(std::shared_ptr<SVG> svg) {
-	handle->setSVG(svg);
-	/*maxHandlePos.x -= handle->box.size.x / 2.0f;
-	minHandlePos.x -= handle->box.size.x / 2.0f;
-	maxHandlePos.y -= handle->box.size.y / 2.0f;
-	minHandlePos.y -= handle->box.size.y / 2.0f;*/
-	handle->visible = false;
 }
 
 void DynamicIMTactile::step() {
@@ -358,41 +346,18 @@ void DynamicIMTactile::step() {
 		}
         oldWider = *wider;
     }	
-	if (dirty) {
-		// Interpolate handle position
-		handle->box.pos = Vec(rescale(value, minValue, maxValue, minHandlePos.x, maxHandlePos.x), rescale(value, minValue, maxValue, minHandlePos.y, maxHandlePos.y));
-	}	
-	FramebufferWidget::step();
-}
-
-void DynamicIMTactile::onChange(EventChange &e) {
-	dirty = true;
-	Knob::onChange(e);
+	ParamWidget::step();
 }
 
 void DynamicIMTactile::onDragStart(EventDragStart &e) {
-	handle->visible = true;
-	//Knob::onDragStart(e);// code copied below to modify
-	//windowCursorLock();
-	dragValue = value;//1.0f;
+	dragValue = value;
 	dragY = gRackWidget->lastMousePos.y;
-	randomizable = false;
 }
-
-void DynamicIMTactile::onDragEnd(EventDragEnd &e) {
-	handle->visible = false;
-	//Knob::onDragEnd(e);// code copied below to modify
-	//windowCursorUnlock();
-	//dragValue = 0.0f;
-	randomizable = true;
-}
-
 
 void DynamicIMTactile::onDragMove(EventDragMove &e) {
 	float rangeValue = maxValue - minValue;// infinite not supported (not relevant)
-	float rangePosY = maxHandlePos.y - minHandlePos.y;
 	float newDragY = gRackWidget->lastMousePos.y;
-	float delta = (newDragY - dragY) * rangeValue / rangePosY;
+	float delta = -(newDragY - dragY) * rangeValue / box.size.y;
 	dragY = newDragY;
 	dragValue += delta;
 	float dragValueClamped = clamp2(dragValue, minValue, maxValue);
@@ -400,43 +365,15 @@ void DynamicIMTactile::onDragMove(EventDragMove &e) {
 		setValue(roundf(dragValueClamped));
 	else
 		setValue(dragValueClamped);
-	//Knob::onDragMove(e);
 }
-
-/*void DynamicIMTactile::onMouseMove(EventMouseMove &e) {
-	//info("EventMouseMove(), e.mouseRel.y = %f", e.mouseRel.y);
-	//info("EventMouseMove(), e.pos.y = %f", e.pos.y);
-	//info("lastMousePos.y = %f", gRackWidget->lastMousePos.y);
-	Knob::onMouseMove(e);
-	if (dragValue > 0.5f) {
-		float val = rescale(e.pos.y, minHandlePos.y, maxHandlePos.y, minValue, maxValue);
-		//val = clamp2(val, minValue, maxValue);
-		if (snap)
-			setValue(roundf(val));
-		else
-			setValue(val);
-	}
-}*/
 
 void DynamicIMTactile::onMouseDown(EventMouseDown &e) {
-	info("onMouseDown(), e.pos.y = %f", e.pos.y);
-	float val = rescale(e.pos.y, minHandlePos.y, maxHandlePos.y, minValue, maxValue);
-	//val = clamp2(val, minValue, maxValue);
+	float val = rescale(e.pos.y, box.size.y, 0.0f , minValue, maxValue);
 	if (snap)
 		setValue(roundf(val));
 	else
 		setValue(val);
-	Knob::onMouseDown(e);
+	ParamWidget::onMouseDown(e);
 }
-
-/*void DynamicIMTactile::onMouseUp(EventMouseUp &e) {// does not get called when mouse up outside of DynamicIMTactile area on panel
-	float val = rescale(e.pos.y, minHandlePos.y, maxHandlePos.y, minValue, maxValue);
-	//val = clamp2(val, minValue, maxValue);
-	if (snap)
-		setValue(roundf(val));
-	else
-		setValue(val);
-	Knob::onMouseUp(e);
-}*/
 
 
