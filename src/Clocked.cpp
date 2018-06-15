@@ -63,7 +63,7 @@ struct Clocked : Module {
 			bpm = round( (inputs[BPM_INPUT].value / 10.0f) * bpmRange + bpmMin );
 		else
 			bpm = round( params[RATIO_PARAMS + 0].value );
-		return bpm;
+		return bpm < bpmMin ? bpmMin : bpm;
 	}
 	float getRatio(int ratioKnobIndex) {
 		// ratioKnobIndex is 1 for first ratio knob, 0 is master BPM ratio, which is implicitly 1.0f
