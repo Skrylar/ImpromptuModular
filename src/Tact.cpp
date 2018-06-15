@@ -254,9 +254,9 @@ struct TactWidget : ModuleWidget {
 		// Attv knobs
 		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT0 + maxOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::ATTV_PARAMS + 0, -1.0f, 1.0f, 1.0f, &module->panelTheme));
 		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT1 + maxOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::ATTV_PARAMS + 1, -1.0f, 1.0f, 1.0f, &module->panelTheme));
-		// Rate knobs
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT0 + rateOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 0, 0.0f, 1.0f, 0.2f, &module->panelTheme));// actually a transition time in s/V
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT1 + rateOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 1, 0.0f, 1.0f, 0.2f, &module->panelTheme));// actually a transition time in s/V
+		// Rate knobs (transition time in s/V)
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT0 + rateOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 0, 0.0f, 2.0f, 0.2f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT1 + rateOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 1, 0.0f, 2.0f, 0.2f, &module->panelTheme));
 		
 				
 		// Outputs

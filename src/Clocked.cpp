@@ -67,6 +67,7 @@ struct Clocked : Module {
 	}
 	float getRatio(int ratioKnobIndex) {
 		// ratioKnobIndex is 1 for first ratio knob, 0 is master BPM ratio, which is implicitly 1.0f
+		// returns a positive ratio since div are positive too
 		float ret = 1.0f;
 		if (ratioKnobIndex > 0) {
 			bool isDivision = false;
@@ -196,13 +197,22 @@ struct Clocked : Module {
 
 		// BPM input and knob
 		float newBpm = getBeatsPerMinute();
+		float bps = newBpm / 60.0f;
 		if (newBpm != bpm) {
 			bpm = newBpm; 
-			for (int i = 0; i < 4; i++) {
-				steps[i] = 0;// retrigger everything
-			}
+			/*for (int i = 0; i < 4; i++) {
+				if (steps[i] > 0) {
+					// retrigger everything (not good, can't LFO the clock since changes too often and keeps clock railed)
+					//steps[i] = 0;
+					
+					//new approach below: time stretch!
+					float newLength = (2.0f * sampleRate / (bps * ratios[i]));
+					float newSteps = round((float)steps[i]) / ((float)lengths[i]) * newLength;
+					steps[i] = (long) (newSteps);
+					lengths[i] = (long) (newLength);
+				}
+			}*/
 		}
-		float bps = bpm / 60.0f;
 
 		// Ratio knobs
 		bool syncRatios[4] = {false, false, false, false};// 0 index unused
@@ -301,10 +311,11 @@ struct Clocked : Module {
 	}
 	
 	float calcClock(int clkIndex, float sampleRate) {
+		// uses steps[], lengths[], swingVal[], params[PW_PARAMS + i].value
 		float ret = 0.0f;
 		
 		if (steps[clkIndex] > 0) {
-			float swParam = swingVal[clkIndex];//params[SWING_PARAMS + clkIndex].value;
+			float swParam = swingVal[clkIndex];
 			swParam *= (swParam * (swParam > 0.0f ? 1.0f : -1.0f));// non-linear behavior for more sensitivity at center: f(x) = x^2 * sign(x)
 			
 			// all following values are in samples numbers, whether long or float
