@@ -190,7 +190,10 @@ struct Clocked : Module {
 		if (runTrigger.process(params[RUN_PARAM].value + inputs[RUN_INPUT].value)) {
 			running = !running;
 			if (!running) {
-				onReset();
+				for (int i = 0; i < 4; i++) {
+					steps[i] = 0;
+					lengths[i] = 0;
+				}
 			}
 			runPulse.trigger(0.001f);
 		}
