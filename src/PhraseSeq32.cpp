@@ -198,13 +198,13 @@ struct PhraseSeq32 : Module {
 		for (int i = 0; i < 32; i++) {
 			for (int s = 0; s < 32; s++) {
 				cv[i][s] = 0.0f;
-				attributes[i][s] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
+				attributes[i][s] = ATT_MSK_GATE1;
 			}
 			runModeSeq[i] = MODE_FWD;
 			phrase[i] = 0;
 			lengths[i] = 16 * stepConfig;
 			cvCPbuffer[i] = 0.0f;
-			attributesCPbuffer[i] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
+			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun(stepConfig);
 		lengthCPbuffer = 32;
@@ -250,7 +250,7 @@ struct PhraseSeq32 : Module {
 			phrase[i] = randomu32() % 32;
 			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
 			cvCPbuffer[i] = 0.0f;
-			attributesCPbuffer[i] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
+			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun(stepConfig);
 		lengthCPbuffer = 32;

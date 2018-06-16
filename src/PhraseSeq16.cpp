@@ -199,13 +199,13 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 16; s++) {
 				cv[i][s] = 0.0f;
-				attributes[i][s] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
+				attributes[i][s] = ATT_MSK_GATE1;
 			}
 			runModeSeq[i] = MODE_FWD;
 			phrase[i] = 0;
 			lengths[i] = 16;
 			cvCPbuffer[i] = 0.0f;
-			attributesCPbuffer[i] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
+			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun();
 		lengthCPbuffer = 16;
@@ -244,7 +244,7 @@ struct PhraseSeq16 : Module {
 			phrase[i] = randomu32() % 16;
 			lengths[i] = 1 + (randomu32() % 16);
 			cvCPbuffer[i] = 0.0f;
-			attributesCPbuffer[i] = ATT_MSK_GATE1 | ATT_MSK_GATE2;
+			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun();
 		lengthCPbuffer = 16;
