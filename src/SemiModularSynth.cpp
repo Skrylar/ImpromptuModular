@@ -588,7 +588,8 @@ struct SemiModularSynth : Module {
 		// Edit mode
 		editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		if (editingSequenceLast != editingSequence) {
-			stepIndexRun = 0;
+			if (running)
+				initRun();
 			displayState = DISP_NORMAL;
 			editingSequenceLast = editingSequence;
 		}
