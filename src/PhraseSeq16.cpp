@@ -129,6 +129,7 @@ struct PhraseSeq16 : Module {
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
 	float editingGateCV;// no need to initialize, this is a companion to editingGate (output this only when editingGate > 0)
+	int editingGateAttrib;// no need to initialize, this is a companion to editingGate (use this only when editingGate > 0)
 	int stepIndexRunHistory;// no need to initialize
 	int phraseIndexRunHistory;// no need to initialize
 	int displayState;
@@ -176,6 +177,8 @@ struct PhraseSeq16 : Module {
 	SchmittTrigger tiedTrigger;
 
 	
+	inline bool getGate1(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE1) != 0;}
+	inline bool getGate2(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE2) != 0;}
 	inline bool getGate1P(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE1P) != 0;}
 	inline bool getTied(int seq, int step) {return (attributes[seq][step] & ATT_MSK_TIED) != 0;}
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
@@ -654,8 +657,6 @@ struct PhraseSeq16 : Module {
 				if (getTied(sequence,stepIndexEdit) & !inputs[TIEDCV_INPUT].active)
 					tiedWarning = tiedWarningInit;
 				else {			
-					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
-					editingGateCV = inputs[CV_INPUT].value;
 					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
 					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 					// Extra CVs from expansion panel:
@@ -671,6 +672,9 @@ struct PhraseSeq16 : Module {
 						if (inputs[SLIDECV_INPUT].active)
 							attributes[sequence][stepIndexEdit] = (inputs[SLIDECV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_SLIDE) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_SLIDE);
 					}					
+					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+					editingGateCV = cv[sequence][stepIndexEdit];
+					editingGateAttrib = attributes[sequence][stepIndexEdit];
 					// Autostep (after grab all active inputs)
 					if (params[AUTOSTEP_PARAM].value > 0.5f)
 						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, lengths[sequence]);
@@ -714,6 +718,7 @@ struct PhraseSeq16 : Module {
 							if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
 								editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 								editingGateCV = cv[sequence][stepIndexEdit];
+								editingGateAttrib = attributes[sequence][stepIndexEdit];
 							}
 						}
 					}
@@ -834,6 +839,7 @@ struct PhraseSeq16 : Module {
 					}
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = cv[sequence][stepIndexEdit];
+					editingGateAttrib = attributes[sequence][stepIndexEdit];
 				}
 			}
 		}		
@@ -849,6 +855,7 @@ struct PhraseSeq16 : Module {
 						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 						editingGateCV = cv[sequence][stepIndexEdit];
+						editingGateAttrib = attributes[sequence][stepIndexEdit];
 					}						
 				}
 				displayState = DISP_NORMAL;
@@ -970,8 +977,8 @@ struct PhraseSeq16 : Module {
 		}
 		else {// not running 
 			outputs[CV_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
-			outputs[GATE1_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
-			outputs[GATE2_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+			outputs[GATE1_OUTPUT].value = (editingGate > 0ul && getGate1(seq, step)) ? 10.0f : 0.0f;
+			outputs[GATE2_OUTPUT].value = (editingGate > 0ul && getGate2(seq, step)) ? 10.0f : 0.0f;
 		}
 		
 		// Step/phrase lights
