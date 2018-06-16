@@ -291,6 +291,7 @@ struct SemiModularSynth : Module {
 		running = false;
 		runModeSong = MODE_FWD;
 		stepIndexEdit = 0;
+		phraseIndexEdit = 0;
 		sequence = 0;
 		phrases = 4;
 		for (int i = 0; i < 16; i++) {
@@ -304,7 +305,7 @@ struct SemiModularSynth : Module {
 			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
-		initRun();
+		initRun(true);
 		lengthCPbuffer = 16;
 		modeCPbuffer = MODE_FWD;
 		countCP = 16;
@@ -335,6 +336,7 @@ struct SemiModularSynth : Module {
 		running = false;
 		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
+		phraseIndexEdit = 0;
 		sequence = randomu32() % 16;
 		phrases = 1 + (randomu32() % 16);
 		for (int i = 0; i < 16; i++) {
@@ -352,7 +354,7 @@ struct SemiModularSynth : Module {
 			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
-		initRun();
+		initRun(true);
 		lengthCPbuffer = 16;
 		modeCPbuffer = MODE_FWD;
 		countCP = 16;
@@ -370,18 +372,19 @@ struct SemiModularSynth : Module {
 	}
 	
 	
-	void initRun(void) {// run button activated or run edge in run input jack or edit mode toggled
-		phraseIndexEdit = 0;
-		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+	void initRun(bool hard) {// run button activated or run edge in run input jack or edit mode toggled
+		if (hard) {
+			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+			if (editingSequence)
+				stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
+			else
+				stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
+		}
 		gate1RandomEnable = false;
-		if (editingSequence) {
-			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
+		if (editingSequence)
 			gate1RandomEnable = calcGate1RandomEnable(getGate1P(sequence, stepIndexRun));
-		}
-		else {
-			stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
+		else
 			gate1RandomEnable = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun], stepIndexRun));
-		}
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());	
 	}
 	
@@ -534,7 +537,7 @@ struct SemiModularSynth : Module {
 			attached = json_is_true(attachedJ);
 		
 		// Initialize dependants after everything loaded
-		initRun();
+		initRun(true);
 		sequenceKnob = INT_MAX;
 		editingSequence = isEditingSequence();
 		editingSequenceLast = editingSequence;
@@ -589,7 +592,7 @@ struct SemiModularSynth : Module {
 		editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		if (editingSequenceLast != editingSequence) {
 			if (running)
-				initRun();
+				initRun(true);
 			displayState = DISP_NORMAL;
 			editingSequenceLast = editingSequence;
 		}
@@ -605,7 +608,7 @@ struct SemiModularSynth : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			if (running)
-				initRun();
+				initRun(false);
 			displayState = DISP_NORMAL;
 		}
 
@@ -967,9 +970,9 @@ struct SemiModularSynth : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			stepIndexEdit = 0;
+			//stepIndexEdit = 0;
 			//sequence = 0;
-			initRun();// must be after sequence reset
+			initRun(true);// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
 			clockTrigger.reset();

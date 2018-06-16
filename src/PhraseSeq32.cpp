@@ -193,6 +193,7 @@ struct PhraseSeq32 : Module {
 		running = false;
 		runModeSong = MODE_FWD;
 		stepIndexEdit = 0;
+		phraseIndexEdit = 0;
 		sequence = 0;
 		phrases = 4;
 		for (int i = 0; i < 32; i++) {
@@ -206,7 +207,7 @@ struct PhraseSeq32 : Module {
 			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
-		initRun(stepConfig);
+		initRun(stepConfig, true);
 		lengthCPbuffer = 32;
 		modeCPbuffer = MODE_FWD;
 		countCP = 32;
@@ -235,6 +236,7 @@ struct PhraseSeq32 : Module {
 		running = false;
 		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
+		phraseIndexEdit = 0;
 		sequence = randomu32() % 32;
 		phrases = 1 + (randomu32() % 32);
 		for (int i = 0; i < 32; i++) {
@@ -252,7 +254,7 @@ struct PhraseSeq32 : Module {
 			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
-		initRun(stepConfig);
+		initRun(stepConfig, true);
 		lengthCPbuffer = 32;
 		modeCPbuffer = MODE_FWD;
 		countCP = 32;
@@ -272,18 +274,21 @@ struct PhraseSeq32 : Module {
 	}
 	
 	
-	void initRun(int stepConfig) {// run button activated or run edge in run input jack or edit mode toggled
-		phraseIndexEdit = 0;
-		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+	void initRun(int stepConfig, bool hard) {// run button activated or run edge in run input jack or edit mode toggled
+		if (hard) {
+			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+			if (editingSequence)
+				stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
+			else
+				stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
+		}
 		gate1RandomEnable[0] = false;
 		gate1RandomEnable[1] = false;
 		if (editingSequence) {
-			stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
 			for (int i = 0; i < 2; i += stepConfig)
 				gate1RandomEnable[i] = calcGate1RandomEnable(getGate1P(sequence, (i * 16) + stepIndexRun));
 		}
 		else {
-			stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 			for (int i = 0; i < 2; i += stepConfig)
 				gate1RandomEnable[i] = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun], (i * 16) + stepIndexRun));
 		}
@@ -448,7 +453,7 @@ struct PhraseSeq32 : Module {
 		if (params[CONFIG_PARAM].value < 0.5f)// 1x32
 			stepConfig = 2;
 		stepConfigLast = stepConfig;			
-		initRun(stepConfig);
+		initRun(stepConfig, true);
 		sequenceKnob = INT_MAX;
 		editingSequence = isEditingSequence();
 		editingSequenceLast = editingSequence;
@@ -513,7 +518,7 @@ struct PhraseSeq32 : Module {
 		editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		if (editingSequenceLast != editingSequence) {
 			if (running)
-				initRun(stepConfig);
+				initRun(stepConfig, true);
 			displayState = DISP_NORMAL;
 			editingSequenceLast = editingSequence;
 		}
@@ -534,7 +539,7 @@ struct PhraseSeq32 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			if (running)
-				initRun(stepConfig);
+				initRun(stepConfig, false);
 			displayState = DISP_NORMAL;
 		}
 
@@ -1021,9 +1026,9 @@ struct PhraseSeq32 : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			stepIndexEdit = 0;
+			//stepIndexEdit = 0;
 			//sequence = 0;
-			initRun(stepConfig);// must be after sequence reset
+			initRun(stepConfig, true);// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
 			clockTrigger.reset();
