@@ -249,10 +249,10 @@ struct WriteSeq64 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			//pendingPaste = 0;// no pending pastes across run state toggles
-			if (running) {
-				for (int c = 0; c < 5; c++) 
-					indexStep[c] = 0;
-			}
+			//if (running) {
+				//for (int c = 0; c < 5; c++) 
+					//indexStep[c] = 0;
+			//}
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 	
@@ -391,7 +391,7 @@ struct WriteSeq64 : Module {
 				indexStep[t] = 0;
 			resetLight = 1.0f;
 			pendingPaste = 0;
-			indexChannel = 0;
+			//indexChannel = 0;
 			clock12Trigger.reset();
 			clock34Trigger.reset();
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());

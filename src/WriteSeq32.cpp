@@ -221,10 +221,10 @@ struct WriteSeq32 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			//pendingPaste = 0;// no pending pastes across run state toggles
-			if (running) {
-				indexStep = 0;
-				indexStepStage = 0;
-			}
+			//if (running) {
+			//	indexStep = 0;
+			//	indexStepStage = 0;
+			//}
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 		
@@ -354,7 +354,7 @@ struct WriteSeq32 : Module {
 			indexStep = 0;
 			indexStepStage = 0;	
 			pendingPaste = 0;
-			indexChannel = 0;
+			//indexChannel = 0;
 			clockTrigger.reset();
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}		

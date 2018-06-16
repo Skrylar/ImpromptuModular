@@ -1022,7 +1022,7 @@ struct PhraseSeq32 : Module {
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			stepIndexEdit = 0;
-			sequence = 0;
+			//sequence = 0;
 			initRun(stepConfig);// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;

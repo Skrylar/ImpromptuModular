@@ -196,7 +196,6 @@ struct GateSeq64 : Module {
 
 	
 	void initRun(int stepConfig) {// run button activated or run edge in run input jack
-		//stepIndexEdit = 0;
 		phraseIndexEdit = 0;
 		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		for (int i = 0; i < 4; i++)
@@ -620,7 +619,7 @@ struct GateSeq64 : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			sequence = 0;
+			//sequence = 0;
 			initRun(stepConfig);// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_GATE;
