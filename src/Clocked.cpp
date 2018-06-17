@@ -251,7 +251,7 @@ struct Clocked : Module {
 
 		// Ratio knobs
 		bool syncRatios[4] = {false, false, false, false};// 0 index unused
-		for (int i = 0; i < 4; i++) {
+		for (int i = 1; i < 4; i++) {
 			newRatiosDoubled[i] = getRatioDoubled(i);
 			if (newRatiosDoubled[i] != ratiosDoubled[i]) {
 				syncRatios[i] = true;// 0 index not used, but loop must start at i = 0
@@ -277,7 +277,7 @@ struct Clocked : Module {
 			//       and will stay at 0 when a clock is inactive.
 			// See if ratio knobs changed (or unitinialized)
 			if (clk[0].isClockReset()) {
-				for (int i = 0; i < 4; i++) {// must start at 0 for master also (get out of init value in onReset())
+				for (int i = 1; i < 4; i++) {
 					if (syncRatios[i]) {// always false for master
 						clk[i].resetClock();// force reset (thus refresh) of that sub-clock
 						ratiosDoubled[i] = newRatiosDoubled[i];
@@ -285,24 +285,38 @@ struct Clocked : Module {
 					}
 				}
 			}
-			// See if clocks done their prescribed number of iteratios of double periods and their remainder (or were forced reset)
+			// See if clocks finished their prescribed number of iteratios of double periods and their remainder (or were forced reset)
 			//    and if so, recalc and restart them
-			for (int i = 0; i < 4; i++) {
+			//Master clock
+			if (clk[0].isClockReset()) {
+				//length = (2 * SR) / ( bpm / 60 )
+				clk[0].length = 120l * sampleRate / bpm;
+				clk[0].remainder = 0l;
+				clk[0].iterations = 1l;
+			}
+			// Sub clocks
+			for (int i = 1; i < 4; i++) {
 				if (clk[i].isClockReset()) {
-					long numerator, denominator;				
-					if (ratiosDoubled[i] < 0l) { // if div 
-						// length = (2 * SR) / ( (bpm / (-ratioDoubled / 2)) / 60 )
-						numerator   = sampleRate * 60l * -1l * ratiosDoubled[i];
-						denominator = bpm;
+					long ratioDoubled = ratiosDoubled[i];
+					if (ratioDoubled < 0l) { // if div 
+						ratioDoubled *= -1l;
+						clk[i].length    = (clk[0].length * ratioDoubled) / 2l;
+						clk[i].remainder = (clk[0].length * ratioDoubled) % 2l;
+						clk[i].iterations = ratioDoubled / 2l;						
+						if (ratioDoubled % 2l == 1l) {
+							clk[i].remainder *= 3l;// TODO should be *2 + 1
+							clk[i].iterations *= 3l;// TODO should be *2 + 1
+						}
 					}
 					else {// mult 
-						// length = (2 * SR) / ( (bpm * ratioDoubled / 2 ) / 60 )
-						numerator   = 4l * sampleRate * 60l;
-						denominator = bpm * ratiosDoubled[i];
+						clk[i].length    = (clk[0].length * 2l) / ratioDoubled;
+						clk[i].remainder = (clk[0].length * 2l) % ratioDoubled;
+						clk[i].iterations = ratioDoubled / 2l;						
+						if (ratioDoubled % 2l == 1l) {
+							clk[i].remainder *= 2l;
+							clk[i].iterations *= 2l;
+						}
 					}
-					clk[i].length = numerator / denominator;
-					clk[i].remainder = numerator % denominator;// TODO not good, should depend on iterations (which should be calc)
-					
 					clk[i].startClock();
 				}
 			}
