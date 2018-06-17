@@ -537,8 +537,8 @@ struct PhraseSeq32 : Module {
 		// Seq CV input
 		if (inputs[SEQCV_INPUT].active) {
 			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (32.0f - 1.0f) / 10.0f), 0.0f, (32.0f - 1.0f) );
-			if (stepIndexEdit >= lengths[sequence])
-				stepIndexEdit = lengths[sequence] - 1;
+			//if (stepIndexEdit >= lengths[sequence])// Commented for full edit capabilities
+				//stepIndexEdit = lengths[sequence] - 1;// Commented for full edit capabilities
 		}
 		// Mode CV input
 		if (inputs[MODECV_INPUT].active) {
@@ -649,14 +649,15 @@ struct PhraseSeq32 : Module {
 					// Autostep (after grab all active inputs)
 					if (params[AUTOSTEP_PARAM].value > 0.5f) {
 						stepIndexEdit += 1;
-						if (stepConfig == 1) {
-							if (stepIndexEdit >= lengths[sequence] && stepIndexEdit < 16)// if past length in chan A
-								stepIndexEdit = 16;
-							else if (stepIndexEdit >= 16 + lengths[sequence])// if past length in chan B (including >=32)
-								stepIndexEdit = 0;
-						}
-						else
-							if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = 0;						
+						//if (stepConfig == 1) { // Commented for full edit capabilities (whole if)
+						//	if (stepIndexEdit >= lengths[sequence] && stepIndexEdit < 16)// if past length in chan A
+						//		stepIndexEdit = 16;
+						//	else if (stepIndexEdit >= 16 + lengths[sequence])// if past length in chan B (including >=32)
+						//		stepIndexEdit = 0;
+						//}
+						//else // Commented for full edit capabilities
+							if (stepIndexEdit >= 32)//lengths[sequence])// Commented for full edit capabilities
+								stepIndexEdit = 0;						
 					}
 				}
 			}
@@ -681,9 +682,8 @@ struct PhraseSeq32 : Module {
 					if (lengths[sequence] > (16 * stepConfig)) lengths[sequence] = (16 * stepConfig);
 					if (lengths[sequence] < 1 ) lengths[sequence] = 1;
 					lengths[sequence] = ((lengths[sequence] - 1) % (16 * stepConfig)) + 1;
-					if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence]) {
-						stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));
-					}
+					//if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])// Commented for full edit capabilities
+						//stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));// Commented for full edit capabilities
 				}
 				else {
 					phrases += delta;
@@ -698,14 +698,15 @@ struct PhraseSeq32 : Module {
 						stepIndexEdit += delta;
 						if (stepIndexEdit < 0)
 							stepIndexEdit = ((stepConfig == 1) ? 16 : 0) + lengths[sequence] - 1;
-						if (stepConfig == 1) {
-							if (stepIndexEdit >= lengths[sequence] && stepIndexEdit < 16)// if past length in chan A
-								stepIndexEdit = delta > 0 ? 16 : lengths[sequence] - 1;
-							else if (stepIndexEdit >= 16 + lengths[sequence])// if past length in chan B (including >=32)
-								stepIndexEdit = delta > 0 ? 0 : 16 + lengths[sequence] - 1;
-						}
-						else
-							if (stepIndexEdit >= lengths[sequence]) stepIndexEdit = 0;
+						//if (stepConfig == 1) {// Commented for full edit capabilities (whole if)
+						//	if (stepIndexEdit >= lengths[sequence] && stepIndexEdit < 16)// if past length in chan A
+						//		stepIndexEdit = delta > 0 ? 16 : lengths[sequence] - 1;
+						//	else if (stepIndexEdit >= 16 + lengths[sequence])// if past length in chan B (including >=32)
+						//		stepIndexEdit = delta > 0 ? 0 : 16 + lengths[sequence] - 1;
+						//}
+						//else// Commented for full edit capabilities
+							if (stepIndexEdit >= 32)//lengths[sequence]) // Commented for full edit capabilities
+								stepIndexEdit = 0;
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
 								editingGate = (unsigned long) (gateTime * engineGetSampleRate());
@@ -731,8 +732,8 @@ struct PhraseSeq32 : Module {
 			if (displayState == DISP_LENGTH) {
 				if (editingSequence) {
 					lengths[sequence] = (stepPressed % (16 * stepConfig)) + 1;
-					if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
-						stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));
+					//if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])// Commented for full edit capabilities
+						//stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));// Commented for full edit capabilities
 				}
 				else {
 					phrases = stepPressed + 1;
@@ -744,8 +745,8 @@ struct PhraseSeq32 : Module {
 				if (!running || !attached) {// not running or detached
 					if (editingSequence) {
 						stepIndexEdit = stepPressed;
-						if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
-							stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));
+						//if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])// Commented for full edit capabilities
+							//stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));// Commented for full edit capabilities
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 							editingGateCV = cv[sequence][stepIndexEdit];
@@ -823,8 +824,8 @@ struct PhraseSeq32 : Module {
 						lengths[sequence] += deltaKnob;
 						if (lengths[sequence] > (16 * stepConfig)) lengths[sequence] = (16 * stepConfig);
 						if (lengths[sequence] < 1 ) lengths[sequence] = 1;
-						if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])
-							stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));
+						//if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])// Commented for full edit capabilities
+							//stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));// Commented for full edit capabilities
 					}
 					else {
 						phrases += deltaKnob;
@@ -872,16 +873,16 @@ struct PhraseSeq32 : Module {
 							sequence += deltaKnob;
 							if (sequence < 0) sequence = 0;
 							if (sequence >= 32) sequence = (32 - 1);
-							if (stepConfig == 1) {
-								if (stepIndexEdit >= 16 && (stepIndexEdit - 16) >= lengths[sequence])
-									stepIndexEdit = 16 + lengths[sequence] - 1;
-								else if (stepIndexEdit < 16 && (stepIndexEdit) >= lengths[sequence])
-									stepIndexEdit = lengths[sequence] - 1;
-							}
-							else {
-								if (stepIndexEdit >= lengths[sequence]) 
-									stepIndexEdit = lengths[sequence] - 1;
-							}
+							//if (stepConfig == 1) {// Commented for full edit capabilities (whole if/else)
+							//	if (stepIndexEdit >= 16 && (stepIndexEdit - 16) >= lengths[sequence])
+							//		stepIndexEdit = 16 + lengths[sequence] - 1;
+							//	else if (stepIndexEdit < 16 && (stepIndexEdit) >= lengths[sequence])
+							//		stepIndexEdit = lengths[sequence] - 1;
+							//}
+							//else {
+							//	if (stepIndexEdit >= lengths[sequence]) 
+							//		stepIndexEdit = lengths[sequence] - 1;
+							//}
 						}
 					}
 					else {

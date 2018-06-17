@@ -611,8 +611,8 @@ struct SemiModularSynth : Module {
 		// Seq CV input
 		if (inputs[SEQCV_INPUT].active) {
 			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (16.0f - 1.0f) / 10.0f), 0.0f, (16.0f - 1.0f) );
-			if (stepIndexEdit >= lengths[sequence])
-				stepIndexEdit = lengths[sequence] - 1;
+			//if (stepIndexEdit >= lengths[sequence])// Commented for full edit capabilities
+				//stepIndexEdit = lengths[sequence] - 1;// Commented for full edit capabilities
 		}
 		
 		// Run button
@@ -708,7 +708,7 @@ struct SemiModularSynth : Module {
 					editingGateAttrib = attributes[sequence][stepIndexEdit];
 					// Autostep (after grab all active inputs)
 					if (params[AUTOSTEP_PARAM].value > 0.5f)
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, lengths[sequence]);
+						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);//lengths[sequence]);// Commented for full edit capabilities
 				}
 			}
 			displayState = DISP_NORMAL;
@@ -730,9 +730,8 @@ struct SemiModularSynth : Module {
 					lengths[sequence] += delta;
 					if (lengths[sequence] > 16) lengths[sequence] = 16;
 					if (lengths[sequence] < 1 ) lengths[sequence] = 1;
-					if (stepIndexEdit >= lengths[sequence]) {
-						stepIndexEdit = lengths[sequence] - 1;
-					}
+					//if (stepIndexEdit >= lengths[sequence])// Commented for full edit capabilities
+						//stepIndexEdit = lengths[sequence] - 1;// Commented for full edit capabilities
 				}
 				else {
 					phrases += delta;
@@ -744,7 +743,7 @@ struct SemiModularSynth : Module {
 			else {
 				if (!running || !attached) {// don't move heads when attach and running
 					if (editingSequence) {
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, lengths[sequence]);
+						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, 16);//lengths[sequence]);// Commented for full edit capabilities
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
 								editingGate = (unsigned long) (gateTime * engineGetSampleRate());
@@ -833,8 +832,8 @@ struct SemiModularSynth : Module {
 							sequence += deltaKnob;
 							if (sequence < 0) sequence = 0;
 							if (sequence >= 16) sequence = (16 - 1);
-							if (stepIndexEdit >= lengths[sequence])
-								stepIndexEdit = lengths[sequence] - 1;
+							//if (stepIndexEdit >= lengths[sequence])// Commented for full edit capabilities
+								//stepIndexEdit = lengths[sequence] - 1;// Commented for full edit capabilities
 						}
 					}
 					else {
