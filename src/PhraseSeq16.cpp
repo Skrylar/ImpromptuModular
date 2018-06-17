@@ -1514,6 +1514,13 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 
 /*CHANGE LOG
 
+0.6.7:
+allow full edit capabilities in Seq and song mode
+no reset on run by default, with switch added in context menu
+reset does not revert seq or song number to 1
+gate 2 is off by default
+fix emitted monitoring gates to depend on gate states instead of always triggering
+
 0.6.6:
 knob bug fixes when loading patch
 

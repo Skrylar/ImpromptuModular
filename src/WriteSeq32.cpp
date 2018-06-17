@@ -753,3 +753,10 @@ struct WriteSeq32Widget : ModuleWidget {
 };
 
 Model *modelWriteSeq32 = Model::create<WriteSeq32, WriteSeq32Widget>("Impromptu Modular", "Write-Seq-32", "Write-Seq-32", SEQUENCER_TAG);
+
+/*CHANGE LOG
+
+0.6.7:
+no reset on run by default, with switch added in context menu
+reset does not revert chan number to 1
+*/

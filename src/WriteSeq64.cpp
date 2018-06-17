@@ -823,3 +823,10 @@ struct WriteSeq64Widget : ModuleWidget {
 };
 
 Model *modelWriteSeq64 = Model::create<WriteSeq64, WriteSeq64Widget>("Impromptu Modular", "Write-Seq-64", "Write-Seq-64", SEQUENCER_TAG);
+
+/*CHANGE LOG
+
+0.6.7:
+no reset on run by default, with switch added in context menu
+reset does not revert chan number to 1
+*/

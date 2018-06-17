@@ -1020,6 +1020,11 @@ Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Mod
 
 /*CHANGE LOG
 
+0.6.7:
+allow full edit capabilities in song mode
+no reset on run by default, with switch added in context menu
+reset does not revert seq or song number to 1
+
 0.6.6:
 config and knob bug fixes when loading patch
 
