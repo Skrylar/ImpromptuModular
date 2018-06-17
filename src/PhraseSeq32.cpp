@@ -106,6 +106,7 @@ struct PhraseSeq32 : Module {
 	float cv[32][32];// [-3.0 : 3.917]. First index is patten number, 2nd index is step
 	int attributes[32][32];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
 	//
+	bool resetOnRun;
 	bool attached;
 
 	// No need to save
@@ -224,6 +225,7 @@ struct PhraseSeq32 : Module {
 		revertDisplay = 0l;
 		editingSequence = EDIT_PARAM_INIT_VALUE > 0.5f;
 		editingSequenceLast = editingSequence;
+		resetOnRun = false;
 	}
 	
 	
@@ -271,6 +273,7 @@ struct PhraseSeq32 : Module {
 		revertDisplay = 0l;
 		editingSequence = isEditingSequence();
 		editingSequenceLast = editingSequence;
+		resetOnRun = false;
 	}
 	
 	
@@ -354,6 +357,9 @@ struct PhraseSeq32 : Module {
 		// attached
 		json_object_set_new(rootJ, "attached", json_boolean(attached));
 
+		// resetOnRun
+		json_object_set_new(rootJ, "resetOnRun", json_boolean(resetOnRun));
+		
 		return rootJ;
 	}
 
@@ -448,6 +454,11 @@ struct PhraseSeq32 : Module {
 		if (attachedJ)
 			attached = json_is_true(attachedJ);
 		
+		// resetOnRun
+		json_t *resetOnRunJ = json_object_get(rootJ, "resetOnRun");
+		if (resetOnRunJ)
+			resetOnRun = json_is_true(resetOnRunJ);
+
 		// Initialize dependants after everything loaded (widgets already loaded when reach here)
 		int stepConfig = 1;// 2x16
 		if (params[CONFIG_PARAM].value < 0.5f)// 1x32
@@ -539,7 +550,7 @@ struct PhraseSeq32 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			if (running)
-				initRun(stepConfig, false);
+				initRun(stepConfig, resetOnRun);
 			displayState = DISP_NORMAL;
 		}
 
@@ -1354,6 +1365,12 @@ struct PhraseSeq32Widget : ModuleWidget {
 			module->expansion = module->expansion == 1 ? 0 : 1;
 		}
 	};
+	struct ResetOnRunItem : MenuItem {
+		PhraseSeq32 *module;
+		void onAction(EventAction &e) override {
+			module->resetOnRun = !module->resetOnRun;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -1388,6 +1405,17 @@ struct PhraseSeq32Widget : ModuleWidget {
 		ExpansionItem *expItem = MenuItem::create<ExpansionItem>(expansionMenuLabel, CHECKMARK(module->expansion != 0));
 		expItem->module = module;
 		menu->addChild(expItem);
+		
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *settingsLabel = new MenuLabel();
+		settingsLabel->text = "Settings";
+		menu->addChild(settingsLabel);
+		
+		ResetOnRunItem *rorItem = MenuItem::create<ResetOnRunItem>("Reset on Run", CHECKMARK(module->resetOnRun));
+		rorItem->module = module;
+		menu->addChild(rorItem);
+		
 		return menu;
 	}	
 	

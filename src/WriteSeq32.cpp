@@ -66,6 +66,7 @@ struct WriteSeq32 : Module {
 	int indexChannel;
 	float cv[4][32];
 	bool gates[4][32];
+	bool resetOnRun;
 
 	// No need to save
 	int indexStep;
@@ -112,6 +113,7 @@ struct WriteSeq32 : Module {
 		infoCopyPaste = 0l;
 		pendingPaste = 0;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		resetOnRun = false;
 	}
 
 	void onRandomize() override {
@@ -130,6 +132,7 @@ struct WriteSeq32 : Module {
 		infoCopyPaste = 0l;
 		pendingPaste = 0;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		resetOnRun = false;
 	}
 
 	json_t *toJson() override {
@@ -160,6 +163,9 @@ struct WriteSeq32 : Module {
 			}
 		json_object_set_new(rootJ, "gates", gatesJ);
 
+		// resetOnRun
+		json_object_set_new(rootJ, "resetOnRun", json_boolean(resetOnRun));
+		
 		return rootJ;
 	}
 
@@ -200,6 +206,11 @@ struct WriteSeq32 : Module {
 						gates[c][s] = !!json_integer_value(gateJ);// json_is_true() will break patches
 				}
 		}
+		
+		// resetOnRun
+		json_t *resetOnRunJ = json_object_get(rootJ, "resetOnRun");
+		if (resetOnRunJ)
+			resetOnRun = json_is_true(resetOnRunJ);
 	}
 
 	
@@ -221,10 +232,10 @@ struct WriteSeq32 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			//pendingPaste = 0;// no pending pastes across run state toggles
-			//if (running) {
-			//	indexStep = 0;
-			//	indexStepStage = 0;
-			//}
+			if (running && resetOnRun) {
+				indexStep = 0;
+				indexStepStage = 0;
+			}
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 		
@@ -536,6 +547,12 @@ struct WriteSeq32Widget : ModuleWidget {
 			rightText = (module->panelTheme == theme) ? "✔" : "";
 		}
 	};
+	struct ResetOnRunItem : MenuItem {
+		WriteSeq32 *module;
+		void onAction(EventAction &e) override {
+			module->resetOnRun = !module->resetOnRun;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -561,6 +578,16 @@ struct WriteSeq32Widget : ModuleWidget {
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
 
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *settingsLabel = new MenuLabel();
+		settingsLabel->text = "Settings";
+		menu->addChild(settingsLabel);
+		
+		ResetOnRunItem *rorItem = MenuItem::create<ResetOnRunItem>("Reset on Run", CHECKMARK(module->resetOnRun));
+		rorItem->module = module;
+		menu->addChild(rorItem);
+		
 		return menu;
 	}	
 	

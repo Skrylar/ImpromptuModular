@@ -117,6 +117,7 @@ struct PhraseSeq16 : Module {
 	float cv[16][16];// [-3.0 : 3.917]. First index is patten number, 2nd index is step
 	int attributes[16][16];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
 	//
+	bool resetOnRun;
 	bool attached;
 
 	// No need to save
@@ -223,6 +224,7 @@ struct PhraseSeq16 : Module {
 		tiedWarning = 0ul;
 		editingSequence = EDIT_PARAM_INIT_VALUE > 0.5f;
 		editingSequenceLast = editingSequence;
+		resetOnRun = false;
 	}
 
 	
@@ -263,6 +265,7 @@ struct PhraseSeq16 : Module {
 		tiedWarning = 0ul;
 		editingSequence = isEditingSequence();
 		editingSequenceLast = editingSequence;
+		resetOnRun = false;
 	}
 	
 	
@@ -341,6 +344,9 @@ struct PhraseSeq16 : Module {
 		// attached
 		json_object_set_new(rootJ, "attached", json_boolean(attached));
 
+		// resetOnRun
+		json_object_set_new(rootJ, "resetOnRun", json_boolean(resetOnRun));
+		
 		return rootJ;
 	}
 
@@ -504,6 +510,11 @@ struct PhraseSeq16 : Module {
 		if (attachedJ)
 			attached = json_is_true(attachedJ);
 		
+		// resetOnRun
+		json_t *resetOnRunJ = json_object_get(rootJ, "resetOnRun");
+		if (resetOnRunJ)
+			resetOnRun = json_is_true(resetOnRunJ);
+
 		// Initialize dependants after everything loaded
 		initRun(true);
 		sequenceKnob = INT_MAX;
@@ -578,7 +589,7 @@ struct PhraseSeq16 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			if (running)
-				initRun(false);
+				initRun(resetOnRun);
 			displayState = DISP_NORMAL;
 		}
 
@@ -1220,6 +1231,12 @@ struct PhraseSeq16Widget : ModuleWidget {
 			module->expansion = module->expansion == 1 ? 0 : 1;
 		}
 	};
+	struct ResetOnRunItem : MenuItem {
+		PhraseSeq16 *module;
+		void onAction(EventAction &e) override {
+			module->resetOnRun = !module->resetOnRun;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -1254,6 +1271,17 @@ struct PhraseSeq16Widget : ModuleWidget {
 		ExpansionItem *expItem = MenuItem::create<ExpansionItem>(expansionMenuLabel, CHECKMARK(module->expansion != 0));
 		expItem->module = module;
 		menu->addChild(expItem);
+		
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *settingsLabel = new MenuLabel();
+		settingsLabel->text = "Settings";
+		menu->addChild(settingsLabel);
+		
+		ResetOnRunItem *rorItem = MenuItem::create<ResetOnRunItem>("Reset on Run", CHECKMARK(module->resetOnRun));
+		rorItem->module = module;
+		menu->addChild(rorItem);
+		
 		return menu;
 	}	
 	

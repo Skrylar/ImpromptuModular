@@ -66,6 +66,8 @@ struct GateSeq64 : Module {
 	int phrases;//1 to 16
 	//	
 	int attributes[16][64];
+	//
+	bool resetOnRun;
 
 	// No need to save
 	int displayState;
@@ -156,6 +158,7 @@ struct GateSeq64 : Module {
 		revertDisplay = 0l;
 		editingSequence = EDIT_PARAM_INIT_VALUE > 0.5f;
 		editingSequenceLast = editingSequence;
+		resetOnRun = false;
 	}
 
 	
@@ -194,6 +197,7 @@ struct GateSeq64 : Module {
 		revertDisplay = 0l;
 		editingSequence = isEditingSequence();
 		editingSequenceLast = editingSequence;
+		resetOnRun = false;
 	}
 
 	
@@ -262,6 +266,9 @@ struct GateSeq64 : Module {
 				json_array_insert_new(attributesJ, s + (i * 64), json_integer(attributes[i][s]));
 			}
 		json_object_set_new(rootJ, "attributes", attributesJ);
+		
+		// resetOnRun
+		json_object_set_new(rootJ, "resetOnRun", json_boolean(resetOnRun));
 		
 		return rootJ;
 	}
@@ -337,6 +344,11 @@ struct GateSeq64 : Module {
 				}
 		}
 		
+		// resetOnRun
+		json_t *resetOnRunJ = json_object_get(rootJ, "resetOnRun");
+		if (resetOnRunJ)
+			resetOnRun = json_is_true(resetOnRunJ);
+
 		// Initialize dependants after everything loaded (widgets already loaded when reach here)
 		int stepConfig = 1;// 4x16
 		if (params[CONFIG_PARAM].value > 1.5f)// 1x64
@@ -397,7 +409,7 @@ struct GateSeq64 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			if (running)
-				initRun(stepConfig, false);
+				initRun(stepConfig, resetOnRun);
 			displayState = DISP_GATE;
 			displayProb = -1;
 		}
@@ -860,6 +872,12 @@ struct GateSeq64Widget : ModuleWidget {
 			rightText = (module->panelTheme == theme) ? "✔" : "";
 		}
 	};
+	struct ResetOnRunItem : MenuItem {
+		GateSeq64 *module;
+		void onAction(EventAction &e) override {
+			module->resetOnRun = !module->resetOnRun;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -885,6 +903,16 @@ struct GateSeq64Widget : ModuleWidget {
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
 
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *settingsLabel = new MenuLabel();
+		settingsLabel->text = "Settings";
+		menu->addChild(settingsLabel);
+		
+		ResetOnRunItem *rorItem = MenuItem::create<ResetOnRunItem>("Reset on Run", CHECKMARK(module->resetOnRun));
+		rorItem->module = module;
+		menu->addChild(rorItem);
+		
 		return menu;
 	}	
 	

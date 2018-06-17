@@ -67,6 +67,7 @@ struct WriteSeq64 : Module {
 	int indexSteps[5];// [1;64] each
 	float cv[5][64];
 	bool gates[5][64];
+	bool resetOnRun;
 
 	// No need to save
 	int indexStep[5];// [0;63] each
@@ -120,6 +121,7 @@ struct WriteSeq64 : Module {
 		stepsKnob = INT_MAX;
 		pendingPaste = 0;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		resetOnRun = false;
 	}
 
 	void onRandomize() override {
@@ -143,6 +145,7 @@ struct WriteSeq64 : Module {
 		stepsKnob = INT_MAX;
 		pendingPaste = 0;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		resetOnRun = false;
 	}
 
 	json_t *toJson() override {
@@ -179,6 +182,9 @@ struct WriteSeq64 : Module {
 			}
 		json_object_set_new(rootJ, "gates", gatesJ);
 
+		// resetOnRun
+		json_object_set_new(rootJ, "resetOnRun", json_boolean(resetOnRun));
+		
 		return rootJ;
 	}
 
@@ -231,6 +237,11 @@ struct WriteSeq64 : Module {
 		}
 		stepKnob = INT_MAX;
 		stepsKnob = INT_MAX;
+		
+		// resetOnRun
+		json_t *resetOnRunJ = json_object_get(rootJ, "resetOnRun");
+		if (resetOnRunJ)
+			resetOnRun = json_is_true(resetOnRunJ);
 	}
 
 	inline float quantize(float cv, bool enable) {
@@ -249,10 +260,10 @@ struct WriteSeq64 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			//pendingPaste = 0;// no pending pastes across run state toggles
-			//if (running) {
-				//for (int c = 0; c < 5; c++) 
-					//indexStep[c] = 0;
-			//}
+			if (running && resetOnRun) {
+				for (int c = 0; c < 5; c++) 
+					indexStep[c] = 0;
+			}
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 	
@@ -611,6 +622,12 @@ struct WriteSeq64Widget : ModuleWidget {
 			rightText = (module->panelTheme == theme) ? "✔" : "";
 		}
 	};
+	struct ResetOnRunItem : MenuItem {
+		WriteSeq64 *module;
+		void onAction(EventAction &e) override {
+			module->resetOnRun = !module->resetOnRun;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -636,6 +653,16 @@ struct WriteSeq64Widget : ModuleWidget {
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
 
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *settingsLabel = new MenuLabel();
+		settingsLabel->text = "Settings";
+		menu->addChild(settingsLabel);
+		
+		ResetOnRunItem *rorItem = MenuItem::create<ResetOnRunItem>("Reset on Run", CHECKMARK(module->resetOnRun));
+		rorItem->module = module;
+		menu->addChild(rorItem);
+		
 		return menu;
 	}	
 	
