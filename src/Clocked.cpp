@@ -22,10 +22,20 @@ struct Clock {
 	
 	bool clockHigh(float swing, float pulseWidth, long sampleRate) {
 		bool high = false;
-		if ( (step < length / 4l) || (step > length / 2l && step < (length * 3l) / 4l) )
+		if ( (step > 0l && step < length / 4l) || (step > length / 2l && step < (length * 3l) / 4l) )
 			high = true;
 		return high;
 	}
+	
+	void stepClock() {// here the clock was output on step "step", called at end of module::step()
+		if (step != 0l) {
+			if (step >= length)
+				step = 0l;
+			else 
+				step++;
+		}
+	}
+
 };
 
 
@@ -80,34 +90,6 @@ struct Clocked : Module {
 			bpm = (long) round( params[RATIO_PARAMS + 0].value );
 		return bpm < bpmMin ? bpmMin : bpm;
 	}
-	/*float getBeatsPerMinute(void) {
-		float bpm = 0.0f;
-		if (inputs[BPM_INPUT].active)
-			bpm = round( (inputs[BPM_INPUT].value / 10.0f) * bpmRange + bpmMin );
-		else
-			bpm = round( params[RATIO_PARAMS + 0].value );
-		return bpm < bpmMin ? bpmMin : bpm;
-	}*/
-	/*float getRatio(int ratioKnobIndex) {
-		// ratioKnobIndex is 0 for master BPM's ratio (mplicitly 1.0f), and 1 to 3 for other ratio knobs
-		// returns a positive ratio since div are positive too
-		float ret = 1.0f;
-		if (ratioKnobIndex > 0) {
-			bool isDivision = false;
-			int i = (int) round( params[RATIO_PARAMS + ratioKnobIndex].value );// [ -(numRatios-1) ; (numRatios-1) ]
-			if (i < 0) {
-				i *= -1;
-				isDivision = true;
-			}
-			if (i >= numRatios) {
-				i = numRatios - 1;
-			}
-			ret = ratioValues[i];
-			if (isDivision) 
-				ret = 1.0f / ret;
-		}
-		return ret;
-	}*/
 	long getRatioDoubled(int ratioKnobIndex) {
 		// ratioKnobIndex is 0 for master BPM's ratio (mplicitly 1.0f), and 1 to 3 for other ratio knobs
 		// returns a positive ratio for mult, negative ratio for div (0 never returned)
@@ -165,8 +147,8 @@ struct Clocked : Module {
 		running = false;
 		bpm = -1.0f;// unseen
 		for (int i = 0; i < 4; i++) {
-			clk[i].step = 0;
-			clk[i].length = 0;
+			clk[i].step = 0l;
+			clk[i].length = 0l;
 			ratiosDoubled[i] = 0l;
 			newRatiosDoubled[i] = 0l;
 			swingVal[i] = SWING_PARAM_INIT_VALUE;
@@ -257,10 +239,10 @@ struct Clocked : Module {
 
 		// Ratio knobs
 		bool syncRatios[4] = {false, false, false, false};// 0 index unused
-		for (int i = 1; i < 4; i++) {
+		for (int i = 0; i < 4; i++) {
 			newRatiosDoubled[i] = getRatioDoubled(i);
 			if (newRatiosDoubled[i] != ratiosDoubled[i]) {
-				syncRatios[i] = true;
+				syncRatios[i] = true;// 0 index not used, but loop must start at i = 0
 			}
 		}
 		
@@ -279,11 +261,11 @@ struct Clocked : Module {
 		
 		// Clock
 		if (running) {
-			// master clock
+			// Note: the 0 step does not consume a sample step when runnnig, it's used to force length (re)computation
+			//       but the 0 step also shows inactive state.
+			// See if ratio knobs changed (or unitinialized)
 			if (clk[0].step == 0l) {
-				clk[0].length = (long) ((2l * sampleRate * 60l) / bpm);
-				clk[0].step = 1l;// the 0 step does not actually to consume a sample step, it is used to reset every double-period so that lengths can be re-computed
-				for (int i = 1; i < 4; i++) {// see if ratio knobs uninitialized or changed
+				for (int i = 0; i < 4; i++) {// must start at 0 for master also (get out of init value in onReset())
 					if (syncRatios[i]) {
 						clk[i].step = 0l;// force refresh of that sub-clock
 						ratiosDoubled[i] = newRatiosDoubled[i];
@@ -292,12 +274,15 @@ struct Clocked : Module {
 				}
 			}
 			// three sub-clocks
-			for (int i = 1; i < 4; i++) {
+			for (int i = 0; i < 4; i++) {
 				if (clk[i].step == 0l) {
-					if (ratiosDoubled[i] < 0l) // div (length = (2 * SR * 60 * (-ratioDoubled / 2)) / bpm)
+					
+					
+					
+					if (ratiosDoubled[i] < 0l) // div (length = (2 * SR) / ( (bpm / (-ratioDoubled / 2)) / 60 ))
 						clk[i].length = (long) ((sampleRate * 60l * -1l * ratiosDoubled[i]) / (bpm));
-					else // mult (length = (2 * SR * 60) / (bpm * ratioDoubled / 2)
-						clk[i].length = (long) ((4l * sampleRate * 60l) / (bpm * ratiosDoubled[i]));// TODO clock drift here compared to div
+					else // mult (length = (2 * SR) / ( (bpm * ratioDoubled / 2 ) / 60 ))
+						clk[i].length = (long) ((4l * sampleRate * 60l) / (bpm * ratiosDoubled[i]));
 					clk[i].step = 1l;// the 0 step does not actually to consume a sample step, it is used to reset every double-period so that lengths can be re-computed
 				}
 			}
@@ -309,7 +294,7 @@ struct Clocked : Module {
 			
 		// Clock outputs
 		for (int i = 0; i < 4; i++) {
-			outputs[CLK_OUTPUTS + i].value = (running && clk[i].clockHigh(swingVal[i], params[PW_PARAMS + i].value, sampleRate)) ? 10.0f : 0.0f;
+			outputs[CLK_OUTPUTS + i].value = (clk[i].clockHigh(swingVal[i], params[PW_PARAMS + i].value, sampleRate)) ? 10.0f : 0.0f;
 		}
 		
 		outputs[RESET_OUTPUT].value = (resetPulse.process(sampleTime) ? 10.0f : 0.0f);
@@ -329,14 +314,8 @@ struct Clocked : Module {
 
 		// incr/decr all counters related to step()
 		for (int i = 0; i < 4; i++) {
-			// steps
-			if (clk[i].step != 0) {
-				if (clk[i].step >= clk[i].length)
-					clk[i].step = 0l;
-				else 
-					clk[i].step++;
-			}
-			
+			// step clocks
+			clk[i].stepClock();
 			// swing info
 			if (swingInfo[i] > 0)
 				swingInfo[i]--;
