@@ -16,21 +16,35 @@
 
 
 struct Clock {
+	// the 0 step does not actually to consume a sample step, it is used to reset every double-period so that lengths can be re-computed
+	
 	long step;// 0 when stopped, [1 to 2*sampleRate] for clock steps (*2 is because of swing, so we do groups of 2 periods)
 	long length;// double period. Dependant of step, irrelevant values when a step is 0
+	long iterations;// run this many double periods before applying remainder and then falling into reset
+	long remainder;// number of sampleRate steps to correct for rounding when reach end of length at prescribed # of iterations
 	
-	
-	bool clockHigh(float swing, float pulseWidth, long sampleRate) {
+	bool isClockHigh(float swing, float pulseWidth, long sampleRate) {
 		bool high = false;
 		if ( (step > 0l && step < length / 4l) || (step > length / 2l && step < (length * 3l) / 4l) )
 			high = true;
 		return high;
 	}
 	
+	inline void resetClock() {
+		step = 0l;
+	}
+	inline bool isClockReset() {
+		return step == 0l;
+	}
+	
+	inline void startClock() {
+		step = 1l;
+	}
+	
 	void stepClock() {// here the clock was output on step "step", called at end of module::step()
 		if (step != 0l) {
 			if (step >= length)
-				step = 0l;
+				step = 0l; // fall into reset to allow ratio knobs resynching, will not consume a real step
 			else 
 				step++;
 		}
@@ -147,8 +161,7 @@ struct Clocked : Module {
 		running = false;
 		bpm = -1.0f;// unseen
 		for (int i = 0; i < 4; i++) {
-			clk[i].step = 0l;
-			clk[i].length = 0l;
+			clk[i].resetClock();
 			ratiosDoubled[i] = 0l;
 			newRatiosDoubled[i] = 0l;
 			swingVal[i] = SWING_PARAM_INIT_VALUE;
@@ -212,10 +225,9 @@ struct Clocked : Module {
 		// Run button
 		if (runTrigger.process(params[RUN_PARAM].value + inputs[RUN_INPUT].value)) {
 			running = !running;
-			if (running) {
-				for (int i = 0; i < 4; i++) {
-					clk[i].step = 0l;
-				}
+			// reset on any change of run state (will not relaunch if not running, thus clock railed low)
+			for (int i = 0; i < 4; i++) {
+				clk[i].resetClock();
 			}
 			runPulse.trigger(0.001f);
 		}
@@ -225,7 +237,7 @@ struct Clocked : Module {
 			resetLight = 1.0f;
 			resetPulse.trigger(0.001f);
 			for (int i = 0; i < 4; i++) {
-				clk[i].step = 0l;
+				clk[i].resetClock();
 			}
 		}
 		else
@@ -262,28 +274,36 @@ struct Clocked : Module {
 		// Clock
 		if (running) {
 			// Note: the 0 step does not consume a sample step when runnnig, it's used to force length (re)computation
-			//       but the 0 step also shows inactive state.
+			//       and will stay at 0 when a clock is inactive.
 			// See if ratio knobs changed (or unitinialized)
-			if (clk[0].step == 0l) {
+			if (clk[0].isClockReset()) {
 				for (int i = 0; i < 4; i++) {// must start at 0 for master also (get out of init value in onReset())
-					if (syncRatios[i]) {
-						clk[i].step = 0l;// force refresh of that sub-clock
+					if (syncRatios[i]) {// always false for master
+						clk[i].resetClock();// force reset (thus refresh) of that sub-clock
 						ratiosDoubled[i] = newRatiosDoubled[i];
 						syncRatios[i] = false;	
 					}
 				}
 			}
-			// three sub-clocks
+			// See if clocks done their prescribed number of iteratios of double periods and their remainder (or were forced reset)
+			//    and if so, recalc and restart them
 			for (int i = 0; i < 4; i++) {
-				if (clk[i].step == 0l) {
+				if (clk[i].isClockReset()) {
+					long numerator, denominator;				
+					if (ratiosDoubled[i] < 0l) { // if div 
+						// length = (2 * SR) / ( (bpm / (-ratioDoubled / 2)) / 60 )
+						numerator   = sampleRate * 60l * -1l * ratiosDoubled[i];
+						denominator = bpm;
+					}
+					else {// mult 
+						// length = (2 * SR) / ( (bpm * ratioDoubled / 2 ) / 60 )
+						numerator   = 4l * sampleRate * 60l;
+						denominator = bpm * ratiosDoubled[i];
+					}
+					clk[i].length = numerator / denominator;
+					clk[i].remainder = numerator % denominator;// TODO not good, should depend on iterations (which should be calc)
 					
-					
-					
-					if (ratiosDoubled[i] < 0l) // div (length = (2 * SR) / ( (bpm / (-ratioDoubled / 2)) / 60 ))
-						clk[i].length = (long) ((sampleRate * 60l * -1l * ratiosDoubled[i]) / (bpm));
-					else // mult (length = (2 * SR) / ( (bpm * ratioDoubled / 2 ) / 60 ))
-						clk[i].length = (long) ((4l * sampleRate * 60l) / (bpm * ratiosDoubled[i]));
-					clk[i].step = 1l;// the 0 step does not actually to consume a sample step, it is used to reset every double-period so that lengths can be re-computed
+					clk[i].startClock();
 				}
 			}
 		}
@@ -294,7 +314,7 @@ struct Clocked : Module {
 			
 		// Clock outputs
 		for (int i = 0; i < 4; i++) {
-			outputs[CLK_OUTPUTS + i].value = (clk[i].clockHigh(swingVal[i], params[PW_PARAMS + i].value, sampleRate)) ? 10.0f : 0.0f;
+			outputs[CLK_OUTPUTS + i].value = clk[i].isClockHigh(swingVal[i], params[PW_PARAMS + i].value, sampleRate) ? 10.0f : 0.0f;
 		}
 		
 		outputs[RESET_OUTPUT].value = (resetPulse.process(sampleTime) ? 10.0f : 0.0f);
