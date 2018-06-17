@@ -466,7 +466,7 @@ struct GateSeq64 : Module {
 						phrases += deltaKnob;
 						if (phrases > 16) phrases = 16;
 						if (phrases < 1 ) phrases = 1;
-						if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
+						//if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
 					}
 				}
 				else if (displayState == DISP_ROW_SEL) {
@@ -592,7 +592,7 @@ struct GateSeq64 : Module {
 						phrases = col + 1;
 						if (phrases > 16) phrases = 16;
 						if (phrases < 1 ) phrases = 1;
-						if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
+						//if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;// Commented for full edit capabilities
 						revertDisplay = (long) (revertDisplayTime * engineGetSampleRate());
 					}
 					else if (displayState == DISP_MODES) {
@@ -602,8 +602,8 @@ struct GateSeq64 : Module {
 					else {
 						if (!running) {
 							phraseIndexEdit = stepPressed - 48;
-							if (phraseIndexEdit >= phrases)
-								phraseIndexEdit = phrases - 1;
+							//if (phraseIndexEdit >= phrases)// Commented for full edit capabilities
+								//phraseIndexEdit = phrases - 1;// Commented for full edit capabilities
 						}
 					}
 				}

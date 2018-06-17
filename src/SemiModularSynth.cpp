@@ -737,7 +737,7 @@ struct SemiModularSynth : Module {
 					phrases += delta;
 					if (phrases > 16) phrases = 16;
 					if (phrases < 1 ) phrases = 1;
-					if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
+					//if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;// Commented for full edit capabilities
 				}
 			}
 			else {
@@ -753,7 +753,7 @@ struct SemiModularSynth : Module {
 						}
 					}
 					else
-						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, phrases);
+						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, 16);//phrases);// Commented for full edit capabilities
 				}
 			}
 		}

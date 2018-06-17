@@ -689,7 +689,7 @@ struct PhraseSeq32 : Module {
 					phrases += delta;
 					if (phrases > 32) phrases = 32;
 					if (phrases < 1 ) phrases = 1;
-					if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
+					//if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;// Commented for full edit capabilities
 				}
 			}
 			else {
@@ -717,7 +717,7 @@ struct PhraseSeq32 : Module {
 						}
 					}
 					else
-						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, phrases);
+						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, 32);//phrases);// Commented for full edit capabilities
 				}
 			}
 		}
@@ -737,7 +737,7 @@ struct PhraseSeq32 : Module {
 				}
 				else {
 					phrases = stepPressed + 1;
-					if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
+					//if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;// Commented for full edit capabilities
 				}
 				revertDisplay = (long) (revertDisplayTime * engineGetSampleRate());
 			}
@@ -756,8 +756,8 @@ struct PhraseSeq32 : Module {
 					}
 					else {
 						phraseIndexEdit = stepPressed;
-						if (phraseIndexEdit >= phrases)
-							phraseIndexEdit = phrases - 1;
+						//if (phraseIndexEdit >= phrases)// Commented for full edit capabilities
+							//phraseIndexEdit = phrases - 1;// Commented for full edit capabilities
 					}
 				}
 				else {// attached and running
@@ -831,7 +831,7 @@ struct PhraseSeq32 : Module {
 						phrases += deltaKnob;
 						if (phrases > 32) phrases = 32;
 						if (phrases < 1 ) phrases = 1;
-						if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;
+						//if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;// Commented for full edit capabilities
 					}
 				}
 				else if (displayState == DISP_TRANSPOSE) {
