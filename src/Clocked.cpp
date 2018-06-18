@@ -289,32 +289,39 @@ struct Clocked : Module {
 			//    and if so, recalc and restart them
 			//Master clock
 			if (clk[0].isClockReset()) {
-				//length = (2 * SR) / ( bpm / 60 )
-				clk[0].length = 120l * sampleRate / bpm;
+				clk[0].length = (120l * sampleRate) / bpm;// same as: (2 * SR) / ( bpm / 60 )
 				clk[0].remainder = 0l;
 				clk[0].iterations = 1l;
+				clk[0].startClock();
 			}
 			// Sub clocks
 			for (int i = 1; i < 4; i++) {
 				if (clk[i].isClockReset()) {
 					long ratioDoubled = ratiosDoubled[i];
+					// TODO : optimize code below 
 					if (ratioDoubled < 0l) { // if div 
 						ratioDoubled *= -1l;
-						clk[i].length    = (clk[0].length * ratioDoubled) / 2l;
-						clk[i].remainder = (clk[0].length * ratioDoubled) % 2l;
-						clk[i].iterations = ratioDoubled / 2l;						
-						if (ratioDoubled % 2l == 1l) {
-							clk[i].remainder *= 3l;// TODO should be *2 + 1
-							clk[i].iterations *= 3l;// TODO should be *2 + 1
+						if ((ratioDoubled % 2l) == 0l) {// if even ratioDoubled
+							clk[i].length = (clk[0].length * ratioDoubled) / 2l;
+							clk[i].iterations = 1l;						
+							clk[i].remainder = 0l;	
+						}
+						else { // odd ratioDoubled
+							clk[i].length = (clk[0].length * ratioDoubled) / 2l;// at most 1 step lost
+							clk[i].iterations = 2l;						
+							clk[i].remainder = (clk[0].length * ratioDoubled) % 2l;// get the potential lost step back	
 						}
 					}
 					else {// mult 
-						clk[i].length    = (clk[0].length * 2l) / ratioDoubled;
-						clk[i].remainder = (clk[0].length * 2l) % ratioDoubled;
-						clk[i].iterations = ratioDoubled / 2l;						
-						if (ratioDoubled % 2l == 1l) {
-							clk[i].remainder *= 2l;
-							clk[i].iterations *= 2l;
+						if ((ratioDoubled % 2l) == 0l) {// if even ratioDoubled
+							clk[i].length = (clk[0].length * 2l) / ratioDoubled;
+							clk[i].iterations = (ratioDoubled / 2l);						
+							clk[i].remainder = (clk[0].length * 2l) % ratioDoubled;
+						}
+						else { // odd ratioDoubled
+							clk[i].length = (clk[0].length * 2l) / ratioDoubled;
+							clk[i].iterations = ratioDoubled;						
+							clk[i].remainder = (clk[0].length * 2l) % ratioDoubled;
 						}
 					}
 					clk[i].startClock();
