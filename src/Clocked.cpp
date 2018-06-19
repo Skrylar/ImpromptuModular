@@ -32,7 +32,7 @@ class Clock {
 		// last 0.5ms must be low so that sync mechanism will work properly (i.e. no missed pulses)
 		//   this will automatically be the case, since code below disallows any pulses or inter-pulse times less than 1ms
 		bool high = false;
-		if (step > 0.0d) {
+		if (step > 0.0) {
 			float swParam = swing;// swing is [-1 : 1]
 			swParam *= (swParam * (swParam > 0.0f ? 1.0f : -1.0f));// non-linear behavior for more sensitivity at center: f(x) = x^2 * sign(x)
 			
@@ -62,10 +62,10 @@ class Clock {
 	}
 	
 	inline void resetClock() {
-		step = 0.0d;
+		step = 0.0;
 	}
 	inline bool isClockReset() {
-		return step == 0.0d;
+		return step == 0.0;
 	}
 	
 	inline void setup(double lengthGiven, int iterationsGiven) {
@@ -78,7 +78,7 @@ class Clock {
 	}
 	
 	void stepClock(double sampleTime) {// here the clock was output on step "step", this function is called at end of module::step()
-		if (step > 0.0d) {// if active clock
+		if (step > 0.0) {// if active clock
 			if (syncSrc != nullptr && iterations == 1 && step >= (length - guard)) {// if in sync region
 				if (syncSrc->isClockReset())
 					resetClock();// reset
@@ -285,13 +285,13 @@ struct Clocked : Module {
 	}
 
 	inline double calcMasterLength(int givenBpm) {// length in seconds
-		return 120.0d / (double)givenBpm;// same as: (2 * 1 / bps)   =   (2 * 1 / ( bpm / 60 ))
+		return 120.0 / (double)givenBpm;// same as: (2 * 1 / bps)   =   (2 * 1 / ( bpm / 60 ))
 	}
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
 		double sampleRate = (double)engineGetSampleRate();
-		double sampleTime = 1.0d / sampleRate;// do this here since engineGetSampleRate() returns float
+		double sampleTime = 1.0 / sampleRate;// do this here since engineGetSampleRate() returns float
 		
 		static const float swingInfoTime = 1.7f;// seconds
 		long swingInfoInit = (long) (swingInfoTime * (float)sampleRate);
@@ -381,12 +381,12 @@ struct Clocked : Module {
 					int ratioDoubled = ratiosDoubled[i];
 					if (ratioDoubled < 0) { // if div 
 						ratioDoubled *= -1;
-						length = (masterLength * ((double)ratioDoubled)) / 2.0d;
+						length = (masterLength * ((double)ratioDoubled)) / 2.0;
 						iterations = 1l + (ratioDoubled % 2);		
 						clk[i].setup(length, iterations);
 					}
 					else {// mult 
-						length = (masterLength * 2.0d) / ((double)ratioDoubled);
+						length = (masterLength * 2.0) / ((double)ratioDoubled);
 						iterations = ratioDoubled / (2l - (ratioDoubled % 2l));							
 						clk[i].setup(length, iterations);
 					}
