@@ -15,14 +15,18 @@
 #include "dsp/digital.hpp"
 
 
-struct Clock {
+class Clock {
 	// the 0.0d step does not actually to consume a sample step, it is used to reset every double-period so that lengths can be re-computed
 	// a clock frame is defined as "length * iterations + syncWait";
 	// for master, syncWait does not apply and iterations = 1
 	
 	double step;// 0.0d when stopped, [sampleTime to 2*period] for clock steps (*2 is because of swing, so we do groups of 2 periods)
-	double length;// double period. Dependant of step, irrelevant values when a step is 0
-	int iterations;// run this many double periods before going into sync 
+	double length;// double period
+	int iterations;// run this many double periods before going into sync if sub-clock
+	Clock* syncSrc = nullptr; // only subclocks will have this set to master clock
+	static constexpr double guard = 0.0005;// in seconds, region for sync to occur right before end of length of last iteration; sub clocks must be low during this period
+	
+	public:
 	
 	/*float calcClock(Clock* clk, int clkIndex, float sampleRate) {
 		// uses steps[], lengths[], swingVal[], params[PW_PARAMS + i].value
@@ -51,11 +55,39 @@ struct Clock {
 		}
 		return ret;
 	}*/
+	
 	bool isClockHigh(float swing, float pulseWidth) {
+		// last 0.5ms must be low so that sync mechanism will work properly (i.e. no missed pulses)
 		bool high = false;
-		if ( (step > 0.0d && step <= (length * 0.25d)) || (step > (length * 0.5d) && step <= (length * 0.75d)) )
-			high = true;
+		if (step > 0.0d) {
+			float swParam = swing;
+			swParam *= (swParam * (swParam > 0.0f ? 1.0f : -1.0f));// non-linear behavior for more sensitivity at center: f(x) = x^2 * sign(x)
+			
+			// all following values are in seconds
+			float onems = 0.001f;
+			float period = (float)length / 2.0f;
+			float swing = (period - 2.0f * onems) * swParam;
+			float p2min = onems;
+			float p2max = period - onems - fabs(swing);
+			if (p2max < p2min) {
+				p2max = p2min;
+			}
+			
+			//double p1 = sampleTime;// implicit, no need 
+			double p2 = (double)((p2max - p2min) * pulseWidth + p2min);
+			double p3 = (double)(period + swing);
+			double p4 = ((double)(period + swing)) + p2;
+			
+			//info("*** p2 = %f, p3 = %f, p4 = %f ***", p2, p3, p4);
+		
+			if ( (step <= p2) || ((step > p3) && (step <= p4)) )
+				high = true;
+		}
 		return high;
+	}
+	
+	void setSync(Clock* clkGiven) {
+		syncSrc = clkGiven;
 	}
 	
 	inline void resetClock() {
@@ -74,36 +106,37 @@ struct Clock {
 		step = sampleTime;
 	}
 	
-	void stepClock(double sampleTime) {// here the clock was output on step "step", this function is called at end of module::step()
+	void stepClock(double sampleTime, int idDebug) {// here the clock was output on step "step", this function is called at end of module::step()
+		// TODO remove idDebug
 		if (step > 0.0d) {// if active clock
-			if (iterations > 0) {
-				if (step >= length) {// reached end iteration
-					iterations--;
-					if (iterations > 0) {
-						startClock(sampleTime);
-					}
-					else {
-						/*if (remainder > 0l) {
-							remainder--;
-							step++;
-						}
-						else*/ 
-							resetClock();// frame done
-					}
+			if (syncSrc != nullptr && iterations == 1 && step >= (length - guard)) {// if in sync region
+				if (syncSrc->isClockReset()) {
+					info("***** GOT SYNC on %i *****", idDebug);
+					resetClock();// reset
 				}
 				else
-					step += sampleTime;
+					step += sampleTime;// wait for sync
 			}
-			else {// iterations == 0
-				/*if (remainder > 0l) {
-					remainder--;
-					step++;
+			else {
+				if (iterations > 0) {
+					if (step >= length) {// reached end iteration
+						iterations--;
+						if (iterations > 0) {
+							startClock(sampleTime);
+						}
+						else {
+							resetClock();// frame done
+						}
+					}
+					else
+						step += sampleTime;
 				}
-				else */
+				else {
 					resetClock();// frame done
+				}
 			}
 		}
-	}
+	}	
 	
 	void applyNewLength(double lengthStretchFactor) {// delta length as calculated for the main clock (in step steps)
 		// scale all, naive version for now
@@ -214,8 +247,12 @@ struct Clocked : Module {
 	
 
 	Clocked() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		for (int i = 0; i < numRatios; i++)
+		for (int i = 0; i < numRatios; i++) {
 			ratioValuesDoubled[i] = (int) (ratioValues[i] * 2.0f + 0.5f);
+		}
+		for (int i = 0; i < 4; i++) {
+			clk[i].setSync(i == 0 ? nullptr : &clk[0]);
+		}
 		onReset();
 	}
 	
@@ -369,8 +406,9 @@ struct Clocked : Module {
 			// See if clocks finished their prescribed number of iteratios of double periods (and syncWait for sub) or were forced reset
 			//    and if so, recalc and restart them
 			//Master clock
+			double masterLength = calcMasterLength(bpm);
 			if (clk[0].isClockReset()) {
-				clk[0].setup(calcMasterLength(bpm), 1);
+				clk[0].setup(masterLength, 1);
 				clk[0].startClock(sampleTime);
 			}
 			// Sub clocks
@@ -381,12 +419,12 @@ struct Clocked : Module {
 					int ratioDoubled = ratiosDoubled[i];
 					if (ratioDoubled < 0) { // if div 
 						ratioDoubled *= -1;
-						length = (clk[0].length * ((double)ratioDoubled)) / 2.0d;
+						length = (masterLength * ((double)ratioDoubled)) / 2.0d;
 						iterations = 1l + (ratioDoubled % 2);		
 						clk[i].setup(length, iterations);
 					}
 					else {// mult 
-						length = (clk[0].length * 2.0d) / ((double)ratioDoubled);
+						length = (masterLength * 2.0d) / ((double)ratioDoubled);
 						iterations = ratioDoubled / (2l - (ratioDoubled % 2l));							
 						clk[i].setup(length, iterations);
 					}
@@ -422,7 +460,7 @@ struct Clocked : Module {
 		// incr/decr all counters related to step()
 		for (int i = 0; i < 4; i++) {
 			// step clocks
-			clk[i].stepClock(sampleTime);
+			clk[i].stepClock(sampleTime, i);
 			// swing info
 			if (swingInfo[i] > 0)
 				swingInfo[i]--;
