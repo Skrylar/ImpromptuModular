@@ -28,39 +28,12 @@ class Clock {
 	
 	public:
 	
-	/*float calcClock(Clock* clk, int clkIndex, float sampleRate) {
-		// uses steps[], lengths[], swingVal[], params[PW_PARAMS + i].value
-		float ret = 0.0f;
-		
-		if (clk[clkIndex].steps > 0) {
-			float swParam = swingVal[clkIndex];
-			swParam *= (swParam * (swParam > 0.0f ? 1.0f : -1.0f));// non-linear behavior for more sensitivity at center: f(x) = x^2 * sign(x)
-			
-			// all following values are in samples numbers, whether long or float
-			float onems = sampleRate / 1000.0f;
-			float period = ((float)clk[clkIndex].lengths) / 2.0f;
-			float swing = (period - 2.0f * onems) * swParam;
-			float p2min = onems;
-			float p2max = period - onems - fabs(swing);
-			if (p2max < p2min) {
-				p2max = p2min;
-			}
-			
-			//long p1 = 1;// implicit, no need 
-			long p2 = (long)((p2max - p2min) * params[PW_PARAMS + clkIndex].value + p2min);
-			long p3 = (long)(period + swing);
-			long p4 = ((long)(period + swing)) + p2;
-			
-			ret = ( ((clk[clkIndex].steps < p2)) || ((clk[clkIndex].steps < p4) && (clk[clkIndex].steps > p3)) ) ? 10.0f : 0.0f;
-		}
-		return ret;
-	}*/
-	
 	bool isClockHigh(float swing, float pulseWidth) {
 		// last 0.5ms must be low so that sync mechanism will work properly (i.e. no missed pulses)
+		//   this will automatically be the case, since code below disallows any pulses or inter-pulse times less than 1ms
 		bool high = false;
 		if (step > 0.0d) {
-			float swParam = swing;
+			float swParam = swing;// swing is [-1 : 1]
 			swParam *= (swParam * (swParam > 0.0f ? 1.0f : -1.0f));// non-linear behavior for more sensitivity at center: f(x) = x^2 * sign(x)
 			
 			// all following values are in seconds
@@ -74,12 +47,10 @@ class Clock {
 			}
 			
 			//double p1 = sampleTime;// implicit, no need 
-			double p2 = (double)((p2max - p2min) * pulseWidth + p2min);
+			double p2 = (double)((p2max - p2min) * pulseWidth + p2min);// pulseWidth is [0 : 1]
 			double p3 = (double)(period + swing);
 			double p4 = ((double)(period + swing)) + p2;
 			
-			//info("*** p2 = %f, p3 = %f, p4 = %f ***", p2, p3, p4);
-		
 			if ( (step <= p2) || ((step > p3) && (step <= p4)) )
 				high = true;
 		}
@@ -106,14 +77,11 @@ class Clock {
 		step = sampleTime;
 	}
 	
-	void stepClock(double sampleTime, int idDebug) {// here the clock was output on step "step", this function is called at end of module::step()
-		// TODO remove idDebug
+	void stepClock(double sampleTime) {// here the clock was output on step "step", this function is called at end of module::step()
 		if (step > 0.0d) {// if active clock
 			if (syncSrc != nullptr && iterations == 1 && step >= (length - guard)) {// if in sync region
-				if (syncSrc->isClockReset()) {
-					info("***** GOT SYNC on %i *****", idDebug);
+				if (syncSrc->isClockReset())
 					resetClock();// reset
-				}
 				else
 					step += sampleTime;// wait for sync
 			}
@@ -121,19 +89,16 @@ class Clock {
 				if (iterations > 0) {
 					if (step >= length) {// reached end iteration
 						iterations--;
-						if (iterations > 0) {
+						if (iterations > 0)
 							startClock(sampleTime);
-						}
-						else {
+						else
 							resetClock();// frame done
-						}
 					}
 					else
 						step += sampleTime;
 				}
-				else {
+				else
 					resetClock();// frame done
-				}
 			}
 		}
 	}	
@@ -386,9 +351,6 @@ struct Clocked : Module {
 		
 		// Clock
 		if (running) {
-			
-			//if (clk[0].isClockReset() && clk[1].isClockReset()) info("**** SYNC 0 vs 1 ****");// TODO remove this line
-			
 			// Note: the 0.0d step does not consume a sample step when runnnig, it's used to force length (re)computation
 			//       and will stay at 0.0d when a clock is inactive.
 			
@@ -460,7 +422,7 @@ struct Clocked : Module {
 		// incr/decr all counters related to step()
 		for (int i = 0; i < 4; i++) {
 			// step clocks
-			clk[i].stepClock(sampleTime, i);
+			clk[i].stepClock(sampleTime);
 			// swing info
 			if (swingInfo[i] > 0)
 				swingInfo[i]--;
