@@ -24,7 +24,7 @@ class Clock {
 	double length;// double period
 	int iterations;// run this many double periods before going into sync if sub-clock
 	Clock* syncSrc = nullptr; // only subclocks will have this set to master clock
-	static constexpr double guard = 0.0005;// in seconds, region for sync to occur right before end of length of last iteration; sub clocks must be low during this period
+	static constexpr double guard = 0.0015;// in seconds, region for sync to occur right before end of length of last iteration; sub clocks must be low during this period
 	
 	public:
 	
@@ -77,31 +77,33 @@ class Clock {
 		step = sampleTime;
 	}
 	
-	void stepClock(double sampleTime) {// here the clock was output on step "step", this function is called at end of module::step()
+	void stepClock(double sampleTime, int i) {// here the clock was output on step "step", this function is called at end of module::step()
 		if (step > 0.0) {// if active clock
-			if (syncSrc != nullptr && iterations == 1 && step >= (length - guard)) {// if in sync region
-				if (syncSrc->isClockReset())
+			if ( (syncSrc != nullptr) && (iterations == 1) && (step > (length - guard)) ) {// if in sync region
+				if (syncSrc->isClockReset()) {// else nothing needs to be done, just wait and step stays the same
+					//if (i == 2) info("       **** FOUND SYNC clk2, step = %f, length = %f ****", step, length);
 					resetClock();// reset
+				}
 				else
-					step += sampleTime;// wait for sync
+					step += sampleTime;
 			}
 			else {
 				if (iterations > 0) {
-					if (step >= length) {// reached end iteration
+					if (step > length) {// reached end iteration
+						//if (i == 0) info("**** END OF iteration %i, step = %.15f, length = %.15f, ST = %.15f ****", iterations, step, length, sampleTime);
 						iterations--;
 						if (iterations > 0)
-							startClock(sampleTime);
-						else
+							step -= length;//startClock(sampleTime);
+						else {
 							resetClock();// frame done
+						}
 					}
 					else
 						step += sampleTime;
 				}
-				else
-					resetClock();// frame done
 			}
 		}
-	}	
+	}
 	
 	void applyNewLength(double lengthStretchFactor) {// delta length as calculated for the main clock (in step steps)
 		// scale all, naive version for now
@@ -367,7 +369,7 @@ struct Clocked : Module {
 			
 			// See if clocks finished their prescribed number of iteratios of double periods (and syncWait for sub) or were forced reset
 			//    and if so, recalc and restart them
-			//Master clock
+			//Master clock			
 			double masterLength = calcMasterLength(bpm);
 			if (clk[0].isClockReset()) {
 				clk[0].setup(masterLength, 1);
@@ -422,7 +424,7 @@ struct Clocked : Module {
 		// incr/decr all counters related to step()
 		for (int i = 0; i < 4; i++) {
 			// step clocks
-			clk[i].stepClock(sampleTime);
+			clk[i].stepClock(sampleTime, i);
 			// swing info
 			if (swingInfo[i] > 0)
 				swingInfo[i]--;
