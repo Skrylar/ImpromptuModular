@@ -148,7 +148,7 @@ class ClockDelay {
 			}
 		}
 		
-		if (readHead > 0 && readHead < maxSamples) {
+		if (readHead >= 0 && readHead < maxSamples) {
 			long bufIndex = readHead / entrySize;
 			uint64_t mask = ((uint64_t)1) << (uint64_t)(readHead % entrySize);
 			ret = ((buffer[bufIndex] & mask) != 0);
