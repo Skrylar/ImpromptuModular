@@ -22,9 +22,10 @@ class Clock {
 	
 	double step;// 0.0d when stopped, [sampleTime to 2*period] for clock steps (*2 is because of swing, so we do groups of 2 periods)
 	double length;// double period
+	double sampleTime;
 	int iterations;// run this many double periods before going into sync if sub-clock
 	Clock* syncSrc = nullptr; // only subclocks will have this set to master clock
-	static constexpr double guard = 0.0015;// in seconds, region for sync to occur right before end of length of last iteration; sub clocks must be low during this period
+	static constexpr double guard = 0.0005;// in seconds, region for sync to occur right before end of length of last iteration; sub clocks must be low during this period
 	
 	public:
 	
@@ -68,45 +69,36 @@ class Clock {
 		return step == 0.0;
 	}
 	
-	inline void setup(double lengthGiven, int iterationsGiven) {
+	inline void setup(double lengthGiven, int iterationsGiven, double sampleTimeGiven) {
 		length = lengthGiven;
 		iterations = iterationsGiven;
+		sampleTime = sampleTimeGiven;
 	}
 	
-	inline void startClock(double sampleTime) {
+	inline void startClock() {
 		step = sampleTime;
 	}
 	
-	void stepClock(double sampleTime, int i) {// here the clock was output on step "step", this function is called at end of module::step()
+	void stepClock() {// here the clock was output on step "step", this function is called at end of module::step()
 		if (step > 0.0) {// if active clock
+			step += sampleTime;
 			if ( (syncSrc != nullptr) && (iterations == 1) && (step > (length - guard)) ) {// if in sync region
-				if (syncSrc->isClockReset()) {// else nothing needs to be done, just wait and step stays the same
-					//if (i == 2) info("       **** FOUND SYNC clk2, step = %f, length = %f ****", step, length);
+				if (syncSrc->isClockReset()) {
 					resetClock();// reset
-				}
-				else
-					step += sampleTime;
+				}// else nothing needs to be done, just wait and step stays the same
 			}
 			else {
-				if (iterations > 0) {
-					if (step > length) {// reached end iteration
-						//if (i == 0) info("**** END OF iteration %i, step = %.15f, length = %.15f, ST = %.15f ****", iterations, step, length, sampleTime);
-						iterations--;
-						if (iterations > 0)
-							step -= length;//startClock(sampleTime);
-						else {
-							resetClock();// frame done
-						}
-					}
-					else
-						step += sampleTime;
+				if (step > length) {// reached end iteration
+					iterations--;
+					step -= length;
+					if (iterations <= 0) 
+						resetClock();// frame done
 				}
 			}
 		}
 	}
 	
-	void applyNewLength(double lengthStretchFactor) {// delta length as calculated for the main clock (in step steps)
-		// scale all, naive version for now
+	void applyNewLength(double lengthStretchFactor) {
 		step *= lengthStretchFactor;
 		length *= lengthStretchFactor;
 	}
@@ -372,8 +364,8 @@ struct Clocked : Module {
 			//Master clock			
 			double masterLength = calcMasterLength(bpm);
 			if (clk[0].isClockReset()) {
-				clk[0].setup(masterLength, 1);
-				clk[0].startClock(sampleTime);
+				clk[0].setup(masterLength, 1, sampleTime);// must call setup before start
+				clk[0].startClock();
 			}
 			// Sub clocks
 			for (int i = 1; i < 4; i++) {
@@ -385,14 +377,14 @@ struct Clocked : Module {
 						ratioDoubled *= -1;
 						length = (masterLength * ((double)ratioDoubled)) / 2.0;
 						iterations = 1l + (ratioDoubled % 2);		
-						clk[i].setup(length, iterations);
+						clk[i].setup(length, iterations, sampleTime);
 					}
 					else {// mult 
 						length = (masterLength * 2.0) / ((double)ratioDoubled);
 						iterations = ratioDoubled / (2l - (ratioDoubled % 2l));							
-						clk[i].setup(length, iterations);
+						clk[i].setup(length, iterations, sampleTime);
 					}
-					clk[i].startClock(sampleTime);
+					clk[i].startClock();
 				}
 			}
 		}
@@ -421,11 +413,9 @@ struct Clocked : Module {
 			lights[CLK_LIGHTS + i].value = (syncRatios[i] && running) ? 1.0f: 0.0f;
 		}
 
-		// incr/decr all counters related to step()
+		// Incr/decr all counters related to step()
 		for (int i = 0; i < 4; i++) {
-			// step clocks
-			clk[i].stepClock(sampleTime, i);
-			// swing info
+			clk[i].stepClock();
 			if (swingInfo[i] > 0)
 				swingInfo[i]--;
 		}
