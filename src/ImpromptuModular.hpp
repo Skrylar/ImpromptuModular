@@ -166,12 +166,17 @@ struct IMSmallKnob : IMKnob {
 	}
 };
 
-struct IMFivePosSmallKnob : IMSmallKnob {
+struct IMSmallSnapKnob : IMSmallKnob {
+	IMSmallSnapKnob() {
+		snap = true;
+		smooth = false;
+	}
+};
+
+struct IMFivePosSmallKnob : IMSmallSnapKnob {
 	IMFivePosSmallKnob() {
 		minAngle = -0.5*M_PI;
 		maxAngle = 0.5*M_PI;
-		snap = true;
-		smooth = false;
 	}
 };
 

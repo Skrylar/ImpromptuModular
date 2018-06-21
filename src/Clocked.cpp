@@ -106,15 +106,13 @@ class Clock {
 
 
 class ClockDelay {
-	static const long maxSamples = 576000;// @ 10 BPM period is 6s, thus need at most 3s @ 192000 kHz = 576000 samples
+	static const long maxSamples = 192000;// @ 30 BPM period is 2s, thus need at most 1s @ 192000 kHz = 192000 samples
 	static const long entrySize = 64;
-	static const long bufSize = 576000 / entrySize;// = 9000 with 64 per uint64_t 
+	static const long bufSize = maxSamples / entrySize;// = 3000 with 64 per uint64_t 
 	uint64_t buffer[bufSize];
 	
-	long writeHead;// in samples, thus range is [0; 576000-1]
-	
+	long writeHead;// in samples, thus range is [0; maxSamples-1]
 	bool finishedOnePass;
-	
 	
 	public:
 	
@@ -195,7 +193,7 @@ struct Clocked : Module {
 	
 	// Delay info
 	static const int numDelays = 6;
-	float delayValues[numDelays] = {0, 0.5, 1.0f/3.0f, 0.25, 0.125, 0.0625};// all fractions must be <= 0.5 or else delay buffer will overrun in worst case (192kHz, 10BPM)
+	float delayValues[numDelays] = {0.0f, 0.5f, 1.0f/3.0f, 0.25f, 0.125f, 0.0625f};// all fractions must be <= 0.5 or else delay buffer will overrun in worst case (192kHz, 10BPM)
 
 	// Ratio info
 	static const int numRatios = 33;
@@ -204,8 +202,8 @@ struct Clocked : Module {
 	int ratioValuesDoubled[numRatios];// calculated only once in constructor
 
 	// BPM info
-	static const int bpmMax = 350;
-	static const int bpmMin = 10;
+	static const int bpmMax = 300;
+	static const int bpmMin = 30;
 	static const int bpmRange = bpmMax - bpmMin;
 		
 	// Knob utilities
@@ -270,6 +268,10 @@ struct Clocked : Module {
 	float swingLast[4];
 	long swingInfo[4];// downward step counter when swing to be displayed, 0 when normal display
 
+	static constexpr float DELAY_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget initialization, since module created before widget
+	float delayVal[4];
+	float delayLast[4];
+	long delayInfo[4];// downward step counter when delay to be displayed, 0 when normal display
 	
 	SchmittTrigger resetTrigger;
 	SchmittTrigger runTrigger;
@@ -301,6 +303,9 @@ struct Clocked : Module {
 			swingVal[i] = SWING_PARAM_INIT_VALUE;
 			swingLast[i] = swingVal[i];
 			swingInfo[i] = 0l;
+			delayVal[i] = DELAY_PARAM_INIT_VALUE;
+			delayLast[i] = delayVal[i];
+			delayInfo[i] = 0l;
 		}
 	}
 	
@@ -311,6 +316,8 @@ struct Clocked : Module {
 		for (int i = 0; i < 4; i++) {
 			swingVal[i] = params[SWING_PARAMS + i].value;// redo this since SWING_PARAM_INIT_VALUE of onReset() not valid
 			swingLast[i] = swingVal[i];
+			delayVal[i] = params[DELAY_PARAMS + i].value;// redo this since DELAY_PARAM_INIT_VALUE of onReset() not valid
+			delayLast[i] = delayVal[i];
 		}
 		bpm = getBeatsPerMinute();// redo this since BPM_PARAM_INIT_VALUE of onReset() not valid
 	}
@@ -346,15 +353,13 @@ struct Clocked : Module {
 		for (int i = 0; i < 4; i++) {
 			swingVal[i] = params[SWING_PARAMS + i].value;
 			swingLast[i] = swingVal[i];
+			delayVal[i] = params[DELAY_PARAMS + i].value;
+			delayLast[i] = delayVal[i];
 		}
 		
 		bpm = getBeatsPerMinute();
 	}
 
-	inline double calcMasterLength(int givenBpm) {// length in seconds
-		return 120.0 / (double)givenBpm;// same as: (2 * 1 / bps)   =   (2 * 1 / ( bpm / 60 ))
-	}
-	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
 		double sampleRate = (double)engineGetSampleRate();
@@ -405,26 +410,37 @@ struct Clocked : Module {
 			}
 		}
 		
-		// Swing changed (for swing info)
+		// Swing and delay changed (for swing info)
 		for (int i = 0; i < 4; i++) {
 			swingVal[i] = params[SWING_PARAMS + i].value;
 			if (swingLast[i] != swingVal[i]) {
 				swingInfo[i] = swingInfoInit;// trigger swing info on channel i
+				delayInfo[i] = 0l;
 				swingLast[i] = swingVal[i];
+			}
+			delayVal[i] = params[DELAY_PARAMS + i].value;
+			if (delayLast[i] != delayVal[i]) {
+				delayInfo[i] = swingInfoInit;// trigger delay info on channel i, use same init value as swing
+				swingInfo[i] = 0l;
+				delayLast[i] = delayVal[i];
 			}
 		}			
 
 		
 		
-		//********** Clock and Delay **********
+		//********** Clocks and Delays **********
 		
-		// Clock
+		// Clocks
 		if (running) {
+			// See if clocks finished their prescribed number of iteratios of double periods (and syncWait for sub) or were forced reset
+			//    and if so, recalc and restart them
 			// Note: the 0.0d step does not consume a sample step when runnnig, it's used to force length (re)computation
-			//       and will stay at 0.0d when a clock is inactive.
+			//     and will stay at 0.0d when a clock is inactive.
 			
-			// See if ratio knobs changed (or unitinialized)
+			// Master clock
+			double masterLength = 120.0 / (double)bpm;// two periods
 			if (clk[0].isReset()) {
+				// See if ratio knobs changed (or unitinialized)
 				for (int i = 1; i < 4; i++) {
 					if (syncRatios[i]) {// always false for master
 						clk[i].reset();// force reset (thus refresh) of that sub-clock
@@ -432,16 +448,10 @@ struct Clocked : Module {
 						syncRatios[i] = false;
 					}
 				}
-			}
-			
-			// See if clocks finished their prescribed number of iteratios of double periods (and syncWait for sub) or were forced reset
-			//    and if so, recalc and restart them
-			// Master clock			
-			double masterLength = calcMasterLength(bpm);
-			if (clk[0].isReset()) {
 				clk[0].setup(masterLength, 1, sampleTime);// must call setup before start
 				clk[0].start();
 			}
+			
 			// Sub clocks
 			for (int i = 1; i < 4; i++) {
 				if (clk[i].isReset()) {
@@ -464,9 +474,14 @@ struct Clocked : Module {
 			}
 		}
 			
-		// Delay
+		// Delays
 		for (int i = 0; i < 4; i++) {
-			delay[i].write(clk[i].isHigh(swingVal[i], params[PW_PARAMS + i].value));
+			float pulseWidth = params[PW_PARAMS + i].value;
+			if (i == 0 && inputs[PW_INPUTS + 0].active) {
+				pulseWidth += (inputs[PW_INPUTS + 0].value / 10.0f) - 0.5f;
+				pulseWidth = clamp(pulseWidth, 0.0f, 1.0f);
+			}
+			delay[i].write(clk[i].isHigh(swingVal[i], pulseWidth));
 		}
 		
 		
@@ -504,6 +519,8 @@ struct Clocked : Module {
 			clk[i].stepClock();
 			if (swingInfo[i] > 0)
 				swingInfo[i]--;
+			if (delayInfo[i] > 0)
+				delayInfo[i]--;
 		}
 	}
 };
@@ -533,12 +550,25 @@ struct ClockedWidget : ModuleWidget {
 			if (module->swingInfo[knobIndex] > 0)
 			{
 				float swValue = module->swingVal[knobIndex];
-				int swInt = (int)(swValue * 99.0f + 0.5f);
+				int swInt = (int)round(swValue * 99.0f);
 				snprintf(displayStr, 4, " %2u", (unsigned) abs(swInt));
 				if (swInt < 0)
 					displayStr[0] = '-';
 				if (swInt > 0)
 					displayStr[0] = '+';
+			}
+			else if (module->delayInfo[knobIndex] > 0)
+			{
+				float delValue = module->getDelayFraction(knobIndex);
+				if (delValue > 0.0001f) {
+					int delInt = (int)(1.0f / delValue + 0.5f);
+					if (delInt < 10)
+						snprintf(displayStr, 4, "1/%1u", (unsigned) delInt);
+					else
+						snprintf(displayStr, 4, "/%2u", (unsigned) delInt);
+				}
+				else 
+					snprintf(displayStr, 4, "  0");			
 			}
 			else {
 				if (knobIndex > 0) {// ratio to display
@@ -633,7 +663,7 @@ struct ClockedWidget : ModuleWidget {
 		static const int colRulerSpacingT = 47;
 		static const int colRulerT1 = colRulerL + colRulerSpacingT;// run input and button
 		static const int colRulerT2 = colRulerT1 + colRulerSpacingT;// in and pwMaster inputs
-		static const int colRulerT3 = colRulerT2 + colRulerSpacingT;// swingMaster knob
+		static const int colRulerT3 = colRulerT2 + colRulerSpacingT + 5;// swingMaster knob
 		static const int colRulerT4 = colRulerT3 + colRulerSpacingT;// pwMaster knob
 		static const int colRulerT5 = colRulerT4 + colRulerSpacingT;// clkMaster output
 		// Three clock rows
@@ -653,10 +683,10 @@ struct ClockedWidget : ModuleWidget {
 		// In input
 		addInput(createDynamicPort<IMPort>(Vec(colRulerT2, rowRuler0), Port::INPUT, module, Clocked::BPM_INPUT, &module->panelTheme));
 		// Master BPM knob
-		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerT3 + 6 + offsetIMBigKnob, rowRuler0 + offsetIMBigKnob), module, Clocked::RATIO_PARAMS + 0, (float)(module->bpmMin), (float)(module->bpmMax), Clocked::BPM_PARAM_INIT_VALUE, &module->panelTheme));		
+		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerT3 + 1 + offsetIMBigKnob, rowRuler0 + offsetIMBigKnob), module, Clocked::RATIO_PARAMS + 0, (float)(module->bpmMin), (float)(module->bpmMax), Clocked::BPM_PARAM_INIT_VALUE, &module->panelTheme));		
 		// BPM display
 		displayRatios[0] = new RatioDisplayWidget();
-		displayRatios[0]->box.pos = Vec(colRulerT4 + 16, rowRuler0 + vOffsetDisplay);
+		displayRatios[0]->box.pos = Vec(colRulerT4 + 11, rowRuler0 + vOffsetDisplay);
 		displayRatios[0]->box.size = Vec(55, 30);// 3 characters
 		displayRatios[0]->module = module;
 		displayRatios[0]->knobIndex = 0;
@@ -696,8 +726,8 @@ struct ClockedWidget : ModuleWidget {
 			addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM2 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 1 + i, -1.0f, 1.0f, Clocked::SWING_PARAM_INIT_VALUE, &module->panelTheme));
 			// PW knobs
 			addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM3 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::PW_PARAMS + 1 + i, 0.0f, 1.0f, 0.5f, &module->panelTheme));
-			// Clock outs
-			addOutput(createDynamicPort<IMPort>(Vec(colRulerM4, rowRuler2 + i * rowSpacingClks), Port::OUTPUT, module, Clocked::CLK_OUTPUTS + 1 + i, &module->panelTheme));
+			// Delay knobs
+			addParam(createDynamicParam<IMSmallSnapKnob>(Vec(colRulerM4 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::DELAY_PARAMS + 1 + i , Clocked::DELAY_PARAM_INIT_VALUE, ((float)(module->numDelays - 1)), 0.0f, &module->panelTheme));
 		}
 
 		// Last row
@@ -707,12 +737,10 @@ struct ClockedWidget : ModuleWidget {
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerT1, rowRuler5), Port::OUTPUT, module, Clocked::RUN_OUTPUT, &module->panelTheme));
 		// Out out
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerT2, rowRuler5), Port::OUTPUT, module, Clocked::BPM_OUTPUT, &module->panelTheme));
-		// Delay 1 knob (0 is master, and dalay not applicable to master)
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT3 + offsetIMSmallKnob, rowRuler5 + offsetIMSmallKnob), module, Clocked::DELAY_PARAMS + 1 , 0.0f, ((float)(module->numDelays - 1)), 0.0f, &module->panelTheme));
-		// Delay 2 knob 
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT4 + offsetIMSmallKnob, rowRuler5 + offsetIMSmallKnob), module, Clocked::DELAY_PARAMS + 2 , 0.0f, ((float)(module->numDelays - 1)), 0.0f, &module->panelTheme));
-		// Delay 3 knob 
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT5 + offsetIMSmallKnob, rowRuler5 + offsetIMSmallKnob), module, Clocked::DELAY_PARAMS + 3 , 0.0f, ((float)(module->numDelays - 1)), 0.0f, &module->panelTheme));
+		// Sub-clock outputs
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT3, rowRuler5), Port::OUTPUT, module, Clocked::CLK_OUTPUTS + 1, &module->panelTheme));	
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT4, rowRuler5), Port::OUTPUT, module, Clocked::CLK_OUTPUTS + 2, &module->panelTheme));	
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT5, rowRuler5), Port::OUTPUT, module, Clocked::CLK_OUTPUTS + 3, &module->panelTheme));	
 	}
 };
 
