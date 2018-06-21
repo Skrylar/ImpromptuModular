@@ -38,12 +38,12 @@ struct Tact : Module {
 	int panelTheme = 0;
 	
 	// No need to save
-	float cv[2];// actual Tact CV since Tactknob can be different than these when transitioning
+	double cv[2];// actual Tact CV since Tactknob can be different than these when transitioning
 	unsigned long transitionStepsRemain[2];// 0 when no transition under way, downward step counter when transitioning
-	float transitionCVdelta[2];// no need to initialize, this is a companion to slideStepsRemain
+	double transitionCVdelta[2];// no need to initialize, this is a companion to slideStepsRemain
 
 	static constexpr float TACT_INIT_VALUE = 5.0f;// so that module constructor is coherent with widget initialization, since module created before widget
-	float tactLast[2];
+	double tactLast[2];
 	
 	
 	inline bool isLinked(void) {return params[LINK_PARAM].value > 0.5f;}
@@ -107,11 +107,12 @@ struct Tact : Module {
 		for (int i = 0; i < 2; i++) {
 			if (tactLast[i] != params[TACT_PARAMS + i].value) {
 				tactLast[i] = params[TACT_PARAMS + i].value;
-				float transitionRate = params[RATE_PARAMS + i].value; // s/V
-				float dV = tactLast[i] - cv[i];
-				float numSamples = engineGetSampleRate() * transitionRate * fabs(dV);
+				double transitionRate = params[RATE_PARAMS + i].value; // s/V
+				double dV = tactLast[i] - cv[i];
+				double numSamples = engineGetSampleRate() * transitionRate * fabs(dV);
 				transitionStepsRemain[i] = ((unsigned long) (numSamples + 0.5f)) + 1ul;
-				transitionCVdelta[i] = (dV / (float)transitionStepsRemain[i]);
+				transitionCVdelta[i] = (dV / (double)transitionStepsRemain[i]);
+				info("**** transitionCVdelta = %f", transitionCVdelta[i]);
 			}
 			if (transitionStepsRemain[i] > 0) {
 				cv[i] += transitionCVdelta[i];
@@ -122,7 +123,7 @@ struct Tact : Module {
 		// Outputs
 		for (int i = 0; i < 2; i++) {
 			int readChan = isLinked() ? 0 : i;
-			outputs[CV_OUTPUTS + i].value = cv[readChan] * params[ATTV_PARAMS + readChan].value;
+			outputs[CV_OUTPUTS + i].value = (float)cv[readChan] * params[ATTV_PARAMS + readChan].value;
 		}
 		
 		// Tactile lights
@@ -147,8 +148,8 @@ struct Tact : Module {
 				params[TACT_PARAMS + readChan].value <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;
 			// Red
 			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 1].value = 
-				(  cv[readChan] > (((float)(i)) - 0.5f) && 
-				cv[readChan] <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;
+				(  (float)cv[readChan] > (((float)(i)) - 0.5f) && 
+				(float)cv[readChan] <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;
 		}
 	}
 	void setTLights2(int chan) {// single color bar-LED true value pale, target bright 
@@ -156,7 +157,7 @@ struct Tact : Module {
 		int readChan = isLinked() ? 0 : chan;
 		for (int i = 0; i < numLights; i++) {// lights are up-side down because of module origin at top-left
 			// Green
-			float light = (  cv[readChan] > (((float)(i)) - 0.5f) /*&& cv[readChan] <= (((float)(i+1)) - 0.5f)*/  ) ? 0.1f : 0.0f;
+			float light = (  (float)cv[readChan] > (((float)(i)) - 0.5f) /*&& cv[readChan] <= (((float)(i+1)) - 0.5f)*/  ) ? 0.1f : 0.0f;
 			float bright = (  params[TACT_PARAMS + readChan].value > (((float)(i)) - 0.5f) && 
 							  params[TACT_PARAMS + readChan].value <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;
 			
