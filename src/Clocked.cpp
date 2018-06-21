@@ -30,7 +30,7 @@ class Clock {
 	public:
 	
 	bool isClockHigh(float swing, float pulseWidth) {
-		// last 0.5ms must be low so that sync mechanism will work properly (i.e. no missed pulses)
+		// last 0.5ms (guard time) must be low so that sync mechanism will work properly (i.e. no missed pulses)
 		//   this will automatically be the case, since code below disallows any pulses or inter-pulse times less than 1ms
 		bool high = false;
 		if (step > 0.0) {
