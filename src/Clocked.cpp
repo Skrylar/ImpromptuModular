@@ -239,6 +239,14 @@ struct Clocked : Module {
 		}
 		return ret;
 	}
+	float getRatio(int ratioKnobIndex) {
+		// true float ratio, always positive, >1 for mult, <1 for div
+		long ratioDoubled = getRatioDoubled(ratioKnobIndex);
+		float ret = ((float)ratioDoubled) / 2.0f;
+		if (ratioDoubled < 0)
+			ret = 1.0f / (-1.0f * ret);
+		return ret;
+	}
 	float getDelayFraction(int delayKnobIndex) {// fraction of clock period
 		// delayKnobIndex is 0 for master (not applicable), and 1 to 3 for sub-clocks
 		int i = (int) round( params[DELAY_PARAMS + delayKnobIndex].value );// [ 0 ; (numDelays-1) ]
@@ -493,7 +501,7 @@ struct Clocked : Module {
 		for (int i = 0; i < 4; i++) {
 			long delaySamples = 0l;
 			if (i > 0) 
-				delaySamples = (long)(masterPeriod * getDelayFraction(i) * sampleRate) ;
+				delaySamples = (long)(masterPeriod * getDelayFraction(i) * sampleRate / getRatio(i)) ;
 			
 			outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples) ? 10.0f : 0.0f;
 		}
