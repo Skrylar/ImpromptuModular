@@ -822,7 +822,7 @@ struct WriteSeq64Widget : ModuleWidget {
 	}
 };
 
-Model *modelWriteSeq64 = Model::create<WriteSeq64, WriteSeq64Widget>("Impromptu Modular", "Write-Seq-64", "Write-Seq-64", SEQUENCER_TAG);
+Model *modelWriteSeq64 = Model::create<WriteSeq64, WriteSeq64Widget>("Impromptu Modular", "Write-Seq-64", "SEQ - Write-Seq-64", SEQUENCER_TAG);
 
 /*CHANGE LOG
 

@@ -1655,7 +1655,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 	}
 };
 
-Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromptu Modular", "Phrase-Seq-32", "Phrase-Seq-32", SEQUENCER_TAG);
+Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromptu Modular", "Phrase-Seq-32", "SEQ - Phrase-Seq-32", SEQUENCER_TAG);
 
 /*CHANGE LOG
 

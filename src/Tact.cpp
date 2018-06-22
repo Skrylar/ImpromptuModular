@@ -269,4 +269,4 @@ struct TactWidget : ModuleWidget {
 	}
 };
 
-Model *modelTact = Model::create<Tact, TactWidget>("Impromptu Modular", "Tact", "Tact", CONTROLLER_TAG);
+Model *modelTact = Model::create<Tact, TactWidget>("Impromptu Modular", "Tact", "CTRL - Tact", CONTROLLER_TAG);

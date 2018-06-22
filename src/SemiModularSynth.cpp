@@ -1716,7 +1716,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 	}
 };
 
-Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthWidget>("Impromptu Modular", "Semi-Modular Synth", "Semi-Modular Synth", SEQUENCER_TAG, OSCILLATOR_TAG);
+Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthWidget>("Impromptu Modular", "Semi-Modular Synth", "SEQ - Semi-Modular Synth", SEQUENCER_TAG, OSCILLATOR_TAG);
 
 /*CHANGE LOG
 

@@ -349,4 +349,4 @@ struct TwelveKeyWidget : ModuleWidget {
 	}
 };
 
-Model *modelTwelveKey = Model::create<TwelveKey, TwelveKeyWidget>("Impromptu Modular", "Twelve-Key", "Twelve-Key", CONTROLLER_TAG);
+Model *modelTwelveKey = Model::create<TwelveKey, TwelveKeyWidget>("Impromptu Modular", "Twelve-Key", "CTRL - Twelve-Key", CONTROLLER_TAG);
