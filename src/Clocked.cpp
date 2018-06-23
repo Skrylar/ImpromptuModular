@@ -35,7 +35,7 @@ class Clock {
 		bool high = false;
 		if (step > 0.0) {
 			float swParam = swing;// swing is [-1 : 1]
-			swParam *= (swParam * (swParam > 0.0f ? 1.0f : -1.0f));// non-linear behavior for more sensitivity at center: f(x) = x^2 * sign(x)
+			//swParam *= (swParam * (swParam > 0.0f ? 1.0f : -1.0f));// non-linear behavior for more sensitivity at center: f(x) = x^2 * sign(x)
 			
 			// all following values are in seconds
 			float onems = 0.001f;
