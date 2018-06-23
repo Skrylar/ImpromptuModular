@@ -221,8 +221,7 @@ struct Clocked : Module {
 		int bpm = 0;
 		if (inputs[BPM_INPUT].active) {
 			bpm = (int) round( (inputs[BPM_INPUT].value / 10.0f) * (float)bpmRange + (float)bpmMin );// use round() in case negative voltage input
-			if (bpm < bpmMin)
-				bpm = bpmMin;
+			bpm = clamp(bpm, bpmMin, bpmMax);
 		}
 		else {
 			bpm = (int)(params[RATIO_PARAMS + 0].value + 0.5f);
