@@ -176,10 +176,11 @@ struct Clocked : Module {
 		NUM_PARAMS
 	};
 	enum InputIds {
-		ENUMS(PW_INPUTS, 4),// master is index 0, others unused
+		ENUMS(PW_INPUTS, 4),// master is index 0
 		RESET_INPUT,
 		RUN_INPUT,
 		BPM_INPUT,
+		ENUMS(SWING_INPUTS, 4),// master is index 0
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -273,6 +274,7 @@ struct Clocked : Module {
 	
 	// Need to save
 	int panelTheme = 0;
+	int expansion = 0;
 	bool running;
 	
 	// No need to save
@@ -350,6 +352,9 @@ struct Clocked : Module {
 		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
 
+		// expansion
+		json_object_set_new(rootJ, "expansion", json_integer(expansion));
+
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
 		
@@ -365,6 +370,11 @@ struct Clocked : Module {
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
 			panelTheme = json_integer_value(panelThemeJ);
+
+		// expansion
+		json_t *expansionJ = json_object_get(rootJ, "expansion");
+		if (expansionJ)
+			expansion = json_integer_value(expansionJ);
 
 		// running
 		json_t *runningJ = json_object_get(rootJ, "running");
@@ -498,11 +508,16 @@ struct Clocked : Module {
 		// Delays
 		for (int i = 0; i < 4; i++) {
 			float pulseWidth = params[PW_PARAMS + i].value;
-			if (i == 0 && inputs[PW_INPUTS + 0].active) {
-				pulseWidth += (inputs[PW_INPUTS + 0].value / 10.0f) - 0.5f;
+			if (i < 3 && inputs[PW_INPUTS + i].active) {
+				pulseWidth += (inputs[PW_INPUTS + i].value / 10.0f) - 0.5f;
 				pulseWidth = clamp(pulseWidth, 0.0f, 1.0f);
 			}
-			delay[i].write(clk[i].isHigh(swingVal[i], pulseWidth));
+			float swingAmount = swingVal[i];
+			if (i < 3 && inputs[SWING_INPUTS + i].active) {
+				swingAmount += (inputs[SWING_INPUTS + i].value / 5.0f) - 1.0f;
+				swingAmount = clamp(swingAmount, -1.0f, 1.0f);
+			}
+			delay[i].write(clk[i].isHigh(swingAmount, pulseWidth));
 		}
 		
 		
@@ -548,6 +563,10 @@ struct Clocked : Module {
 
 
 struct ClockedWidget : ModuleWidget {
+	Clocked *module;
+	DynamicSVGPanelEx *panel;
+	int oldExpansion;
+	IMPort* expPorts[5];
 
 	struct RatioDisplayWidget : TransparentWidget {
 		Clocked *module;
@@ -617,6 +636,12 @@ struct ClockedWidget : ModuleWidget {
 			rightText = (module->panelTheme == theme) ? "✔" : "";
 		}
 	};
+	struct ExpansionItem : MenuItem {
+		Clocked *module;
+		void onAction(EventAction &e) override {
+			module->expansion = module->expansion == 1 ? 0 : 1;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -642,24 +667,53 @@ struct ClockedWidget : ModuleWidget {
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
 
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *expansionLabel = new MenuLabel();
+		expansionLabel->text = "Expansion module";
+		menu->addChild(expansionLabel);
+
+		ExpansionItem *expItem = MenuItem::create<ExpansionItem>(expansionMenuLabel, CHECKMARK(module->expansion != 0));
+		expItem->module = module;
+		menu->addChild(expItem);
+
 		return menu;
 	}	
 	
+	void step() override {
+		if(module->expansion != oldExpansion) {
+			if (oldExpansion!= -1 && module->expansion == 0) {// if just removed expansion panel, disconnect wires to those jacks
+				for (int i = 0; i < 5; i++)
+					gRackWidget->wireContainer->removeAllWires(expPorts[i]);
+			}
+			oldExpansion = module->expansion;		
+		}
+		box.size = panel->box.size;
+		Widget::step();
+	}
 	
 	ClockedWidget(Clocked *module) : ModuleWidget(module) {
+ 		this->module = module;
+		oldExpansion = -1;
+		
 		// Main panel from Inkscape
-        DynamicSVGPanel *panel = new DynamicSVGPanel();
+        panel = new DynamicSVGPanelEx();
+        panel->mode = &module->panelTheme;
+        panel->expansion = &module->expansion;
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Clocked.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/Clocked_dark.svg")));
+        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/light/ClockedExp.svg")));
+        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/dark/ClockedExp_dark.svg")));
         box.size = panel->box.size;
-        panel->mode = &module->panelTheme;
-        addChild(panel);
-
+        addChild(panel);		
+		
 		// Screws
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 0), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x+30, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x+30, 365), &module->panelTheme));
 
 
 		static const int rowRuler0 = 50;//reset,run inputs, master knob and bpm display
@@ -753,6 +807,17 @@ struct ClockedWidget : ModuleWidget {
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerT3, rowRuler5), Port::OUTPUT, module, Clocked::CLK_OUTPUTS + 1, &module->panelTheme));	
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerT4, rowRuler5), Port::OUTPUT, module, Clocked::CLK_OUTPUTS + 2, &module->panelTheme));	
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerT5, rowRuler5), Port::OUTPUT, module, Clocked::CLK_OUTPUTS + 3, &module->panelTheme));	
+
+		// Expansion module
+		static const int rowRulerExpTop = 65;
+		static const int rowSpacingExp = 60;
+		static const int colRulerExp = 497 - 30 -150;// Clocked is (2+10)HP less than PS32
+		addInput(expPorts[0] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, Clocked::PW_INPUTS + 1, &module->panelTheme));
+		addInput(expPorts[1] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, Clocked::PW_INPUTS + 2, &module->panelTheme));
+		addInput(expPorts[2] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, Clocked::SWING_INPUTS + 0, &module->panelTheme));
+		addInput(expPorts[3] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, Clocked::SWING_INPUTS + 1, &module->panelTheme));
+		addInput(expPorts[4] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 4), Port::INPUT, module, Clocked::SWING_INPUTS + 2, &module->panelTheme));
+
 	}
 };
 
