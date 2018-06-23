@@ -199,10 +199,10 @@ struct Clocked : Module {
 	
 	// Delay info
 	// all fractions must be <= 0.666... or else delay buffer will overrun in worst case (192kHz, 30BPM)
-	// .33 = /8t and .66 = /4t
 	static const int numDelays = 7;
-	std::string delayLabels[numDelays] = {"  0", "1/2", "1/3",     "2/3",     "1/4", "1/8",  "/16" };
-	float delayValues[numDelays]       = {0.0f , 0.5f , 1.0f/3.0f, 2.0f/3.0f, 0.25f, 0.125f, 0.0625f};
+	std::string delayLabelsClock[numDelays] = {"  0", "1/2", "1/3",     "2/3",     "1/4", "1/8",  "/16" };// in clock periods
+	std::string delayLabelsNote[numDelays]  = {"  0", "1/8", "/8t",     "/4t",     "/16", "/32",  "/64" };// in quarter notes
+	float delayValues[numDelays]            = {0.0f , 0.5f , 1.0f/3.0f, 2.0f/3.0f, 0.25f, 0.125f, 0.0625f};
 
 	// Ratio info
 	static const int numRatios = 33;
@@ -268,7 +268,7 @@ struct Clocked : Module {
 		return delayValues[getDelayKnobIndex(delayKnobIndex)];
 	}	
 	std::string getDelayLabel(int delayKnobIndex) {// label for fraction of clock period
-		return delayLabels[getDelayKnobIndex(delayKnobIndex)];
+		return delayLabelsClock[getDelayKnobIndex(delayKnobIndex)];
 	}	
 	
 	// Need to save
