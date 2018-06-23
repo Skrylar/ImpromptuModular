@@ -105,6 +105,9 @@ class Clock {
 };
 
 
+//*****************************************************************************
+
+
 class ClockDelay {
 	static const long maxSamples = 192000;// @ 30 BPM period is 2s, thus need at most 1s @ 192000 kHz = 192000 samples
 	static const long entrySize = 64;
@@ -157,6 +160,9 @@ class ClockDelay {
 		return ret;
 	}
 };
+
+
+//*****************************************************************************
 
 
 struct Clocked : Module {
@@ -239,9 +245,8 @@ struct Clocked : Module {
 		}
 		return ret;
 	}
-	float getRatio(int ratioKnobIndex) {
+	inline float calcRatio(long ratioDoubled) {
 		// true float ratio, always positive, >1 for mult, <1 for div
-		long ratioDoubled = getRatioDoubled(ratioKnobIndex);
 		float ret = ((float)ratioDoubled) / 2.0f;
 		if (ratioDoubled < 0)
 			ret = 1.0f / (-1.0f * ret);
@@ -501,7 +506,7 @@ struct Clocked : Module {
 		for (int i = 0; i < 4; i++) {
 			long delaySamples = 0l;
 			if (i > 0) 
-				delaySamples = (long)(masterPeriod * getDelayFraction(i) * sampleRate / getRatio(i)) ;
+				delaySamples = (long)(masterPeriod * getDelayFraction(i) * sampleRate / calcRatio(ratiosDoubled[i])) ;
 			
 			outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples) ? 10.0f : 0.0f;
 		}
