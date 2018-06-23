@@ -109,9 +109,9 @@ class Clock {
 
 
 class ClockDelay {
-	static const long maxSamples = 192000;// @ 30 BPM period is 2s, thus need at most 1s @ 192000 kHz = 192000 samples
+	static const long maxSamples = 256000;// @ 30 BPM period is 2s, thus need at most 2/3 * 2s @ 192000 kHz = 256000 samples
 	static const long entrySize = 64;
-	static const long bufSize = maxSamples / entrySize;// = 3000 with 64 per uint64_t 
+	static const long bufSize = maxSamples / entrySize;// = 4000 with 64 per uint64_t 
 	uint64_t buffer[bufSize];
 	
 	long writeHead;// in samples, thus range is [0; maxSamples-1]
@@ -198,8 +198,11 @@ struct Clocked : Module {
 	
 	
 	// Delay info
-	static const int numDelays = 6;
-	float delayValues[numDelays] = {0.0f, 0.5f, 1.0f/3.0f, 0.25f, 0.125f, 0.0625f};// all fractions must be <= 0.5 or else delay buffer will overrun in worst case (192kHz, 10BPM)
+	// all fractions must be <= 0.666... or else delay buffer will overrun in worst case (192kHz, 30BPM)
+	// .33 = /8t and .66 = /4t
+	static const int numDelays = 7;
+	std::string delayLabels[numDelays] = {"  0", "1/2", "1/3",     "2/3",     "1/4", "1/8",  "/16" };
+	float delayValues[numDelays]       = {0.0f , 0.5f , 1.0f/3.0f, 2.0f/3.0f, 0.25f, 0.125f, 0.0625f};
 
 	// Ratio info
 	static const int numRatios = 33;
@@ -252,15 +255,20 @@ struct Clocked : Module {
 			ret = 1.0f / (-1.0f * ret);
 		return ret;
 	}
-	float getDelayFraction(int delayKnobIndex) {// fraction of clock period
-		// delayKnobIndex is 0 for master (not applicable), and 1 to 3 for sub-clocks
+	int getDelayKnobIndex(int delayKnobIndex) {
 		int i = (int) round( params[DELAY_PARAMS + delayKnobIndex].value );// [ 0 ; (numDelays-1) ]
 		if (i < 0) 
 			i = 0;
 		if (i >= numDelays) 
 			i = numDelays - 1;
-		
-		return delayValues[i];
+		return i;
+	}
+	float getDelayFraction(int delayKnobIndex) {// fraction of clock period
+		// delayKnobIndex is 0 for master (not applicable), and 1 to 3 for sub-clocks
+		return delayValues[getDelayKnobIndex(delayKnobIndex)];
+	}	
+	std::string getDelayLabel(int delayKnobIndex) {// label for fraction of clock period
+		return delayLabels[getDelayKnobIndex(delayKnobIndex)];
 	}	
 	
 	// Need to save
@@ -572,16 +580,7 @@ struct ClockedWidget : ModuleWidget {
 			}
 			else if (module->delayInfo[knobIndex] > 0)
 			{
-				float delValue = module->getDelayFraction(knobIndex);
-				if (delValue > 0.0001f) {
-					int delInt = (int)(1.0f / delValue + 0.5f);
-					if (delInt < 10)
-						snprintf(displayStr, 4, "1/%1u", (unsigned) delInt);
-					else
-						snprintf(displayStr, 4, "/%2u", (unsigned) delInt);
-				}
-				else 
-					snprintf(displayStr, 4, "  0");			
+				snprintf(displayStr, 4, module->getDelayLabel(knobIndex).c_str());			
 			}
 			else {
 				if (knobIndex > 0) {// ratio to display
