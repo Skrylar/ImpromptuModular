@@ -36,6 +36,12 @@ struct GateSeq64 : Module {
 		RESET_INPUT,
 		RUNCV_INPUT,
 		SEQCV_INPUT,
+		// -- 0.6.7 ^^
+		WRITE_INPUT,
+		GATE_INPUT,
+		PROB_INPUT,
+		WRITE1_INPUT,
+		WRITE0_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -55,6 +61,7 @@ struct GateSeq64 : Module {
 	
 	// Need to save
 	int panelTheme = 0;
+	int expansion = 0;
 	bool running;
 	int runModeSeq[16];
 	int runModeSong;
@@ -72,6 +79,7 @@ struct GateSeq64 : Module {
 	// No need to save
 	int displayState;
 	int stepIndexRun;
+	int stepIndexWrite;
 	int phraseIndexEdit;	
 	int phraseIndexRun;
 	int stepIndexRunHistory;// no need to initialize
@@ -88,7 +96,6 @@ struct GateSeq64 : Module {
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 	int displayProb;// -1 when prob can not be modified, 0 to 63 when prob can be changed.
 	long displayProbInfo;// downward step counter for displayProb feedback
-	int probKnob;// INT_MAX when knob not seen yet
 	int sequenceKnob;// INT_MAX when knob not seen yet
 	bool gateRandomEnable[4] = {};
 	long revertDisplay;
@@ -107,6 +114,9 @@ struct GateSeq64 : Module {
 	SchmittTrigger runningTrigger;
 	SchmittTrigger clockTrigger;
 	SchmittTrigger resetTrigger;
+	SchmittTrigger writeTrigger;
+	SchmittTrigger write0Trigger;
+	SchmittTrigger write1Trigger;
 
 	
 	inline bool getGate(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE) != 0;}
@@ -131,6 +141,7 @@ struct GateSeq64 : Module {
 			stepConfig = 2;
 		stepConfigLast = stepConfig;
 		running = false;
+		stepIndexWrite = 0;
 		runModeSong = MODE_FWD;
 		phraseIndexEdit = 0;
 		sequence = 0;
@@ -153,7 +164,6 @@ struct GateSeq64 : Module {
 		displayProb = -1;
 		displayProbInfo = 0l;
 		infoCopyPaste = 0l;
-		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
 		revertDisplay = 0l;
 		editingSequence = EDIT_PARAM_INIT_VALUE > 0.5f;
@@ -170,6 +180,7 @@ struct GateSeq64 : Module {
 		else if (params[CONFIG_PARAM].value > 0.5f)// 2x32
 			stepConfig = 2;
 		running = (randomUniform() > 0.5f);
+		stepIndexWrite = 0;
 		runModeSong = randomu32() % 5;
 		phraseIndexEdit = 0;
 		sequence = randomu32() % 16;
@@ -192,7 +203,6 @@ struct GateSeq64 : Module {
 		displayProb = -1;
 		displayProbInfo = 0l;
 		infoCopyPaste = 0l;
-		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
 		revertDisplay = 0l;
 		editingSequence = isEditingSequence();
@@ -228,6 +238,9 @@ struct GateSeq64 : Module {
 
 		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
+
+		// expansion
+		json_object_set_new(rootJ, "expansion", json_integer(expansion));
 
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
@@ -281,6 +294,11 @@ struct GateSeq64 : Module {
 		if (panelThemeJ)
 			panelTheme = json_integer_value(panelThemeJ);
 		
+		// expansion
+		json_t *expansionJ = json_object_get(rootJ, "expansion");
+		if (expansionJ)
+			expansion = json_integer_value(expansionJ);
+
 		// running
 		json_t *runningJ = json_object_get(rootJ, "running");
 		if (runningJ)
@@ -357,7 +375,6 @@ struct GateSeq64 : Module {
 			stepConfig = 2;
 		stepConfigLast = stepConfig;
 		initRun(stepConfig, true);
-		probKnob = INT_MAX;
 		sequenceKnob = INT_MAX;
 		editingSequence = isEditingSequence();
 		editingSequenceLast = editingSequence;
@@ -528,6 +545,32 @@ struct GateSeq64 : Module {
 			}
 		}
 		
+
+		// Write inputs 
+		bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
+		bool write0Trig = write0Trigger.process(inputs[WRITE0_INPUT].value);
+		bool write1Trig = write1Trigger.process(inputs[WRITE1_INPUT].value);
+		if (writeTrig || write0Trig || write1Trig) {
+			if (editingSequence) {
+				if (writeTrig) {// higher priority than write0 and write1
+					if (inputs[PROB_INPUT].active) {
+						attributes[sequence][stepIndexWrite] = clamp( (int)round(inputs[PROB_INPUT].value * 10.0f), 0, 100);
+						attributes[sequence][stepIndexWrite] |= ATT_MSK_GATEP;
+					}
+					else
+						attributes[sequence][stepIndexWrite] = 50;
+					if (inputs[GATE_INPUT].value >= 1.0f)
+						attributes[sequence][stepIndexWrite] |= ATT_MSK_GATE;
+				}
+				else {// write1 or write0			
+					attributes[sequence][stepIndexWrite] = write1Trig ? ATT_MSK_GATE : 0;
+				}
+				// Autostep (after grab all active inputs)
+				stepIndexWrite += 1;
+				if (stepIndexWrite >= 64)
+					stepIndexWrite = 0;						
+			}
+		}	
 		
 		// Step LED button presses
 		int row = -1;
@@ -560,6 +603,7 @@ struct GateSeq64 : Module {
 				else if (displayState == DISP_MODES) {
 				}
 				else {
+					stepIndexWrite = stepPressed;
 					if (!getGate(sequence, stepPressed)) {// clicked inactive, so turn gate on
 						attributes[sequence][stepPressed] |= ATT_MSK_GATE;
 						attributes[sequence][stepPressed] &= ~ATT_MSK_GATEP;
@@ -637,6 +681,7 @@ struct GateSeq64 : Module {
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			//sequence = 0;
+			stepIndexWrite = 0;			
 			initRun(stepConfig, true);// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_GATE;
@@ -786,6 +831,10 @@ struct GateSeq64 : Module {
 };// GateSeq64 : module
 
 struct GateSeq64Widget : ModuleWidget {
+	GateSeq64 *module;
+	DynamicSVGPanelEx *panel;
+	int oldExpansion;
+	IMPort* expPorts[5];
 		
 	struct SequenceDisplayWidget : TransparentWidget {
 		GateSeq64 *module;
@@ -861,7 +910,6 @@ struct GateSeq64Widget : ModuleWidget {
 		}
 	};	
 		
-		
 	struct PanelThemeItem : MenuItem {
 		GateSeq64 *module;
 		int theme;
@@ -870,6 +918,12 @@ struct GateSeq64Widget : ModuleWidget {
 		}
 		void step() override {
 			rightText = (module->panelTheme == theme) ? "✔" : "";
+		}
+	};
+	struct ExpansionItem : MenuItem {
+		GateSeq64 *module;
+		void onAction(EventAction &e) override {
+			module->expansion = module->expansion == 1 ? 0 : 1;
 		}
 	};
 	struct ResetOnRunItem : MenuItem {
@@ -913,24 +967,53 @@ struct GateSeq64Widget : ModuleWidget {
 		rorItem->module = module;
 		menu->addChild(rorItem);
 		
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *expansionLabel = new MenuLabel();
+		expansionLabel->text = "Expansion module";
+		menu->addChild(expansionLabel);
+
+		ExpansionItem *expItem = MenuItem::create<ExpansionItem>(expansionMenuLabel, CHECKMARK(module->expansion != 0));
+		expItem->module = module;
+		menu->addChild(expItem);
+
 		return menu;
 	}	
 	
-	GateSeq64Widget(GateSeq64 *module) : ModuleWidget(module) {
+	void step() override {
+		if(module->expansion != oldExpansion) {
+			if (oldExpansion!= -1 && module->expansion == 0) {// if just removed expansion panel, disconnect wires to those jacks
+				for (int i = 0; i < 5; i++)
+					gRackWidget->wireContainer->removeAllWires(expPorts[i]);
+			}
+			oldExpansion = module->expansion;		
+		}
+		box.size = panel->box.size;
+		Widget::step();
+	}
+
+	GateSeq64Widget(GateSeq64 *module) : ModuleWidget(module) {		
+		this->module = module;
+		oldExpansion = -1;
+		
 		// Main panel from Inkscape
-        DynamicSVGPanel *panel = new DynamicSVGPanel();
+        panel = new DynamicSVGPanelEx();
+        panel->mode = &module->panelTheme;
+        panel->expansion = &module->expansion;
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/GateSeq64.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/GateSeq64_dark.svg")));
+        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/light/GateSeqExp.svg")));
+        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/dark/GateSeqExp_dark.svg")));
         box.size = panel->box.size;
-        panel->mode = &module->panelTheme;
-        addChild(panel);
-
+        addChild(panel);		
+		
 		// Screws
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 0), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->panelTheme));
-
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x+30, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x+30, 365), &module->panelTheme));
 		
 		
 		// ****** Top portion (2 switches and LED button array ******
@@ -1012,6 +1095,17 @@ struct GateSeq64Widget : ModuleWidget {
 		// Outputs
 		for (int iSides = 0; iSides < 4; iSides++)
 			addOutput(createDynamicPort<IMPort>(Vec(311, rowRulerC0 + iSides * 40), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides, &module->panelTheme));
+		
+		// Expansion module
+		static const int rowRulerExpTop = 65;
+		static const int rowSpacingExp = 60;
+		static const int colRulerExp = 497 - 30 - 90;// GS64 is (2+6)HP less than PS32
+		addInput(expPorts[0] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, GateSeq64::WRITE_INPUT, &module->panelTheme));
+		addInput(expPorts[1] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, GateSeq64::GATE_INPUT, &module->panelTheme));
+		addInput(expPorts[2] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, GateSeq64::PROB_INPUT, &module->panelTheme));
+		addInput(expPorts[3] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, GateSeq64::WRITE0_INPUT, &module->panelTheme));
+		addInput(expPorts[4] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 4), Port::INPUT, module, GateSeq64::WRITE1_INPUT, &module->panelTheme));
+
 	}
 };
 
@@ -1021,6 +1115,7 @@ Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Mod
 /*CHANGE LOG
 
 0.6.7:
+add expansion panel with extra CVs for writing steps into the module
 allow full edit capabilities in song mode
 no reset on run by default, with switch added in context menu
 reset does not revert seq or song number to 1
