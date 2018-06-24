@@ -598,7 +598,7 @@ struct ClockedWidget : ModuleWidget {
 			}
 			else if (module->delayInfo[knobIndex] > 0)
 			{
-				snprintf(displayStr, 4, module->getDelayLabel(knobIndex).c_str());			
+				snprintf(displayStr, 4, (module->getDelayLabel(knobIndex)).c_str());			
 			}
 			else {
 				if (knobIndex > 0) {// ratio to display
