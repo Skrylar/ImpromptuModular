@@ -21,9 +21,11 @@ Impromptu Modular is not a single-person endeavor:
 
 
 
-# Modules
+# Modules <a id="modules"></a>
 
 Each module is available in light (Classic) or dark (Dark-valor) panels, selectable by right-clicking the module in Rack.
+
+* [Tact](#tact): A touch-like controller module with dual CV outputs and variable rate (experimental).
 
 * [TwelveKey](#twelve-key): Chainable one-octave keyboard controller.
 
@@ -66,6 +68,23 @@ When Run is activated, the sequencer automatically starts playing in the current
 Many modules feature an **Expansion panel** to provide additional CV inputs for the module (available in the right-click menu of the module). An extra 4 HP is added on the right side of the module, thus it is advisable to first make room in your Rack for this.
 
 
+
+## Tact (Experimental) <a id="tact"></a>
+
+![IM](res/img/Tact.jpg)
+
+A touch-like controller module with dual CV outputs and variable rate. This module is under development and will likely undergo further changes which may or may not break compatibility. Controls:
+
+**ATTV**: Typical attenuverter to control the maximum CV range output by the module. At full right, a 0 to 10V CV is produced, and at full left, a 0 to -10V CV is produced.
+
+**RATE**: Transition time of CV, from 0 (instant transition) to 2 seconds per volt. Transition time is the inverse of slew rate.
+
+**LINK**: Both controls are liked and will be synchronized to the same value. Useful when controlling stereo sounds.
+
+([Back to module list](#modules))
+
+
+
 ## TwelveKey <a id="twelve-key"></a>
 
 ![IM](res/img/TwelveKey.jpg)
@@ -84,6 +103,8 @@ For a brief tutorial on setting up the controller, please see [this segment](htt
 
 * **OCT+1**: CV output for setting the voltage of the next down-chain TwelveKey module. This corresponds to the base octave of the current module incremented by 1V.
 
+([Back to module list](#modules))
+
 
 
 ## Clocked <a id="clocked"></a>
@@ -96,9 +117,11 @@ The clock swing is loosely based on the [Roger Linn method](https://www.attackma
 
 Pulse width (**PW**) is dependant on the swing knob, but can be used to control the general duration of the clock pulse. In the worst case knob settings, the pulse width is guaranteed to be a minimum of 1ms, with a minimum 1ms pause between pulses. 
 
-Clock **DELAY** can be used to offset a sub-clock relative to the master clock, and is expressed in fractions of the clock period of the given sub-clock. In place of a detailed explanation of these three main controls, it is recommended to connect the outputs to a scope or a logic analyser (for example, Fundamental Scope or SubmarineFree LA-108) to visually observe the effects of the controls.
+Clock **DELAY** can be used to offset a sub-clock relative to the master clock, and is expressed in fractions of the clock period of the given sub-clock. In place of a detailed explanation of these three main controls, it is recommended to connect the outputs to a scope or a logic analyser, such as the Fundamental Scope pitcuted above or the SubmarineFree LA-108, to observe the effects of the different controls.
 
 The PW and Swing CV inputs (most are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default (center) position. When changing the internal sample rate of Rack, it is recommended to reset the module to ensure proper timing of all clocks.
+
+([Back to module list](#modules))
 
 
 
@@ -138,6 +161,8 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 * **TIED STEP**: When CVs are intended to be held across subsequent steps, this button can be used to tie the CV of the previous step to the current step; when tied, the gates of the current step are automatically turned off. If the CV of the head note changes, all consecutive tied notes are updated automatically.
 
+([Back to module list](#modules))
+
 
 
 ## PhraseSeq32 <a id="phrase-seq-32"></a>
@@ -151,6 +176,8 @@ Step/phrase selection is done by directly clicking the 32 steps at the top, inst
 Sequence lengths can be set clicking the **LEN/MODE** button once, and then either turning the main knob below the main display or clicking the desired length directly in the steps (the second method is the recommended way since the display will automatically return to its default state one second after the click of the step). The run modes can be set by clicking the LEN/MODE button twice starting from its initial state. The **TRAN/ROT** button can be used to transpose or rotate a sequence in Seq mode. When the 2x16 configuration is selected, only the row corresponding to the edit head's position is transposed or rotated.
 
 When the 1x32 configuration is selected, only the top channel outputs are used (labeled A), and when the 2x16 configuration is selected, the top row is sent to the top outputs (CV and gates A), whereas the bottom row of steps is sent to the bottom outputs (CV and gates B). Other than these characteristics, the rest of PhraseSeq32's functionality is identical to that of PhraseSeq16.
+
+([Back to module list](#modules))
 
 
 
@@ -170,6 +197,8 @@ When running in the 4x16 configuration, each of the four rows is sent to the fou
 
 Although no **write** capabilities appear in the main part of the module, automatically storing patterns into the sequencer can be perfomed using the CV inputs in the **expansion panel**. A write cursor is implicitly stepped forward on each write, and can be repositioned at the first step by pressing the reset button, or at an arbitrary step by simply clicking that given step.
 
+([Back to module list](#modules))
+
 
 
 ## Semi-Modular Synth 16<a id="sms-16"></a>
@@ -181,6 +210,8 @@ An all-in-one pre-patched semi-modular synthesizer. Based on the [Fundamental](h
 This module can be used for quickly exploring ideas for sequences, and is also useful for those new to modular synthesis before learning how to fill the screen with cables! Also note that the final output is the low-pass output of the VCF module (Voltage Controlled Filter). The VCF is purposely placed after the VCA (Voltage Controlled Amplifier) in the signal flow, such that the VCF can be lightly saturated, producing a thicker sound, especially when the Drive knob is turned up.
 
 Extra controls were also added to the LFO (Low Frequency Oscillator), namely **GAIN** and **OFFSET**, to be able to easily modulate any other on-board parameter. With maximum gain, the LFO produces a 10V peak-to-peak signal (a.k.a 5V amplitude). The offset knob is automatically scaled such that with maximum (minimum) offset, the signal's maximum (minimum) voltage is +10V (-10V). That is, with the gain set to 0, the offset value spans -10V to +10V, and with the gain set to maximum, the offset value spans -5V to +5V. Also note that the clock LFO is automatically reset on every reset event in the sequencer.
+
+([Back to module list](#modules))
 
 
 
@@ -223,3 +254,5 @@ WriteSeq64 is a four channel 64-step writable sequencer module. This sequencer i
 WriteSeq64 has dual clock inputs, where each controls a pair of channels. When no wire is connected to **CLOCK 3,4**, the **CLOCK 1,2** signal is used internally as the clock for channels 3 and 4. 
 
 Ideas: The first part of the famous [Piano Phase](https://en.wikipedia.org/wiki/Piano_Phase) piece by Steve Reich can be easily programmed into the sequencer by entering the twelve notes into channel 1 with a keyboard, setting STEPS to 12, copy-pasting channel 1 into channel 3, and then driving each clock input with two LFOs that have ever so slightly different frequencies. Exercise left to the reader!
+
+([Back to module list](#modules))

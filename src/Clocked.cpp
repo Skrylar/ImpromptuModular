@@ -109,9 +109,9 @@ class Clock {
 
 
 class ClockDelay {
-	static const long maxSamples = 256000;// @ 30 BPM period is 2s, thus need at most 2/3 * 2s @ 192000 kHz = 256000 samples
+	static const long maxSamples = 256000;// @ 30 BPM period is 2s, thus need at most 3/4 * 2s @ 192000 kHz = 288000 samples
 	static const long entrySize = 64;
-	static const long bufSize = maxSamples / entrySize;// = 4000 with 64 per uint64_t 
+	static const long bufSize = maxSamples / entrySize;// = 4500 with 64 per uint64_t 
 	uint64_t buffer[bufSize];
 	
 	long writeHead;// in samples, thus range is [0; maxSamples-1]
@@ -199,11 +199,11 @@ struct Clocked : Module {
 	
 	
 	// Delay info
-	// all fractions must be <= 0.666... or else delay buffer will overrun in worst case (192kHz, 30BPM)
-	static const int numDelays = 7;
-	std::string delayLabelsClock[numDelays] = {"  0", "1/2", "1/3",     "2/3",     "1/4", "1/8",  "/16" };// in clock periods
-	std::string delayLabelsNote[numDelays]  = {"  0", "1/8", "/8t",     "/4t",     "/16", "/32",  "/64" };// in quarter notes
-	float delayValues[numDelays]            = {0.0f , 0.5f , 1.0f/3.0f, 2.0f/3.0f, 0.25f, 0.125f, 0.0625f};
+	// all fractions must be <= 0.75... or else delay buffer will overrun in worst case (192kHz, 30BPM)
+	static const int numDelays = 8;
+	std::string delayLabelsClock[numDelays] = {"  0", "/16",   "1/8",  "1/4", "1/3",     "1/2", "2/3",     "3/4"  };
+	std::string delayLabelsNote[numDelays]  = {"  0", "/64",   "/32",  "/16", "/8t",     "1/8", "/4t",     "/8d"   };
+	float delayValues[numDelays]            = {0.0f,  0.0625f, 0.125f, 0.25f, 1.0f/3.0f, 0.5f , 2.0f/3.0f, 0.75f};
 
 	// Ratio info
 	static const int numRatios = 33;
@@ -267,14 +267,20 @@ struct Clocked : Module {
 		// delayKnobIndex is 0 for master (not applicable), and 1 to 3 for sub-clocks
 		return delayValues[getDelayKnobIndex(delayKnobIndex)];
 	}	
-	std::string getDelayLabel(int delayKnobIndex) {// label for fraction of clock period
+	std::string getDelayFractionLabel(int delayKnobIndex) {
+		// label for fraction of clock period 
 		return delayLabelsClock[getDelayKnobIndex(delayKnobIndex)];
+	}	
+	std::string getDelayNoteLabel(int delayKnobIndex) {
+		// label for fraction of clock period in notes (one period is a quarter note)
+		return delayLabelsNote[getDelayKnobIndex(delayKnobIndex)];
 	}	
 	
 	// Need to save
 	int panelTheme = 0;
 	int expansion = 0;
 	bool running;
+	bool displayDelayNoteMode = true;
 	
 	// No need to save
 	float resetLight = 0.0f;
@@ -357,6 +363,9 @@ struct Clocked : Module {
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
 		
+		// displayDelayNoteMode
+		json_object_set_new(rootJ, "displayDelayNoteMode", json_boolean(displayDelayNoteMode));
+		
 		return rootJ;
 	}
 
@@ -380,6 +389,11 @@ struct Clocked : Module {
 		if (runningJ)
 			running = json_is_true(runningJ);
 
+		// displayDelayNoteMode
+		json_t *displayDelayNoteModeJ = json_object_get(rootJ, "displayDelayNoteMode");
+		if (displayDelayNoteModeJ)
+			displayDelayNoteMode = json_is_true(displayDelayNoteModeJ);
+
 		for (int i = 0; i < 4; i++) {
 			swingVal[i] = params[SWING_PARAMS + i].value;
 			swingLast[i] = swingVal[i];
@@ -395,8 +409,11 @@ struct Clocked : Module {
 		double sampleRate = (double)engineGetSampleRate();
 		double sampleTime = 1.0 / sampleRate;// do this here since engineGetSampleRate() returns float
 		
-		static const float swingInfoTime = 1.7f;// seconds
+		static const float swingInfoTime = 2.0f;// seconds
 		long swingInfoInit = (long) (swingInfoTime * (float)sampleRate);
+	
+		static const float delayInfoTime = 3.0f;// seconds
+		long delayInfoInit = (long) (delayInfoTime * (float)sampleRate);
 		
 		// Run button
 		if (runTrigger.process(params[RUN_PARAM].value + inputs[RUN_INPUT].value)) {
@@ -450,7 +467,7 @@ struct Clocked : Module {
 			}
 			delayVal[i] = params[DELAY_PARAMS + i].value;
 			if (delayLast[i] != delayVal[i]) {
-				delayInfo[i] = swingInfoInit;// trigger delay info on channel i, use same init value as swing
+				delayInfo[i] = delayInfoInit;// trigger delay info on channel i, use same init value as swing
 				swingInfo[i] = 0l;
 				delayLast[i] = delayVal[i];
 			}
@@ -598,7 +615,10 @@ struct ClockedWidget : ModuleWidget {
 			}
 			else if (module->delayInfo[knobIndex] > 0)
 			{
-				snprintf(displayStr, 4, "%s", (module->getDelayLabel(knobIndex)).c_str());			
+				if (module->displayDelayNoteMode)
+					snprintf(displayStr, 4, "%s", (module->getDelayNoteLabel(knobIndex)).c_str());	
+				else
+					snprintf(displayStr, 4, "%s", (module->getDelayFractionLabel(knobIndex)).c_str());	
 			}
 			else {
 				if (knobIndex > 0) {// ratio to display
@@ -641,6 +661,12 @@ struct ClockedWidget : ModuleWidget {
 			module->expansion = module->expansion == 1 ? 0 : 1;
 		}
 	};
+	struct DelayDisplayNoteItem : MenuItem {
+		Clocked *module;
+		void onAction(EventAction &e) override {
+			module->displayDelayNoteMode = !module->displayDelayNoteMode;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -665,6 +691,16 @@ struct ClockedWidget : ModuleWidget {
 		darkItem->module = module;
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
+
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *settingsLabel = new MenuLabel();
+		settingsLabel->text = "Settings";
+		menu->addChild(settingsLabel);
+		
+		DelayDisplayNoteItem *ddnItem = MenuItem::create<DelayDisplayNoteItem>("Display Delay Values in Notes", CHECKMARK(module->displayDelayNoteMode));
+		ddnItem->module = module;
+		menu->addChild(ddnItem);
 
 		menu->addChild(new MenuLabel());// empty line
 		

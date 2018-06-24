@@ -112,7 +112,7 @@ struct Tact : Module {
 				double numSamples = engineGetSampleRate() * transitionRate * fabs(dV);
 				transitionStepsRemain[i] = ((unsigned long) (numSamples + 0.5f)) + 1ul;
 				transitionCVdelta[i] = (dV / (double)transitionStepsRemain[i]);
-				info("**** transitionCVdelta = %f", transitionCVdelta[i]);
+				//info("**** transitionCVdelta = %f", transitionCVdelta[i]);
 			}
 			if (transitionStepsRemain[i] > 0) {
 				cv[i] += transitionCVdelta[i];
