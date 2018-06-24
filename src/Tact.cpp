@@ -10,10 +10,11 @@
 
 
 #include "ImpromptuModular.hpp"
+#include "dsp/digital.hpp"
 
 
 struct Tact : Module {
-	static const int numLights = 11;// number of lights per channel
+	static const int numLights = 10;// number of lights per channel
 
 	enum ParamIds {
 		ENUMS(TACT_PARAMS, 2),// touch pads
@@ -23,6 +24,8 @@ struct Tact : Module {
 		NUM_PARAMS
 	};
 	enum InputIds {
+		ENUMS(TOP_INPUTS, 2),
+		ENUMS(BOT_INPUTS, 2),
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -30,7 +33,7 @@ struct Tact : Module {
 		NUM_OUTPUTS
 	};
 	enum LightIds {
-		ENUMS(TACT_LIGHTS, numLights * 2 + numLights * 2), // first 11 lights for channel L, other 11 for channel R (*2 for GreenRed)
+		ENUMS(TACT_LIGHTS, numLights * 2 + numLights * 2), // first N lights for channel L, other N for channel R (*2 for GreenRed)
 		NUM_LIGHTS
 	};
 	
@@ -44,12 +47,20 @@ struct Tact : Module {
 
 	static constexpr float TACT_INIT_VALUE = 5.0f;// so that module constructor is coherent with widget initialization, since module created before widget
 	double tactLast[2];
+		
+	IMTactile* tactWidgets[2];		
 	
 	
+	SchmittTrigger topTriggers[2];
+	SchmittTrigger botTriggers[2];
+
+
 	inline bool isLinked(void) {return params[LINK_PARAM].value > 0.5f;}
 
 	
 	Tact() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
+		tactWidgets[0] = nullptr;
+		tactWidgets[1] = nullptr;
 		onReset();
 	}
 
@@ -103,6 +114,18 @@ struct Tact : Module {
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
 		
+		// top/bot inputs
+		for (int i = 0; i < 2; i++) {
+			//if (topTriggers[i].process(inputs[TOP_INPUTS + i].value)) {
+			//	if (tactWidgets[i] != nullptr) 
+			//		tactWidgets[i]->setValue(10.0f);
+			//}
+			//if (botTriggers[i].process(inputs[BOT_INPUTS + i].value)) {
+			//	
+			//}
+		}
+		
+		
 		// cv
 		for (int i = 0; i < 2; i++) {
 			float newParamValue = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
@@ -134,23 +157,26 @@ struct Tact : Module {
 			if (transitionStepsRemain[i] > 0)
 				transitionStepsRemain[i]--;
 		}
-		if (isLinked())
+		if (isLinked()) {
 			transitionStepsRemain[1] = 0;
+			cv[1] = clamp(params[TACT_PARAMS + 1].value, 0.0f, 10.0f);
+		}
 	}
 	
-	void setTLights(int chan) {// single color bar-LED true value pale, target bright 
-		// TODO change color on top, mid and bot lights when exactly 10V, 5V, 0V respectively, with micro epsilon (account for attv effect obviously)
+	void setTLights(int chan) {
 		int readChan = isLinked() ? 0 : chan;
 		float paramClamped = clamp(params[TACT_PARAMS + readChan].value, 0.0f, 10.0f);
-		for (int i = 0; i < numLights; i++) {// lights are up-side down because of module origin at top-left
-			// Green
-			float light = (  (float)cv[readChan] > (((float)(i)) - 0.5f) /*&& cv[readChan] <= (((float)(i+1)) - 0.5f)*/  ) ? 0.1f : 0.0f;
-			float bright = (  paramClamped > (((float)(i)) - 0.5f) && 
-							  paramClamped <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;
+		float cvValue = (float)cv[readChan];
+		for (int i = 0; i < numLights; i++) {
+			float level = clamp( cvValue - ((float)(i)), 0.0f, 1.0f);
+			//float cursor = (  paramClamped > (((float)(i)) - 0.5f) && paramClamped <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;
+			float stable = clamp(fabs(paramClamped - cvValue) / 10.0f, 0.0f, level);
 			
-			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 0].value = clamp(light + bright, 0.0f, 1.0f);
-			// Red
-			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 1].value = bright/1.0f;
+			// lights are up-side down because of module origin at top-left
+			// Green diode
+			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 0].value = level;
+			// Red diode
+			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 1].value = stable;
 		}
 	}
 };
@@ -199,6 +225,9 @@ struct TactWidget : ModuleWidget {
 	
 	
 	TactWidget(Tact *module) : ModuleWidget(module) {
+		IMTactile* tactL;
+		IMTactile* tactR;		
+		
 		// Main panel from Inkscape
         DynamicSVGPanel *panel = new DynamicSVGPanel();
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Tact.svg")));
@@ -217,16 +246,21 @@ struct TactWidget : ModuleWidget {
 		static const int colRulerT0 = 15;
 		static const int colRulerT1 = 100;
 		static const int lightsOffsetX = 55;
-		static const int lightsOffsetY = 5;
+		static const int lightsOffsetY = 14;
 		static const int lightsSpacingY = 18;
 		
 		
 		// Tactile touch pads
 		// Right (no dynamic width, but must do first so that left will get mouse events when wider overlaps)
-		addParam(createDynamicParam2<IMTactile>(Vec(colRulerT1, rowRuler0), module, Tact::TACT_PARAMS + 1, -1.0f, 11.0f, Tact::TACT_INIT_VALUE, nullptr));
-		// Left (with width dependant on Link value)		
-		addParam(createDynamicParam2<IMTactile>(Vec(colRulerT0, rowRuler0), module, Tact::TACT_PARAMS + 0, -1.0f, 11.0f, Tact::TACT_INIT_VALUE,  &module->params[Tact::LINK_PARAM].value));
+		tactR = createDynamicParam2<IMTactile>(Vec(colRulerT1, rowRuler0), module, Tact::TACT_PARAMS + 1, -1.0f, 11.0f, Tact::TACT_INIT_VALUE, nullptr);
+		addParam(tactR);
+		// Left (with width dependant on Link value)	
+		tactL = createDynamicParam2<IMTactile>(Vec(colRulerT0, rowRuler0), module, Tact::TACT_PARAMS + 0, -1.0f, 11.0f, Tact::TACT_INIT_VALUE,  &module->params[Tact::LINK_PARAM].value);
+		addParam(tactL);
 		
+		module->tactWidgets[0] = tactL;
+		module->tactWidgets[1] = tactR;
+				
 		
 		// Tactile lights
 		for (int i = 0 ; i < Tact::numLights; i++) {
@@ -252,6 +286,10 @@ struct TactWidget : ModuleWidget {
 		addOutput(createDynamicPort<IMPort>(Vec(121, 315), Port::OUTPUT, module, Tact::CV_OUTPUTS + 1, &module->panelTheme));
 		// Link switch
 		addParam(ParamWidget::create<CKSS>(Vec(78 + hOffsetCKSS, 315 + vOffsetCKSS), module, Tact::LINK_PARAM, 0.0f, 1.0f, 0.0f));		
+
+		// Inputs
+		//addInput(createDynamicPort<IMPort>(Vec(15, 315), Port::INPUT, module, Tact::TOP_INPUTS + 0, &module->panelTheme));		
+		//addInput(createDynamicPort<IMPort>(Vec(139, 315), Port::INPUT, module, Tact::TOP_INPUTS + 1, &module->panelTheme));		
 		
 	}
 };
