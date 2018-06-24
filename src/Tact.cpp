@@ -68,7 +68,7 @@ struct Tact : Module {
 	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
 		for (int i = 0; i < 2; i++) {
-			cv[i] = params[TACT_PARAMS + i].value;
+			cv[i] = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
 			tactLast[i] = cv[i];
 			transitionStepsRemain[i] = 0;
 		}
@@ -93,7 +93,7 @@ struct Tact : Module {
 			panelTheme = json_integer_value(panelThemeJ);
 
 		for (int i = 0; i < 2; i++) {
-			cv[i] = params[TACT_PARAMS + i].value;
+			cv[i] = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
 			tactLast[i] = cv[i];
 			transitionStepsRemain[i] = 0;
 		}
@@ -105,14 +105,14 @@ struct Tact : Module {
 		
 		// cv
 		for (int i = 0; i < 2; i++) {
-			if (tactLast[i] != params[TACT_PARAMS + i].value) {
-				tactLast[i] = params[TACT_PARAMS + i].value;
+			float newParamValue = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
+			if (tactLast[i] != newParamValue) {
+				tactLast[i] = newParamValue;
 				double transitionRate = params[RATE_PARAMS + i].value; // s/V
 				double dV = tactLast[i] - cv[i];
 				double numSamples = engineGetSampleRate() * transitionRate * fabs(dV);
 				transitionStepsRemain[i] = ((unsigned long) (numSamples + 0.5f)) + 1ul;
 				transitionCVdelta[i] = (dV / (double)transitionStepsRemain[i]);
-				//info("**** transitionCVdelta = %f", transitionCVdelta[i]);
 			}
 			if (transitionStepsRemain[i] > 0) {
 				cv[i] += transitionCVdelta[i];
@@ -127,8 +127,8 @@ struct Tact : Module {
 		}
 		
 		// Tactile lights
-		setTLights2(0);
-		setTLights2(1);
+		setTLights(0);
+		setTLights(1);
 		
 		for (int i = 0; i < 2; i++) {
 			if (transitionStepsRemain[i] > 0)
@@ -138,28 +138,15 @@ struct Tact : Module {
 			transitionStepsRemain[1] = 0;
 	}
 	
-	void setTLights1(int chan) {// single-LED cursor with dual color: red is true value, green is target
-		// TODO change color on top, mid and bot lights when exactly 10V, 5V, 0V respectively, with micro epsilon (account for attv effect obviously)	
-		int readChan = isLinked() ? 0 : chan;
-		for (int i = 0; i < numLights; i++) {// lights are up-side down because of module origin at top-left
-			// Green
-			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 0].value = 
-				(  params[TACT_PARAMS + readChan].value > (((float)(i)) - 0.5f) && 
-				params[TACT_PARAMS + readChan].value <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;
-			// Red
-			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 1].value = 
-				(  (float)cv[readChan] > (((float)(i)) - 0.5f) && 
-				(float)cv[readChan] <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;
-		}
-	}
-	void setTLights2(int chan) {// single color bar-LED true value pale, target bright 
+	void setTLights(int chan) {// single color bar-LED true value pale, target bright 
 		// TODO change color on top, mid and bot lights when exactly 10V, 5V, 0V respectively, with micro epsilon (account for attv effect obviously)
 		int readChan = isLinked() ? 0 : chan;
+		float paramClamped = clamp(params[TACT_PARAMS + readChan].value, 0.0f, 10.0f);
 		for (int i = 0; i < numLights; i++) {// lights are up-side down because of module origin at top-left
 			// Green
 			float light = (  (float)cv[readChan] > (((float)(i)) - 0.5f) /*&& cv[readChan] <= (((float)(i+1)) - 0.5f)*/  ) ? 0.1f : 0.0f;
-			float bright = (  params[TACT_PARAMS + readChan].value > (((float)(i)) - 0.5f) && 
-							  params[TACT_PARAMS + readChan].value <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;
+			float bright = (  paramClamped > (((float)(i)) - 0.5f) && 
+							  paramClamped <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;
 			
 			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 0].value = clamp(light + bright, 0.0f, 1.0f);
 			// Red
@@ -236,9 +223,9 @@ struct TactWidget : ModuleWidget {
 		
 		// Tactile touch pads
 		// Right (no dynamic width, but must do first so that left will get mouse events when wider overlaps)
-		addParam(createDynamicParam2<IMTactile>(Vec(colRulerT1, rowRuler0), module, Tact::TACT_PARAMS + 1, 0.0f, 10.0f, Tact::TACT_INIT_VALUE, nullptr));
+		addParam(createDynamicParam2<IMTactile>(Vec(colRulerT1, rowRuler0), module, Tact::TACT_PARAMS + 1, -1.0f, 11.0f, Tact::TACT_INIT_VALUE, nullptr));
 		// Left (with width dependant on Link value)		
-		addParam(createDynamicParam2<IMTactile>(Vec(colRulerT0, rowRuler0), module, Tact::TACT_PARAMS + 0, 0.0f, 10.0f, Tact::TACT_INIT_VALUE,  &module->params[Tact::LINK_PARAM].value));
+		addParam(createDynamicParam2<IMTactile>(Vec(colRulerT0, rowRuler0), module, Tact::TACT_PARAMS + 0, -1.0f, 11.0f, Tact::TACT_INIT_VALUE,  &module->params[Tact::LINK_PARAM].value));
 		
 		
 		// Tactile lights
