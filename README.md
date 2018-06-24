@@ -2,7 +2,7 @@
 
 Modules for [VCV Rack](https://vcvrack.com), available in the [plugin manager](https://vcvrack.com/plugins.html).
 
-Version 0.6.6
+Version 0.6.7
 
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!   120% Zoom for jpgs)
 
@@ -15,9 +15,9 @@ Based on code from the Fundamental and Audible Instruments plugins by Andrew Bel
 ## Acknowledgements
 Impromptu Modular is not a single-person endeavor:
 
-* Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in Talking Rackheads [epsiode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg), as well as PhraseSeq32 and GateSeq64 in [episode 10](https://www.youtube.com/watch?v=bjqWwTKqERQ). 
-* Thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq modules, for testing/bug-reports, for designing the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
-* Thanks to **Alfredo Santamaria**, **Nay Seven** and **Latif Fital** for suggesting improvements to the PhraseSeq series of sequencers, and to **Omri Cohen** for bug reports and testing.
+* Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq and Clocked modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in Talking Rackheads [epsiode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg), as well as PhraseSeq32 and GateSeq64 in [episode 10](https://www.youtube.com/watch?v=bjqWwTKqERQ). 
+* Thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq and Clocked modules, for testing/bug-reports, for designing the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
+* Thanks to **Alfredo Santamaria**, **Nay Seven** and **Latif Fital** for suggesting improvements to the modules, and to **Omri Cohen** for bug reports and testing.
 
 
 
@@ -27,6 +27,8 @@ Each module is available in light (Classic) or dark (Dark-valor) panels, selecta
 
 * [TwelveKey](#twelve-key): Chainable one-octave keyboard controller.
 
+* [Clocked](#clocked): Chainable clock module with swing, clock delay and pulse width control.
+
 * [PhraseSeq16](#phrase-seq-16): 16-phrase sequencer with 16 steps per sequence, with onboard keyboard and CV input for easy sequence programming.
 
 * [PhraseSeq32](#phrase-seq-32): 32-phrase sequencer with 32 steps per sequence, with onboard keyboard and CV input for easy sequence programming (can be configured as 1x32 or 2x16).
@@ -35,9 +37,7 @@ Each module is available in light (Classic) or dark (Dark-valor) panels, selecta
 
 * [Semi-Modular Synth 16](#sms-16): Internally pre-patched all in one synthesizer for quickly getting sounds and learning the basics of modular synthesis.
 
-* [WriteSeq32](#write-seq-32): 3-channel 32-step sequencer with CV input for easy sequence programming.
-
-* [WriteSeq64](#write-seq-64): 4-channel 64-step sequencer with CV input for easy sequence programming.
+* [WriteSeq32/64](#write-seq): 3-channel 32-step / 4-channel 64-step sequencers with CV inputs for easy sequence programming.
 
 Details about each module are given below. Feedback and bug reports (and [donations!](https://www.paypal.me/marcboule)) are always appreciated!
 
@@ -61,7 +61,9 @@ Such sequencers have two main inputs that allow the capturing of (pitch) CVs, as
 
 When **AUTOSTEP** is activated, the sequencer automatically advances one step right on each write. For example, to automatically capture the notes played on a keyboard, send the midi keyboard's CV into the sequencer's CV IN, and send the keyboard's gate signal into the sequencer's Write input. With Autostep activated, each key-press will automatically be entered in sequence. An alternative way of automatically stepping the sequencer each time a note is entered is to send the gate signal of the keyboard to both the write and ">" inputs. 
 
-All edge sensitive inputs are have a threshold of 1V. In all sequencers, the duration of the gates corresponds to the pulse width (high time) of the clock signal.
+When Run is activated, the sequencer automatically starts playing in the current step position when **RESET on RUN** is not checked in the right-click menu, or starts at the first step when this option is checked. All edge sensitive inputs have a threshold of 1V. In all sequencers, the duration of the gates corresponds to the pulse width (high time) of the clock signal.
+
+Many modules feature an **Expansion panel** to provide additional CV inputs for the module (available in the right-click menu of the module). An extra 4 HP is added on the right side of the module, thus it is advisable to first make room in your Rack for this.
 
 
 ## TwelveKey <a id="twelve-key"></a>
@@ -81,6 +83,22 @@ For a brief tutorial on setting up the controller, please see [this segment](htt
 * **OCT**: CV input to set the base octave of the module. The voltage range is 0V (octave 0) to 9V (octave 9). Non-integer voltages or voltages outside this range are floored/clamped. 
 
 * **OCT+1**: CV output for setting the voltage of the next down-chain TwelveKey module. This corresponds to the base octave of the current module incremented by 1V.
+
+
+
+## Clocked <a id="clocked"></a>
+
+![IM](res/img/Clocked.jpg)
+
+A chainable master clock module with swing, clock delay and pulse width controls, with master BPM from 30 to 300, and mult/div ratios up to 16, including 1.5 and 2.5, and with additional ratios spanning prime numbers and powers of two up to 64. Along with the master clock output, three additionnal clocks with seperate multiply or divide ratios are offered. The clock can produce waveforms with adjustable pulse widths for use with envelope generators or sequencers that use the clock pulse to produce their gate signals. The clock's BPM input is level sensitive (0 V = 30 BPM, 10 V = 300 BPM), synchronizing to an external clock signal is currently not possible.
+
+The clock swing is loosely based on the [Roger Linn method](https://www.attackmagazine.com/technique/passing-notes/daw-drum-machine-swing/). For a given clock, all even clocks pulses are offset forward/backward according to the setting of the **SWING** knob; at 0 (top) everything is aligned as normal. At -100, all even clocks would coincide with odd clocks preceding them, and at +100 they would line up with subsequent clock pulses). The knob thus goes from -99 to +99 such that no beats are missed. In its extreme positions, the timing is tighter than 99 percent of a clock period (the 99 value is only a rough indication). 
+
+Pulse width (**PW**) is dependant on the swing knob, but can be used to control the general duration of the clock pulse. In the worst case knob settings, the pulse width is guaranteed to be a minimum of 1ms, with a minimum 1ms pause between pulses. 
+
+Clock **DELAY** can be used to offset a sub-clock relative to the master clock, and is expressed in fractions of the clock period of the given sub-clock. In place of a detailed explanation of these three main controls, it is recommended to connect the outputs to a scope or a logic analyser (for example, Fundamental Scope or SubmarineFree LA-108) to visually observe the effects of the controls.
+
+The PW and Swing CV inputs (most are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default (center) position. When changing the internal sample rate of Rack, it is recommended to reset the module to ensure proper timing of all clocks.
 
 
 
@@ -120,8 +138,6 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 * **TIED STEP**: When CVs are intended to be held across subsequent steps, this button can be used to tie the CV of the previous step to the current step; when tied, the gates of the current step are automatically turned off. If the CV of the head note changes, all consecutive tied notes are updated automatically.
 
-An **expansion panel** is also available to provide additional CV inputs for the module. The expansion panel can be added by right-clicking the module; please note that an extra 4 HP is added on the right side of the module, thus it is advidable to first make room in your Rack for this.
-
 
 
 ## PhraseSeq32 <a id="phrase-seq-32"></a>
@@ -152,6 +168,8 @@ The **SEQ** CV input and run **MODES** are identical to those found in PhraseSeq
 
 When running in the 4x16 configuration, each of the four rows is sent to the four **GATE** output jacks (jacks 1 to 4, with jack 1 being the top-most jack). In the 2x32 configuration, jacks 1 and 3 are used, and in the 1x64 configuration, only jack 1 is used (top-most jack). The pulse width of the gates emitted corresponds to the pulse width of the clock.
 
+Although no **write** capabilities appear in the main part of the module, automatically storing patterns into the sequencer can be perfomed using the CV inputs in the **expansion panel**. A write cursor is implicitly stepped forward on each write, and can be repositioned at the first step by pressing the reset button, or at an arbitrary step by simply clicking that given step.
+
 
 
 ## Semi-Modular Synth 16<a id="sms-16"></a>
@@ -162,15 +180,15 @@ An all-in-one pre-patched semi-modular synthesizer. Based on the [Fundamental](h
 
 This module can be used for quickly exploring ideas for sequences, and is also useful for those new to modular synthesis before learning how to fill the screen with cables! Also note that the final output is the low-pass output of the VCF module (Voltage Controlled Filter). The VCF is purposely placed after the VCA (Voltage Controlled Amplifier) in the signal flow, such that the VCF can be lightly saturated, producing a thicker sound, especially when the Drive knob is turned up.
 
-Extra controls were also added to the LFO (Low Frequency Oscillator), namely **GAIN** and **OFFSET**, to be able to easily modulate any other on-board parameter. With maximum gain, the LFO produces a 10V peak-to-peak signal (a.k.a 5V amplitude). The offset knob is automatically scaled such that with maximum (minimum) offset, the signal's maximum (minimum) voltage is +10V (-10V). That is, with the gain set to 0, the offset value spans -10V to +10V, and with the gain set to maximum, the offset value spans -5V to +5V. Also note that the clock LFO is automatically reset on every run or reset event in the sequencer.
+Extra controls were also added to the LFO (Low Frequency Oscillator), namely **GAIN** and **OFFSET**, to be able to easily modulate any other on-board parameter. With maximum gain, the LFO produces a 10V peak-to-peak signal (a.k.a 5V amplitude). The offset knob is automatically scaled such that with maximum (minimum) offset, the signal's maximum (minimum) voltage is +10V (-10V). That is, with the gain set to 0, the offset value spans -10V to +10V, and with the gain set to maximum, the offset value spans -5V to +5V. Also note that the clock LFO is automatically reset on every reset event in the sequencer.
 
 
 
-## WriteSeq32 <a id="write-seq-32"></a>
+## WriteSeq32/64 <a id="write-seq"></a>
 
 ![IM](res/img/WriteSeq32.jpg)
 
-A three channel 32-step writable sequencer module. Although the display shows note names (ex. C4#, D5, etc.), any voltage within the -10V to 10V range can be stored/played in the sequencer, whether it is used as a pitch CV or not, and whether it is quantized or not. Gate states and window selection can be done by pressing the 8 and 4 LED buttons respectively located below and above the main display. 
+WriteSeq32 is a three channel 32-step writable sequencer module. Although the display shows note names (ex. C4#, D5, etc.), any voltage within the -10V to 10V range can be stored/played in the sequencer, whether it is used as a pitch CV or not, and whether it is quantized or not. Gate states and window selection can be done by pressing the 8 and 4 LED buttons respectively located below and above the main display. 
 
 Here are some specific details on each element on the faceplate of the module. Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers.
 
@@ -190,7 +208,7 @@ Here are some specific details on each element on the faceplate of the module. F
 
 * **<, >**: These buttons step the sequencer one step left or right. No effect on channels 1 to 3 when the sequencer is running. A rising edge on the </> control voltage inputs triggered at 1V will also step the sequencer left/right by one step.
 
-* **RUN 1-3**: Start/stop the sequencer. When running, the sequencer responds to rising edges of the clock input and will step all channels except the staging area (channel 4). When Run is activated, the sequencer automatically starts playing at the first step. A rising edge on the RUN input will also toggle the run mode.
+* **RUN 1-3**: Start/stop the sequencer. When running, the sequencer responds to rising edges of the clock input and will step all channels except the staging area (channel 4). A rising edge on the RUN input will also toggle the run mode.
 
 * **GATE IN**: Allows the gate of the current step/channel to also be written during a Write (see [General Concepts](#general-concepts) above). If no wire is connected, the input is ignored and the currently stored gate is unaffected. No effect on channels 1 to 3 when the sequencer is running.
 
@@ -198,13 +216,9 @@ Here are some specific details on each element on the faceplate of the module. F
 
 * **MONITOR**: This switch determines which CV will be routed to the currently selected channel's CV output when the sequencer is not running. When the switch is in the right-most position, the CV stored in the sequencer at that step is output; in the left-most position, the CV applied to the CV IN jack is output.
 
-
-
-## WriteSeq64 <a id="write-seq-64"></a>
-
 ![IM](res/img/WriteSeq64.jpg)
 
-A four channel 64-step writable sequencer module. This sequencer is based on [WriteSeq32](#write-seq-32), both of which share many of the same functionalities. Familiarity with WriteSeq32 is strongly recommended. This sequencer is more versatile than WriteSeq32 since each channel has its own step position and maximum number of steps (length). Sequences of different lengths can be created, with different starting points. A fifth channel is available to be used as a staging area. 
+WriteSeq64 is a four channel 64-step writable sequencer module. This sequencer is more versatile than WriteSeq32 since each channel has its own step position and maximum number of steps (length). Sequences of different lengths can be created, with different starting points. A fifth channel is available to be used as a staging area. 
 
 WriteSeq64 has dual clock inputs, where each controls a pair of channels. When no wire is connected to **CLOCK 3,4**, the **CLOCK 1,2** signal is used internally as the clock for channels 3 and 4. 
 
