@@ -182,7 +182,7 @@ struct IMFivePosSmallKnob : IMSmallSnapKnob {
 
 struct IMTactile : DynamicIMTactile {
 	IMTactile() {
-		smooth = true;
+		smooth = false;// must be false or else DynamicIMTactile::changeValue() call from module will crash Rack
 	}
 };
 

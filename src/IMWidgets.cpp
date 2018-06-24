@@ -328,6 +328,7 @@ void DynamicSVGKnob::step() {
 
 DynamicIMTactile::DynamicIMTactile() {
 	snap = false;
+	smooth = false;// must be false or else DynamicIMTactile::changeValue() call from module will crash Rack
 	wider = nullptr;
 	oldWider = -1.0f;
 	box.size = Vec(45,200);
@@ -370,4 +371,9 @@ void DynamicIMTactile::onMouseDown(EventMouseDown &e) {
 	setValue(val);
 	ParamWidget::onMouseDown(e);
 }
+
+void DynamicIMTactile::changeValue(float newVal) {
+	setValue(newVal);
+}
+
 

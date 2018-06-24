@@ -116,13 +116,16 @@ struct Tact : Module {
 		
 		// top/bot inputs
 		for (int i = 0; i < 2; i++) {
-			//if (topTriggers[i].process(inputs[TOP_INPUTS + i].value)) {
-			//	if (tactWidgets[i] != nullptr) 
-			//		tactWidgets[i]->setValue(10.0f);
-			//}
-			//if (botTriggers[i].process(inputs[BOT_INPUTS + i].value)) {
-			//	
-			//}
+			if (topTriggers[i].process(inputs[TOP_INPUTS + i].value)) {
+				if (tactWidgets[i] != nullptr) {
+					tactWidgets[i]->changeValue(10.0f);
+				}
+			}
+			if (botTriggers[i].process(inputs[BOT_INPUTS + i].value)) {
+				if (tactWidgets[i] != nullptr) {
+					tactWidgets[i]->changeValue(0.0f);
+				}				
+			}
 		}
 		
 		
@@ -260,7 +263,8 @@ struct TactWidget : ModuleWidget {
 		
 		module->tactWidgets[0] = tactL;
 		module->tactWidgets[1] = tactR;
-				
+		
+		tactL->setValue(2.0f);
 		
 		// Tactile lights
 		for (int i = 0 ; i < Tact::numLights; i++) {
@@ -287,9 +291,11 @@ struct TactWidget : ModuleWidget {
 		// Link switch
 		addParam(ParamWidget::create<CKSS>(Vec(78 + hOffsetCKSS, 315 + vOffsetCKSS), module, Tact::LINK_PARAM, 0.0f, 1.0f, 0.0f));		
 
-		// Inputs
-		//addInput(createDynamicPort<IMPort>(Vec(15, 315), Port::INPUT, module, Tact::TOP_INPUTS + 0, &module->panelTheme));		
-		//addInput(createDynamicPort<IMPort>(Vec(139, 315), Port::INPUT, module, Tact::TOP_INPUTS + 1, &module->panelTheme));		
+		// CV Inputs
+		addInput(createDynamicPort<IMPort>(Vec(35, 5), Port::INPUT, module, Tact::TOP_INPUTS + 0, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(120, 5), Port::INPUT, module, Tact::TOP_INPUTS + 1, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(15, 340), Port::INPUT, module, Tact::BOT_INPUTS + 0, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(139, 340), Port::INPUT, module, Tact::BOT_INPUTS + 1, &module->panelTheme));		
 		
 	}
 };

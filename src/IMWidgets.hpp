@@ -174,6 +174,7 @@ struct DynamicIMTactile : ParamWidget, FramebufferWidget {
 	void onDragStart(EventDragStart &e) override;
 	void onDragMove(EventDragMove &e) override;	
 	void onMouseDown(EventMouseDown &e) override;
+	void changeValue(float newVal);
 };
 
 
