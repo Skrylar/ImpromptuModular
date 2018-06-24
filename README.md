@@ -16,7 +16,7 @@ Based on code from the Fundamental and Audible Instruments plugins by Andrew Bel
 Impromptu Modular is not a single-person endeavor:
 
 * Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq and Clocked modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in Talking Rackheads [epsiode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg), as well as PhraseSeq32 and GateSeq64 in [episode 10](https://www.youtube.com/watch?v=bjqWwTKqERQ). 
-* Thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq and Clocked modules, for testing/bug-reports, for designing the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
+* Thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq and Clocked modules, for testing/bug-reports, for the concept design of the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
 * Thanks to **Alfredo Santamaria**, **Nay Seven** and **Latif Fital** for suggesting improvements to the modules, and to **Omri Cohen** for bug reports and testing.
 
 
@@ -37,7 +37,7 @@ Each module is available in light (Classic) or dark (Dark-valor) panels, selecta
 
 * [Semi-Modular Synth 16](#sms-16): Internally pre-patched all in one synthesizer for quickly getting sounds and learning the basics of modular synthesis.
 
-* [WriteSeq32/64](#write-seq): 3-channel 32-step / 4-channel 64-step sequencers with CV inputs for easy sequence programming.
+* [WriteSeq32/64](#write-seq): Multi-channel 32/64-step sequencers with CV inputs for easy sequence programming.
 
 Details about each module are given below. Feedback and bug reports (and [donations!](https://www.paypal.me/marcboule)) are always appreciated!
 
