@@ -168,6 +168,10 @@ struct DynamicIMTactile : ParamWidget, FramebufferWidget {
 	float dragY;
 	float dragValue;
 	bool snap;
+	static const int padWidth = 45;
+	static const int padHeight = 200;
+	static const int padInterSpace = 20;
+	static const int padWidthWide = padWidth * 2 + padInterSpace;
 	
 	DynamicIMTactile();
 	void step() override;

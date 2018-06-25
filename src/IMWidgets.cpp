@@ -331,16 +331,16 @@ DynamicIMTactile::DynamicIMTactile() {
 	smooth = false;// must be false or else DynamicIMTactile::changeValue() call from module will crash Rack
 	wider = nullptr;
 	oldWider = -1.0f;
-	box.size = Vec(45,200);
+	box.size = Vec(padWidth, padHeight);
 }
 
 void DynamicIMTactile::step() {
    if(wider != nullptr && *wider != oldWider) {
         if ((*wider) > 0.5f) {
-			box.size = Vec(130,200);
+			box.size = Vec(padWidthWide, padHeight);
 		}
 		else {
-			box.size = Vec(45,200);
+			box.size = Vec(padWidth, padHeight);
 		}
         oldWider = *wider;
     }	

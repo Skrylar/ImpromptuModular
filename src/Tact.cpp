@@ -168,18 +168,22 @@ struct Tact : Module {
 	
 	void setTLights(int chan) {
 		int readChan = isLinked() ? 0 : chan;
-		float paramClamped = clamp(params[TACT_PARAMS + readChan].value, 0.0f, 10.0f);
+		//float paramClamped = clamp(params[TACT_PARAMS + readChan].value, 0.0f, 10.0f);
 		float cvValue = (float)cv[readChan];
 		for (int i = 0; i < numLights; i++) {
 			float level = clamp( cvValue - ((float)(i)), 0.0f, 1.0f);
 			//float cursor = (  paramClamped > (((float)(i)) - 0.5f) && paramClamped <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;
-			float stable = clamp(fabs(paramClamped - cvValue) / 10.0f, 0.0f, level);
+			//float stable = clamp(fabs(paramClamped - cvValue) / 10.0f, 0.0f, level);
+			//if (fabs(paramClamped - cvValue) > 0.01f && paramClamped >= ((float)i) && paramClamped < ((float)i + 1.0f)) {
+			//	level = 0.0f;
+			//	stable = 1.0f;
+			//}
 			
 			// lights are up-side down because of module origin at top-left
 			// Green diode
 			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 0].value = level;
 			// Red diode
-			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 1].value = stable;
+			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 1].value = 0.0f;
 		}
 	}
 };
@@ -246,11 +250,12 @@ struct TactWidget : ModuleWidget {
 		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->panelTheme));
 
 		static const int rowRuler0 = 34;
-		static const int colRulerT0 = 15;
-		static const int colRulerT1 = 100;
-		static const int lightsOffsetX = 55;
-		static const int lightsOffsetY = 14;
-		static const int lightsSpacingY = 18;
+		static const int colRulerT0 = 50;
+		static const int colRulerT1 = 115;
+		static const int lightsOffsetXL = -20;
+		static const int lightsOffsetXR = 56;
+		static const int lightsOffsetY = 19;
+		static const int lightsSpacingY = 17;
 		
 		
 		// Tactile touch pads
@@ -263,39 +268,43 @@ struct TactWidget : ModuleWidget {
 		
 		module->tactWidgets[0] = tactL;
 		module->tactWidgets[1] = tactR;
-		
-		tactL->setValue(2.0f);
-		
+				
+
 		// Tactile lights
 		for (int i = 0 ; i < Tact::numLights; i++) {
-			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(colRulerT0 + lightsOffsetX, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact::TACT_LIGHTS + i * 2));
-			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(colRulerT1 + lightsOffsetX, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact::TACT_LIGHTS + (Tact::numLights + i) * 2));
+			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(colRulerT0 + lightsOffsetXL, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact::TACT_LIGHTS + i * 2));
+			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(colRulerT1 + lightsOffsetXR, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact::TACT_LIGHTS + (Tact::numLights + i) * 2));
 		}
 
+		
+		static const int colRulerM0 = colRulerT0 + lightsOffsetXL - 15;
+		static const int colRulerM1 = colRulerT1 + lightsOffsetXR - 1;
+		static const int rowRuler1 = 228;
+		static const int rowRuler2 = rowRuler1 + 37;// outputs and link
+		
+		// CV Inputs
+		addInput(createDynamicPort<IMPort>(Vec(colRulerM0, rowRuler1), Port::INPUT, module, Tact::TOP_INPUTS + 0, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerM1, rowRuler1), Port::INPUT, module, Tact::TOP_INPUTS + 1, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerM0, rowRuler2), Port::INPUT, module, Tact::BOT_INPUTS + 0, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerM1, rowRuler2), Port::INPUT, module, Tact::BOT_INPUTS + 1, &module->panelTheme));		
+		// Outputs
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerM0 + 40, rowRuler2), Port::OUTPUT, module, Tact::CV_OUTPUTS + 0, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerM1 - 40, rowRuler2), Port::OUTPUT, module, Tact::CV_OUTPUTS + 1, &module->panelTheme));
+		// Link switch
+		addParam(ParamWidget::create<CKSS>(Vec(93 + hOffsetCKSS, rowRuler2 + 34 + vOffsetCKSS), module, Tact::LINK_PARAM, 0.0f, 1.0f, 0.0f));		
 
-		static const int rowRuler1 = 260;
-		static const int maxOffsetX = 2;
+		
+		static const int rowRuler3 = rowRuler2 + 49;// knobs
 		static const int rateOffsetX = 40;
 
-		// Attv knobs
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT0 + maxOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::ATTV_PARAMS + 0, -1.0f, 1.0f, 1.0f, &module->panelTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT1 + maxOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::ATTV_PARAMS + 1, -1.0f, 1.0f, 1.0f, &module->panelTheme));
-		// Rate knobs (transition time in s/V)
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT0 + rateOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 0, 0.0f, 2.0f, 0.2f, &module->panelTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT1 + rateOffsetX + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 1, 0.0f, 2.0f, 0.2f, &module->panelTheme));
+		// Left channel knobs
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM0 + offsetIMSmallKnob, rowRuler3 + offsetIMSmallKnob), module, Tact::ATTV_PARAMS + 0, -1.0f, 1.0f, 1.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM0 + rateOffsetX + offsetIMSmallKnob, rowRuler3 + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 0, 0.0f, 2.0f, 0.2f, &module->panelTheme));
+		// Right channel knobs
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM1 - rateOffsetX + offsetIMSmallKnob, rowRuler3 + offsetIMSmallKnob), module, Tact::ATTV_PARAMS + 1, -1.0f, 1.0f, 1.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM1 + offsetIMSmallKnob, rowRuler3 + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 1, 0.0f, 2.0f, 0.2f, &module->panelTheme));
 		
 				
-		// Outputs
-		addOutput(createDynamicPort<IMPort>(Vec(33, 315), Port::OUTPUT, module, Tact::CV_OUTPUTS + 0, &module->panelTheme));		
-		addOutput(createDynamicPort<IMPort>(Vec(121, 315), Port::OUTPUT, module, Tact::CV_OUTPUTS + 1, &module->panelTheme));
-		// Link switch
-		addParam(ParamWidget::create<CKSS>(Vec(78 + hOffsetCKSS, 315 + vOffsetCKSS), module, Tact::LINK_PARAM, 0.0f, 1.0f, 0.0f));		
-
-		// CV Inputs
-		addInput(createDynamicPort<IMPort>(Vec(35, 5), Port::INPUT, module, Tact::TOP_INPUTS + 0, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(120, 5), Port::INPUT, module, Tact::TOP_INPUTS + 1, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(15, 340), Port::INPUT, module, Tact::BOT_INPUTS + 0, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(139, 340), Port::INPUT, module, Tact::BOT_INPUTS + 1, &module->panelTheme));		
 		
 	}
 };
