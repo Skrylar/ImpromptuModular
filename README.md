@@ -15,8 +15,8 @@ Based on code from the Fundamental and Audible Instruments plugins by Andrew Bel
 ## Acknowledgements
 Impromptu Modular is not a single-person endeavor:
 
-* Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the PhraseSeq and Clocked modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in Talking Rackheads [epsiode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg), as well as PhraseSeq32 and GateSeq64 in [episode 10](https://www.youtube.com/watch?v=bjqWwTKqERQ). 
-* Thanks to **Xavier Belmont** for suggesting improvements to the PhraseSeq and Clocked modules, for testing/bug-reports, for the concept design of the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
+* Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in Talking Rackheads [epsiode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg), as well as PhraseSeq32 and GateSeq64 in [episode 10](https://www.youtube.com/watch?v=bjqWwTKqERQ). 
+* Thanks to **Xavier Belmont** for suggesting improvements to the modules, for testing/bug-reports, for the concept design of the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
 * Thanks to **Alfredo Santamaria**, **Nay Seven** and **Latif Fital** for suggesting improvements to the modules, and to **Omri Cohen** for bug reports and testing.
 
 
@@ -63,7 +63,7 @@ Such sequencers have two main inputs that allow the capturing of (pitch) CVs, as
 
 When **AUTOSTEP** is activated, the sequencer automatically advances one step right on each write. For example, to automatically capture the notes played on a keyboard, send the midi keyboard's CV into the sequencer's CV IN, and send the keyboard's gate signal into the sequencer's Write input. With Autostep activated, each key-press will automatically be entered in sequence. An alternative way of automatically stepping the sequencer each time a note is entered is to send the gate signal of the keyboard to both the write and ">" inputs. 
 
-When Run is activated, the sequencer automatically starts playing in the current step position when **RESET on RUN** is not checked in the right-click menu, or starts at the first step when this option is checked. All edge sensitive inputs have a threshold of 1V. In all sequencers, the duration of the gates corresponds to the pulse width (high time) of the clock signal.
+When Run is activated, the sequencer automatically starts playing in the current step position, provided **RESET on RUN** is not checked in the right-click menu; sequencers will start at the first step when this option is checked. All edge sensitive inputs have a threshold of 1V. In all sequencers, the duration of the gates corresponds to the pulse width (high time) of the clock signal.
 
 Many modules feature an **Expansion panel** to provide additional CV inputs for the module (available in the right-click menu of the module). An extra 4 HP is added on the right side of the module, thus it is advisable to first make room in your Rack for this.
 
@@ -73,15 +73,15 @@ Many modules feature an **Expansion panel** to provide additional CV inputs for 
 
 ![IM](res/img/Tact.jpg)
 
-A touch-like controller module with dual CV outputs and variable rate of change. This module is under development and may undergo further changes which may or may not break compatibility. Controls:
+A touch-like controller module with dual CV outputs and variable rate of change.
 
-**ATTV**: Typical attenuverter to control the maximum CV range output by the module. At full right, a 0 to 10V CV is produced, and at full left, a 0 to -10V CV is produced.
+**ATTV**: Typical attenuverter to set the maximum CV range output by the module. At full right, a 0 to 10V CV is produced, and at full left, a 0 to -10V CV is produced.
 
 **RATE**: Transition time of CV, from 0 (instant transition) to 2 seconds per volt. Transition time is the inverse of slew rate.
 
-**LINK**: Both controls are liked and will be synchronized to the same value. Useful when controlling stereo sounds.
+**LINK**: Both controls are linked and will be synchronized to the same value. Useful when controlling stereo sounds.
 
-**ARROW Inputs**: CV inputs for setting the CVs to their top/bottom most position. These are an edge sentitive inputs with a 1V threshold.
+**ARROW Inputs**: CV inputs for setting the CVs to their top/bottom most position. These are edge sentitive inputs with a 1V threshold.
 
 
 ([Back to module list](#modules))
@@ -94,7 +94,7 @@ A touch-like controller module with dual CV outputs and variable rate of change.
 
 A chainable keyboard controller for your virtual Rack. When multiple TwelveKey modules are connected in series from left to right, only the octave of the left-most module needs to be set, all other down-chain modules' octaves are set automatically. The aggregate output is that of the right-most module. To set up a chain of TwelveKey modules, simply connect the three outputs on the right side of a module to the three inputs of the next module beside it (typically to the right).
 
-For a brief tutorial on setting up the controller, please see [this segment](https://www.youtube.com/watch?v=KOpo2oUPTjg&t=874s) or [this segment](https://www.youtube.com/watch?v=hbxlK07PQAI&t=4614s) of Nigel Sixsmith's Talking Rackheads series. Here are some specific details on each element on the faceplate of the module.
+For a brief tutorial on setting up the controller, please see [this segment](https://www.youtube.com/watch?v=KOpo2oUPTjg&t=874s) or [this segment](https://www.youtube.com/watch?v=hbxlK07PQAI&t=4614s) of Nigel Sixsmith's Talking Rackheads series.
 
 * **CV**: The CV output from the keyboard or its CV input, depending on which key was last pressed, i.e. an up-chain key (from a module to the left) or a key of the given keyboard module.
 
@@ -114,15 +114,17 @@ For a brief tutorial on setting up the controller, please see [this segment](htt
 
 ![IM](res/img/Clocked.jpg)
 
-A chainable master clock module with swing, clock delay and pulse width controls, with master BPM from 30 to 300, and mult/div ratios up to 16, including 1.5 and 2.5, and with additional ratios spanning prime numbers and powers of two up to 64. Along with the master clock output, three additionnal clocks with seperate multiply or divide ratios are offered. The clock can produce waveforms with adjustable pulse widths for use with envelope generators or sequencers that use the clock pulse to produce their gate signals. The clock's BPM input is level sensitive (0 V = 30 BPM, 10 V = 300 BPM), synchronizing to an external clock signal is currently not possible.
+A chainable master clock module with swing, clock delay and pulse width controls, with master BPM from 30 to 300 and all mult/div ratios up to 16, including 1.5 and 2.5, and with additional ratios spanning prime numbers and powers of two up to 64. The clock can produce waveforms with adjustable pulse widths for use with envelope generators or sequencers that use the clock pulse to produce their gate signals. The clock's BPM input is level sensitive (0 V = 30 BPM, 10 V = 300 BPM); synchronizing it to an external clock signal is not possible.
 
-The clock swing is loosely based on the [Roger Linn method](https://www.attackmagazine.com/technique/passing-notes/daw-drum-machine-swing/). For a given clock, all even clocks pulses are offset forward/backward according to the setting of the **SWING** knob; at 0 (top) everything is aligned as normal. At -100, all even clocks would coincide with odd clocks preceding them, and at +100 they would line up with subsequent clock pulses). The knob thus goes from -99 to +99 such that no beats are missed. In its extreme positions, the timing is tighter than 99 percent of a clock period (the 99 value is only a rough indication). 
+**SWING**: The clock swing is loosely based on the [Roger Linn method](https://www.attackmagazine.com/technique/passing-notes/daw-drum-machine-swing/). For a given clock, all even clocks pulses are offset forward/backward according to the setting of the Swing knob; at 0 (top) everything is aligned as normal. At -100, all even clocks would coincide with odd clocks preceding them, and at +100 they would line up with subsequent clock pulses). The knob thus goes from -99 to +99 such that no beats are missed. In its extreme positions, the timing is tighter than 99 percent of a clock period (the 99 value is only a rough indication). 
 
-Pulse width (**PW**) is dependant on the swing knob, but can be used to control the general duration of the clock pulse. In the worst case knob settings, the pulse width is guaranteed to be a minimum of 1ms, with a minimum 1ms pause between pulses. 
+**PW**: Pulse width is dependant on the swing knob, but can be used to control the general duration of the clock pulse. In the worst case knob settings, the pulse width is guaranteed to be a minimum of 1ms, with a minimum 1ms pause between pulses. 
 
-Clock **DELAY** can be used to offset a sub-clock relative to the master clock, and is expressed in fractions of the clock period of the given sub-clock. In place of a detailed explanation of these three main controls, it is recommended to connect the outputs to a scope or a logic analyser, such as the Fundamental Scope pitcuted above or the SubmarineFree LA-108, to observe the effects of the different controls.
+**DELAY**: Clock delay can be used to offset a sub-clock relative to the master clock, and is expressed in fractions of the clock period of the given sub-clock. Using the right click menu, the delay value can also be displayed in notes where one quarter note corresponds to a clock period. 
 
-The PW and Swing CV inputs (most are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default (center) position. When changing the internal sample rate of Rack, it is recommended to reset the module to ensure proper timing of all clocks.
+In place of a detailed explanation of these three main controls, it is recommended to connect the outputs to a scope or a logic analyser, such as the Fundamental Scope pitcuted above or the SubmarineFree LA-108, to observe the effects of the different controls.
+
+The PW and Swing CV inputs (some are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default (center) position. When changing the internal sample rate of Rack, it is recommended to reset the module to ensure proper timing of all clocks.
 
 ([Back to module list](#modules))
 
@@ -138,7 +140,7 @@ The following block diagram shows how sequences and phrases relate to each other
 
 ![IM](res/img/PhraseSeq16BlockDiag.jpg)
 
-Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers. For an in depth review of the sequencer's capabilities, please see Nigel Sixsmith's [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg). Here are some specific details on elements of the faceplate. 
+Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers. For an in depth review of the sequencer's capabilities, please see Nigel Sixsmith's [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg). 
 
 * **SEQ/SONG**: This is the main switch that controls the two major modes of the sequencer. Seq mode allows the currently selected sequence to be played/edited. In this mode, all controls are available (run mode, transpose, rotate, copy-paste, gates, slide, octave, notes) and the content of a sequence can be modified even when the sequencer is running. Song mode allows the creation of a series of sequence numbers (called phrases). In this mode, only the run mode and length of the song and the sequence index numbers themselves can be modified (whether the sequence is running or not); the other aforementioned controls are unavailable and the actual contents of the sequences cannot be modified.
 
@@ -172,7 +174,7 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 ![IM](res/img/PhraseSeq32.jpg)
 
-A 32 phrase sequencer module, where each phrase is an index into a set of 32 sequences of 32 steps (maximum). If you need a 1024-step sequence in a single module, this is the sequencer for you! This sequencer is very similar to [PhraseSeq16](#phrase-seq-16), but with an added configuration switch allowing the sequencer to output dual 16 step sequences (**2x16**) instead of single 32 step sequences (**1x32**).
+A 32 phrase sequencer module, where each phrase is an index into a set of 32 sequences of 32 steps (maximum). This sequencer is very similar to [PhraseSeq16](#phrase-seq-16), but with an added configuration switch allowing the sequencer to output dual 16 step sequences (**2x16**) instead of single 32 step sequences (**1x32**).
 
 Step/phrase selection is done by directly clicking the 32 steps at the top, instead of cursor buttons as used in PhraseSeq16. When running in the 2x16 configuration and in Seq mode, with **ATTACH** activated, simply click any step in a given row to attach the edit head to that row. 
 
@@ -222,9 +224,7 @@ Extra controls were also added to the LFO (Low Frequency Oscillator), namely **G
 
 ![IM](res/img/WriteSeq32.jpg)
 
-WriteSeq32 is a three channel 32-step writable sequencer module. Although the display shows note names (ex. C4#, D5, etc.), any voltage within the -10V to 10V range can be stored/played in the sequencer, whether it is used as a pitch CV or not, and whether it is quantized or not. Gate states and window selection can be done by pressing the 8 and 4 LED buttons respectively located below and above the main display. 
-
-Here are some specific details on each element on the faceplate of the module. Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers.
+WriteSeq32 is a three channel 32-step writable sequencer module. Although the display shows note names (ex. C4#, D5, etc.), any voltage within the -10V to 10V range can be stored/played in the sequencer, whether it is used as a pitch CV or not, and whether it is quantized or not. Gate states and window selection can be done by pressing the 8 and 4 LED buttons respectively located below and above the main display. Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers.
 
 * **WINDOW**: LED buttons to display/select the active 8-step window within the 32 step sequence (hence four windows). No effect on channels 1 to 3 when the sequencer is running.
 
