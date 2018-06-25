@@ -73,7 +73,7 @@ Many modules feature an **Expansion panel** to provide additional CV inputs for 
 
 ![IM](res/img/Tact.jpg)
 
-A touch-like controller module with dual CV outputs and variable rate of change.
+A touch-like controller module with dual CV outputs and variable rate of change. With a fast rate of change, the controller offers an alternative to knobs for modulating parameters, and with a slow rate of change it can be used to automate in-out fades, for example, freeing the performer to work elsewhere in the patch.
 
 **ATTV**: Typical attenuverter to set the maximum CV range output by the module. At full right, a 0 to 10V CV is produced, and at full left, a 0 to -10V CV is produced.
 
