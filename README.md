@@ -25,7 +25,7 @@ Impromptu Modular is not a single-person endeavor:
 
 Each module is available in light (Classic) or dark (Dark-valor) panels, selectable by right-clicking the module in Rack.
 
-* [Tact](#tact): A touch-like controller module with dual CV outputs and variable rate (experimental).
+* [Tact](#tact): A touch-like controller module with dual CV outputs and variable rate of change.
 
 * [TwelveKey](#twelve-key): Chainable one-octave keyboard controller.
 
@@ -69,17 +69,20 @@ Many modules feature an **Expansion panel** to provide additional CV inputs for 
 
 
 
-## Tact (Experimental) <a id="tact"></a>
+## Tact <a id="tact"></a>
 
 ![IM](res/img/Tact.jpg)
 
-A touch-like controller module with dual CV outputs and variable rate. This module is under development and will likely undergo further changes which may or may not break compatibility. Controls:
+A touch-like controller module with dual CV outputs and variable rate of change. This module is under development and may undergo further changes which may or may not break compatibility. Controls:
 
 **ATTV**: Typical attenuverter to control the maximum CV range output by the module. At full right, a 0 to 10V CV is produced, and at full left, a 0 to -10V CV is produced.
 
 **RATE**: Transition time of CV, from 0 (instant transition) to 2 seconds per volt. Transition time is the inverse of slew rate.
 
 **LINK**: Both controls are liked and will be synchronized to the same value. Useful when controlling stereo sounds.
+
+**ARROW Inputs**: CV inputs for setting the CVs to their top/bottom most position. These are an edge sentitive inputs with a 1V threshold.
+
 
 ([Back to module list](#modules))
 

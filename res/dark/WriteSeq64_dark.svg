@@ -15,7 +15,7 @@
    viewBox="0 0 107.15625 100.54166"
    version="1.1"
    id="svg12553"
-   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)"
+   inkscape:version="0.92.3 (2405546, 2018-03-11)"
    sodipodi:docname="WriteSeq64_dark.svg"
    inkscape:export-filename="C:\Users\mboule\Desktop\NovaModular\res\WriteSeq32.png"
    inkscape:export-xdpi="149.97333"
@@ -3339,6 +3339,16 @@
        y1="62.947906"
        x2="24.039003"
        y2="59.62191" />
+    <linearGradient
+       gradientTransform="matrix(0.99999999,0,0,1.0215686,22.911164,166.57387)"
+       inkscape:collect="always"
+       xlink:href="#linearGradient21639"
+       id="linearGradient11597-4-2-4-0"
+       x1="82.856171"
+       y1="8.3815069"
+       x2="82.756607"
+       y2="16.715504"
+       gradientUnits="userSpaceOnUse" />
   </defs>
   <sodipodi:namedview
      id="base"
@@ -3348,8 +3358,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.4663163"
-     inkscape:cx="147.54863"
-     inkscape:cy="210.3301"
+     inkscape:cx="119.08268"
+     inkscape:cy="157.3106"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -3366,7 +3376,7 @@
      inkscape:snap-grids="false"
      showguides="false"
      inkscape:guide-bbox="true"
-     inkscape:snap-global="true"
+     inkscape:snap-global="false"
      inkscape:snap-object-midpoints="true">
     <inkscape:grid
        type="xygrid"
@@ -4808,5 +4818,13 @@
          id="path3856-1-49"
          style="display:inline;opacity:1;fill:url(#linearGradient4074);fill-opacity:1;stroke:none;stroke-width:0.06546926;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
     </g>
+    <rect
+       style="display:inline;opacity:1;fill:url(#linearGradient11597-4-2-4-0);fill-opacity:1;stroke:none;stroke-width:0.13371071;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="rect11589-3-4-0-4"
+       width="4.3099604"
+       height="8.5463381"
+       x="103.53437"
+       y="175.13615"
+       ry="0.59463799" />
   </g>
 </svg>
