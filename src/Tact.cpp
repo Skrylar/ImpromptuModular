@@ -148,9 +148,9 @@ struct Tact : Module {
 		// store buttons
 		for (int i = 0; i < 2; i++) {
 			if (storeTriggers[i].process(params[STORE_PARAMS + i].value)) {
+				if (i == 1 && isLinked()) 
+					continue;
 				storeCV[i] = cv[i];
-				if (i == 1 && isLinked())
-					storeCV[0] = cv[1];
 				infoStore = initInfoStore * (i == 0 ? 1l : -1l);
 			}
 		}
@@ -415,8 +415,8 @@ struct TactWidget : ModuleWidget {
 
 		// Top/bot CV Inputs
 		addInput(createDynamicPort<IMPort>(Vec(colRulerB0, rowRuler3), Port::INPUT, module, Tact::TOP_INPUTS + 0, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(colRulerB1, rowRuler3), Port::INPUT, module, Tact::TOP_INPUTS + 1, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(colRulerB2, rowRuler3), Port::INPUT, module, Tact::BOT_INPUTS + 0, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerB1, rowRuler3), Port::INPUT, module, Tact::BOT_INPUTS + 0, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerB2, rowRuler3), Port::INPUT, module, Tact::TOP_INPUTS + 1, &module->panelTheme));		
 		addInput(createDynamicPort<IMPort>(Vec(colRulerB3, rowRuler3), Port::INPUT, module, Tact::BOT_INPUTS + 1, &module->panelTheme));		
 		
 		
