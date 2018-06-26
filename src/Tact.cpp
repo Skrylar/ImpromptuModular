@@ -52,7 +52,6 @@ struct Tact : Module {
 	long initInfoStore;// set in constructor
 
 	static constexpr float TACT_INIT_VALUE = 5.0f;// so that module constructor is coherent with widget initialization, since module created before widget
-	double tactLast[2];
 		
 	IMTactile* tactWidgets[2];		
 	
@@ -82,7 +81,6 @@ struct Tact : Module {
 	void onReset() override {
 		for (int i = 0; i < 2; i++) {
 			cv[i] = TACT_INIT_VALUE;
-			tactLast[i] = cv[i];
 			transitionStepsRemain[i] = 0;
 			storeCV[i] = 0.0f;
 		}
@@ -94,8 +92,8 @@ struct Tact : Module {
 	void onRandomize() override {
 		for (int i = 0; i < 2; i++) {
 			cv[i] = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
-			tactLast[i] = cv[i];
 			transitionStepsRemain[i] = 0;
+			storeCV[i] = 0.0f;
 		}
 		infoStore = 0l;
 	}
@@ -136,7 +134,6 @@ struct Tact : Module {
 
 		for (int i = 0; i < 2; i++) {
 			cv[i] = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
-			tactLast[i] = cv[i];
 			transitionStepsRemain[i] = 0;
 		}
 	}
@@ -148,34 +145,31 @@ struct Tact : Module {
 		// store buttons
 		for (int i = 0; i < 2; i++) {
 			if (storeTriggers[i].process(params[STORE_PARAMS + i].value)) {
-				if (i == 1 && isLinked()) 
-					continue;
-				storeCV[i] = cv[i];
-				infoStore = initInfoStore * (i == 0 ? 1l : -1l);
+				if ( !(i == 1 && isLinked()) ) {// ignore right channel store-button press when linked
+					storeCV[i] = cv[i];
+					infoStore = initInfoStore * (i == 0 ? 1l : -1l);
+				}
 			}
 		}
 		
 		// top/bot/recall CV inputs
 		for (int i = 0; i < 2; i++) {
 			if (topTriggers[i].process(inputs[TOP_INPUTS + i].value)) {
-				if (tactWidgets[i] != nullptr) {
+				if ( tactWidgets[i] != nullptr && !(i == 1 && isLinked()) ) {// ignore right channel top cv in when linked
 					tactWidgets[i]->changeValue(10.0f);
 				}
-				transitionStepsRemain[i] = 0l;
 			}
 			if (botTriggers[i].process(inputs[BOT_INPUTS + i].value)) {
-				if (tactWidgets[i] != nullptr) {
+				if ( tactWidgets[i] != nullptr && !(i == 1 && isLinked()) ) {// ignore right channel bot cv in when linked
 					tactWidgets[i]->changeValue(0.0f);
 				}				
-				transitionStepsRemain[i] = 0l;
 			}
-			if (recallTriggers[i].process(inputs[RECALL_INPUTS + i].value)) {
-				if (tactWidgets[i] != nullptr) {
+			if (recallTriggers[i].process(inputs[RECALL_INPUTS + i].value)) {// ignore right channel recall cv in when linked
+				if ( tactWidgets[i] != nullptr && !(i == 1 && isLinked()) ) {
 					tactWidgets[i]->changeValue(storeCV[i]);
 					if (params[SLIDE_PARAMS + i].value < 0.5f) //if no slide
 						cv[i]=storeCV[i];
 				}				
-				transitionStepsRemain[i] = 0l;
 			}
 		}
 		
@@ -183,16 +177,20 @@ struct Tact : Module {
 		// cv
 		for (int i = 0; i < 2; i++) {
 			float newParamValue = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
-			if (tactLast[i] != newParamValue) {
-				tactLast[i] = newParamValue;
-				double transitionRate = params[RATE_PARAMS + i].value; // s/V
-				double dV = tactLast[i] - cv[i];
-				double numSamples = engineGetSampleRate() * transitionRate * fabs(dV);
+			double transitionRate = params[RATE_PARAMS + i].value; // s/V
+			double dV = newParamValue - cv[i];
+			double dVabs = fabs(dV);
+			if (dVabs > 0.001) {
+				double numSamples = engineGetSampleRate() * transitionRate * dVabs;
 				transitionStepsRemain[i] = ((unsigned long) (numSamples + 0.5f)) + 1ul;
 				transitionCVdelta[i] = (dV / (double)transitionStepsRemain[i]);
+				if (transitionStepsRemain[i] > 0) {
+					cv[i] += transitionCVdelta[i];
+				}
 			}
-			if (transitionStepsRemain[i] > 0) {
-				cv[i] += transitionCVdelta[i];
+			else {// snap to value when within 1mV (no slide)
+				transitionStepsRemain[i] = 0;
+				cv[i] = newParamValue;
 			}
 		}
 		
@@ -231,18 +229,9 @@ struct Tact : Module {
 	
 	void setTLights(int chan) {
 		int readChan = isLinked() ? 0 : chan;
-		//float paramClamped = clamp(params[TACT_PARAMS + readChan].value, 0.0f, 10.0f);
 		float cvValue = (float)cv[readChan];
 		for (int i = 0; i < numLights; i++) {
 			float level = clamp( cvValue - ((float)(i)), 0.0f, 1.0f);
-			//float cursor = (  paramClamped > (((float)(i)) - 0.5f) && paramClamped <= (((float)(i+1)) - 0.5f)  ) ? 1.0f : 0.0f;
-			//float stable = clamp(fabs(paramClamped - cvValue) / 10.0f, 0.0f, level);
-			//if (fabs(paramClamped - cvValue) > 0.01f && paramClamped >= ((float)i) && paramClamped < ((float)i + 1.0f)) {
-			//	level = 0.0f;
-			//	stable = 1.0f;
-			//}
-			
-			// lights are up-side down because of module origin at top-left
 			// Green diode
 			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 0].value = level;
 			// Red diode
@@ -418,11 +407,6 @@ struct TactWidget : ModuleWidget {
 		addInput(createDynamicPort<IMPort>(Vec(colRulerB1, rowRuler3), Port::INPUT, module, Tact::BOT_INPUTS + 0, &module->panelTheme));		
 		addInput(createDynamicPort<IMPort>(Vec(colRulerB2, rowRuler3), Port::INPUT, module, Tact::TOP_INPUTS + 1, &module->panelTheme));		
 		addInput(createDynamicPort<IMPort>(Vec(colRulerB3, rowRuler3), Port::INPUT, module, Tact::BOT_INPUTS + 1, &module->panelTheme));		
-		
-		
-		
-				
-		
 	}
 };
 
