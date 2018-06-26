@@ -313,8 +313,8 @@ struct TactWidget : ModuleWidget {
 		
 		
 		static const int rowRuler0 = 34;
-		static const int colRulerPadL = 80;
-		static const int colRulerPadR = 145;
+		static const int colRulerPadL = 73;
+		static const int colRulerPadR = 136;
 		
 		// Tactile touch pads
 		// Right (no dynamic width, but must do first so that left will get mouse events when wider overlaps)
@@ -340,7 +340,7 @@ struct TactWidget : ModuleWidget {
 		}
 
 		
-		static const int colRulerCenter = 123;// not real center, but pos so that a jack would be centered
+		static const int colRulerCenter = 115;// not real center, but pos so that a jack would be centered
 		static const int offsetOutputX = 49;
 		static const int colRulerC1L = colRulerCenter - offsetOutputX - 1;
 		static const int colRulerC1R = colRulerCenter + offsetOutputX; 
@@ -353,7 +353,7 @@ struct TactWidget : ModuleWidget {
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerC1R, rowRuler2), Port::OUTPUT, module, Tact::CV_OUTPUTS + 1, &module->panelTheme));
 		
 
-		static const int offsetRecallX = 54;
+		static const int offsetRecallX = 52;
 		static const int colRulerC2L = colRulerC1L - offsetRecallX;
 		static const int colRulerC2R = colRulerC1R + offsetRecallX;
 		
