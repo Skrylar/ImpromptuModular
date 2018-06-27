@@ -228,7 +228,7 @@ struct Clocked : Module {
 		}
 		return bpm;
 	}
-	long getRatioDoubled(int ratioKnobIndex) {
+	int getRatioDoubled(int ratioKnobIndex) {
 		// ratioKnobIndex is 0 for master BPM's ratio (mplicitly 1.0f), and 1 to 3 for other ratio knobs
 		// returns a positive ratio for mult, negative ratio for div (0 never returned)
 		int ret = 1;
@@ -248,7 +248,7 @@ struct Clocked : Module {
 		}
 		return ret;
 	}
-	inline float calcRatio(long ratioDoubled) {
+	inline float calcRatio(int ratioDoubled) {
 		// true float ratio, always positive, >1 for mult, <1 for div
 		float ret = ((float)ratioDoubled) / 2.0f;
 		if (ratioDoubled < 0)
@@ -439,7 +439,7 @@ struct Clocked : Module {
 			resetLight -= (resetLight / lightLambda) * (float)sampleTime;	
 
 		// BPM input and knob
-		long newBpm = getBeatsPerMinute();
+		int newBpm = getBeatsPerMinute();
 		if (newBpm != bpm) {
 			double lengthStretchFactor = ((double)bpm) / ((double)newBpm);
 			for (int i = 0; i < 4; i++) {
@@ -623,15 +623,15 @@ struct ClockedWidget : ModuleWidget {
 			else {
 				if (knobIndex > 0) {// ratio to display
 					bool isDivision = false;
-					long ratioDoubled = module->getRatioDoubled(knobIndex);
-					if (ratioDoubled < 0l) {
-						ratioDoubled = -1l * ratioDoubled;
+					int ratioDoubled = module->getRatioDoubled(knobIndex);
+					if (ratioDoubled < 0) {
+						ratioDoubled = -1 * ratioDoubled;
 						isDivision = true;
 					}
 					if ( (ratioDoubled % 2) == 1 )
-						snprintf(displayStr, 4, "%c,5", 0x30 + (char)(ratioDoubled / 2l));
+						snprintf(displayStr, 4, "%c,5", 0x30 + (char)(ratioDoubled / 2));
 					else {
-						snprintf(displayStr, 4, "X%2u", (unsigned)(ratioDoubled / 2l));
+						snprintf(displayStr, 4, "X%2u", (unsigned)(ratioDoubled / 2));
 						if (isDivision)
 							displayStr[0] = '/';
 					}
