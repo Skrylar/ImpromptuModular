@@ -81,13 +81,13 @@ A touch-like controller module with dual CV outputs and variable rate of change.
 
 **STORE**: memorize the current CV to later be recalled when a trigger is sent to the Recall CV input.
 
-**RECALL and ARROW Inputs**: CV inputs for setting the CVs to their stored/top/bottom most position. These are edge sensitive inputs with a 1V threshold.
+**RECALL and ARROW Inputs**: CV inputs for setting the CVs to their stored/top/bottom position. These are edge sensitive inputs with a 1V threshold.
 
 **SLIDE**: determines whether the recall operation is instantaneous or transitions according to the current rate knob's setting.
 
 **ATTV**: Typical attenuverter to set the maximum CV range output by the module. At full right, a 0 to 10V CV is produced, and at full left, a 0 to -10V CV is produced.
 
-A 0V CV is initially stored in the CV memory and the slide sitches are in the off position, thereby allowing the Recall to act as a **Reset** by default.
+A 0V CV is initially stored in the CV memory and the slide switches are in the off position, thereby allowing the Recall to act as a **Reset** by default.
 
 ([Back to module list](#modules))
 
@@ -129,7 +129,7 @@ A chainable master clock module with swing, clock delay and pulse width controls
 
 In place of a detailed explanation of these three main controls, it is recommended to connect the outputs to a scope or a logic analyzer, such as the Fundamental Scope (pictured above) or the SubmarineFree LA-108, to observe the effects of the different controls.
 
-The PW and Swing CV inputs (some are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default (center) position. 
+The PW and Swing CV inputs (some are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default position. 
 
 When changing the internal sample rate of Rack, it is recommended to reset the module to ensure proper timing of all clocks.
 
