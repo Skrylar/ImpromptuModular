@@ -44,7 +44,7 @@ Each module is available in light (Classic) or dark (Dark-valor) panels, selecta
 Details about each module are given below. Feedback and bug reports (and [donations!](https://www.paypal.me/marcboule)) are always appreciated!
 
 
-## Known issues
+## Known issues <a id="known-issues"></a>
 For modules such as PhraseSeq16 and GateSeq64, it is advisable to have a core audio module added to your patch and assigned to a sound card in order for the response delays in the user interface to be of the proper duration (for length selection and probability selection respectively in these two modules, for example). This is a [known artifact](https://github.com/VCVRack/Rack/issues/919) in VCV Rack.
 
 For the Semi-Modular Synth, the high-pass output of the VCF is currently non-functional.
@@ -77,9 +77,9 @@ A touch-like controller module with dual CV outputs and variable rate of change.
 
 **RATE**: Transition time of CV, from 0 (instant transition) to 4 seconds per volt. Transition time is the inverse of slew rate. This knob can be turned in real time to affect the rate of change of a transition already under way.
 
-**LINK**: Both controls are linked and will be synchronized to the same value. Useful when controlling stereo sounds. Only the left side controls have an effect in this mode; however, both touch pads can be used to change the single CV (that is sent to both output jacks.
+**LINK**: Both controls are linked and will be synchronized to the same value. Useful when controlling stereo sounds. Only the left side controls have an effect in this mode; however, both touch pads can be used to change the single CV (which is sent to both output jacks).
 
-**STORE**: memorize the current CV to later be recalled when a trigger is sent to the Recall CV input. By default a 0V CV is stored, thus allowing the Recall to act as a reset.
+**STORE**: memorize the current CV to later be recalled when a trigger is sent to the Recall CV input.
 
 **RECALL and ARROW Inputs**: CV inputs for setting the CVs to their stored/top/bottom most position. These are edge sensitive inputs with a 1V threshold.
 
@@ -87,6 +87,7 @@ A touch-like controller module with dual CV outputs and variable rate of change.
 
 **ATTV**: Typical attenuverter to set the maximum CV range output by the module. At full right, a 0 to 10V CV is produced, and at full left, a 0 to -10V CV is produced.
 
+A 0V CV is initially stored in the CV memory and the slide sitches are in the off position, thereby allowing the Recall to act as a **Reset** by default.
 
 ([Back to module list](#modules))
 

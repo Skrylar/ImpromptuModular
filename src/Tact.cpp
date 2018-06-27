@@ -37,6 +37,7 @@ struct Tact : Module {
 	};
 	enum LightIds {
 		ENUMS(TACT_LIGHTS, numLights * 2 + numLights * 2), // first N lights for channel L, other N for channel R (*2 for GreenRed)
+		ENUMS(CVIN_LIGHTS, 2 * 2),// GreenRed
 		NUM_LIGHTS
 	};
 	
@@ -50,6 +51,7 @@ struct Tact : Module {
 	double transitionCVdelta[2];// no need to initialize, this is a companion to slideStepsRemain
 	long infoStore;// 0 when no info, positive downward step counter timer when store left channel, negative upward for right channel
 	long initInfoStore;// set in constructor
+	float infoCVinLight[2];// set in constructor
 
 	static constexpr float TACT_INIT_VALUE = 5.0f;// so that module constructor is coherent with widget initialization, since module created before widget
 		
@@ -71,6 +73,8 @@ struct Tact : Module {
 
 		tactWidgets[0] = nullptr;
 		tactWidgets[1] = nullptr;
+		infoCVinLight[0] = 0.0f;
+		infoCVinLight[1] = 0.0f;
 
 		onReset();
 	}
@@ -157,11 +161,13 @@ struct Tact : Module {
 			if (topTriggers[i].process(inputs[TOP_INPUTS + i].value)) {
 				if ( tactWidgets[i] != nullptr && !(i == 1 && isLinked()) ) {// ignore right channel top cv in when linked
 					tactWidgets[i]->changeValue(10.0f);
+					infoCVinLight[i] = 1.0f;
 				}
 			}
 			if (botTriggers[i].process(inputs[BOT_INPUTS + i].value)) {
 				if ( tactWidgets[i] != nullptr && !(i == 1 && isLinked()) ) {// ignore right channel bot cv in when linked
 					tactWidgets[i]->changeValue(0.0f);
+					infoCVinLight[i] = 1.0f;
 				}				
 			}
 			if (recallTriggers[i].process(inputs[RECALL_INPUTS + i].value)) {// ignore right channel recall cv in when linked
@@ -169,6 +175,7 @@ struct Tact : Module {
 					tactWidgets[i]->changeValue(storeCV[i]);
 					if (params[SLIDE_PARAMS + i].value < 0.5f) //if no slide
 						cv[i]=storeCV[i];
+					infoCVinLight[i] = 1.0f;
 				}				
 			}
 		}
@@ -211,9 +218,14 @@ struct Tact : Module {
 		else
 			setTLights(1);
 		
+		// CV input lights
+		for (int i = 0; i < 2; i++)
+			lights[CVIN_LIGHTS + i * 2].value = infoCVinLight[i];
+		
 		for (int i = 0; i < 2; i++) {
 			if (transitionStepsRemain[i] > 0)
 				transitionStepsRemain[i]--;
+			infoCVinLight[i] -= (infoCVinLight[i] / lightLambda) * engineGetSampleTime();
 		}
 		if (isLinked()) {
 			transitionStepsRemain[1] = 0;
@@ -225,6 +237,7 @@ struct Tact : Module {
 			if (infoStore < 0l)
 				infoStore ++;
 		}
+		
 	}
 	
 	void setTLights(int chan) {
@@ -392,7 +405,7 @@ struct TactWidget : ModuleWidget {
 		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerC2R + offsetIMSmallKnob, rowRuler1a + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 1, 0.0f, 4.0f, 0.2f, &module->panelTheme));
 		
 
-		static const int bottomOffset2ndJack = 22;
+		static const int bottomOffset2ndJack = 24;
 		static const int colRulerB1 = colRulerC1L + bottomOffset2ndJack;
 		static const int colRulerB2 = colRulerC1R - bottomOffset2ndJack;
 		static const int bottomSpacingX = colRulerB2 - colRulerB1;
@@ -405,8 +418,13 @@ struct TactWidget : ModuleWidget {
 		// Top/bot CV Inputs
 		addInput(createDynamicPort<IMPort>(Vec(colRulerB0, rowRuler3), Port::INPUT, module, Tact::TOP_INPUTS + 0, &module->panelTheme));		
 		addInput(createDynamicPort<IMPort>(Vec(colRulerB1, rowRuler3), Port::INPUT, module, Tact::BOT_INPUTS + 0, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(colRulerB2, rowRuler3), Port::INPUT, module, Tact::TOP_INPUTS + 1, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(colRulerB3, rowRuler3), Port::INPUT, module, Tact::BOT_INPUTS + 1, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerB2, rowRuler3), Port::INPUT, module, Tact::BOT_INPUTS + 1, &module->panelTheme));	
+		addInput(createDynamicPort<IMPort>(Vec(colRulerB3, rowRuler3), Port::INPUT, module, Tact::TOP_INPUTS + 1, &module->panelTheme));		
+
+		// Lights
+		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(colRulerC2L + offsetMediumLight, rowRuler3 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 0 * 2));		
+		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(colRulerC2R + offsetMediumLight, rowRuler3 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 1 * 2));		
+
 	}
 };
 
