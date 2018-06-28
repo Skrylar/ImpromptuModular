@@ -30,6 +30,7 @@ extern Model *modelGateSeq64;
 extern Model *modelSemiModularSynth;
 extern Model *modelWriteSeq32;
 extern Model *modelWriteSeq64;
+extern Model *modelBigButtonSeq;
 extern Model *modelBlankPanel;
 
 

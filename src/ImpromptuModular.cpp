@@ -26,6 +26,7 @@ void init(rack::Plugin *p) {
 	p->addModel(modelGateSeq64);
 	p->addModel(modelWriteSeq32);
 	p->addModel(modelWriteSeq64);
+	p->addModel(modelBigButtonSeq);
 	p->addModel(modelSemiModularSynth);
 	p->addModel(modelBlankPanel);
 }

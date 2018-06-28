@@ -1335,6 +1335,12 @@ struct SemiModularSynthWidget : ModuleWidget {
 					else
 						runModeToStr(module->runModeSong);
 				}
+				else if (module->editingLength > 0ul) {
+					if (module->editingSequence)
+						snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
+					else
+						snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
+				}
 				else if (module->displayState == SemiModularSynth::DISP_TRANSPOSE) {
 					snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffset));
 					if (module->transposeOffset < 0)
@@ -1719,6 +1725,9 @@ struct SemiModularSynthWidget : ModuleWidget {
 Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthWidget>("Impromptu Modular", "Semi-Modular Synth", "MISC - Semi-Modular Synth", SEQUENCER_TAG, OSCILLATOR_TAG);
 
 /*CHANGE LOG
+
+0.6.8:
+show length in display when editing length
 
 0.6.7:
 allow full edit capabilities in Seq and song mode

@@ -1194,6 +1194,12 @@ struct PhraseSeq16Widget : ModuleWidget {
 					else
 						runModeToStr(module->runModeSong);
 				}
+				else if (module->editingLength > 0ul) {
+					if (module->editingSequence)
+						snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
+					else
+						snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
+				}
 				else if (module->displayState == PhraseSeq16::DISP_TRANSPOSE) {
 					snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffset));
 					if (module->transposeOffset < 0)
@@ -1513,6 +1519,9 @@ struct PhraseSeq16Widget : ModuleWidget {
 Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromptu Modular", "Phrase-Seq-16", "SEQ - Phrase-Seq-16", SEQUENCER_TAG);
 
 /*CHANGE LOG
+
+0.6.8:
+show length in display when editing length
 
 0.6.7:
 allow full edit capabilities in Seq and song mode
