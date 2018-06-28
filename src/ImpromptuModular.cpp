@@ -32,6 +32,16 @@ void init(rack::Plugin *p) {
 }
 
 
+LEDBezelBig::LEDBezelBig() {
+	addFrame(SVG::load(assetGlobal("res/ComponentLibrary/LEDBezel.svg")));
+	sw->box.size = sw->box.size.mult(2.0f);
+	box.size = sw->box.size;
+	tw = new TransformWidget();
+	addChild(tw);
+	tw->scale(Vec(2.0f, 2.0f));
+}
+
+
 
 ScrewSilverRandomRot::ScrewSilverRandomRot() {
 	float angle0_90 = randomUniform()*M_PI/2.0f;

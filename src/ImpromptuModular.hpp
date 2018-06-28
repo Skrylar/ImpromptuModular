@@ -122,6 +122,11 @@ struct IMBigPushButton : DynamicSVGSwitch, MomentarySwitch {
 	}
 };
 
+struct LEDBezelBig : SVGSwitch, MomentarySwitch {
+	TransformWidget *tw;
+	LEDBezelBig();
+};
+
 
 // Knobs
 
@@ -181,6 +186,13 @@ struct IMFivePosSmallKnob : IMSmallSnapKnob {
 	}
 };
 
+struct IMSixPosBigKnob : IMBigSnapKnob {
+	IMSixPosBigKnob() {
+		minAngle = -0.5*M_PI;
+		maxAngle = 0.5*M_PI;
+	}
+};
+
 struct IMTactile : DynamicIMTactile {
 	IMTactile() {
 		smooth = false;// must be false or else DynamicIMTactile::changeValue() call from module will crash Rack
@@ -204,6 +216,13 @@ struct MuteLight : BASE {
 	}
 };
 
+
+template <typename BASE>
+struct GiantLight : BASE {
+	GiantLight() {
+		this->box.size = mm2px(Vec(16.0f, 16.0f));
+	}
+};
 
 // Other
 

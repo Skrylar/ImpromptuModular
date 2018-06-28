@@ -53,7 +53,7 @@ struct BigButtonSeq : Module {
 
 	// Need to save
 	int panelTheme = 0;
-	int bank;
+	int bank[6];
 	uint32_t gates[6][2];// chan , bank
 
 	// No need to save
@@ -68,10 +68,10 @@ struct BigButtonSeq : Module {
 	
 	
 
-	inline void toggleGate(int chan) {gates[chan][bank] ^= (1<<indexStep);}
-	inline void setGate(int chan) {gates[chan][bank] |= (1<<indexStep);}
-	inline void clearGate(int chan) {gates[chan][bank] &= ~(1<<indexStep);}
-	inline bool getGate(int chan) {return !((gates[chan][bank] & (1<<indexStep)) == 0);}
+	inline void toggleGate(int chan) {gates[chan][bank[chan]] ^= (1<<indexStep);}
+	inline void setGate(int chan) {gates[chan][bank[chan]] |= (1<<indexStep);}
+	inline void clearGate(int chan) {gates[chan][bank[chan]] &= ~(1<<indexStep);}
+	inline bool getGate(int chan) {return !((gates[chan][bank[chan]] & (1<<indexStep)) == 0);}
 	
 	
 	BigButtonSeq() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -79,9 +79,9 @@ struct BigButtonSeq : Module {
 	}
 
 	void onReset() override {
-		bank = 0;
 		indexStep = 0;
 		for (int c = 0; c < 6; c++) {
+			bank[c] = 0;
 			gates[c][0] = 0;
 			gates[c][1] = 0;
 		}
@@ -89,9 +89,9 @@ struct BigButtonSeq : Module {
 	}
 
 	void onRandomize() override {
-		bank = randomu32() % 2;
 		indexStep = randomu32() % 32;
 		for (int c = 0; c < 6; c++) {
+			bank[c] = randomu32() % 2;
 			gates[c][0] = randomu32();
 			gates[c][1] = randomu32();
 		}
@@ -105,7 +105,10 @@ struct BigButtonSeq : Module {
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
 
 		// bank
-		json_object_set_new(rootJ, "bank", json_integer(bank));
+		json_t *bankJ = json_array();
+		for (int c = 0; c < 6; c++)
+			json_array_insert_new(bankJ, c, json_integer(bank[c]));
+		json_object_set_new(rootJ, "bank", bankJ);
 
 		// Gates
 		// TODO: break into two int since min sizeof int is 16!!! *********
@@ -128,7 +131,12 @@ struct BigButtonSeq : Module {
 		// bank
 		json_t *bankJ = json_object_get(rootJ, "bank");
 		if (bankJ)
-			bank = json_integer_value(bankJ);
+			for (int c = 0; c < 6; c++)
+			{
+				json_t *bankArrayJ = json_array_get(bankJ, c);
+				if (bankArrayJ)
+					bank[c] = json_integer_value(bankArrayJ);
+			}
 
 		// Gates
 		// TODO: break into two int since min sizeof int is 16!!! *********
@@ -171,20 +179,20 @@ struct BigButtonSeq : Module {
 
 		// Bank button
 		if (bankTrigger.process(params[BANK_PARAM].value + inputs[BANK_INPUT].value)) {
-			if (bank == 1) bank = 0;
-			else bank = 1;
+			if (bank[chan] == 1) bank[chan] = 0;
+			else bank[chan] = 1;
 		}
 		
 		// Clear button
-		if (params[CLEAR_PARAM].value + inputs[CLEAR_INPUT].value > 1.0f)
-			gates[chan][bank] = 0;
+		if (params[CLEAR_PARAM].value + inputs[CLEAR_INPUT].value > 0.5f)
+			gates[chan][bank[chan]] = 0;
 		
 		// Del button
-		if (params[DEL_PARAM].value + inputs[DEL_INPUT].value > 1.0f)
+		if (params[DEL_PARAM].value + inputs[DEL_INPUT].value > 0.5f)
 			clearGate(chan);// bank and indexStep are global
 
 		// Fill button
-		if (params[FILL_PARAM].value + inputs[FILL_INPUT].value > 1.0f)
+		if (params[FILL_PARAM].value + inputs[FILL_INPUT].value > 0.5f)
 			setGate(chan);// bank and indexStep are global
 
 		
@@ -206,14 +214,16 @@ struct BigButtonSeq : Module {
 		}		
 		
 		
+		
 		//********** Outputs and lights **********
 		
 		// Gate and light outputs
 		for (int i = 0; i < 6; i++) {
-			outputs[CHAN_OUTPUTS + i].value = getGate(chan) ? 10.0f : 0.0f;
-			lights[CHAN_LIGHTS + i].value = outputs[CHAN_OUTPUTS + i].value > 1.0f ? 1.0f : 0.0f;
+			outputs[CHAN_OUTPUTS + i].value = (getGate(i) && clockTrigger.isHigh()) ? 10.0f : 0.0f;
+			lights[CHAN_LIGHTS + i].setBrightnessSmooth(outputs[CHAN_OUTPUTS + i].value > 1.0f ? 1.0f : 0.0f);
 		}
-
+		lights[BIG_LIGHT].value = bank[chan] == 1 ? 1.0f : 0.0f;
+		
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
 	}
@@ -313,7 +323,7 @@ struct BigButtonSeqWidget : ModuleWidget {
 		// Clock input
 		addInput(createDynamicPort<IMPort>(Vec(colRulerT0, rowRuler1), Port::INPUT, module, BigButtonSeq::CLK_INPUT, &module->panelTheme));
 		// Chan knob and jack
-		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter + offsetIMBigKnob, rowRuler1 + offsetIMBigKnob), module, BigButtonSeq::CHAN_PARAM, 1.0f, 6.0f, 1.0f, &module->panelTheme));		
+		addParam(createDynamicParam<IMSixPosBigKnob>(Vec(colRulerCenter + offsetIMBigKnob, rowRuler1 + offsetIMBigKnob), module, BigButtonSeq::CHAN_PARAM, 1.0f, 6.0f, 1.0f, &module->panelTheme));		
 		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - knobCVjackOffsetX, rowRuler1), Port::INPUT, module, BigButtonSeq::CHAN_INPUT, &module->panelTheme));
 		// Big input
 		addInput(createDynamicPort<IMPort>(Vec(colRulerT5, rowRuler1), Port::INPUT, module, BigButtonSeq::BIG_INPUT, &module->panelTheme));
@@ -356,7 +366,8 @@ struct BigButtonSeqWidget : ModuleWidget {
 
 
 		// And now time for... BIG BUTTON!
-		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerCenter + offsetCKD6b, 320 + offsetCKD6b), module, BigButtonSeq::BIG_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(ModuleLightWidget::create<GiantLight<GreenLight>>(Vec(colRulerCenter + offsetLEDbezel + offsetLEDbezelLight, 320 + offsetLEDbezel + offsetLEDbezelLight), module, BigButtonSeq::BIG_LIGHT));
+		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerCenter + offsetLEDbezel, 320 + offsetLEDbezel), module, BigButtonSeq::BIG_PARAM, 0.0f, 1.0f, 0.0f));
 	}
 };
 
