@@ -66,6 +66,7 @@ static const float offsetLEDbuttonLight = 4.4f;//does both h and v
 static const int offsetTL1105 = 4;//does both h and v
 static const int offsetLEDbezel = 1;//does both h and v
 static const float offsetLEDbezelLight = 2.2f;//does both h and v
+static const float offsetLEDbezelBig = -11;//does both h and v
 static const int offsetTrimpot = 3;//does both h and v
 
 
@@ -188,8 +189,8 @@ struct IMFivePosSmallKnob : IMSmallSnapKnob {
 
 struct IMSixPosBigKnob : IMBigSnapKnob {
 	IMSixPosBigKnob() {
-		minAngle = -0.5*M_PI;
-		maxAngle = 0.5*M_PI;
+		minAngle = -0.4*M_PI;
+		maxAngle = 0.4*M_PI;
 	}
 };
 
@@ -220,7 +221,13 @@ struct MuteLight : BASE {
 template <typename BASE>
 struct GiantLight : BASE {
 	GiantLight() {
-		this->box.size = mm2px(Vec(16.0f, 16.0f));
+		this->box.size = mm2px(Vec(19.0f, 19.0f));
+	}
+};
+template <typename BASE>
+struct GiantLight2 : BASE {
+	GiantLight2() {
+		this->box.size = mm2px(Vec(12.8f, 12.8f));
 	}
 };
 

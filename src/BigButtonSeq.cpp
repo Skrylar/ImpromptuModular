@@ -7,6 +7,8 @@
 //See ./res/fonts/ for font licenses
 //
 //Based on the BigButton sequencer by Look-Mum-No-Computer
+//https://www.youtube.com/watch?v=6ArDGcUqiWM
+//https://www.lookmumnocomputer.com/projects/#/big-button/
 //
 //***********************************************************************************************
 
@@ -48,6 +50,7 @@ struct BigButtonSeq : Module {
 	enum LightIds {
 		ENUMS(CHAN_LIGHTS, 6),
 		BIG_LIGHT,
+		BIGC_LIGHT,
 		NUM_LIGHTS
 	};
 
@@ -57,6 +60,7 @@ struct BigButtonSeq : Module {
 	uint32_t gates[6][2];// chan , bank
 
 	// No need to save
+	float bigLight = 0.0f;
 	int indexStep;
 	long clockIgnoreOnReset;
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
@@ -175,7 +179,11 @@ struct BigButtonSeq : Module {
 		// Big button
 		if (bigTrigger.process(params[BIG_PARAM].value + inputs[BIG_INPUT].value)) {
 			toggleGate(chan);// bank and indexStep are global
+			bigLight = 1.0f;
 		}
+		else 
+			bigLight -= (bigLight / lightLambda) * engineGetSampleTime();	
+			
 
 		// Bank button
 		if (bankTrigger.process(params[BANK_PARAM].value + inputs[BANK_INPUT].value)) {
@@ -223,6 +231,7 @@ struct BigButtonSeq : Module {
 			lights[CHAN_LIGHTS + i].setBrightnessSmooth(outputs[CHAN_OUTPUTS + i].value > 1.0f ? 1.0f : 0.0f);
 		}
 		lights[BIG_LIGHT].value = bank[chan] == 1 ? 1.0f : 0.0f;
+		lights[BIGC_LIGHT].value =  bigLight;
 		
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
@@ -289,7 +298,7 @@ struct BigButtonSeqWidget : ModuleWidget {
 		
 		
 		// Column rulers (horizontal positions)
-		static const int rowRuler0 = 45;
+		static const int rowRuler0 = 45;// outputs and leds
 		static const int colRulerCenter = 115;// not real center, but pos so that a jack would be centered
 		static const int offsetChanOutX = 20;
 		static const int colRulerT0 = colRulerCenter - offsetChanOutX * 5;
@@ -298,7 +307,7 @@ struct BigButtonSeqWidget : ModuleWidget {
 		static const int colRulerT3 = colRulerCenter + offsetChanOutX * 1;
 		static const int colRulerT4 = colRulerCenter + offsetChanOutX * 3;
 		static const int colRulerT5 = colRulerCenter + offsetChanOutX * 5;
-		static const int ledOffsetY = 24;
+		static const int ledOffsetY = 28;
 		
 		// Outputs
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerT0, rowRuler0), Port::OUTPUT, module, BigButtonSeq::CHAN_OUTPUTS + 0, &module->panelTheme));
@@ -308,16 +317,16 @@ struct BigButtonSeqWidget : ModuleWidget {
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerT4, rowRuler0), Port::OUTPUT, module, BigButtonSeq::CHAN_OUTPUTS + 4, &module->panelTheme));
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerT5, rowRuler0), Port::OUTPUT, module, BigButtonSeq::CHAN_OUTPUTS + 5, &module->panelTheme));
 		// LEDs
-		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerT0 + offsetMediumLight, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq::CHAN_LIGHTS + 0));
-		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerT1 + offsetMediumLight, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq::CHAN_LIGHTS + 1));
-		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerT2 + offsetMediumLight, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq::CHAN_LIGHTS + 2));
-		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerT3 + offsetMediumLight, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq::CHAN_LIGHTS + 3));
-		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerT4 + offsetMediumLight, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq::CHAN_LIGHTS + 4));
-		addChild(ModuleLightWidget::create<MediumLight<GreenLight>>(Vec(colRulerT5 + offsetMediumLight, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq::CHAN_LIGHTS + 5));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerT0 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq::CHAN_LIGHTS + 0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerT1 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq::CHAN_LIGHTS + 1));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerT2 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq::CHAN_LIGHTS + 2));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerT3 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq::CHAN_LIGHTS + 3));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerT4 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq::CHAN_LIGHTS + 4));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(colRulerT5 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq::CHAN_LIGHTS + 5));
 
 		
 		
-		static const int rowRuler1 = rowRuler0 + 70;// clk, chan and big CV
+		static const int rowRuler1 = rowRuler0 + 74;// clk, chan and big CV
 		static const int knobCVjackOffsetX = 52;
 		
 		// Clock input
@@ -337,7 +346,7 @@ struct BigButtonSeqWidget : ModuleWidget {
 		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter - lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq::LEN_PARAM, 1.0f, 32.0f, 32.0f, &module->panelTheme));		
 		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - lenAndRndKnobOffsetX + knobCVjackOffsetX, rowRuler2), Port::INPUT, module, BigButtonSeq::LEN_INPUT, &module->panelTheme));
 		// Rnd knob and jack
-		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter + lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq::RND_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));		
+		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter + lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq::RND_PARAM, 0.0f, 100.0f, 0.0f, &module->panelTheme));		
 		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter + lenAndRndKnobOffsetX - knobCVjackOffsetX, rowRuler2), Port::INPUT, module, BigButtonSeq::RND_INPUT, &module->panelTheme));
 
 
@@ -364,10 +373,11 @@ struct BigButtonSeqWidget : ModuleWidget {
 		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerT5 + offsetCKD6b, rowRuler5 + offsetCKD6b), module, BigButtonSeq::FILL_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));	
 		addInput(createDynamicPort<IMPort>(Vec(colRulerT5, rowRuler5 + knobCVjackOffsetY), Port::INPUT, module, BigButtonSeq::FILL_INPUT, &module->panelTheme));
 
-
 		// And now time for... BIG BUTTON!
-		addChild(ModuleLightWidget::create<GiantLight<GreenLight>>(Vec(colRulerCenter + offsetLEDbezel + offsetLEDbezelLight, 320 + offsetLEDbezel + offsetLEDbezelLight), module, BigButtonSeq::BIG_LIGHT));
-		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerCenter + offsetLEDbezel, 320 + offsetLEDbezel), module, BigButtonSeq::BIG_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<GiantLight<RedLight>>(Vec(colRulerCenter + offsetLEDbezelBig - offsetLEDbezelLight*2.0d, rowRuler5 + 26 + offsetLEDbezelBig - offsetLEDbezelLight*2.0f), module, BigButtonSeq::BIG_LIGHT));
+		addParam(ParamWidget::create<LEDBezelBig>(Vec(colRulerCenter + offsetLEDbezelBig, rowRuler5 + 26 + offsetLEDbezelBig), module, BigButtonSeq::BIG_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<GiantLight2<RedLight>>(Vec(colRulerCenter + offsetLEDbezelBig - offsetLEDbezelLight*2.0d + 9, rowRuler5 + 26 + offsetLEDbezelBig - offsetLEDbezelLight*2.0f + 9), module, BigButtonSeq::BIGC_LIGHT));
+
 	}
 };
 

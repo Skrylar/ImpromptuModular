@@ -33,12 +33,18 @@ void init(rack::Plugin *p) {
 
 
 LEDBezelBig::LEDBezelBig() {
+	float ratio = 2.13f;
 	addFrame(SVG::load(assetGlobal("res/ComponentLibrary/LEDBezel.svg")));
-	sw->box.size = sw->box.size.mult(2.0f);
+	sw->box.size = sw->box.size.mult(ratio);
 	box.size = sw->box.size;
 	tw = new TransformWidget();
+	removeChild(sw);
+	tw->addChild(sw);
+	
 	addChild(tw);
-	tw->scale(Vec(2.0f, 2.0f));
+	
+	tw->box.size = sw->box.size; 
+	tw->scale(Vec(ratio, ratio));
 }
 
 
