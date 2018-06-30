@@ -51,17 +51,20 @@ struct BigButtonSeq : Module {
 		ENUMS(CHAN_LIGHTS, 6 * 2),// Room for GreenRed
 		BIG_LIGHT,
 		BIGC_LIGHT,
+		ENUMS(METRONOME_LIGHT, 2),// Room for GreenRed
 		NUM_LIGHTS
 	};
 
 	// Need to save
 	int panelTheme = 0;
+	int metronomeDiv = 4;
 	int bank[6];
 	uint32_t gates[6][2];// chan , bank
 
 	// No need to save
 	float bigLight = 0.0f;
-	float metronome = 0.0f;
+	float metronomeLightStart = 0.0f;
+	float metronomeLightDiv = 0.0f;
 	int indexStep;
 	int len; 
 	long clockIgnoreOnReset;
@@ -112,6 +115,9 @@ struct BigButtonSeq : Module {
 		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
 
+		// metronomeDiv
+		json_object_set_new(rootJ, "metronomeDiv", json_integer(metronomeDiv));
+
 		// bank
 		json_t *bankJ = json_array();
 		for (int c = 0; c < 6; c++)
@@ -135,6 +141,11 @@ struct BigButtonSeq : Module {
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
 			panelTheme = json_integer_value(panelThemeJ);
+
+		// metronomeDiv
+		json_t *metronomeDivJ = json_object_get(rootJ, "metronomeDiv");
+		if (metronomeDivJ)
+			metronomeDiv = json_integer_value(metronomeDivJ);
 
 		// bank
 		json_t *bankJ = json_object_get(rootJ, "bank");
@@ -206,7 +217,8 @@ struct BigButtonSeq : Module {
 			if (clockIgnoreOnReset == 0l) {
 				indexStep = moveIndex(indexStep, indexStep + 1, len);
 				if (indexStep == 0)
-					metronome = 1.0f;
+					metronomeLightStart = 1.0f;
+				metronomeLightDiv = ((indexStep % metronomeDiv) == 0 && indexStep != 0) ? 1.0f : 0.0f;
 				
 				// Random (toggle gate according to probability knob)
 				float rnd01 = params[RND_PARAM].value / 100.0f + inputs[RND_INPUT].value / 10.0f;
@@ -220,7 +232,8 @@ struct BigButtonSeq : Module {
 		// Reset
 		if (resetTrigger.process(params[RESET_PARAM].value + inputs[RESET_INPUT].value)) {
 			indexStep = 0;
-			metronome = 1.0f;
+			metronomeLightStart = 1.0f;
+			metronomeLightDiv = 1.0f;
 			clockTrigger.reset();
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}		
@@ -237,17 +250,19 @@ struct BigButtonSeq : Module {
 		}
 		
 		// Big button lights
-		if (bank[chan] == 1)
-			lights[BIG_LIGHT].value = 1.0f - metronome;
-		else
-			lights[BIG_LIGHT].value = metronome;
-		lights[BIGC_LIGHT].value =  bigLight;
+		lights[BIG_LIGHT].value = bank[chan] == 1 ? 1.0f : 0.0f;
+		lights[BIGC_LIGHT].value = bigLight;
+		
+		// Metronome light
+		lights[METRONOME_LIGHT + 1].value =  metronomeLightStart;
+		lights[METRONOME_LIGHT + 0].value =  metronomeLightDiv;
 		
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
 		
 		bigLight -= (bigLight / lightLambda) * engineGetSampleTime();	
-		metronome -= (metronome / lightLambda) * engineGetSampleTime();	
+		metronomeLightStart -= (metronomeLightStart / lightLambda) * engineGetSampleTime();	
+		metronomeLightDiv -= (metronomeLightDiv / lightLambda) * engineGetSampleTime();	
 	}
 };
 
@@ -287,6 +302,16 @@ struct BigButtonSeqWidget : ModuleWidget {
 			rightText = (module->panelTheme == theme) ? "✔" : "";
 		}
 	};
+	struct MetronomeItem : MenuItem {
+		BigButtonSeq *module;
+		int div;
+		void onAction(EventAction &e) override {
+			module->metronomeDiv = div;
+		}
+		void step() override {
+			rightText = (module->metronomeDiv == div) ? "✔" : "";
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -312,6 +337,37 @@ struct BigButtonSeqWidget : ModuleWidget {
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
 
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *metronomeLabel = new MenuLabel();
+		metronomeLabel->text = "Metronome light";
+		menu->addChild(metronomeLabel);
+
+		MetronomeItem *met1Item = MenuItem::create<MetronomeItem>("Every clock", CHECKMARK(module->metronomeDiv == 1));
+		met1Item->module = module;
+		met1Item->div = 1;
+		menu->addChild(met1Item);
+
+		MetronomeItem *met2Item = MenuItem::create<MetronomeItem>("/2", CHECKMARK(module->metronomeDiv == 2));
+		met2Item->module = module;
+		met2Item->div = 2;
+		menu->addChild(met2Item);
+
+		MetronomeItem *met4Item = MenuItem::create<MetronomeItem>("/4", CHECKMARK(module->metronomeDiv == 4));
+		met4Item->module = module;
+		met4Item->div = 4;
+		menu->addChild(met4Item);
+
+		MetronomeItem *met8Item = MenuItem::create<MetronomeItem>("/8", CHECKMARK(module->metronomeDiv == 8));
+		met8Item->module = module;
+		met8Item->div = 8;
+		menu->addChild(met8Item);
+
+		MetronomeItem *met1000Item = MenuItem::create<MetronomeItem>("Length", CHECKMARK(module->metronomeDiv == 1000));
+		met1000Item->module = module;
+		met1000Item->div = 1000;
+		menu->addChild(met1000Item);
+
 		return menu;
 	}	
 	
@@ -334,7 +390,7 @@ struct BigButtonSeqWidget : ModuleWidget {
 		
 		
 		// Column rulers (horizontal positions)
-		static const int rowRuler0 = 45;// outputs and leds
+		static const int rowRuler0 = 49;// outputs and leds
 		static const int colRulerCenter = 115;// not real center, but pos so that a jack would be centered
 		static const int offsetChanOutX = 20;
 		static const int colRulerT0 = colRulerCenter - offsetChanOutX * 5;
@@ -362,7 +418,7 @@ struct BigButtonSeqWidget : ModuleWidget {
 
 		
 		
-		static const int rowRuler1 = rowRuler0 + 74;// clk, chan and big CV
+		static const int rowRuler1 = rowRuler0 + 72;// clk, chan and big CV
 		static const int knobCVjackOffsetX = 52;
 		
 		// Clock input
@@ -419,6 +475,8 @@ struct BigButtonSeqWidget : ModuleWidget {
 		addChild(ModuleLightWidget::create<GiantLight2<RedLight>>(Vec(colRulerCenter + offsetLEDbezelBig - offsetLEDbezelLight*2.0d + 9, rowRuler5 + 26 + offsetLEDbezelBig - offsetLEDbezelLight*2.0f + 9), module, BigButtonSeq::BIGC_LIGHT));
 		// Big input
 		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - clearAndDelButtonOffsetX, rowRuler5 + knobCVjackOffsetY), Port::INPUT, module, BigButtonSeq::BIG_INPUT, &module->panelTheme));
+		// Metronome light
+		addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(colRulerCenter + clearAndDelButtonOffsetX + offsetMediumLight - 1, rowRuler5 + knobCVjackOffsetY + offsetMediumLight - 1), module, BigButtonSeq::METRONOME_LIGHT + 0));
 
 	}
 };

@@ -13,7 +13,7 @@
 #include "dsp/digital.hpp"
 
 
-struct Tact : Module {
+struct Tact : Module {// TODO: Save load preset values needs to set cv[] also so no slide on load
 	static const int numLights = 10;// number of lights per channel
 
 	enum ParamIds {
