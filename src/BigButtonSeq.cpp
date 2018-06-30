@@ -61,6 +61,7 @@ struct BigButtonSeq : Module {
 
 	// No need to save
 	float bigLight = 0.0f;
+	float metronome = 0.0f;
 	int indexStep;
 	int len; 
 	long clockIgnoreOnReset;
@@ -178,16 +179,11 @@ struct BigButtonSeq : Module {
 		if (bigTrigger.process(params[BIG_PARAM].value + inputs[BIG_INPUT].value)) {
 			toggleGate(chan);// bank and indexStep are global
 			bigLight = 1.0f;
-		}
-		else 
-			bigLight -= (bigLight / lightLambda) * engineGetSampleTime();	
-			
+		}	
 
 		// Bank button
-		if (bankTrigger.process(params[BANK_PARAM].value + inputs[BANK_INPUT].value)) {
-			if (bank[chan] == 1) bank[chan] = 0;
-			else bank[chan] = 1;
-		}
+		if (bankTrigger.process(params[BANK_PARAM].value + inputs[BANK_INPUT].value))
+			bank[chan] = 1 - bank[chan];
 		
 		// Clear button
 		if (params[CLEAR_PARAM].value + inputs[CLEAR_INPUT].value > 0.5f)
@@ -209,6 +205,8 @@ struct BigButtonSeq : Module {
 		if (clockTrigger.process(inputs[CLK_INPUT].value)) {
 			if (clockIgnoreOnReset == 0l) {
 				indexStep = moveIndex(indexStep, indexStep + 1, len);
+				if (indexStep == 0)
+					metronome = 1.0f;
 				
 				// Random (toggle gate according to probability knob)
 				float rnd01 = params[RND_PARAM].value / 100.0f + inputs[RND_INPUT].value / 10.0f;
@@ -222,6 +220,7 @@ struct BigButtonSeq : Module {
 		// Reset
 		if (resetTrigger.process(params[RESET_PARAM].value + inputs[RESET_INPUT].value)) {
 			indexStep = 0;
+			metronome = 1.0f;
 			clockTrigger.reset();
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}		
@@ -236,11 +235,19 @@ struct BigButtonSeq : Module {
 			lights[(CHAN_LIGHTS + i) * 2 + 1].setBrightnessSmooth(outputs[CHAN_OUTPUTS + i].value > 1.0f ? 1.0f : 0.0f);
 			lights[(CHAN_LIGHTS + i) * 2 + 0].setBrightnessSmooth(i == chan ? (1.0f - lights[(CHAN_LIGHTS + i) * 2 + 1].value) / 2.0f : 0.0f);
 		}
-		lights[BIG_LIGHT].value = bank[chan] == 1 ? 1.0f : 0.0f;
+		
+		// Big button lights
+		if (bank[chan] == 1)
+			lights[BIG_LIGHT].value = 1.0f - metronome;
+		else
+			lights[BIG_LIGHT].value = metronome;
 		lights[BIGC_LIGHT].value =  bigLight;
 		
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
+		
+		bigLight -= (bigLight / lightLambda) * engineGetSampleTime();	
+		metronome -= (metronome / lightLambda) * engineGetSampleTime();	
 	}
 };
 
