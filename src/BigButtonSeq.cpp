@@ -74,7 +74,11 @@ struct BigButtonSeq : Module {
 	SchmittTrigger resetTrigger;
 	SchmittTrigger bankTrigger;
 	SchmittTrigger bigTrigger;
-	
+	PulseGenerator outPulse;
+	PulseGenerator outLightPulse;
+	PulseGenerator bigPulse;
+	PulseGenerator bigLightPulse;
+	static constexpr float lightTime = 0.1f;
 	
 
 	inline void toggleGate(int chan) {gates[chan][bank[chan]] ^= (1<<indexStep);}
@@ -174,6 +178,7 @@ struct BigButtonSeq : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
+		float sampleTime = engineGetSampleTime();
 		
 		//********** Buttons, knobs, switches and inputs **********
 		
@@ -190,6 +195,8 @@ struct BigButtonSeq : Module {
 		if (bigTrigger.process(params[BIG_PARAM].value + inputs[BIG_INPUT].value)) {
 			toggleGate(chan);// bank and indexStep are global
 			bigLight = 1.0f;
+			bigPulse.trigger(0.001f);
+			bigLightPulse.trigger(lightTime);
 		}	
 
 		// Bank button
@@ -214,6 +221,8 @@ struct BigButtonSeq : Module {
 		
 		// Clock
 		if (clockTrigger.process(inputs[CLK_INPUT].value)) {
+			outPulse.trigger(0.001f);
+			outLightPulse.trigger(lightTime);
 			if (clockIgnoreOnReset == 0l) {
 				indexStep = moveIndex(indexStep, indexStep + 1, len);
 				if (indexStep == 0)
@@ -232,8 +241,10 @@ struct BigButtonSeq : Module {
 		// Reset
 		if (resetTrigger.process(params[RESET_PARAM].value + inputs[RESET_INPUT].value)) {
 			indexStep = 0;
+			outPulse.trigger(0.001f);
+			outLightPulse.trigger(0.02f);
 			metronomeLightStart = 1.0f;
-			metronomeLightDiv = 1.0f;
+			metronomeLightDiv = 0.0f;
 			clockTrigger.reset();
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}		
@@ -242,10 +253,18 @@ struct BigButtonSeq : Module {
 		
 		//********** Outputs and lights **********
 		
+		bool bigPulseState = bigPulse.process((float)sampleTime);
+		bool bigLightPulseState = bigLightPulse.process((float)sampleTime);
+		bool outPulseState = outPulse.process((float)sampleTime);
+		bool outLightPulseState = outLightPulse.process((float)sampleTime);
+		
 		// Gate and light outputs
 		for (int i = 0; i < 6; i++) {
-			outputs[CHAN_OUTPUTS + i].value = (getGate(i) && clockTrigger.isHigh()) ? 10.0f : 0.0f;
-			lights[(CHAN_LIGHTS + i) * 2 + 1].setBrightnessSmooth(outputs[CHAN_OUTPUTS + i].value > 1.0f ? 1.0f : 0.0f);
+			bool gate = getGate(i);
+			bool outSignal = ((gate && outPulseState) || (gate && bigPulseState && i == chan));
+			bool outLight = ((gate && outLightPulseState) || (gate && bigLightPulseState && i == chan));
+			outputs[CHAN_OUTPUTS + i].value = outSignal ? 10.0f : 0.0f;
+			lights[(CHAN_LIGHTS + i) * 2 + 1].setBrightnessSmooth(outLight ? 1.0f : 0.0f);
 			lights[(CHAN_LIGHTS + i) * 2 + 0].setBrightnessSmooth(i == chan ? (1.0f - lights[(CHAN_LIGHTS + i) * 2 + 1].value) / 2.0f : 0.0f);
 		}
 		
@@ -260,9 +279,9 @@ struct BigButtonSeq : Module {
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
 		
-		bigLight -= (bigLight / lightLambda) * engineGetSampleTime();	
-		metronomeLightStart -= (metronomeLightStart / lightLambda) * engineGetSampleTime();	
-		metronomeLightDiv -= (metronomeLightDiv / lightLambda) * engineGetSampleTime();	
+		bigLight -= (bigLight / lightLambda) * sampleTime;	
+		metronomeLightStart -= (metronomeLightStart / lightLambda) * sampleTime;	
+		metronomeLightDiv -= (metronomeLightDiv / lightLambda) * sampleTime;	
 	}
 };
 
