@@ -109,7 +109,8 @@ class Clock {
 
 
 class ClockDelay {
-	static const long maxSamples = 256000;// @ 30 BPM period is 2s, thus need at most 3/4 * 2s @ 192000 kHz = 288000 samples
+	// TODO: !!!! This is not the worst case !!! worst case is same as next line, but with ratio set to /64 !!!
+	static const long maxSamples = 288000;// @ 30 BPM period is 2s, thus need at most 3/4 * 2s @ 192000 kHz = 288000 samples
 	static const long entrySize = 64;
 	static const long bufSize = maxSamples / entrySize;// = 4500 with 64 per uint64_t 
 	uint64_t buffer[bufSize];
@@ -857,3 +858,10 @@ struct ClockedWidget : ModuleWidget {
 };
 
 Model *modelClocked = Model::create<Clocked, ClockedWidget>("Impromptu Modular", "Clocked", "CLK - Clocked", CLOCK_TAG);
+
+/*CHANGE LOG
+
+0.6.7:
+created
+
+*/
