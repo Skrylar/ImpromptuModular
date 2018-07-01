@@ -12,6 +12,8 @@
 //
 //***********************************************************************************************
 
+// TODO: add this to manual: https://www.youtube.com/watch?v=uN2l2t5SCyE
+
 
 #include "ImpromptuModular.hpp"
 #include "dsp/digital.hpp"
@@ -59,7 +61,8 @@ struct BigButtonSeq : Module {
 	int panelTheme = 0;
 	int metronomeDiv = 4;
 	int bank[6];
-	uint32_t gates[6][2];// chan , bank
+	uint64_t gates[6][2];// chan , bank
+	bool writeFillsToMemory;
 
 	// No need to save
 	float bigLight = 0.0f;
@@ -81,10 +84,10 @@ struct BigButtonSeq : Module {
 	static constexpr float lightTime = 0.1f;
 	
 
-	inline void toggleGate(int chan) {gates[chan][bank[chan]] ^= (1<<indexStep);}
-	inline void setGate(int chan) {gates[chan][bank[chan]] |= (1<<indexStep);}
-	inline void clearGate(int chan) {gates[chan][bank[chan]] &= ~(1<<indexStep);}
-	inline bool getGate(int chan) {return !((gates[chan][bank[chan]] & (1<<indexStep)) == 0);}
+	inline void toggleGate(int chan) {gates[chan][bank[chan]] ^= (((uint64_t)1) << (uint64_t)indexStep);}
+	inline void setGate(int chan) {gates[chan][bank[chan]] |= (((uint64_t)1) << (uint64_t)indexStep);}
+	inline void clearGate(int chan) {gates[chan][bank[chan]] &= ~(((uint64_t)1) << (uint64_t)indexStep);}
+	inline bool getGate(int chan) {return !((gates[chan][bank[chan]] & (((uint64_t)1) << (uint64_t)indexStep)) == 0);}
 	
 	
 	BigButtonSeq() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -99,6 +102,7 @@ struct BigButtonSeq : Module {
 			gates[c][0] = 0;
 			gates[c][1] = 0;
 		}
+		writeFillsToMemory = false;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
@@ -107,9 +111,10 @@ struct BigButtonSeq : Module {
 		len = 0;
 		for (int c = 0; c < 6; c++) {
 			bank[c] = randomu32() % 2;
-			gates[c][0] = randomu32();
-			gates[c][1] = randomu32();
+			gates[c][0] = randomu64();
+			gates[c][1] = randomu64();
 		}
+		writeFillsToMemory = false;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
@@ -129,13 +134,17 @@ struct BigButtonSeq : Module {
 		json_object_set_new(rootJ, "bank", bankJ);
 
 		// Gates
-		// TODO: break into two int since min sizeof int is 16!!! *********
 		json_t *gatesJ = json_array();
 		for (int c = 0; c < 6; c++)
-			for (int b = 0; b < 2; b++) {
-				json_array_insert_new(gatesJ, b + (c<<1), json_integer((int) gates[c][b]));
+			for (int b = 0; b < 8; b++) {// bank to store is like to uint64_t to store, so go to 8
+				// first to get stored is 16 lsbits of bank 0, then next 16 bits,... to 16 msbits of bank 1
+				int intValue = (int) ( (uint64_t)0xFFFF & (gates[c][b/4] >> (uint64_t)(16 * (b % 4))) );
+				json_array_insert_new(gatesJ, b + (c << 3) , json_integer(intValue));
 			}
 		json_object_set_new(rootJ, "gates", gatesJ);
+
+		// writeFillsToMemory
+		json_object_set_new(rootJ, "writeFillsToMemory", json_boolean(writeFillsToMemory));
 
 		return rootJ;
 	}
@@ -162,16 +171,27 @@ struct BigButtonSeq : Module {
 			}
 
 		// Gates
-		// TODO: break into two int since min sizeof int is 16!!! *********
 		json_t *gatesJ = json_object_get(rootJ, "gates");
+		uint64_t bank8ints[8];
 		if (gatesJ) {
-			for (int c = 0; c < 6; c++)
-				for (int b = 0; b < 2; b++) {
-					json_t *gateJ = json_array_get(gatesJ, b + (c<<1));
+			for (int c = 0; c < 6; c++) {
+				for (int b = 0; b < 8; b++) {// bank to store is like to uint64_t to store, so go to 8
+					// first to get read is 16 lsbits of bank 0, then next 16 bits,... to 16 msbits of bank 1
+					json_t *gateJ = json_array_get(gatesJ, b + (c << 3));
 					if (gateJ)
-						gates[c][b] = json_integer_value(gateJ);
+						
+						bank8ints[b] = (uint64_t) json_integer_value(gateJ);
 				}
+				gates[c][0] = bank8ints[0] & (bank8ints[1] << (uint64_t)16) & (bank8ints[2] << (uint64_t)32) & (bank8ints[3] << (uint64_t)48);
+				gates[c][1] = bank8ints[4] & (bank8ints[5] << (uint64_t)16) & (bank8ints[6] << (uint64_t)32) & (bank8ints[7] << (uint64_t)48);
+			}
 		}
+		
+		// writeFillsToMemory
+		json_t *writeFillsToMemoryJ = json_object_get(rootJ, "writeFillsToMemory");
+		if (writeFillsToMemoryJ)
+			writeFillsToMemory = json_is_true(writeFillsToMemoryJ);
+
 	}
 
 	
@@ -183,8 +203,8 @@ struct BigButtonSeq : Module {
 		//********** Buttons, knobs, switches and inputs **********
 		
 		// Length
-		float lenInputValue = inputs[LEN_INPUT].value / 10.0f * (32.0f - 1.0f);
-		len = (int) clamp(roundf(params[LEN_PARAM].value + lenInputValue), 0.0f, (32.0f - 1.0f)) + 1;		
+		float lenInputValue = inputs[LEN_INPUT].value / 10.0f * (64.0f - 1.0f);
+		len = (int) clamp(roundf(params[LEN_PARAM].value + lenInputValue), 0.0f, (64.0f - 1.0f)) + 1;		
 			
 		// Chan
 		float chanInputValue = inputs[CHAN_INPUT].value / 10.0f * (6.0f - 1.0f);
@@ -193,10 +213,12 @@ struct BigButtonSeq : Module {
 		
 		// Big button
 		if (bigTrigger.process(params[BIG_PARAM].value + inputs[BIG_INPUT].value)) {
-			toggleGate(chan);// bank and indexStep are global
 			bigLight = 1.0f;
-			bigPulse.trigger(0.001f);
-			bigLightPulse.trigger(lightTime);
+			if (!getGate(chan)) {
+				toggleGate(chan);// bank and indexStep are global
+				bigPulse.trigger(0.001f);
+				bigLightPulse.trigger(lightTime);
+			}
 		}	
 
 		// Bank button
@@ -212,7 +234,8 @@ struct BigButtonSeq : Module {
 			clearGate(chan);// bank and indexStep are global
 
 		// Fill button
-		if (params[FILL_PARAM].value + inputs[FILL_INPUT].value > 0.5f)
+		bool fillPressed = (params[FILL_PARAM].value + inputs[FILL_INPUT].value) > 0.5f;
+		if (fillPressed && writeFillsToMemory)
 			setGate(chan);// bank and indexStep are global
 
 		
@@ -261,8 +284,8 @@ struct BigButtonSeq : Module {
 		// Gate and light outputs
 		for (int i = 0; i < 6; i++) {
 			bool gate = getGate(i);
-			bool outSignal = ((gate && outPulseState) || (gate && bigPulseState && i == chan));
-			bool outLight = ((gate && outLightPulseState) || (gate && bigLightPulseState && i == chan));
+			bool outSignal = (((gate || (i == chan && fillPressed)) && outPulseState) || (gate && bigPulseState && i == chan));
+			bool outLight  = (((gate || (i == chan && fillPressed)) && outLightPulseState) || (gate && bigLightPulseState && i == chan));
 			outputs[CHAN_OUTPUTS + i].value = outSignal ? 10.0f : 0.0f;
 			lights[(CHAN_LIGHTS + i) * 2 + 1].setBrightnessSmooth(outLight ? 1.0f : 0.0f);
 			lights[(CHAN_LIGHTS + i) * 2 + 0].setBrightnessSmooth(i == chan ? (1.0f - lights[(CHAN_LIGHTS + i) * 2 + 1].value) / 2.0f : 0.0f);
@@ -331,6 +354,12 @@ struct BigButtonSeqWidget : ModuleWidget {
 			rightText = (module->metronomeDiv == div) ? "✔" : "";
 		}
 	};
+	struct FillModeItem : MenuItem {
+		BigButtonSeq *module;
+		void onAction(EventAction &e) override {
+			module->writeFillsToMemory = !module->writeFillsToMemory;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -356,6 +385,16 @@ struct BigButtonSeqWidget : ModuleWidget {
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
 
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *settingsLabel = new MenuLabel();
+		settingsLabel->text = "Settings";
+		menu->addChild(settingsLabel);
+
+		FillModeItem *fillItem = MenuItem::create<FillModeItem>("Write Fills to Memory", CHECKMARK(module->writeFillsToMemory));
+		fillItem->module = module;
+		menu->addChild(fillItem);		
+		
 		menu->addChild(new MenuLabel());// empty line
 		
 		MenuLabel *metronomeLabel = new MenuLabel();
@@ -458,7 +497,7 @@ struct BigButtonSeqWidget : ModuleWidget {
 		static const int lenAndRndKnobOffsetX = 90;
 		
 		// Len knob and jack
-		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter - lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq::LEN_PARAM, 0.0f, 32.0f - 1.0f, 32.0f - 1.0f, &module->panelTheme));		
+		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter - lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq::LEN_PARAM, 0.0f, 64.0f - 1.0f, 32.0f - 1.0f, &module->panelTheme));		
 		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - lenAndRndKnobOffsetX + knobCVjackOffsetX, rowRuler2), Port::INPUT, module, BigButtonSeq::LEN_INPUT, &module->panelTheme));
 		// Rnd knob and jack
 		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter + lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq::RND_PARAM, 0.0f, 100.0f, 0.0f, &module->panelTheme));		
