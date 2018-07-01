@@ -10,6 +10,8 @@
 //
 //***********************************************************************************************
 
+// TODO: add refence to new BPM CV standard to manual: https://vcvrack.com/manual/VoltageStandards.html#pitch-and-frequencies
+
 
 #include "ImpromptuModular.hpp"
 #include "dsp/digital.hpp"

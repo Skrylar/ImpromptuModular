@@ -138,7 +138,7 @@ struct BigButtonSeq : Module {
 		for (int c = 0; c < 6; c++)
 			for (int b = 0; b < 8; b++) {// bank to store is like to uint64_t to store, so go to 8
 				// first to get stored is 16 lsbits of bank 0, then next 16 bits,... to 16 msbits of bank 1
-				int intValue = (int) ( (uint64_t)0xFFFF & (gates[c][b/4] >> (uint64_t)(16 * (b % 4))) );
+				unsigned int intValue = (unsigned int) ( (uint64_t)0xFFFF & (gates[c][b/4] >> (uint64_t)(16 * (b % 4))) );
 				json_array_insert_new(gatesJ, b + (c << 3) , json_integer(intValue));
 			}
 		json_object_set_new(rootJ, "gates", gatesJ);
@@ -172,18 +172,17 @@ struct BigButtonSeq : Module {
 
 		// Gates
 		json_t *gatesJ = json_object_get(rootJ, "gates");
-		uint64_t bank8ints[8];
+		uint64_t bank8ints[8] = {0,0,0,0,0,0,0,0};
 		if (gatesJ) {
 			for (int c = 0; c < 6; c++) {
 				for (int b = 0; b < 8; b++) {// bank to store is like to uint64_t to store, so go to 8
 					// first to get read is 16 lsbits of bank 0, then next 16 bits,... to 16 msbits of bank 1
 					json_t *gateJ = json_array_get(gatesJ, b + (c << 3));
 					if (gateJ)
-						
 						bank8ints[b] = (uint64_t) json_integer_value(gateJ);
 				}
-				gates[c][0] = bank8ints[0] & (bank8ints[1] << (uint64_t)16) & (bank8ints[2] << (uint64_t)32) & (bank8ints[3] << (uint64_t)48);
-				gates[c][1] = bank8ints[4] & (bank8ints[5] << (uint64_t)16) & (bank8ints[6] << (uint64_t)32) & (bank8ints[7] << (uint64_t)48);
+				gates[c][0] = bank8ints[0] | (bank8ints[1] << (uint64_t)16) | (bank8ints[2] << (uint64_t)32) | (bank8ints[3] << (uint64_t)48);
+				gates[c][1] = bank8ints[4] | (bank8ints[5] << (uint64_t)16) | (bank8ints[6] << (uint64_t)32) | (bank8ints[7] << (uint64_t)48);
 			}
 		}
 		
