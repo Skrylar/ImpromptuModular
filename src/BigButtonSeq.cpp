@@ -12,8 +12,6 @@
 //
 //***********************************************************************************************
 
-// TODO: add this to manual: https://www.youtube.com/watch?v=uN2l2t5SCyE
-
 
 #include "ImpromptuModular.hpp"
 #include "dsp/digital.hpp"
@@ -72,6 +70,7 @@ struct BigButtonSeq : Module {
 	int len; 
 	long clockIgnoreOnReset;
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
+	
 	
 	SchmittTrigger clockTrigger;
 	SchmittTrigger resetTrigger;

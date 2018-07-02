@@ -886,9 +886,18 @@ struct PhraseSeq32 : Module {
 						}
 					}
 					else {
+						// no roll over
 						phrase[phraseIndexEdit] += deltaKnob;
 						if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
-						if (phrase[phraseIndexEdit] >= 32) phrase[phraseIndexEdit] = (32 - 1);				
+						if (phrase[phraseIndexEdit] >= 32) phrase[phraseIndexEdit] = (32 - 1);
+
+						//// roll over
+						//int newPhrase = phrase[phraseIndexEdit] + deltaKnob;
+						//if (newPhrase < 0)
+						//	newPhrase += (1 - newPhrase / 32) * 32;// newPhrase now positive
+						//newPhrase = newPhrase % 32;
+						//phrase[phraseIndexEdit] = newPhrase;
+
 					}
 				}
 			}

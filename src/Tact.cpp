@@ -13,7 +13,7 @@
 #include "dsp/digital.hpp"
 
 
-struct Tact : Module {// TODO: Save load preset values needs to set cv[] also so no slide on load
+struct Tact : Module {
 	static const int numLights = 10;// number of lights per channel
 
 	enum ParamIds {
@@ -184,6 +184,8 @@ struct Tact : Module {// TODO: Save load preset values needs to set cv[] also so
 		// cv
 		for (int i = 0; i < 2; i++) {
 			float newParamValue = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
+			//if (newParamValue < 4.99f || newParamValue > 5.01f)
+				//info("*** PARAM OUT, wid prt L = %llu, wid ptr R = %llu ***", (long long unsigned) tactWidgets[0], (long long unsigned) tactWidgets[1]);
 			double transitionRate = params[RATE_PARAMS + i].value; // s/V
 			double dV = newParamValue - cv[i];
 			double dVabs = fabs(dV);
@@ -193,11 +195,13 @@ struct Tact : Module {// TODO: Save load preset values needs to set cv[] also so
 				transitionCVdelta[i] = (dV / (double)transitionStepsRemain[i]);
 				if (transitionStepsRemain[i] > 0) {
 					cv[i] += transitionCVdelta[i];
+					//info("*** Wrote CV, got dV > 1mV, cv[%d] = %f ***", i, (float)cv[i]);
 				}
 			}
 			else {// snap to value when within 1mV (no slide)
 				transitionStepsRemain[i] = 0;
 				cv[i] = newParamValue;
+				//info("*** Wrote CV, got dV <= 1mV ***");
 			}
 		}
 		
@@ -333,11 +337,11 @@ struct TactWidget : ModuleWidget {
 		// Right (no dynamic width, but must do first so that left will get mouse events when wider overlaps)
 		tactR = createDynamicParam2<IMTactile>(Vec(colRulerPadR, rowRuler0), module, Tact::TACT_PARAMS + 1, -1.0f, 11.0f, Tact::TACT_INIT_VALUE, nullptr);
 		addParam(tactR);
-		module->tactWidgets[1] = tactR;
 		// Left (with width dependant on Link value)	
 		tactL = createDynamicParam2<IMTactile>(Vec(colRulerPadL, rowRuler0), module, Tact::TACT_PARAMS + 0, -1.0f, 11.0f, Tact::TACT_INIT_VALUE,  &module->params[Tact::LINK_PARAM].value);
 		addParam(tactL);
 		module->tactWidgets[0] = tactL;
+		module->tactWidgets[1] = tactR;
 			
 
 			

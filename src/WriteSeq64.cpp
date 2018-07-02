@@ -235,13 +235,14 @@ struct WriteSeq64 : Module {
 						gates[c][i] = !!json_integer_value(gateJ);// json_is_true() will break patches
 				}
 		}
-		stepKnob = INT_MAX;
-		stepsKnob = INT_MAX;
 		
 		// resetOnRun
 		json_t *resetOnRunJ = json_object_get(rootJ, "resetOnRun");
 		if (resetOnRunJ)
 			resetOnRun = json_is_true(resetOnRunJ);
+
+		stepKnob = INT_MAX;
+		stepsKnob = INT_MAX;
 	}
 
 	inline float quantize(float cv, bool enable) {

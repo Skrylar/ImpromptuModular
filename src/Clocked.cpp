@@ -10,8 +10,6 @@
 //
 //***********************************************************************************************
 
-// TODO: add refence to new BPM CV standard to manual: https://vcvrack.com/manual/VoltageStandards.html#pitch-and-frequencies
-
 
 #include "ImpromptuModular.hpp"
 #include "dsp/digital.hpp"
@@ -203,10 +201,9 @@ struct Clocked : Module {
 	
 	// Delay info
 	// all fractions must be <= 0.75... or else delay buffer will overrun in worst case (192kHz, 30BPM)
-	static const int numDelays = 8;
-	std::string delayLabelsClock[numDelays] = {"  0", "/16",   "1/8",  "1/4", "1/3",     "1/2", "2/3",     "3/4"  };
-	std::string delayLabelsNote[numDelays]  = {"  0", "/64",   "/32",  "/16", "/8t",     "1/8", "/4t",     "/8d"   };
-	float delayValues[numDelays]            = {0.0f,  0.0625f, 0.125f, 0.25f, 1.0f/3.0f, 0.5f , 2.0f/3.0f, 0.75f};
+	std::string delayLabelsClock[8] = {"  0", "/16",   "1/8",  "1/4", "1/3",     "1/2", "2/3",     "3/4"};
+	std::string delayLabelsNote[8]  = {"  0", "/64",   "/32",  "/16", "/8t",     "1/8", "/4t",     "/8d"};
+	float delayValues[8]            = {0.0f,  0.0625f, 0.125f, 0.25f, 1.0f/3.0f, 0.5f , 2.0f/3.0f, 0.75f};
 
 	// Ratio info
 	static const int numRatios = 33;
@@ -223,7 +220,7 @@ struct Clocked : Module {
 	int getBeatsPerMinute(void) {
 		int bpm = 0;
 		if (inputs[BPM_INPUT].active) {
-			bpm = (int) round( (inputs[BPM_INPUT].value / 10.0f) * (float)bpmRange + (float)bpmMin );// use round() in case negative voltage input
+			bpm = (int) round( 120.0f * powf(2.0f, inputs[BPM_INPUT].value) );// f = 2Hz * 2^V;  bpm = 120 * 2^V
 			bpm = clamp(bpm, bpmMin, bpmMax);
 		}
 		else {
@@ -232,7 +229,7 @@ struct Clocked : Module {
 		return bpm;
 	}
 	int getRatioDoubled(int ratioKnobIndex) {
-		// ratioKnobIndex is 0 for master BPM's ratio (mplicitly 1.0f), and 1 to 3 for other ratio knobs
+		// ratioKnobIndex is 0 for master BPM's ratio (1 is implicitly returned), and 1 to 3 for other ratio knobs
 		// returns a positive ratio for mult, negative ratio for div (0 never returned)
 		int ret = 1;
 		if (ratioKnobIndex > 0) {
@@ -257,14 +254,6 @@ struct Clocked : Module {
 		if (ratioDoubled < 0)
 			ret = 1.0f / (-1.0f * ret);
 		return ret;
-	}
-	int getDelayKnobIndex(int delayKnobIndex) {
-		int i = (int) round( params[DELAY_PARAMS + delayKnobIndex].value );// [ 0 ; (numDelays-1) ]
-		if (i < 0) 
-			i = 0;
-		if (i >= numDelays) 
-			i = numDelays - 1;
-		return i;
 	}
 	float getDelayFraction(int delayKnobIndex) {// fraction of clock period
 		// delayKnobIndex is 0 for master (not applicable), and 1 to 3 for sub-clocks
@@ -304,12 +293,16 @@ struct Clocked : Module {
 	float delayLast[4];
 	long delayInfo[4];// downward step counter when delay to be displayed, 0 when normal display
 	
+
 	SchmittTrigger resetTrigger;
 	SchmittTrigger runTrigger;
 	PulseGenerator resetPulse;
 	PulseGenerator runPulse;
-	
 
+	
+	inline int getDelayKnobIndex(int delayKnobIndex) {return clamp((int) round( params[DELAY_PARAMS + delayKnobIndex].value ), 0, 8 - 1);}
+
+	
 	Clocked() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		for (int i = 0; i < numRatios; i++) {
 			ratioValuesDoubled[i] = (int) (ratioValues[i] * 2.0f + 0.5f);
@@ -556,7 +549,7 @@ struct Clocked : Module {
 		// Chaining outputs
 		outputs[RESET_OUTPUT].value = (resetPulse.process((float)sampleTime) ? 10.0f : 0.0f);
 		outputs[RUN_OUTPUT].value = (runPulse.process((float)sampleTime) ? 10.0f : 0.0f);
-		outputs[BPM_OUTPUT].value =  (inputs[BPM_INPUT].active ? inputs[BPM_INPUT].value : ( (float)((bpm - bpmMin) * 10l) / ((float)bpmRange) ) );
+		outputs[BPM_OUTPUT].value =  (inputs[BPM_INPUT].active ? inputs[BPM_INPUT].value : log2f(bpm / 120.0f));
 			
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
@@ -831,7 +824,7 @@ struct ClockedWidget : ModuleWidget {
 			// PW knobs
 			addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM3 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::PW_PARAMS + 1 + i, 0.0f, 1.0f, 0.5f, &module->panelTheme));
 			// Delay knobs
-			addParam(createDynamicParam<IMSmallSnapKnob>(Vec(colRulerM4 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::DELAY_PARAMS + 1 + i , Clocked::DELAY_PARAM_INIT_VALUE, ((float)(module->numDelays - 1)), 0.0f, &module->panelTheme));
+			addParam(createDynamicParam<IMSmallSnapKnob>(Vec(colRulerM4 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::DELAY_PARAMS + 1 + i , 0.0f, 8.0f - 1.0f, Clocked::DELAY_PARAM_INIT_VALUE, &module->panelTheme));
 		}
 
 		// Last row
@@ -862,6 +855,9 @@ struct ClockedWidget : ModuleWidget {
 Model *modelClocked = Model::create<Clocked, ClockedWidget>("Impromptu Modular", "Clocked", "CLK - Clocked", CLOCK_TAG);
 
 /*CHANGE LOG
+
+0.6.8:
+updated BPM CV levels (in, out) to new Rack standard for clock CVs
 
 0.6.7:
 created
