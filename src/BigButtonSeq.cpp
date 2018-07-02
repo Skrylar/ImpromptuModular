@@ -379,7 +379,9 @@ struct BigButtonSeqWidget : ModuleWidget {
 		menu->addChild(lightItem);
 
 		PanelThemeItem *darkItem = new PanelThemeItem();
-		darkItem->text = darkPanelID;// ImpromptuModular.hpp
+		std::string hotRodLabel = " Hot-rod";
+		hotRodLabel.insert(0, darkPanelID);// ImpromptuModular.hpp
+		darkItem->text = hotRodLabel;
 		darkItem->module = module;
 		darkItem->theme = 1;
 		menu->addChild(darkItem);

@@ -202,22 +202,25 @@ struct Clocked : Module {
 	// Constants
 	const float delayValues[8] = {0.0f,  0.0625f, 0.125f, 0.25f, 1.0f/3.0f, 0.5f , 2.0f/3.0f, 0.75f};
 	const float ratioValues[33] = {1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 23, 29, 31, 32, 37, 41, 43, 47, 48, 53, 59, 61, 64};
-	int ratioValuesDoubled[33];// calculated only once in constructor
 	static const int bpmMax = 300;
 	static const int bpmMin = 30;
 	static const int bpmRange = bpmMax - bpmMin;
 	static constexpr float SWING_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget init
 	static constexpr float BPM_PARAM_INIT_VALUE = 120.0f;// so that module constructor is coherent with widget init
 	static constexpr float DELAY_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget init
+	static constexpr float delayInfoTime = 3.0f;// seconds
+	static constexpr float swingInfoTime = 2.0f;// seconds
 	
-	// Need to save
-	int panelTheme = 0;
-	int expansion = 0;
+	// Need to save, with reset
 	bool running;
-	bool displayDelayNoteMode = true;
 	
-	// No need to save
-	float resetLight = 0.0f;
+	// Need to save, no reset
+	int panelTheme;
+	int expansion;
+	bool displayDelayNoteMode;
+	
+	// No need to save, with reset
+	float resetLight;
 	int bpm;
 	int ratiosDoubled[4];
 	int newRatiosDoubled[4];
@@ -229,26 +232,33 @@ struct Clocked : Module {
 	long delayInfo[4];// downward step counter when delay to be displayed, 0 when normal display
 	Clock clk[4];
 	ClockDelay delay[4];
-	
-
 	SchmittTrigger resetTrigger;
 	SchmittTrigger runTrigger;
+	
+	// No need to save, no reset
 	PulseGenerator resetPulse;
 	PulseGenerator runPulse;
+	int ratioValuesDoubled[33];
 
 	
 	inline int getDelayKnobIndex(int delayKnobIndex) {return clamp((int) round( params[DELAY_PARAMS + delayKnobIndex].value ), 0, 8 - 1);}
-	inline int getBeatsPerMinute(void) {return inputs[BPM_INPUT].active ?
-		bpm = clamp ((int) round( 120.0f * powf(2.0f, inputs[BPM_INPUT].value) ), bpmMin, bpmMax) : 
-		bpm = (int)(params[RATIO_PARAMS + 0].value + 0.5f);
+	inline int getBeatsPerMinute(void) {return clamp(inputs[BPM_INPUT].active ? 
+		(int) round( 120.0f * powf(2.0f, inputs[BPM_INPUT].value) ) : 
+		(int)(params[RATIO_PARAMS + 0].value + 0.5f), bpmMin, bpmMax);
 	}
 
 	
 	Clocked() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		for (int i = 0; i < 33; i++)
-			ratioValuesDoubled[i] = (int) (ratioValues[i] * 2.0f + 0.5f);
+		// Need to save, no reset
+		panelTheme = 0;
+		expansion = 0;
+		displayDelayNoteMode = true;
+		// No need to save, with reset (no-reset portion also goes here) 
 		for (int i = 0; i < 4; i++)
 			clk[i].setSync(i == 0 ? nullptr : &clk[0]);
+		// No need to save, no reset
+		for (int i = 0; i < 33; i++)
+			ratioValuesDoubled[i] = (int) (ratioValues[i] * 2.0f + 0.5f);
 		onReset();
 	}
 	
@@ -256,11 +266,12 @@ struct Clocked : Module {
 	// widgets are not yet created when module is created (and when onReset() is called by constructor)
 	// onReset() is also called when right-click initialization of module
 	void onReset() override {
+		// Need to save, with reset
 		running = false;
+		// No need to save, with reset
+		resetLight = 0.0f;
 		bpm = (int)(BPM_PARAM_INIT_VALUE + 0.5f);
 		for (int i = 0; i < 4; i++) {
-			clk[i].reset();
-			delay[i].reset();
 			ratiosDoubled[i] = 0;
 			newRatiosDoubled[i] = 0;
 			swingVal[i] = SWING_PARAM_INIT_VALUE;
@@ -269,31 +280,44 @@ struct Clocked : Module {
 			delayVal[i] = DELAY_PARAM_INIT_VALUE;
 			delayLast[i] = delayVal[i];
 			delayInfo[i] = 0l;
+			clk[i].reset();
+			delay[i].reset();
 		}
+		resetTrigger.reset();
+		runTrigger.reset();
 	}
 	
 	
 	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
+		// Need to save, with reset
 		running = false;
+		// No need to save, with reset
+		resetLight = 0.0f;
 		bpm = getBeatsPerMinute();
 		for (int i = 0; i < 4; i++) {
-			clk[i].reset();
-			delay[i].reset();
 			ratiosDoubled[i] = 0;
 			newRatiosDoubled[i] = 0;
-			swingVal[i] = params[SWING_PARAMS + i].value;
+			swingVal[i] = params[SWING_PARAMS + i].value;// TODO: error since should read CV in also?
 			swingLast[i] = swingVal[i];
 			swingInfo[i] = 0l;
-			delayVal[i] = params[DELAY_PARAMS + i].value;
+			delayVal[i] = params[DELAY_PARAMS + i].value;// TODO: error since should read CV in also?
 			delayLast[i] = delayVal[i];
 			delayInfo[i] = 0l;
+			clk[i].reset();
+			delay[i].reset();
 		}
+		resetTrigger.reset();
+		runTrigger.reset();
 	}
 
 	
 	json_t *toJson() override {
+		// Need to save (reset or not)
 		json_t *rootJ = json_object();
+		
+		// running
+		json_object_set_new(rootJ, "running", json_boolean(running));
 		
 		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
@@ -301,9 +325,6 @@ struct Clocked : Module {
 		// expansion
 		json_object_set_new(rootJ, "expansion", json_integer(expansion));
 
-		// running
-		json_object_set_new(rootJ, "running", json_boolean(running));
-		
 		// displayDelayNoteMode
 		json_object_set_new(rootJ, "displayDelayNoteMode", json_boolean(displayDelayNoteMode));
 		
@@ -313,8 +334,13 @@ struct Clocked : Module {
 
 	// widgets loaded before this fromJson() is called
 	void fromJson(json_t *rootJ) override {
-		onReset();
+		// Need to save (reset or not)
 		
+		// running
+		json_t *runningJ = json_object_get(rootJ, "running");
+		if (runningJ)
+			running = json_is_true(runningJ);
+
 		// panelTheme
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
@@ -325,24 +351,26 @@ struct Clocked : Module {
 		if (expansionJ)
 			expansion = json_integer_value(expansionJ);
 
-		// running
-		json_t *runningJ = json_object_get(rootJ, "running");
-		if (runningJ)
-			running = json_is_true(runningJ);
-
 		// displayDelayNoteMode
 		json_t *displayDelayNoteModeJ = json_object_get(rootJ, "displayDelayNoteMode");
 		if (displayDelayNoteModeJ)
 			displayDelayNoteMode = json_is_true(displayDelayNoteModeJ);
 
-		for (int i = 0; i < 4; i++) {
-			swingVal[i] = params[SWING_PARAMS + i].value;
-			swingLast[i] = swingVal[i];
-			delayVal[i] = params[DELAY_PARAMS + i].value;
-			delayLast[i] = delayVal[i];
-		}
-		
+		// No need to save, with reset
+		resetLight = 0.0f;
 		bpm = getBeatsPerMinute();
+		for (int i = 0; i < 4; i++) {
+			ratiosDoubled[i] = 0;
+			newRatiosDoubled[i] = 0;
+			swingVal[i] = params[SWING_PARAMS + i].value;// TODO: error since should read CV in also?
+			swingLast[i] = swingVal[i];
+			swingInfo[i] = 0l;
+			delayVal[i] = params[DELAY_PARAMS + i].value;// TODO: error since should read CV in also?
+			delayLast[i] = delayVal[i];
+			delayInfo[i] = 0l;
+			clk[i].reset();
+			delay[i].reset();
+		}
 	}
 
 	int getRatioDoubled(int ratioKnobIndex) {
@@ -370,12 +398,6 @@ struct Clocked : Module {
 	void step() override {		
 		double sampleRate = (double)engineGetSampleRate();
 		double sampleTime = 1.0 / sampleRate;// do this here since engineGetSampleRate() returns float
-		
-		static const float swingInfoTime = 2.0f;// seconds
-		long swingInfoInit = (long) (swingInfoTime * (float)sampleRate);
-	
-		static const float delayInfoTime = 3.0f;// seconds
-		long delayInfoInit = (long) (delayInfoTime * (float)sampleRate);
 		
 		// Run button
 		if (runTrigger.process(params[RUN_PARAM].value + inputs[RUN_INPUT].value)) {
@@ -410,7 +432,7 @@ struct Clocked : Module {
 			bpm = newBpm;// bpm was changed
 		}
 
-		// Ratio knobs
+		// Ratio knobs changed (setup a sync)
 		bool syncRatios[4] = {false, false, false, false};// 0 index unused
 		for (int i = 1; i < 4; i++) {
 			newRatiosDoubled[i] = getRatioDoubled(i);
@@ -419,19 +441,19 @@ struct Clocked : Module {
 			}
 		}
 		
-		// Swing and delay changed (for swing info)
+		// Swing and delay changed (for swing and delay info)
 		for (int i = 0; i < 4; i++) {
 			swingVal[i] = params[SWING_PARAMS + i].value;
 			if (swingLast[i] != swingVal[i]) {
-				swingInfo[i] = swingInfoInit;// trigger swing info on channel i
-				delayInfo[i] = 0l;
 				swingLast[i] = swingVal[i];
+				swingInfo[i] = (long) (swingInfoTime * (float)sampleRate);// trigger swing info on channel i
+				delayInfo[i] = 0l;
 			}
 			delayVal[i] = params[DELAY_PARAMS + i].value;
 			if (delayLast[i] != delayVal[i]) {
-				delayInfo[i] = delayInfoInit;// trigger delay info on channel i, use same init value as swing
-				swingInfo[i] = 0l;
 				delayLast[i] = delayVal[i];
+				delayInfo[i] = (long) (delayInfoTime * (float)sampleRate);// trigger delay info on channel i
+				swingInfo[i] = 0l;
 			}
 		}			
 
@@ -556,8 +578,8 @@ struct ClockedWidget : ModuleWidget {
 		int knobIndex;
 		std::shared_ptr<Font> font;
 		char displayStr[4];
-		std::string delayLabelsClock[8] = {"  0", "/16",   "1/8",  "1/4", "1/3",     "1/2", "2/3",     "3/4"};
-		std::string delayLabelsNote[8]  = {"  0", "/64",   "/32",  "/16", "/8t",     "1/8", "/4t",     "/8d"};
+		const std::string delayLabelsClock[8] = {"  0", "/16",   "1/8",  "1/4", "1/3",     "1/2", "2/3",     "3/4"};
+		const std::string delayLabelsNote[8]  = {"  0", "/64",   "/32",  "/16", "/8t",     "1/8", "/4t",     "/8d"};
 
 		
 		RatioDisplayWidget() {
