@@ -199,74 +199,16 @@ struct Clocked : Module {
 	};
 	
 	
-	// Delay info
-	// all fractions must be <= 0.75... or else delay buffer will overrun in worst case (192kHz, 30BPM)
-	std::string delayLabelsClock[8] = {"  0", "/16",   "1/8",  "1/4", "1/3",     "1/2", "2/3",     "3/4"};
-	std::string delayLabelsNote[8]  = {"  0", "/64",   "/32",  "/16", "/8t",     "1/8", "/4t",     "/8d"};
-	float delayValues[8]            = {0.0f,  0.0625f, 0.125f, 0.25f, 1.0f/3.0f, 0.5f , 2.0f/3.0f, 0.75f};
-
-	// Ratio info
-	static const int numRatios = 33;
-	float ratioValues[numRatios] = {1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 
-									17, 19, 23, 29, 31, 32, 37, 41, 43, 47, 48, 53, 59, 61, 64};
-	int ratioValuesDoubled[numRatios];// calculated only once in constructor
-
-	// BPM info
+	// Constants
+	const float delayValues[8] = {0.0f,  0.0625f, 0.125f, 0.25f, 1.0f/3.0f, 0.5f , 2.0f/3.0f, 0.75f};
+	const float ratioValues[33] = {1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 23, 29, 31, 32, 37, 41, 43, 47, 48, 53, 59, 61, 64};
+	int ratioValuesDoubled[33];// calculated only once in constructor
 	static const int bpmMax = 300;
 	static const int bpmMin = 30;
 	static const int bpmRange = bpmMax - bpmMin;
-		
-	// Knob utilities
-	int getBeatsPerMinute(void) {
-		int bpm = 0;
-		if (inputs[BPM_INPUT].active) {
-			bpm = (int) round( 120.0f * powf(2.0f, inputs[BPM_INPUT].value) );// f = 2Hz * 2^V;  bpm = 120 * 2^V
-			bpm = clamp(bpm, bpmMin, bpmMax);
-		}
-		else {
-			bpm = (int)(params[RATIO_PARAMS + 0].value + 0.5f);
-		}
-		return bpm;
-	}
-	int getRatioDoubled(int ratioKnobIndex) {
-		// ratioKnobIndex is 0 for master BPM's ratio (1 is implicitly returned), and 1 to 3 for other ratio knobs
-		// returns a positive ratio for mult, negative ratio for div (0 never returned)
-		int ret = 1;
-		if (ratioKnobIndex > 0) {
-			bool isDivision = false;
-			int i = (int) round( params[RATIO_PARAMS + ratioKnobIndex].value );// [ -(numRatios-1) ; (numRatios-1) ]
-			if (i < 0) {
-				i *= -1;
-				isDivision = true;
-			}
-			if (i >= numRatios) {
-				i = numRatios - 1;
-			}
-			ret = ratioValuesDoubled[i];
-			if (isDivision) 
-				ret = -1l * ret;
-		}
-		return ret;
-	}
-	inline float calcRatio(int ratioDoubled) {
-		// true float ratio, always positive, >1 for mult, <1 for div
-		float ret = ((float)ratioDoubled) / 2.0f;
-		if (ratioDoubled < 0)
-			ret = 1.0f / (-1.0f * ret);
-		return ret;
-	}
-	float getDelayFraction(int delayKnobIndex) {// fraction of clock period
-		// delayKnobIndex is 0 for master (not applicable), and 1 to 3 for sub-clocks
-		return delayValues[getDelayKnobIndex(delayKnobIndex)];
-	}	
-	std::string getDelayFractionLabel(int delayKnobIndex) {
-		// label for fraction of clock period 
-		return delayLabelsClock[getDelayKnobIndex(delayKnobIndex)];
-	}	
-	std::string getDelayNoteLabel(int delayKnobIndex) {
-		// label for fraction of clock period in notes (one period is a quarter note)
-		return delayLabelsNote[getDelayKnobIndex(delayKnobIndex)];
-	}	
+	static constexpr float SWING_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget init
+	static constexpr float BPM_PARAM_INIT_VALUE = 120.0f;// so that module constructor is coherent with widget init
+	static constexpr float DELAY_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget init
 	
 	// Need to save
 	int panelTheme = 0;
@@ -276,22 +218,17 @@ struct Clocked : Module {
 	
 	// No need to save
 	float resetLight = 0.0f;
-	static constexpr float BPM_PARAM_INIT_VALUE = 120.0f;// so that module constructor is coherent with widget initialization, since module created before widget
 	int bpm;
-	Clock clk[4];
-	ClockDelay delay[4];
 	int ratiosDoubled[4];
 	int newRatiosDoubled[4];
-	
-	static constexpr float SWING_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget initialization, since module created before widget
 	float swingVal[4];
 	float swingLast[4];
 	long swingInfo[4];// downward step counter when swing to be displayed, 0 when normal display
-
-	static constexpr float DELAY_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget initialization, since module created before widget
 	float delayVal[4];
 	float delayLast[4];
 	long delayInfo[4];// downward step counter when delay to be displayed, 0 when normal display
+	Clock clk[4];
+	ClockDelay delay[4];
 	
 
 	SchmittTrigger resetTrigger;
@@ -301,15 +238,17 @@ struct Clocked : Module {
 
 	
 	inline int getDelayKnobIndex(int delayKnobIndex) {return clamp((int) round( params[DELAY_PARAMS + delayKnobIndex].value ), 0, 8 - 1);}
+	inline int getBeatsPerMinute(void) {return inputs[BPM_INPUT].active ?
+		bpm = clamp ((int) round( 120.0f * powf(2.0f, inputs[BPM_INPUT].value) ), bpmMin, bpmMax) : 
+		bpm = (int)(params[RATIO_PARAMS + 0].value + 0.5f);
+	}
 
 	
 	Clocked() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		for (int i = 0; i < numRatios; i++) {
+		for (int i = 0; i < 33; i++)
 			ratioValuesDoubled[i] = (int) (ratioValues[i] * 2.0f + 0.5f);
-		}
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < 4; i++)
 			clk[i].setSync(i == 0 ? nullptr : &clk[0]);
-		}
 		onReset();
 	}
 	
@@ -336,14 +275,20 @@ struct Clocked : Module {
 	
 	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
-		onReset();
+		running = false;
+		bpm = getBeatsPerMinute();
 		for (int i = 0; i < 4; i++) {
-			swingVal[i] = params[SWING_PARAMS + i].value;// redo this since SWING_PARAM_INIT_VALUE of onReset() not valid
+			clk[i].reset();
+			delay[i].reset();
+			ratiosDoubled[i] = 0;
+			newRatiosDoubled[i] = 0;
+			swingVal[i] = params[SWING_PARAMS + i].value;
 			swingLast[i] = swingVal[i];
-			delayVal[i] = params[DELAY_PARAMS + i].value;// redo this since DELAY_PARAM_INIT_VALUE of onReset() not valid
+			swingInfo[i] = 0l;
+			delayVal[i] = params[DELAY_PARAMS + i].value;
 			delayLast[i] = delayVal[i];
+			delayInfo[i] = 0l;
 		}
-		bpm = getBeatsPerMinute();// redo this since BPM_PARAM_INIT_VALUE of onReset() not valid
 	}
 
 	
@@ -400,6 +345,27 @@ struct Clocked : Module {
 		bpm = getBeatsPerMinute();
 	}
 
+	int getRatioDoubled(int ratioKnobIndex) {
+		// ratioKnobIndex is 0 for master BPM's ratio (1 is implicitly returned), and 1 to 3 for other ratio knobs
+		// returns a positive ratio for mult, negative ratio for div (0 never returned)
+		int ret = 1;
+		if (ratioKnobIndex > 0) {
+			bool isDivision = false;
+			int i = (int) round( params[RATIO_PARAMS + ratioKnobIndex].value );// [ -(numRatios-1) ; (numRatios-1) ]
+			if (i < 0) {
+				i *= -1;
+				isDivision = true;
+			}
+			if (i >= 33) {
+				i = 33 - 1;
+			}
+			ret = ratioValuesDoubled[i];
+			if (isDivision) 
+				ret = -1l * ret;
+		}
+		return ret;
+	}
+	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
 		double sampleRate = (double)engineGetSampleRate();
@@ -540,9 +506,13 @@ struct Clocked : Module {
 		float masterPeriod = 60.0f / (float)bpm;// result in seconds
 		for (int i = 0; i < 4; i++) {
 			long delaySamples = 0l;
-			if (i > 0) 
-				delaySamples = (long)(masterPeriod * getDelayFraction(i) * sampleRate / calcRatio(ratiosDoubled[i])) ;
-			
+			if (i > 0) {
+				float delayFraction = delayValues[getDelayKnobIndex(i)];
+				float ratioValue = ((float)ratiosDoubled[i]) / 2.0f;
+				if (ratioValue < 0)
+					ratioValue = 1.0f / (-1.0f * ratioValue);
+				delaySamples = (long)(masterPeriod * delayFraction * sampleRate / ratioValue) ;
+			}
 			outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples) ? 10.0f : 0.0f;
 		}
 		
@@ -580,11 +550,15 @@ struct ClockedWidget : ModuleWidget {
 	int oldExpansion;
 	IMPort* expPorts[5];
 
+
 	struct RatioDisplayWidget : TransparentWidget {
 		Clocked *module;
 		int knobIndex;
 		std::shared_ptr<Font> font;
 		char displayStr[4];
+		std::string delayLabelsClock[8] = {"  0", "/16",   "1/8",  "1/4", "1/3",     "1/2", "2/3",     "3/4"};
+		std::string delayLabelsNote[8]  = {"  0", "/64",   "/32",  "/16", "/8t",     "1/8", "/4t",     "/8d"};
+
 		
 		RatioDisplayWidget() {
 			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
@@ -612,9 +586,9 @@ struct ClockedWidget : ModuleWidget {
 			else if (module->delayInfo[knobIndex] > 0)
 			{
 				if (module->displayDelayNoteMode)
-					snprintf(displayStr, 4, "%s", (module->getDelayNoteLabel(knobIndex)).c_str());	
+					snprintf(displayStr, 4, "%s", (delayLabelsNote[module->getDelayKnobIndex(knobIndex)]).c_str());
 				else
-					snprintf(displayStr, 4, "%s", (module->getDelayFractionLabel(knobIndex)).c_str());	
+					snprintf(displayStr, 4, "%s", (delayLabelsClock[module->getDelayKnobIndex(knobIndex)]).c_str());				
 			}
 			else {
 				if (knobIndex > 0) {// ratio to display
@@ -809,7 +783,7 @@ struct ClockedWidget : ModuleWidget {
 		// Row 2-4 (sub clocks)		
 		for (int i = 0; i < 3; i++) {
 			// Ratio1 knob
-			addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerM0 + offsetIMBigKnob, rowRuler2 + i * rowSpacingClks + offsetIMBigKnob), module, Clocked::RATIO_PARAMS + 1 + i, ((float)(module->numRatios - 1))*-1.0f, ((float)(module->numRatios - 1)), 0.0f, &module->panelTheme));		
+			addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerM0 + offsetIMBigKnob, rowRuler2 + i * rowSpacingClks + offsetIMBigKnob), module, Clocked::RATIO_PARAMS + 1 + i, (33.0f - 1.0f)*-1.0f, 33.0f - 1.0f, 0.0f, &module->panelTheme));		
 			// Ratio display
 			displayRatios[i + 1] = new RatioDisplayWidget();
 			displayRatios[i + 1]->box.pos = Vec(colRulerM1, rowRuler2 + i * rowSpacingClks + vOffsetDisplay);

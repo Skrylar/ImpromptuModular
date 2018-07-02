@@ -886,17 +886,17 @@ struct PhraseSeq32 : Module {
 						}
 					}
 					else {
-						// no roll over
-						phrase[phraseIndexEdit] += deltaKnob;
-						if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
-						if (phrase[phraseIndexEdit] >= 32) phrase[phraseIndexEdit] = (32 - 1);
+						// // no roll over
+						// phrase[phraseIndexEdit] += deltaKnob;
+						// if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
+						// if (phrase[phraseIndexEdit] >= 32) phrase[phraseIndexEdit] = (32 - 1);
 
-						//// roll over
-						//int newPhrase = phrase[phraseIndexEdit] + deltaKnob;
-						//if (newPhrase < 0)
-						//	newPhrase += (1 - newPhrase / 32) * 32;// newPhrase now positive
-						//newPhrase = newPhrase % 32;
-						//phrase[phraseIndexEdit] = newPhrase;
+						// roll over
+						int newPhrase = phrase[phraseIndexEdit] + deltaKnob;
+						if (newPhrase < 0)
+							newPhrase += (1 - newPhrase / 32) * 32;// newPhrase now positive
+						newPhrase = newPhrase % 32;
+						phrase[phraseIndexEdit] = newPhrase;
 
 					}
 				}
@@ -1667,6 +1667,9 @@ struct PhraseSeq32Widget : ModuleWidget {
 Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromptu Modular", "Phrase-Seq-32", "SEQ - Phrase-Seq-32", SEQUENCER_TAG);
 
 /*CHANGE LOG
+
+0.6.8:
+allow rollover when selecting sequences in a song phrase (easier access to higher numbered seqs)
 
 0.6.7:
 allow full edit capabilities in Seq and song mode

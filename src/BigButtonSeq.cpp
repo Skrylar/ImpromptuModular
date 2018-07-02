@@ -80,7 +80,6 @@ struct BigButtonSeq : Module {
 	PulseGenerator outLightPulse;
 	PulseGenerator bigPulse;
 	PulseGenerator bigLightPulse;
-	static constexpr float lightTime = 0.1f;
 	
 
 	inline void toggleGate(int chan) {gates[chan][bank[chan]] ^= (((uint64_t)1) << (uint64_t)indexStep);}
@@ -93,6 +92,8 @@ struct BigButtonSeq : Module {
 		onReset();
 	}
 
+	// widgets are not yet created when module is created (and when onReset() is called by constructor)
+	// onReset() is also called when right-click initialization of module
 	void onReset() override {
 		indexStep = 0;
 		len = 0;
@@ -193,10 +194,10 @@ struct BigButtonSeq : Module {
 	}
 
 	
-	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		float sampleTime = engineGetSampleTime();
+		static const float lightTime = 0.1f;
 		
 		//********** Buttons, knobs, switches and inputs **********
 		
