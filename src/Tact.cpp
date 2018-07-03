@@ -23,6 +23,8 @@ struct Tact : Module {
 		LINK_PARAM,
 		ENUMS(SLIDE_PARAMS, 2),// slide switches
 		ENUMS(STORE_PARAMS, 2),// store buttons
+		// -- 0.6.7 ^^
+		EXP_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -65,6 +67,7 @@ struct Tact : Module {
 
 	
 	inline bool isLinked(void) {return params[LINK_PARAM].value > 0.5f;}
+	inline bool isExpSliding(void) {return params[EXP_PARAM].value > 0.5f;}
 
 	
 	Tact() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -207,13 +210,14 @@ struct Tact : Module {
 		
 		
 		// cv
+		bool expSliding = isExpSliding();
 		for (int i = 0; i < 2; i++) {
 			float newParamValue = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
 			double transitionRate = params[RATE_PARAMS + i].value; // s/V
 			// NEW VERSION
 			double dt = sampleTime;
 			if ((newParamValue - cv[i]) > 0.001f && transitionRate > 0.001) {
-				double dV = dt/transitionRate;
+				double dV = expSliding ? (cv[i] + 1.0) * (pow(11.0, dt / (10.0 * transitionRate)) - 1.0) : dt/transitionRate;
 				double newCV = cv[i] + dV;
 				if (newCV > newParamValue)
 					cv[i] = newParamValue;
@@ -222,7 +226,7 @@ struct Tact : Module {
 			}
 			else if ((newParamValue - cv[i]) < -0.001f && transitionRate > 0.001) {
 				dt *= -1.0;
-				double dV = dt/transitionRate;
+				double dV = expSliding ? (cv[i] + 1.0) * (pow(11.0, dt / (10.0 * transitionRate)) - 1.0) : dt/transitionRate;
 				double newCV = cv[i] + dV;
 				if (newCV < newParamValue)
 					cv[i] = newParamValue;
@@ -433,12 +437,10 @@ struct TactWidget : ModuleWidget {
 		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerC2R + offsetIMSmallKnob, rowRuler1a + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 1, 0.0f, 4.0f, 0.2f, &module->panelTheme));
 		
 
-		static const int bottomOffset2ndJack = 24;
-		static const int colRulerB1 = colRulerC1L + bottomOffset2ndJack;
-		static const int colRulerB2 = colRulerC1R - bottomOffset2ndJack;
-		static const int bottomSpacingX = colRulerB2 - colRulerB1;
-		static const int colRulerB0 = colRulerB1 - bottomSpacingX;
-		static const int colRulerB3 = colRulerB2 + bottomSpacingX;
+		static const int colRulerB1 = colRulerC1L;
+		static const int colRulerB2 = colRulerC1R;
+		static const int colRulerB0 = colRulerC2L;
+		static const int colRulerB3 = colRulerC2R;
 		
 		
 		static const int rowRuler3 = rowRuler2 + 54;
@@ -450,15 +452,21 @@ struct TactWidget : ModuleWidget {
 		addInput(createDynamicPort<IMPort>(Vec(colRulerB3, rowRuler3), Port::INPUT, module, Tact::TOP_INPUTS + 1, &module->panelTheme));		
 
 		// Lights
-		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(colRulerC2L + offsetMediumLight, rowRuler3 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 0 * 2));		
-		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(colRulerC2R + offsetMediumLight, rowRuler3 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 1 * 2));		
+		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(colRulerC2L + 26 + offsetMediumLight, rowRuler3 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 0 * 2));		
+		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(colRulerC2R - 26 + offsetMediumLight, rowRuler3 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 1 * 2));		
 
+		// Exp switch
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerCenter + hOffsetCKSS, rowRuler3 + vOffsetCKSS), module, Tact::EXP_PARAM, 0.0f, 1.0f, 0.0f));		
+		
 	}
 };
 
 Model *modelTact = Model::create<Tact, TactWidget>("Impromptu Modular", "Tact", "CTRL - Tact", CONTROLLER_TAG);
 
 /*CHANGE LOG
+
+0.6.8:
+implement exponential sliding
 
 0.6.7:
 created
