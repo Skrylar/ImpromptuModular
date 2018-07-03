@@ -317,8 +317,8 @@ struct Clocked : Module {
 
 	
 	json_t *toJson() override {
-		// Need to save (reset or not)
 		json_t *rootJ = json_object();
+		// Need to save (reset or not)
 		
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));

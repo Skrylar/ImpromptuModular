@@ -133,7 +133,7 @@ struct BigButtonSeq : Module {
 	void onRandomize() override {
 		// Need to save, with reset
 		indexStep = randomu32() % 32;
-		len = 0;
+		len = randomu32() % 64 + 1;
 		for (int c = 0; c < 6; c++) {
 			bank[c] = randomu32() % 2;
 			gates[c][0] = randomu64();

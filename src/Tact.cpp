@@ -77,6 +77,7 @@ struct Tact : Module {
 			tactWidgets[i] = nullptr;
 			transitionCVdelta[i] = 0.0;
 		}
+		
 		onReset();
 	}
 
@@ -126,6 +127,7 @@ struct Tact : Module {
 	
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
+		// Need to save (reset or not)
 
 		// cv
 		json_object_set_new(rootJ, "cv0", json_real(cv[0]));
@@ -144,6 +146,8 @@ struct Tact : Module {
 	
 	// widgets loaded before this fromJson() is called
 	void fromJson(json_t *rootJ) override {
+		// Need to save (reset or not)
+
 		// cv
 		json_t *cv0J = json_object_get(rootJ, "cv0");
 		if (cv0J)
