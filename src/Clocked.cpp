@@ -234,7 +234,6 @@ struct Clocked : Module {
 	// No need to save, no reset
 	PulseGenerator resetPulse;
 	PulseGenerator runPulse;
-	int ratioValuesDoubled[33];
 	int newRatiosDoubled[4];
 
 	
@@ -254,8 +253,6 @@ struct Clocked : Module {
 		for (int i = 0; i < 4; i++)
 			clk[i].setSync(i == 0 ? nullptr : &clk[0]);
 		// No need to save, no reset
-		for (int i = 0; i < 33; i++)
-			ratioValuesDoubled[i] = (int) (ratioValues[i] * 2.0f + 0.5f);
 		for (int i = 0; i < 4; i++)
 			newRatiosDoubled[i] = 0;
 		onReset();
@@ -264,7 +261,8 @@ struct Clocked : Module {
 
 	// widgets are not yet created when module is created (and when onReset() is called by constructor)
 	// onReset() is also called when right-click initialization of module
-	// even if widgets not created yet, can use params[] since step may call this before widget creation anyways
+	// even if widgets not created yet, can use params[] and should handle 0.0f value since step may call 
+	//   this before widget creation anyways
 	void onReset() override {
 		// Need to save, with reset
 		running = false;
@@ -272,30 +270,7 @@ struct Clocked : Module {
 		resetLight = 0.0f;
 		bpm = getBeatsPerMinute();
 		for (int i = 0; i < 4; i++) {
-			ratiosDoubled[i] = 0;// force resync with impossible ratio
-			swingVal[i] = params[SWING_PARAMS + i].value;
-			swingLast[i] = swingLast[i];
-			swingInfo[i] = 0l;
-			delayVal[i] = params[DELAY_PARAMS + i].value;
-			delayLast[i] = delayVal[i];
-			delayInfo[i] = 0l;
-			clk[i].reset();
-			delay[i].reset();
-		}
-		resetTrigger.reset();
-		runTrigger.reset();
-	}
-	
-	
-	// widgets randomized before onRandomize() is called
-	void onRandomize() override {
-		// Need to save, with reset
-		running = false;
-		// No need to save, with reset
-		resetLight = 0.0f;
-		bpm = getBeatsPerMinute();
-		for (int i = 0; i < 4; i++) {
-			ratiosDoubled[i] = 0;// force resync with impossible ratio
+			ratiosDoubled[i] = 0;// force resync by using impossible ratio
 			swingVal[i] = params[SWING_PARAMS + i].value;
 			swingLast[i] = swingVal[i];
 			swingInfo[i] = 0l;
@@ -307,6 +282,31 @@ struct Clocked : Module {
 		}
 		resetTrigger.reset();
 		runTrigger.reset();
+		//info("*** onReset() called ***");
+	}
+	
+	
+	// widgets randomized before onRandomize() is called
+	void onRandomize() override {
+		// Need to save, with reset
+		running = false;
+		// No need to save, with reset
+		resetLight = 0.0f;
+		bpm = getBeatsPerMinute();
+		for (int i = 0; i < 4; i++) {
+			ratiosDoubled[i] = 0;// force resync by using impossible ratio
+			swingVal[i] = params[SWING_PARAMS + i].value;
+			swingLast[i] = swingVal[i];
+			swingInfo[i] = 0l;
+			delayVal[i] = params[DELAY_PARAMS + i].value;
+			delayLast[i] = delayVal[i];
+			delayInfo[i] = 0l;
+			clk[i].reset();
+			delay[i].reset();
+		}
+		resetTrigger.reset();
+		runTrigger.reset();
+		//info("*** onRandomize() called ***");
 	}
 
 	
@@ -326,6 +326,7 @@ struct Clocked : Module {
 		// displayDelayNoteMode
 		json_object_set_new(rootJ, "displayDelayNoteMode", json_boolean(displayDelayNoteMode));
 		
+		//info("*** toJson() called ***");
 		return rootJ;
 	}
 
@@ -358,7 +359,8 @@ struct Clocked : Module {
 		resetLight = 0.0f;
 		bpm = getBeatsPerMinute();
 		for (int i = 0; i < 4; i++) {
-			ratiosDoubled[i] = 0;// force resync with impossible ratio
+			ratiosDoubled[i] = 0;// force resync by using impossible ratio
+			newRatiosDoubled[i] = 0;//TODO find out why this line needed (paste triggers sync bug) and re-add to reset
 			swingVal[i] = params[SWING_PARAMS + i].value;
 			swingLast[i] = swingVal[i];
 			swingInfo[i] = 0l;
@@ -368,6 +370,7 @@ struct Clocked : Module {
 			clk[i].reset();
 			delay[i].reset();
 		}
+		//info("*** fromJson() called ***");
 	}
 
 	int getRatioDoubled(int ratioKnobIndex) {
@@ -384,7 +387,7 @@ struct Clocked : Module {
 			if (i >= 33) {
 				i = 33 - 1;
 			}
-			ret = ratioValuesDoubled[i];
+			ret = (int) (ratioValues[i] * 2.0f + 0.5f);
 			if (isDivision) 
 				ret = -1l * ret;
 		}
@@ -395,6 +398,9 @@ struct Clocked : Module {
 	void step() override {		
 		double sampleRate = (double)engineGetSampleRate();
 		double sampleTime = 1.0 / sampleRate;// do this here since engineGetSampleRate() returns float
+		
+		//if (clk[0].isReset() && clk[1].isReset() && clk[2].isReset() && clk[3].isReset())
+			//info("***** step() ALL RESET *****");
 		
 		// Run button
 		if (runTrigger.process(params[RUN_PARAM].value + inputs[RUN_INPUT].value)) {
@@ -408,7 +414,8 @@ struct Clocked : Module {
 		}
 
 		// Reset (has to be near to because sets steps to 0, and 0 not a real step (clock section will move to 1 before reaching outputs)
-		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {// TODO add sampleRate change as condition for reset
+		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
+			// TODO add sampleRate change as condition for reset
 			resetLight = 1.0f;
 			resetPulse.trigger(0.001f);
 			for (int i = 0; i < 4; i++) {
