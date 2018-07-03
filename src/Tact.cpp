@@ -41,110 +41,147 @@ struct Tact : Module {
 		NUM_LIGHTS
 	};
 	
-	// Need to save
-	int panelTheme = 0;
-	float storeCV[2];
 	
-	// No need to save
+	// Constants
+	static constexpr float storeInfoTime = 0.5f;// seconds	
+	
+	// Need to save, with reset
 	double cv[2];// actual Tact CV since Tactknob can be different than these when transitioning
-	unsigned long transitionStepsRemain[2];// 0 when no transition under way, downward step counter when transitioning
-	double transitionCVdelta[2];// no need to initialize, this is a companion to slideStepsRemain
-	long infoStore;// 0 when no info, positive downward step counter timer when store left channel, negative upward for right channel
-	long initInfoStore;// set in constructor
-	float infoCVinLight[2];// set in constructor
+	float storeCV[2];
 
-	static constexpr float TACT_INIT_VALUE = 5.0f;// so that module constructor is coherent with widget initialization, since module created before widget
-		
-	IMTactile* tactWidgets[2];		
+	// Need to save, no reset
+	int panelTheme;
 	
-	
+	// No need to save, with reset
+	long infoStore;// 0 when no info, positive downward step counter timer when store left channel, negative upward for right channel
+	unsigned long transitionStepsRemain[2];// 0 when no transition under way, downward step counter when transitioning
+	float infoCVinLight[2];// set in constructor
 	SchmittTrigger topTriggers[2];
 	SchmittTrigger botTriggers[2];
 	SchmittTrigger storeTriggers[2];
 	SchmittTrigger recallTriggers[2];
 
+	// No need to save, no reset
+	IMTactile* tactWidgets[2];		
+	double transitionCVdelta[2];// no need to initialize, this is a companion to slideStepsRemain
 
+	
 	inline bool isLinked(void) {return params[LINK_PARAM].value > 0.5f;}
 
 	
 	Tact() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		static const float storeInfoTime = 0.5f;// seconds
-		initInfoStore = (long) (storeInfoTime * engineGetSampleRate());
-
-		tactWidgets[0] = nullptr;
-		tactWidgets[1] = nullptr;
-		infoCVinLight[0] = 0.0f;
-		infoCVinLight[1] = 0.0f;
-
+		// Need to save, no reset
+		panelTheme = 0;
+		// No need to save, no reset		
+		for (int i = 0; i < 2; i++) {
+			tactWidgets[i] = nullptr;
+			transitionCVdelta[i] = 0.0;
+		}
 		onReset();
 	}
 
 	
 	// widgets are not yet created when module is created (and when onReset() is called by constructor)
 	// onReset() is also called when right-click initialization of module
+	// even if widgets not created yet, can use params[] and should handle 0.0f value since step may call 
+	//   this before widget creation anyways
 	void onReset() override {
+		// Need to save, with reset
 		for (int i = 0; i < 2; i++) {
-			cv[i] = TACT_INIT_VALUE;
-			transitionStepsRemain[i] = 0;
+			cv[i] = 0.0f;
 			storeCV[i] = 0.0f;
 		}
+		// No need to save, with reset
 		infoStore = 0l;
+		for (int i = 0; i < 2; i++) {
+			transitionStepsRemain[i] = 0;
+			infoCVinLight[i] = 0.0f;
+			topTriggers[i].reset();
+			botTriggers[i].reset();
+			storeTriggers[i].reset();
+			recallTriggers[i].reset();
+		}
 	}
 
 	
 	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
+		// Need to save, with reset
 		for (int i = 0; i < 2; i++) {
 			cv[i] = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
-			transitionStepsRemain[i] = 0;
 			storeCV[i] = 0.0f;
 		}
+		// No need to save, with reset
 		infoStore = 0l;
+		for (int i = 0; i < 2; i++) {
+			transitionStepsRemain[i] = 0;
+			infoCVinLight[i] = 0.0f;
+			topTriggers[i].reset();
+			botTriggers[i].reset();
+			storeTriggers[i].reset();
+			recallTriggers[i].reset();
+		}
 	}
 
 	
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
+		// cv
+		json_object_set_new(rootJ, "cv0", json_real(cv[0]));
+		json_object_set_new(rootJ, "cv1", json_real(cv[1]));
+		
+		// storeCV
+		json_object_set_new(rootJ, "storeCV0", json_real(storeCV[0]));
+		json_object_set_new(rootJ, "storeCV1", json_real(storeCV[1]));
+		
 		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
 
-		// storeCV[0]
-		json_object_set_new(rootJ, "storeCV0", json_real(storeCV[0]));
-		// storeCV[1]
-		json_object_set_new(rootJ, "storeCV1", json_real(storeCV[1]));
-		
 		return rootJ;
 	}
 
 	
 	// widgets loaded before this fromJson() is called
 	void fromJson(json_t *rootJ) override {
-		// panelTheme
-		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
-		if (panelThemeJ)
-			panelTheme = json_integer_value(panelThemeJ);
+		// cv
+		json_t *cv0J = json_object_get(rootJ, "cv0");
+		if (cv0J)
+			cv[0] = json_real_value(cv0J);
+		json_t *cv1J = json_object_get(rootJ, "cv1");
+		if (cv1J)
+			cv[1] = json_real_value(cv1J);
 
 		// storeCV[0]
 		json_t *storeCV0J = json_object_get(rootJ, "storeCV0");
 		if (storeCV0J)
 			storeCV[0] = json_real_value(storeCV0J);
-
-		// storeCV[1]
 		json_t *storeCV1J = json_object_get(rootJ, "storeCV1");
 		if (storeCV1J)
 			storeCV[1] = json_real_value(storeCV1J);
 
+		// panelTheme
+		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
+		if (panelThemeJ)
+			panelTheme = json_integer_value(panelThemeJ);
 
+		// No need to save, with reset
+		infoStore = 0l;
 		for (int i = 0; i < 2; i++) {
-			cv[i] = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
 			transitionStepsRemain[i] = 0;
+			infoCVinLight[i] = 0.0f;
+			topTriggers[i].reset();
+			botTriggers[i].reset();
+			storeTriggers[i].reset();
+			recallTriggers[i].reset();
 		}
 	}
 
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
+		float sampleRate = engineGetSampleRate();
+		long initInfoStore = (long) (storeInfoTime * sampleRate);
 		
 		// store buttons
 		for (int i = 0; i < 2; i++) {
@@ -214,11 +251,11 @@ struct Tact : Module {
 		
 		// Tactile lights
 		if (infoStore > 0l)
-			setTLightsStore(0, infoStore);
+			setTLightsStore(0, infoStore, initInfoStore);
 		else
 			setTLights(0);
 		if (infoStore < 0l)
-			setTLightsStore(1, infoStore * -1l);
+			setTLightsStore(1, infoStore * -1l, initInfoStore);
 		else
 			setTLights(1);
 		
@@ -241,7 +278,6 @@ struct Tact : Module {
 			if (infoStore < 0l)
 				infoStore ++;
 		}
-		
 	}
 	
 	void setTLights(int chan) {
@@ -255,7 +291,7 @@ struct Tact : Module {
 			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 1].value = 0.0f;
 		}
 	}
-	void setTLightsStore(int chan, long infoCount) {
+	void setTLightsStore(int chan, long infoCount, long initInfoStore) {
 		for (int i = 0; i < numLights; i++) {
 			float level = (i == (int) round((float(infoCount)) / ((float)initInfoStore) * (float)(numLights - 1)) ? 1.0f : 0.0f);
 			// Green diode
@@ -335,10 +371,10 @@ struct TactWidget : ModuleWidget {
 		
 		// Tactile touch pads
 		// Right (no dynamic width, but must do first so that left will get mouse events when wider overlaps)
-		tactR = createDynamicParam2<IMTactile>(Vec(colRulerPadR, rowRuler0), module, Tact::TACT_PARAMS + 1, -1.0f, 11.0f, Tact::TACT_INIT_VALUE, nullptr);
+		tactR = createDynamicParam2<IMTactile>(Vec(colRulerPadR, rowRuler0), module, Tact::TACT_PARAMS + 1, -1.0f, 11.0f, 0.0f, nullptr);
 		addParam(tactR);
 		// Left (with width dependant on Link value)	
-		tactL = createDynamicParam2<IMTactile>(Vec(colRulerPadL, rowRuler0), module, Tact::TACT_PARAMS + 0, -1.0f, 11.0f, Tact::TACT_INIT_VALUE,  &module->params[Tact::LINK_PARAM].value);
+		tactL = createDynamicParam2<IMTactile>(Vec(colRulerPadL, rowRuler0), module, Tact::TACT_PARAMS + 0, -1.0f, 11.0f, 0.0f,  &module->params[Tact::LINK_PARAM].value);
 		addParam(tactL);
 		module->tactWidgets[0] = tactL;
 		module->tactWidgets[1] = tactR;

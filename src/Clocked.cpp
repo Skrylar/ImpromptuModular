@@ -220,6 +220,7 @@ struct Clocked : Module {
 	float resetLight;
 	int bpm;
 	int ratiosDoubled[4];
+	int newRatiosDoubled[4];
 	float swingVal[4];
 	float swingLast[4];
 	long swingInfo[4];// downward step counter when swing to be displayed, 0 when normal display
@@ -230,12 +231,11 @@ struct Clocked : Module {
 	ClockDelay delay[4];
 	SchmittTrigger resetTrigger;
 	SchmittTrigger runTrigger;
+	TriggerGenerator resetPulse;
+	TriggerGenerator runPulse;
 	
 	// No need to save, no reset
-	PulseGenerator resetPulse;
-	PulseGenerator runPulse;
-	int newRatiosDoubled[4];
-
+	// none
 	
 	inline int getDelayKnobIndex(int delayKnobIndex) {return clamp((int) round( params[DELAY_PARAMS + delayKnobIndex].value ), 0, 8 - 1);}
 	inline int getBeatsPerMinute(void) {return clamp(inputs[BPM_INPUT].active ? 
@@ -253,8 +253,10 @@ struct Clocked : Module {
 		for (int i = 0; i < 4; i++)
 			clk[i].setSync(i == 0 ? nullptr : &clk[0]);
 		// No need to save, no reset
-		for (int i = 0; i < 4; i++)
-			newRatiosDoubled[i] = 0;
+		// none
+		//for (int i = 0; i < 4; i++) // temp for debug, will be removed
+			//newRatiosDoubled[i] = 0;
+		
 		onReset();
 	}
 	
@@ -271,6 +273,7 @@ struct Clocked : Module {
 		bpm = getBeatsPerMinute();
 		for (int i = 0; i < 4; i++) {
 			ratiosDoubled[i] = 0;// force resync by using impossible ratio
+			newRatiosDoubled[i] = 0;
 			swingVal[i] = params[SWING_PARAMS + i].value;
 			swingLast[i] = swingVal[i];
 			swingInfo[i] = 0l;
@@ -282,7 +285,8 @@ struct Clocked : Module {
 		}
 		resetTrigger.reset();
 		runTrigger.reset();
-		//info("*** onReset() called ***");
+		resetPulse.reset();
+		runPulse.reset();
 	}
 	
 	
@@ -295,6 +299,7 @@ struct Clocked : Module {
 		bpm = getBeatsPerMinute();
 		for (int i = 0; i < 4; i++) {
 			ratiosDoubled[i] = 0;// force resync by using impossible ratio
+			newRatiosDoubled[i] = 0;
 			swingVal[i] = params[SWING_PARAMS + i].value;
 			swingLast[i] = swingVal[i];
 			swingInfo[i] = 0l;
@@ -306,7 +311,8 @@ struct Clocked : Module {
 		}
 		resetTrigger.reset();
 		runTrigger.reset();
-		//info("*** onRandomize() called ***");
+		resetPulse.reset();
+		runPulse.reset();
 	}
 
 	
@@ -326,7 +332,6 @@ struct Clocked : Module {
 		// displayDelayNoteMode
 		json_object_set_new(rootJ, "displayDelayNoteMode", json_boolean(displayDelayNoteMode));
 		
-		//info("*** toJson() called ***");
 		return rootJ;
 	}
 
@@ -360,7 +365,7 @@ struct Clocked : Module {
 		bpm = getBeatsPerMinute();
 		for (int i = 0; i < 4; i++) {
 			ratiosDoubled[i] = 0;// force resync by using impossible ratio
-			newRatiosDoubled[i] = 0;//TODO find out why this line needed (paste triggers sync bug) and re-add to reset
+			newRatiosDoubled[i] = 0;//TODO find out why this line needed (paste triggers sync bug) (was also added to reset and randomize, moved also to section with reset in decl)
 			swingVal[i] = params[SWING_PARAMS + i].value;
 			swingLast[i] = swingVal[i];
 			swingInfo[i] = 0l;
@@ -370,7 +375,10 @@ struct Clocked : Module {
 			clk[i].reset();
 			delay[i].reset();
 		}
-		//info("*** fromJson() called ***");
+		resetTrigger.reset();
+		runTrigger.reset();
+		resetPulse.reset();
+		runPulse.reset();
 	}
 
 	int getRatioDoubled(int ratioKnobIndex) {
@@ -398,9 +406,6 @@ struct Clocked : Module {
 	void step() override {		
 		double sampleRate = (double)engineGetSampleRate();
 		double sampleTime = 1.0 / sampleRate;// do this here since engineGetSampleRate() returns float
-		
-		//if (clk[0].isReset() && clk[1].isReset() && clk[2].isReset() && clk[3].isReset())
-			//info("***** step() ALL RESET *****");
 		
 		// Run button
 		if (runTrigger.process(params[RUN_PARAM].value + inputs[RUN_INPUT].value)) {

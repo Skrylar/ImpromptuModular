@@ -54,33 +54,38 @@ struct BigButtonSeq : Module {
 		ENUMS(METRONOME_LIGHT, 2),// Room for GreenRed
 		NUM_LIGHTS
 	};
+	
+	
+	// Constants
+	static constexpr float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 
-	// Need to save
-	int panelTheme = 0;
-	int metronomeDiv = 4;
+	// Need to save, with reset
+	int indexStep;
+	int len; 
 	int bank[6];
 	uint64_t gates[6][2];// chan , bank
-	bool writeFillsToMemory;
 
-	// No need to save
+	// Need to save, no reset
+	int panelTheme;
+	int metronomeDiv;
+	bool writeFillsToMemory;
+	
+	// No need to save, with reset
+	long clockIgnoreOnReset;
 	float bigLight = 0.0f;
 	float metronomeLightStart = 0.0f;
 	float metronomeLightDiv = 0.0f;
-	int indexStep;
-	int len; 
-	long clockIgnoreOnReset;
-	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
-	
-	
 	SchmittTrigger clockTrigger;
 	SchmittTrigger resetTrigger;
 	SchmittTrigger bankTrigger;
 	SchmittTrigger bigTrigger;
-	PulseGenerator outPulse;
-	PulseGenerator outLightPulse;
-	PulseGenerator bigPulse;
-	PulseGenerator bigLightPulse;
-	
+	TriggerGenerator outPulse;
+	TriggerGenerator outLightPulse;
+	TriggerGenerator bigPulse;
+	TriggerGenerator bigLightPulse;
+
+	// No need to save, no reset
+	// none
 
 	inline void toggleGate(int chan) {gates[chan][bank[chan]] ^= (((uint64_t)1) << (uint64_t)indexStep);}
 	inline void setGate(int chan) {gates[chan][bank[chan]] |= (((uint64_t)1) << (uint64_t)indexStep);}
@@ -89,12 +94,20 @@ struct BigButtonSeq : Module {
 	
 	
 	BigButtonSeq() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
+		// Need to save, no reset
+		panelTheme = 0;
+		metronomeDiv = 4;
+		writeFillsToMemory = false;
+		// No need to save, no reset		
+		// none
+		
 		onReset();
 	}
 
 	// widgets are not yet created when module is created (and when onReset() is called by constructor)
 	// onReset() is also called when right-click initialization of module
 	void onReset() override {
+		// Need to save, with reset
 		indexStep = 0;
 		len = 0;
 		for (int c = 0; c < 6; c++) {
@@ -102,11 +115,23 @@ struct BigButtonSeq : Module {
 			gates[c][0] = 0;
 			gates[c][1] = 0;
 		}
-		writeFillsToMemory = false;
+		// No need to save, with reset
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		bigLight = 0.0f;
+		metronomeLightStart = 0.0f;
+		metronomeLightDiv = 0.0f;
+		clockTrigger.reset();
+		resetTrigger.reset();
+		bankTrigger.reset();
+		bigTrigger.reset();
+		outPulse.reset();
+		outLightPulse.reset();
+		bigPulse.reset();
+		bigLightPulse.reset();	
 	}
 
 	void onRandomize() override {
+		// Need to save, with reset
 		indexStep = randomu32() % 32;
 		len = 0;
 		for (int c = 0; c < 6; c++) {
@@ -114,18 +139,30 @@ struct BigButtonSeq : Module {
 			gates[c][0] = randomu64();
 			gates[c][1] = randomu64();
 		}
-		writeFillsToMemory = false;
+		// No need to save, with reset
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		bigLight = 0.0f;
+		metronomeLightStart = 0.0f;
+		metronomeLightDiv = 0.0f;
+		clockTrigger.reset();
+		resetTrigger.reset();
+		bankTrigger.reset();
+		bigTrigger.reset();
+		outPulse.reset();
+		outLightPulse.reset();
+		bigPulse.reset();
+		bigLightPulse.reset();	
 	}
 
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
+		// Need to save (reset or not)
 
-		// panelTheme
-		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
+		// indexStep
+		json_object_set_new(rootJ, "indexStep", json_integer(indexStep));
 
-		// metronomeDiv
-		json_object_set_new(rootJ, "metronomeDiv", json_integer(metronomeDiv));
+		// len
+		json_object_set_new(rootJ, "len", json_integer(len));
 
 		// bank
 		json_t *bankJ = json_array();
@@ -133,7 +170,7 @@ struct BigButtonSeq : Module {
 			json_array_insert_new(bankJ, c, json_integer(bank[c]));
 		json_object_set_new(rootJ, "bank", bankJ);
 
-		// Gates
+		// gates
 		json_t *gatesJ = json_array();
 		for (int c = 0; c < 6; c++)
 			for (int b = 0; b < 8; b++) {// bank to store is like to uint64_t to store, so go to 8
@@ -143,6 +180,12 @@ struct BigButtonSeq : Module {
 			}
 		json_object_set_new(rootJ, "gates", gatesJ);
 
+		// panelTheme
+		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
+
+		// metronomeDiv
+		json_object_set_new(rootJ, "metronomeDiv", json_integer(metronomeDiv));
+
 		// writeFillsToMemory
 		json_object_set_new(rootJ, "writeFillsToMemory", json_boolean(writeFillsToMemory));
 
@@ -150,15 +193,17 @@ struct BigButtonSeq : Module {
 	}
 
 	void fromJson(json_t *rootJ) override {
-		// panelTheme
-		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
-		if (panelThemeJ)
-			panelTheme = json_integer_value(panelThemeJ);
+		// Need to save (reset or not)
 
-		// metronomeDiv
-		json_t *metronomeDivJ = json_object_get(rootJ, "metronomeDiv");
-		if (metronomeDivJ)
-			metronomeDiv = json_integer_value(metronomeDivJ);
+		// indexStep
+		json_t *indexStepJ = json_object_get(rootJ, "indexStep");
+		if (indexStepJ)
+			indexStep = json_integer_value(indexStepJ);
+
+		// len
+		json_t *lenJ = json_object_get(rootJ, "len");
+		if (lenJ)
+			len = json_integer_value(lenJ);
 
 		// bank
 		json_t *bankJ = json_object_get(rootJ, "bank");
@@ -170,7 +215,7 @@ struct BigButtonSeq : Module {
 					bank[c] = json_integer_value(bankArrayJ);
 			}
 
-		// Gates
+		// gates
 		json_t *gatesJ = json_object_get(rootJ, "gates");
 		uint64_t bank8ints[8] = {0,0,0,0,0,0,0,0};
 		if (gatesJ) {
@@ -186,11 +231,34 @@ struct BigButtonSeq : Module {
 			}
 		}
 		
+		// panelTheme
+		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
+		if (panelThemeJ)
+			panelTheme = json_integer_value(panelThemeJ);
+
+		// metronomeDiv
+		json_t *metronomeDivJ = json_object_get(rootJ, "metronomeDiv");
+		if (metronomeDivJ)
+			metronomeDiv = json_integer_value(metronomeDivJ);
+
 		// writeFillsToMemory
 		json_t *writeFillsToMemoryJ = json_object_get(rootJ, "writeFillsToMemory");
 		if (writeFillsToMemoryJ)
 			writeFillsToMemory = json_is_true(writeFillsToMemoryJ);
 
+		// No need to save, with reset
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		bigLight = 0.0f;
+		metronomeLightStart = 0.0f;
+		metronomeLightDiv = 0.0f;
+		clockTrigger.reset();
+		resetTrigger.reset();
+		bankTrigger.reset();
+		bigTrigger.reset();
+		outPulse.reset();
+		outLightPulse.reset();
+		bigPulse.reset();
+		bigLightPulse.reset();			
 	}
 
 	
