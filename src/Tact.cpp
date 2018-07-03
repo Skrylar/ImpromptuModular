@@ -54,7 +54,6 @@ struct Tact : Module {
 	
 	// No need to save, with reset
 	long infoStore;// 0 when no info, positive downward step counter timer when store left channel, negative upward for right channel
-	unsigned long transitionStepsRemain[2];// 0 when no transition under way, downward step counter when transitioning
 	float infoCVinLight[2];// set in constructor
 	SchmittTrigger topTriggers[2];
 	SchmittTrigger botTriggers[2];
@@ -63,7 +62,6 @@ struct Tact : Module {
 
 	// No need to save, no reset
 	IMTactile* tactWidgets[2];		
-	double transitionCVdelta[2];// no need to initialize, this is a companion to slideStepsRemain
 
 	
 	inline bool isLinked(void) {return params[LINK_PARAM].value > 0.5f;}
@@ -75,7 +73,6 @@ struct Tact : Module {
 		// No need to save, no reset		
 		for (int i = 0; i < 2; i++) {
 			tactWidgets[i] = nullptr;
-			transitionCVdelta[i] = 0.0;
 		}
 		
 		onReset();
@@ -93,9 +90,11 @@ struct Tact : Module {
 			storeCV[i] = 0.0f;
 		}
 		// No need to save, with reset
+		resetNoNeedToSave();
+	}
+	void resetNoNeedToSave() {
 		infoStore = 0l;
 		for (int i = 0; i < 2; i++) {
-			transitionStepsRemain[i] = 0;
 			infoCVinLight[i] = 0.0f;
 			topTriggers[i].reset();
 			botTriggers[i].reset();
@@ -113,15 +112,7 @@ struct Tact : Module {
 			storeCV[i] = 0.0f;
 		}
 		// No need to save, with reset
-		infoStore = 0l;
-		for (int i = 0; i < 2; i++) {
-			transitionStepsRemain[i] = 0;
-			infoCVinLight[i] = 0.0f;
-			topTriggers[i].reset();
-			botTriggers[i].reset();
-			storeTriggers[i].reset();
-			recallTriggers[i].reset();
-		}
+		resetNoNeedToSave();
 	}
 
 	
@@ -170,21 +161,14 @@ struct Tact : Module {
 			panelTheme = json_integer_value(panelThemeJ);
 
 		// No need to save, with reset
-		infoStore = 0l;
-		for (int i = 0; i < 2; i++) {
-			transitionStepsRemain[i] = 0;
-			infoCVinLight[i] = 0.0f;
-			topTriggers[i].reset();
-			botTriggers[i].reset();
-			storeTriggers[i].reset();
-			recallTriggers[i].reset();
-		}
+		resetNoNeedToSave();
 	}
 
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
 		float sampleRate = engineGetSampleRate();
+		float sampleTime = engineGetSampleTime();
 		long initInfoStore = (long) (storeInfoTime * sampleRate);
 		
 		// store buttons
@@ -225,25 +209,28 @@ struct Tact : Module {
 		// cv
 		for (int i = 0; i < 2; i++) {
 			float newParamValue = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
-			//if (newParamValue < 4.99f || newParamValue > 5.01f)
-				//info("*** PARAM OUT, wid prt L = %llu, wid ptr R = %llu ***", (long long unsigned) tactWidgets[0], (long long unsigned) tactWidgets[1]);
 			double transitionRate = params[RATE_PARAMS + i].value; // s/V
-			double dV = newParamValue - cv[i];
-			double dVabs = fabs(dV);
-			if (dVabs > 0.001) {
-				double numSamples = engineGetSampleRate() * transitionRate * dVabs;
-				transitionStepsRemain[i] = ((unsigned long) (numSamples + 0.5f)) + 1ul;
-				transitionCVdelta[i] = (dV / (double)transitionStepsRemain[i]);
-				if (transitionStepsRemain[i] > 0) {
-					cv[i] += transitionCVdelta[i];
-					//info("*** Wrote CV, got dV > 1mV, cv[%d] = %f ***", i, (float)cv[i]);
-				}
+			// NEW VERSION
+			double dt = sampleTime;
+			if ((newParamValue - cv[i]) > 0.001f && transitionRate > 0.001) {
+				double dV = dt/transitionRate;
+				double newCV = cv[i] + dV;
+				if (newCV > newParamValue)
+					cv[i] = newParamValue;
+				else
+					cv[i] = (float)newCV;
 			}
-			else {// snap to value when within 1mV (no slide)
-				transitionStepsRemain[i] = 0;
+			else if ((newParamValue - cv[i]) < -0.001f && transitionRate > 0.001) {
+				dt *= -1.0;
+				double dV = dt/transitionRate;
+				double newCV = cv[i] + dV;
+				if (newCV < newParamValue)
+					cv[i] = newParamValue;
+				else
+					cv[i] = (float)newCV;
+			}
+			else // too close to target or rate too fast, thus no slide
 				cv[i] = newParamValue;
-				//info("*** Wrote CV, got dV <= 1mV ***");
-			}
 		}
 		
 	
@@ -268,12 +255,9 @@ struct Tact : Module {
 			lights[CVIN_LIGHTS + i * 2].value = infoCVinLight[i];
 		
 		for (int i = 0; i < 2; i++) {
-			if (transitionStepsRemain[i] > 0)
-				transitionStepsRemain[i]--;
 			infoCVinLight[i] -= (infoCVinLight[i] / lightLambda) * engineGetSampleTime();
 		}
 		if (isLinked()) {
-			transitionStepsRemain[1] = 0;
 			cv[1] = clamp(params[TACT_PARAMS + 1].value, 0.0f, 10.0f);
 		}
 		if (infoStore != 0l) {

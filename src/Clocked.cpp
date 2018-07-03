@@ -237,6 +237,7 @@ struct Clocked : Module {
 	// No need to save, no reset
 	// none
 	
+	
 	inline int getDelayKnobIndex(int delayKnobIndex) {return clamp((int) round( params[DELAY_PARAMS + delayKnobIndex].value ), 0, 8 - 1);}
 	inline int getBeatsPerMinute(void) {return clamp(inputs[BPM_INPUT].active ? 
 		(int) round( 120.0f * powf(2.0f, inputs[BPM_INPUT].value) ) : 
@@ -254,7 +255,7 @@ struct Clocked : Module {
 			clk[i].setSync(i == 0 ? nullptr : &clk[0]);
 		// No need to save, no reset
 		// none
-		//for (int i = 0; i < 4; i++) // temp for debug, will be removed
+		//for (int i = 0; i < 4; i++) //TODO temp for debug, will be removed
 			//newRatiosDoubled[i] = 0;
 		
 		onReset();
@@ -269,11 +270,14 @@ struct Clocked : Module {
 		// Need to save, with reset
 		running = false;
 		// No need to save, with reset
+		resetNoNeedToSave();
+	}
+	void resetNoNeedToSave() {
 		resetLight = 0.0f;
 		bpm = getBeatsPerMinute();
 		for (int i = 0; i < 4; i++) {
-			ratiosDoubled[i] = 0;// force resync by using impossible ratio
-			newRatiosDoubled[i] = 0;
+			ratiosDoubled[i] = 0;// force resync by using impossible ratio (not needed since clocks are all reset also, but good to reset anyways)
+			newRatiosDoubled[i] = 0;//TODO find out why this line needed (paste triggers sync bug) (was moved also to section with reset in decl)
 			swingVal[i] = params[SWING_PARAMS + i].value;
 			swingLast[i] = swingVal[i];
 			swingInfo[i] = 0l;
@@ -295,24 +299,7 @@ struct Clocked : Module {
 		// Need to save, with reset
 		running = false;
 		// No need to save, with reset
-		resetLight = 0.0f;
-		bpm = getBeatsPerMinute();
-		for (int i = 0; i < 4; i++) {
-			ratiosDoubled[i] = 0;// force resync by using impossible ratio
-			newRatiosDoubled[i] = 0;
-			swingVal[i] = params[SWING_PARAMS + i].value;
-			swingLast[i] = swingVal[i];
-			swingInfo[i] = 0l;
-			delayVal[i] = params[DELAY_PARAMS + i].value;
-			delayLast[i] = delayVal[i];
-			delayInfo[i] = 0l;
-			clk[i].reset();
-			delay[i].reset();
-		}
-		resetTrigger.reset();
-		runTrigger.reset();
-		resetPulse.reset();
-		runPulse.reset();
+		resetNoNeedToSave();
 	}
 
 	
@@ -361,26 +348,10 @@ struct Clocked : Module {
 			displayDelayNoteMode = json_is_true(displayDelayNoteModeJ);
 
 		// No need to save, with reset
-		resetLight = 0.0f;
-		bpm = getBeatsPerMinute();
-		for (int i = 0; i < 4; i++) {
-			ratiosDoubled[i] = 0;// force resync by using impossible ratio
-			newRatiosDoubled[i] = 0;//TODO find out why this line needed (paste triggers sync bug) (was also added to reset and randomize, moved also to section with reset in decl)
-			swingVal[i] = params[SWING_PARAMS + i].value;
-			swingLast[i] = swingVal[i];
-			swingInfo[i] = 0l;
-			delayVal[i] = params[DELAY_PARAMS + i].value;
-			delayLast[i] = delayVal[i];
-			delayInfo[i] = 0l;
-			clk[i].reset();
-			delay[i].reset();
-		}
-		resetTrigger.reset();
-		runTrigger.reset();
-		resetPulse.reset();
-		runPulse.reset();
+		resetNoNeedToSave();
 	}
 
+	
 	int getRatioDoubled(int ratioKnobIndex) {
 		// ratioKnobIndex is 0 for master BPM's ratio (1 is implicitly returned), and 1 to 3 for other ratio knobs
 		// returns a positive ratio for mult, negative ratio for div (0 never returned)
@@ -402,6 +373,7 @@ struct Clocked : Module {
 		return ret;
 	}
 	
+	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
 		double sampleRate = (double)engineGetSampleRate();
@@ -418,7 +390,7 @@ struct Clocked : Module {
 			runPulse.trigger(0.001f);
 		}
 
-		// Reset (has to be near to because sets steps to 0, and 0 not a real step (clock section will move to 1 before reaching outputs)
+		// Reset (has to be near top because it sets steps to 0, and 0 not a real step (clock section will move to 1 before reaching outputs)
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			// TODO add sampleRate change as condition for reset
 			resetLight = 1.0f;
@@ -616,10 +588,11 @@ struct ClockedWidget : ModuleWidget {
 			}
 			else if (module->delayInfo[knobIndex] > 0)
 			{
+				int delayKnobIndex = module->getDelayKnobIndex(knobIndex);
 				if (module->displayDelayNoteMode)
-					snprintf(displayStr, 4, "%s", (delayLabelsNote[module->getDelayKnobIndex(knobIndex)]).c_str());
+					snprintf(displayStr, 4, "%s", (delayLabelsNote[delayKnobIndex]).c_str());
 				else
-					snprintf(displayStr, 4, "%s", (delayLabelsClock[module->getDelayKnobIndex(knobIndex)]).c_str());				
+					snprintf(displayStr, 4, "%s", (delayLabelsClock[delayKnobIndex]).c_str());				
 			}
 			else {
 				if (knobIndex > 0) {// ratio to display

@@ -61,7 +61,6 @@ struct BigButtonSeq : Module {
 
 	// Need to save, with reset
 	int indexStep;
-	int len; 
 	int bank[6];
 	uint64_t gates[6][2];// chan , bank
 
@@ -71,6 +70,7 @@ struct BigButtonSeq : Module {
 	bool writeFillsToMemory;
 	
 	// No need to save, with reset
+	int len; 
 	long clockIgnoreOnReset;
 	float bigLight = 0.0f;
 	float metronomeLightStart = 0.0f;
@@ -91,6 +91,8 @@ struct BigButtonSeq : Module {
 	inline void setGate(int chan) {gates[chan][bank[chan]] |= (((uint64_t)1) << (uint64_t)indexStep);}
 	inline void clearGate(int chan) {gates[chan][bank[chan]] &= ~(((uint64_t)1) << (uint64_t)indexStep);}
 	inline bool getGate(int chan) {return !((gates[chan][bank[chan]] & (((uint64_t)1) << (uint64_t)indexStep)) == 0);}
+	inline int getLength() {return (int) clamp(roundf( params[LEN_PARAM].value + ( inputs[LEN_INPUT].active ? (inputs[LEN_INPUT].value / 10.0f * (64.0f - 1.0f)) : 0.0f ) ), 0.0f, (64.0f - 1.0f)) + 1;}		
+
 	
 	
 	BigButtonSeq() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -104,18 +106,24 @@ struct BigButtonSeq : Module {
 		onReset();
 	}
 
+	
 	// widgets are not yet created when module is created (and when onReset() is called by constructor)
 	// onReset() is also called when right-click initialization of module
+	// even if widgets not created yet, can use params[] and should handle 0.0f value since step may call 
+	//   this before widget creation anyways
 	void onReset() override {
 		// Need to save, with reset
 		indexStep = 0;
-		len = 0;
 		for (int c = 0; c < 6; c++) {
 			bank[c] = 0;
 			gates[c][0] = 0;
 			gates[c][1] = 0;
 		}
 		// No need to save, with reset
+		resetNoNeedToSave();
+	}
+	void resetNoNeedToSave() {
+		len = getLength();
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		bigLight = 0.0f;
 		metronomeLightStart = 0.0f;
@@ -130,28 +138,18 @@ struct BigButtonSeq : Module {
 		bigLightPulse.reset();	
 	}
 
+
+	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
 		// Need to save, with reset
 		indexStep = randomu32() % 32;
-		len = randomu32() % 64 + 1;
 		for (int c = 0; c < 6; c++) {
 			bank[c] = randomu32() % 2;
 			gates[c][0] = randomu64();
 			gates[c][1] = randomu64();
 		}
 		// No need to save, with reset
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		bigLight = 0.0f;
-		metronomeLightStart = 0.0f;
-		metronomeLightDiv = 0.0f;
-		clockTrigger.reset();
-		resetTrigger.reset();
-		bankTrigger.reset();
-		bigTrigger.reset();
-		outPulse.reset();
-		outLightPulse.reset();
-		bigPulse.reset();
-		bigLightPulse.reset();	
+		resetNoNeedToSave();
 	}
 
 	json_t *toJson() override {
@@ -160,9 +158,6 @@ struct BigButtonSeq : Module {
 
 		// indexStep
 		json_object_set_new(rootJ, "indexStep", json_integer(indexStep));
-
-		// len
-		json_object_set_new(rootJ, "len", json_integer(len));
 
 		// bank
 		json_t *bankJ = json_array();
@@ -199,11 +194,6 @@ struct BigButtonSeq : Module {
 		json_t *indexStepJ = json_object_get(rootJ, "indexStep");
 		if (indexStepJ)
 			indexStep = json_integer_value(indexStepJ);
-
-		// len
-		json_t *lenJ = json_object_get(rootJ, "len");
-		if (lenJ)
-			len = json_integer_value(lenJ);
 
 		// bank
 		json_t *bankJ = json_object_get(rootJ, "bank");
@@ -247,18 +237,7 @@ struct BigButtonSeq : Module {
 			writeFillsToMemory = json_is_true(writeFillsToMemoryJ);
 
 		// No need to save, with reset
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		bigLight = 0.0f;
-		metronomeLightStart = 0.0f;
-		metronomeLightDiv = 0.0f;
-		clockTrigger.reset();
-		resetTrigger.reset();
-		bankTrigger.reset();
-		bigTrigger.reset();
-		outPulse.reset();
-		outLightPulse.reset();
-		bigPulse.reset();
-		bigLightPulse.reset();			
+		resetNoNeedToSave();		
 	}
 
 	
@@ -269,10 +248,8 @@ struct BigButtonSeq : Module {
 		
 		//********** Buttons, knobs, switches and inputs **********
 		
-		// Length
-		float lenInputValue = inputs[LEN_INPUT].value / 10.0f * (64.0f - 1.0f);
-		len = (int) clamp(roundf(params[LEN_PARAM].value + lenInputValue), 0.0f, (64.0f - 1.0f)) + 1;		
-			
+		len = getLength();
+		
 		// Chan
 		float chanInputValue = inputs[CHAN_INPUT].value / 10.0f * (6.0f - 1.0f);
 		int chan = (int) clamp(roundf(params[CHAN_PARAM].value + chanInputValue), 0.0f, (6.0f - 1.0f));		
