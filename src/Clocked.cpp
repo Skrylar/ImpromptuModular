@@ -236,6 +236,7 @@ struct Clocked : Module {
 	
 	// No need to save, no reset
 	// none
+	//int debugThread = 0;
 	
 	
 	inline int getDelayKnobIndex(int delayKnobIndex) {return clamp((int) round( params[DELAY_PARAMS + delayKnobIndex].value ), 0, 8 - 1);}
@@ -277,7 +278,7 @@ struct Clocked : Module {
 		bpm = getBeatsPerMinute();
 		for (int i = 0; i < 4; i++) {
 			ratiosDoubled[i] = 0;// force resync by using impossible ratio (not needed since clocks are all reset also, but good to reset anyways)
-			newRatiosDoubled[i] = 0;//TODO find out why this line needed (paste triggers sync bug) (was moved also to section with reset in decl)
+			newRatiosDoubled[i] = 0;
 			swingVal[i] = params[SWING_PARAMS + i].value;
 			swingLast[i] = swingVal[i];
 			swingInfo[i] = 0l;
@@ -325,8 +326,9 @@ struct Clocked : Module {
 
 	// widgets loaded before this fromJson() is called
 	void fromJson(json_t *rootJ) override {
-		// Need to save (reset or not)
+		//debugThread = 1;
 		
+		// Need to save (reset or not)
 		// running
 		json_t *runningJ = json_object_get(rootJ, "running");
 		if (runningJ)
@@ -349,6 +351,7 @@ struct Clocked : Module {
 
 		// No need to save, with reset
 		resetNoNeedToSave();
+		//debugThread = 0;
 	}
 
 	
@@ -417,6 +420,8 @@ struct Clocked : Module {
 		bool syncRatios[4] = {false, false, false, false};// 0 index unused
 		for (int i = 1; i < 4; i++) {
 			newRatiosDoubled[i] = getRatioDoubled(i);
+						//if (debugThread != 0)
+							//info("**** debugThread = %d ****",debugThread);
 			if (newRatiosDoubled[i] != ratiosDoubled[i]) {
 				syncRatios[i] = true;// 0 index not used, but loop must start at i = 0
 			}
@@ -457,6 +462,8 @@ struct Clocked : Module {
 					if (syncRatios[i]) {// always false for master
 						clk[i].reset();// force reset (thus refresh) of that sub-clock
 						ratiosDoubled[i] = newRatiosDoubled[i];
+						//if (debugThread != 0)
+							//info("**** debugThread = %d ****",debugThread);
 						syncRatios[i] = false;
 					}
 				}

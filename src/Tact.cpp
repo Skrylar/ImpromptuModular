@@ -35,6 +35,8 @@ struct Tact : Module {
 	};
 	enum OutputIds {
 		ENUMS(CV_OUTPUTS, 2),
+		// -- 0.6.7 ^^
+		ENUMS(EOC_OUTPUTS, 2),
 		NUM_OUTPUTS
 	};
 	enum LightIds {
@@ -53,6 +55,7 @@ struct Tact : Module {
 
 	// Need to save, no reset
 	int panelTheme;
+	int expansion;
 	
 	// No need to save, with reset
 	long infoStore;// 0 when no info, positive downward step counter timer when store left channel, negative upward for right channel
@@ -61,6 +64,7 @@ struct Tact : Module {
 	SchmittTrigger botTriggers[2];
 	SchmittTrigger storeTriggers[2];
 	SchmittTrigger recallTriggers[2];
+	TriggerGenerator eocPulses[2];
 
 	// No need to save, no reset
 	IMTactile* tactWidgets[2];		
@@ -73,6 +77,7 @@ struct Tact : Module {
 	Tact() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		// Need to save, no reset
 		panelTheme = 0;
+		expansion = 0;
 		// No need to save, no reset		
 		for (int i = 0; i < 2; i++) {
 			tactWidgets[i] = nullptr;
@@ -103,6 +108,7 @@ struct Tact : Module {
 			botTriggers[i].reset();
 			storeTriggers[i].reset();
 			recallTriggers[i].reset();
+			eocPulses[i].reset();
 		}
 	}
 
@@ -134,6 +140,9 @@ struct Tact : Module {
 		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
 
+		// expansion
+		json_object_set_new(rootJ, "expansion", json_integer(expansion));
+
 		return rootJ;
 	}
 
@@ -162,6 +171,11 @@ struct Tact : Module {
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
 			panelTheme = json_integer_value(panelThemeJ);
+
+		// expansion
+		json_t *expansionJ = json_object_get(rootJ, "expansion");
+		if (expansionJ)
+			expansion = json_integer_value(expansionJ);
 
 		// No need to save, with reset
 		resetNoNeedToSave();
@@ -213,36 +227,47 @@ struct Tact : Module {
 		bool expSliding = isExpSliding();
 		for (int i = 0; i < 2; i++) {
 			float newParamValue = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
-			double transitionRate = params[RATE_PARAMS + i].value; // s/V
-			// NEW VERSION
-			double dt = sampleTime;
-			if ((newParamValue - cv[i]) > 0.001f && transitionRate > 0.001) {
-				double dV = expSliding ? (cv[i] + 1.0) * (pow(11.0, dt / (10.0 * transitionRate)) - 1.0) : dt/transitionRate;
-				double newCV = cv[i] + dV;
-				if (newCV > newParamValue)
-					cv[i] = newParamValue;
-				else
-					cv[i] = (float)newCV;
+			if (newParamValue != cv[i]) {
+				double transitionRate = params[RATE_PARAMS + i].value; // s/V
+				double dt = sampleTime;
+				if ((newParamValue - cv[i]) > 0.001f && transitionRate > 0.001) {
+					double dV = expSliding ? (cv[i] + 1.0) * (pow(11.0, dt / (10.0 * transitionRate)) - 1.0) : dt/transitionRate;
+					double newCV = cv[i] + dV;
+					if (newCV > newParamValue) {
+						cv[i] = newParamValue;
+						eocPulses[i].trigger(0.001f);
+					}
+					else
+						cv[i] = (float)newCV;
+				}
+				else if ((newParamValue - cv[i]) < -0.001f && transitionRate > 0.001) {
+					dt *= -1.0;
+					double dV = expSliding ? (cv[i] + 1.0) * (pow(11.0, dt / (10.0 * transitionRate)) - 1.0) : dt/transitionRate;
+					double newCV = cv[i] + dV;
+					if (newCV < newParamValue) {
+						cv[i] = newParamValue;
+						eocPulses[i].trigger(0.001f);
+					}
+					else
+						cv[i] = (float)newCV;
+				}
+				else {// too close to target or rate too fast, thus no slide
+					if (fabs(cv[i] - newParamValue) > 1e-6)
+						eocPulses[i].trigger(0.001f);
+					cv[i] = newParamValue;	
+				}
 			}
-			else if ((newParamValue - cv[i]) < -0.001f && transitionRate > 0.001) {
-				dt *= -1.0;
-				double dV = expSliding ? (cv[i] + 1.0) * (pow(11.0, dt / (10.0 * transitionRate)) - 1.0) : dt/transitionRate;
-				double newCV = cv[i] + dV;
-				if (newCV < newParamValue)
-					cv[i] = newParamValue;
-				else
-					cv[i] = (float)newCV;
-			}
-			else // too close to target or rate too fast, thus no slide
-				cv[i] = newParamValue;
 		}
 		
 	
-		// Outputs
+		// CV and EOC Outputs
+		bool eocValues[2] = {eocPulses[0].process((float)sampleTime), eocPulses[1].process((float)sampleTime)};
 		for (int i = 0; i < 2; i++) {
 			int readChan = isLinked() ? 0 : i;
 			outputs[CV_OUTPUTS + i].value = (float)cv[readChan] * params[ATTV_PARAMS + readChan].value;
+			outputs[EOC_OUTPUTS + i].value = eocValues[readChan];
 		}
+		
 		
 		// Tactile lights
 		if (infoStore > 0l)
@@ -296,6 +321,10 @@ struct Tact : Module {
 
 
 struct TactWidget : ModuleWidget {
+	Tact *module;
+	DynamicSVGPanelEx *panel;
+	int oldExpansion;
+	IMPort* expPorts[5];
 
 
 	struct PanelThemeItem : MenuItem {
@@ -306,6 +335,12 @@ struct TactWidget : ModuleWidget {
 		}
 		void step() override {
 			rightText = (module->panelTheme == theme) ? "✔" : "";
+		}
+	};
+	struct ExpansionItem : MenuItem {
+		Tact *module;
+		void onAction(EventAction &e) override {
+			module->expansion = module->expansion == 1 ? 0 : 1;
 		}
 	};
 	Menu *createContextMenu() override {
@@ -333,28 +368,55 @@ struct TactWidget : ModuleWidget {
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
 
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *expansionLabel = new MenuLabel();
+		expansionLabel->text = "Expansion module";
+		menu->addChild(expansionLabel);
+
+		ExpansionItem *expItem = MenuItem::create<ExpansionItem>(expansionMenuLabel, CHECKMARK(module->expansion != 0));
+		expItem->module = module;
+		menu->addChild(expItem);
+
 		return menu;
 	}	
 	
+	void step() override {
+		if(module->expansion != oldExpansion) {
+			if (oldExpansion!= -1 && module->expansion == 0) {// if just removed expansion panel, disconnect wires to those jacks
+				for (int i = 0; i < 5; i++)
+					gRackWidget->wireContainer->removeAllWires(expPorts[i]);
+			}
+			oldExpansion = module->expansion;		
+		}
+		box.size = panel->box.size;
+		Widget::step();
+	}
 	
 	TactWidget(Tact *module) : ModuleWidget(module) {
 		IMTactile* tactL;
 		IMTactile* tactR;		
+		this->module = module;
+		oldExpansion = -1;
 		
 		// Main panel from Inkscape
-        DynamicSVGPanel *panel = new DynamicSVGPanel();
+        panel = new DynamicSVGPanelEx();
+        panel->mode = &module->panelTheme;
+        panel->expansion = &module->expansion;
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Tact.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/Tact_dark.svg")));
+        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/light/TactExp.svg")));
+        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/dark/TactExp_dark.svg")));
         box.size = panel->box.size;
-        panel->mode = &module->panelTheme;
-        addChild(panel);
-
+        addChild(panel);		
+		
 		// Screws
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 0), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->panelTheme));
-
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x+30, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x+30, 365), &module->panelTheme));
 		
 		
 		static const int rowRuler0 = 34;
@@ -458,6 +520,13 @@ struct TactWidget : ModuleWidget {
 		// Exp switch
 		addParam(ParamWidget::create<CKSS>(Vec(colRulerCenter + hOffsetCKSS, rowRuler3 + vOffsetCKSS), module, Tact::EXP_PARAM, 0.0f, 1.0f, 0.0f));		
 		
+		
+		// Expansion module
+		static const int rowRulerExpTop = 65;
+		static const int rowSpacingExp = 60;
+		static const int colRulerExp = 497 - 30 -195;// Tact is (2+13)HP less than PS32
+		addOutput(expPorts[0] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 0), Port::OUTPUT, module, Tact::EOC_OUTPUTS + 0, &module->panelTheme));
+		addOutput(expPorts[1] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 1), Port::OUTPUT, module, Tact::EOC_OUTPUTS + 1, &module->panelTheme));
 	}
 };
 
@@ -467,6 +536,7 @@ Model *modelTact = Model::create<Tact, TactWidget>("Impromptu Modular", "Tact", 
 
 0.6.8:
 implement exponential sliding
+add expansion panel with EOC outputs 
 
 0.6.7:
 created
