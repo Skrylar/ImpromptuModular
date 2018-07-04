@@ -236,7 +236,6 @@ struct Clocked : Module {
 	
 	// No need to save, no reset
 	// none
-	//int debugThread = 0;
 	
 	
 	inline int getDelayKnobIndex(int delayKnobIndex) {return clamp((int) round( params[DELAY_PARAMS + delayKnobIndex].value ), 0, 8 - 1);}
@@ -246,7 +245,7 @@ struct Clocked : Module {
 	}
 
 	
-	// called from the main thread (step() can not be called until all 
+	// called from the main thread (step() can not be called until all modules created)
 	Clocked() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		// Need to save, no reset
 		panelTheme = 0;
@@ -266,6 +265,7 @@ struct Clocked : Module {
 	// even if widgets not created yet, can use params[] and should handle 0.0f value since step may call 
 	//   this before widget creation anyways
 	// called from the main thread if by constructor, called by engine thread if right-click initialization
+	//   when called by constructor, all modules are created before the first step() is called
 	void onReset() override {
 		// Need to save, with reset
 		running = false;
@@ -325,7 +325,7 @@ struct Clocked : Module {
 	}
 
 
-	// widgets loaded before this fromJson() is called
+	// widgets have their fromJson() called before this fromJson() is called
 	// called by main thread
 	void fromJson(json_t *rootJ) override {
 		// Need to save (reset or not)
@@ -399,7 +399,7 @@ struct Clocked : Module {
 		// Run button
 		if (runTrigger.process(params[RUN_PARAM].value + inputs[RUN_INPUT].value)) {
 			running = !running;
-			// reset on any change of run state (will not relaunch if not running, thus clock railed low)
+			// reset on any change of run state (will not re-launch if not running, thus clock railed low)
 			for (int i = 0; i < 4; i++) {
 				clk[i].reset();
 				delay[i].reset();
@@ -439,13 +439,15 @@ struct Clocked : Module {
 			if (swingLast[i] != swingVal[i]) {
 				swingLast[i] = swingVal[i];
 				swingInfo[i] = (long) (swingInfoTime * (float)sampleRate);// trigger swing info on channel i
-				delayInfo[i] = 0l;
+				delayInfo[i] = 0l;// cancel delayed being displayed (if so)
 			}
-			delayVal[i] = params[DELAY_PARAMS + i].value;
-			if (delayLast[i] != delayVal[i]) {
-				delayLast[i] = delayVal[i];
-				delayInfo[i] = (long) (delayInfoTime * (float)sampleRate);// trigger delay info on channel i
-				swingInfo[i] = 0l;
+			if (i > 0) {
+				delayVal[i] = params[DELAY_PARAMS + i].value;
+				if (delayLast[i] != delayVal[i]) {
+					delayLast[i] = delayVal[i];
+					delayInfo[i] = (long) (delayInfoTime * (float)sampleRate);// trigger delay info on channel i
+					swingInfo[i] = 0l;// cancel swing being displayed (if so)
+				}
 			}
 		}			
 
@@ -454,6 +456,7 @@ struct Clocked : Module {
 		//********** Clocks and Delays **********
 		
 		// Clocks
+		float masterPeriod = 60.0f / (float)bpm;// result in seconds
 		if (running) {
 			// See if clocks finished their prescribed number of iteratios of double periods (and syncWait for sub) or were forced reset
 			//    and if so, recalc and restart them
@@ -461,7 +464,7 @@ struct Clocked : Module {
 			//     and will stay at 0.0d when a clock is inactive.
 			
 			// Master clock
-			double masterLength = 120.0 / (double)bpm;// two periods
+			double masterLength = 2.0f * masterPeriod;
 			if (clk[0].isReset()) {
 				// See if ratio knobs changed (or unitinialized)
 				for (int i = 1; i < 4; i++) {
@@ -517,7 +520,6 @@ struct Clocked : Module {
 		//********** Outputs and lights **********
 		
 		// Clock outputs
-		float masterPeriod = 60.0f / (float)bpm;// result in seconds
 		for (int i = 0; i < 4; i++) {
 			long delaySamples = 0l;
 			if (i > 0) {
@@ -533,7 +535,7 @@ struct Clocked : Module {
 		// Chaining outputs
 		outputs[RESET_OUTPUT].value = (resetPulse.process((float)sampleTime) ? 10.0f : 0.0f);
 		outputs[RUN_OUTPUT].value = (runPulse.process((float)sampleTime) ? 10.0f : 0.0f);
-		outputs[BPM_OUTPUT].value =  (inputs[BPM_INPUT].active ? inputs[BPM_INPUT].value : log2f(bpm / 120.0f));
+		outputs[BPM_OUTPUT].value =  (inputs[BPM_INPUT].active ? inputs[BPM_INPUT].value : log2f(1.0f / (2.0f * masterPeriod)));
 			
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
@@ -608,7 +610,7 @@ struct ClockedWidget : ModuleWidget {
 			else {
 				if (knobIndex > 0) {// ratio to display
 					bool isDivision = false;
-					int ratioDoubled = module->getRatioDoubled(knobIndex);
+					int ratioDoubled = module->newRatiosDoubled[knobIndex];
 					if (ratioDoubled < 0) {
 						ratioDoubled = -1 * ratioDoubled;
 						isDivision = true;
@@ -622,7 +624,7 @@ struct ClockedWidget : ModuleWidget {
 					}
 				}
 				else {// BPM to display
-					snprintf(displayStr, 4, "%3u", (unsigned) (fabs(module->getBeatsPerMinute()) + 0.5f));
+					snprintf(displayStr, 4, "%3u", (unsigned) (module->bpm));
 				}
 			}
 			displayStr[3] = 0;// more safety
