@@ -72,9 +72,9 @@ struct BigButtonSeq : Module {
 	// No need to save, with reset
 	int len; 
 	long clockIgnoreOnReset;
-	float bigLight = 0.0f;
-	float metronomeLightStart = 0.0f;
-	float metronomeLightDiv = 0.0f;
+	float bigLight;
+	float metronomeLightStart;
+	float metronomeLightDiv;
 	SchmittTrigger clockTrigger;
 	SchmittTrigger resetTrigger;
 	SchmittTrigger bankTrigger;
@@ -87,13 +87,13 @@ struct BigButtonSeq : Module {
 	// No need to save, no reset
 	// none
 
+	
 	inline void toggleGate(int chan) {gates[chan][bank[chan]] ^= (((uint64_t)1) << (uint64_t)indexStep);}
 	inline void setGate(int chan) {gates[chan][bank[chan]] |= (((uint64_t)1) << (uint64_t)indexStep);}
 	inline void clearGate(int chan) {gates[chan][bank[chan]] &= ~(((uint64_t)1) << (uint64_t)indexStep);}
 	inline bool getGate(int chan) {return !((gates[chan][bank[chan]] & (((uint64_t)1) << (uint64_t)indexStep)) == 0);}
 	inline int getLength() {return (int) clamp(roundf( params[LEN_PARAM].value + ( inputs[LEN_INPUT].active ? (inputs[LEN_INPUT].value / 10.0f * (64.0f - 1.0f)) : 0.0f ) ), 0.0f, (64.0f - 1.0f)) + 1;}		
 
-	
 	
 	BigButtonSeq() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		// Need to save, no reset

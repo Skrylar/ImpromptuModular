@@ -96,7 +96,7 @@ struct GateSeq64 : Module {
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 	int displayProb;// -1 when prob can not be modified, 0 to 63 when prob can be changed.
 	long displayProbInfo;// downward step counter for displayProb feedback
-	int sequenceKnob;// INT_MAX when knob not seen yet
+	int sequenceKnob = 0;// INT_MAX when knob not seen yet
 	bool gateRandomEnable[4] = {};
 	long revertDisplay;
 
@@ -164,7 +164,7 @@ struct GateSeq64 : Module {
 		displayProb = -1;
 		displayProbInfo = 0l;
 		infoCopyPaste = 0l;
-		sequenceKnob = INT_MAX;
+		//sequenceKnob = INT_MAX;
 		revertDisplay = 0l;
 		editingSequence = EDIT_PARAM_INIT_VALUE > 0.5f;
 		editingSequenceLast = editingSequence;
@@ -203,7 +203,7 @@ struct GateSeq64 : Module {
 		displayProb = -1;
 		displayProbInfo = 0l;
 		infoCopyPaste = 0l;
-		sequenceKnob = INT_MAX;
+		//sequenceKnob = INT_MAX;
 		revertDisplay = 0l;
 		editingSequence = isEditingSequence();
 		editingSequenceLast = editingSequence;
@@ -375,7 +375,7 @@ struct GateSeq64 : Module {
 			stepConfig = 2;
 		stepConfigLast = stepConfig;
 		initRun(stepConfig, true);
-		sequenceKnob = INT_MAX;
+		//sequenceKnob = INT_MAX;
 		editingSequence = isEditingSequence();
 		editingSequenceLast = editingSequence;
 	}
@@ -444,8 +444,9 @@ struct GateSeq64 : Module {
 				
 		
 		// Sequence knob (Main knob)
-		int newSequenceKnob = (int)roundf(params[SEQUENCE_PARAM].value*7.0f);
-		if (sequenceKnob == INT_MAX)
+		float seqParamValue = params[SEQUENCE_PARAM].value;
+		int newSequenceKnob = (int)roundf(seqParamValue * 7.0f);
+		if (/*sequenceKnob == INT_MAX*/ seqParamValue == 0.0f)// true when constructor or fromJson() occured
 			sequenceKnob = newSequenceKnob;
 		int deltaKnob = newSequenceKnob - sequenceKnob;
 		if (deltaKnob != 0) {

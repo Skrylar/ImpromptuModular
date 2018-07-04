@@ -147,7 +147,7 @@ struct PhraseSeq16 : Module {
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
-	int sequenceKnob;// INT_MAX when knob not seen yet
+	int sequenceKnob = 0;// INT_MAX when knob not seen yet
 	bool gate1RandomEnable;
 
 	static constexpr float EDIT_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
@@ -213,7 +213,7 @@ struct PhraseSeq16 : Module {
 		lengthCPbuffer = 16;
 		modeCPbuffer = MODE_FWD;
 		countCP = 16;
-		sequenceKnob = INT_MAX;
+		//sequenceKnob = INT_MAX;
 		editingLength = 0ul;
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
@@ -254,7 +254,7 @@ struct PhraseSeq16 : Module {
 		lengthCPbuffer = 16;
 		modeCPbuffer = MODE_FWD;
 		countCP = 16;
-		sequenceKnob = INT_MAX;
+		//sequenceKnob = INT_MAX;
 		editingLength = 0ul;
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
@@ -517,7 +517,7 @@ struct PhraseSeq16 : Module {
 
 		// Initialize dependants after everything loaded
 		initRun(true);
-		sequenceKnob = INT_MAX;
+		//sequenceKnob = INT_MAX;
 		editingSequence = isEditingSequence();
 		editingSequenceLast = editingSequence;
 	}
@@ -764,8 +764,9 @@ struct PhraseSeq16 : Module {
 		}			
 		
 		// Sequence knob  
-		int newSequenceKnob = (int)roundf(params[SEQUENCE_PARAM].value*7.0f);
-		if (sequenceKnob == INT_MAX)
+		float seqParamValue = params[SEQUENCE_PARAM].value;
+		int newSequenceKnob = (int)roundf(seqParamValue * 7.0f);
+		if (/*sequenceKnob == INT_MAX*/ seqParamValue == 0.0f)// true when constructor or fromJson() occured
 			sequenceKnob = newSequenceKnob;
 		int deltaKnob = newSequenceKnob - sequenceKnob;
 		if (deltaKnob != 0) {
