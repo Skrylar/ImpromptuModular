@@ -246,6 +246,7 @@ struct Clocked : Module {
 	}
 
 	
+	// called from the main thread (step() can not be called until all 
 	Clocked() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		// Need to save, no reset
 		panelTheme = 0;
@@ -256,17 +257,15 @@ struct Clocked : Module {
 			clk[i].setSync(i == 0 ? nullptr : &clk[0]);
 		// No need to save, no reset
 		// none
-		//for (int i = 0; i < 4; i++) //TODO temp for debug, will be removed
-			//newRatiosDoubled[i] = 0;
 		
 		onReset();
 	}
 	
 
-	// widgets are not yet created when module is created (and when onReset() is called by constructor)
-	// onReset() is also called when right-click initialization of module
+	// widgets are not yet created when module is created 
 	// even if widgets not created yet, can use params[] and should handle 0.0f value since step may call 
 	//   this before widget creation anyways
+	// called from the main thread if by constructor, called by engine thread if right-click initialization
 	void onReset() override {
 		// Need to save, with reset
 		running = false;
@@ -296,6 +295,7 @@ struct Clocked : Module {
 	
 	
 	// widgets randomized before onRandomize() is called
+	// called by engine thread if right-click randomize
 	void onRandomize() override {
 		// Need to save, with reset
 		running = false;
@@ -304,6 +304,7 @@ struct Clocked : Module {
 	}
 
 	
+	// called by main thread
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 		// Need to save (reset or not)
@@ -325,9 +326,8 @@ struct Clocked : Module {
 
 
 	// widgets loaded before this fromJson() is called
+	// called by main thread
 	void fromJson(json_t *rootJ) override {
-		//debugThread = 1;
-		
 		// Need to save (reset or not)
 		// running
 		json_t *runningJ = json_object_get(rootJ, "running");
@@ -351,7 +351,6 @@ struct Clocked : Module {
 
 		// No need to save, with reset
 		resetNoNeedToSave();
-		//debugThread = 0;
 	}
 
 	
@@ -377,7 +376,22 @@ struct Clocked : Module {
 	}
 	
 	
+	void resetClocked() {
+		resetLight = 1.0f;
+		resetPulse.trigger(0.001f);
+		for (int i = 0; i < 4; i++) {
+			clk[i].reset();
+			delay[i].reset();
+		}
+	}		
+	
+	// called by engine thread
+	void onSampleRateChange() override {
+		resetClocked();
+	}		
+	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
+	// called by engine thread
 	void step() override {		
 		double sampleRate = (double)engineGetSampleRate();
 		double sampleTime = 1.0 / sampleRate;// do this here since engineGetSampleRate() returns float
@@ -395,13 +409,7 @@ struct Clocked : Module {
 
 		// Reset (has to be near top because it sets steps to 0, and 0 not a real step (clock section will move to 1 before reaching outputs)
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			// TODO add sampleRate change as condition for reset
-			resetLight = 1.0f;
-			resetPulse.trigger(0.001f);
-			for (int i = 0; i < 4; i++) {
-				clk[i].reset();
-				delay[i].reset();
-			}
+			resetClocked();
 		}
 		else
 			resetLight -= (resetLight / lightLambda) * (float)sampleTime;	
@@ -420,8 +428,6 @@ struct Clocked : Module {
 		bool syncRatios[4] = {false, false, false, false};// 0 index unused
 		for (int i = 1; i < 4; i++) {
 			newRatiosDoubled[i] = getRatioDoubled(i);
-						//if (debugThread != 0)
-							//info("**** debugThread = %d ****",debugThread);
 			if (newRatiosDoubled[i] != ratiosDoubled[i]) {
 				syncRatios[i] = true;// 0 index not used, but loop must start at i = 0
 			}
@@ -462,8 +468,6 @@ struct Clocked : Module {
 					if (syncRatios[i]) {// always false for master
 						clk[i].reset();// force reset (thus refresh) of that sub-clock
 						ratiosDoubled[i] = newRatiosDoubled[i];
-						//if (debugThread != 0)
-							//info("**** debugThread = %d ****",debugThread);
 						syncRatios[i] = false;
 					}
 				}
