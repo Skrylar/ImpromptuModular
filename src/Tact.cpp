@@ -58,16 +58,18 @@ struct Tact : Module {
 	int expansion;
 	
 	// No need to save, with reset
-	long infoStore;// 0 when no info, positive downward step counter timer when store left channel, negative upward for right channel
-	float infoCVinLight[2];// set in constructor
+	// none
+	
+	// No need to save, no reset
+	bool scheduledReset;
+	IMTactile* tactWidgets[2];		
+	long infoStore;// 0 when no info, positive downward step counter when store left channel, negative upward for right
+	float infoCVinLight[2];
 	SchmittTrigger topTriggers[2];
 	SchmittTrigger botTriggers[2];
 	SchmittTrigger storeTriggers[2];
 	SchmittTrigger recallTriggers[2];
 	TriggerGenerator eocPulses[2];
-
-	// No need to save, no reset
-	IMTactile* tactWidgets[2];		
 
 	
 	inline bool isLinked(void) {return params[LINK_PARAM].value > 0.5f;}
@@ -79,30 +81,10 @@ struct Tact : Module {
 		panelTheme = 0;
 		expansion = 0;
 		// No need to save, no reset		
-		for (int i = 0; i < 2; i++) {
-			tactWidgets[i] = nullptr;
-		}
-		
-		onReset();
-	}
-
-	
-	// widgets are not yet created when module is created (and when onReset() is called by constructor)
-	// onReset() is also called when right-click initialization of module
-	// even if widgets not created yet, can use params[] and should handle 0.0f value since step may call 
-	//   this before widget creation anyways
-	void onReset() override {
-		// Need to save, with reset
-		for (int i = 0; i < 2; i++) {
-			cv[i] = 0.0f;
-			storeCV[i] = 0.0f;
-		}
-		// No need to save, with reset
-		resetNoNeedToSave();
-	}
-	void resetNoNeedToSave() {
+		scheduledReset = false;
 		infoStore = 0l;
 		for (int i = 0; i < 2; i++) {
+			tactWidgets[i] = nullptr;
 			infoCVinLight[i] = 0.0f;
 			topTriggers[i].reset();
 			botTriggers[i].reset();
@@ -110,10 +92,31 @@ struct Tact : Module {
 			recallTriggers[i].reset();
 			eocPulses[i].reset();
 		}
+		
+		onReset();
+	}
+
+	
+	// widgets are not yet created when module is created 
+	// even if widgets not created yet, can use params[] and should handle 0.0f value since step may call 
+	//   this before widget creation anyways
+	// called from the main thread if by constructor, called by engine thread if right-click initialization
+	//   when called by constructor, module is created before the first step() is called
+	void onReset() override {
+		// Need to save, with reset
+		for (int i = 0; i < 2; i++) {
+			cv[i] = 0.0f;
+			storeCV[i] = 0.0f;
+		}
+		// No need to save, with reset
+		// none
+		
+		scheduledReset = true;
 	}
 
 	
 	// widgets randomized before onRandomize() is called
+	// called by engine thread if right-click randomize
 	void onRandomize() override {
 		// Need to save, with reset
 		for (int i = 0; i < 2; i++) {
@@ -121,10 +124,13 @@ struct Tact : Module {
 			storeCV[i] = 0.0f;
 		}
 		// No need to save, with reset
-		resetNoNeedToSave();
+		// none
+	
+		scheduledReset = true;
 	}
 
 	
+	// called by main thread
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 		// Need to save (reset or not)
@@ -147,7 +153,8 @@ struct Tact : Module {
 	}
 
 	
-	// widgets loaded before this fromJson() is called
+	// widgets have their fromJson() called before this fromJson() is called
+	// called by main thread
 	void fromJson(json_t *rootJ) override {
 		// Need to save (reset or not)
 
@@ -178,7 +185,9 @@ struct Tact : Module {
 			expansion = json_integer_value(expansionJ);
 
 		// No need to save, with reset
-		resetNoNeedToSave();
+		// none
+		
+		scheduledReset = true;
 	}
 
 	
@@ -187,6 +196,18 @@ struct Tact : Module {
 		float sampleRate = engineGetSampleRate();
 		float sampleTime = engineGetSampleTime();
 		long initInfoStore = (long) (storeInfoTime * sampleRate);
+		
+		if (scheduledReset) {
+			infoStore = 0l;
+			for (int i = 0; i < 2; i++) {
+				infoCVinLight[i] = 0.0f;
+				topTriggers[i].reset();
+				botTriggers[i].reset();
+				storeTriggers[i].reset();
+				recallTriggers[i].reset();
+				eocPulses[i].reset();
+			}		
+		}
 		
 		// store buttons
 		for (int i = 0; i < 2; i++) {
@@ -295,6 +316,8 @@ struct Tact : Module {
 			if (infoStore < 0l)
 				infoStore ++;
 		}
+		
+		scheduledReset = false;
 	}
 	
 	void setTLights(int chan) {

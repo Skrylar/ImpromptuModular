@@ -223,7 +223,7 @@ struct Clocked : Module {
 	bool scheduledReset;
 	float swingVal[4];
 	long swingInfo[4];// downward step counter when swing to be displayed, 0 when normal display
-	float delayVal[4];
+	int delayKnobIndexes[4];
 	long delayInfo[4];// downward step counter when delay to be displayed, 0 when normal display
 	int ratiosDoubled[4];
 	int newRatiosDoubled[4];
@@ -235,9 +235,6 @@ struct Clocked : Module {
 	SchmittTrigger runTrigger;
 	TriggerGenerator resetPulse;
 	TriggerGenerator runPulse;
-	
-	
-	inline int getDelayKnobIndex(int delayKnobIndex) {return clamp((int) round( params[DELAY_PARAMS + delayKnobIndex].value ), 0, 8 - 1);}
 
 	
 	// called from the main thread (step() can not be called until all modules created)
@@ -252,7 +249,7 @@ struct Clocked : Module {
 			clk[i].setSync(i == 0 ? nullptr : &clk[0]);
 			swingVal[i] = 0.0f;
 			swingInfo[i] = 0l;
-			delayVal[i] = 0.0f;
+			delayKnobIndexes[i] = 0;
 			delayInfo[i] = 0l;
 			ratiosDoubled[i] = 0;
 			newRatiosDoubled[i] = 0;
@@ -460,13 +457,13 @@ struct Clocked : Module {
 				delayInfo[i] = 0l;// cancel delayed being displayed (if so)
 			}
 			if (i > 0) {
-				float newDelayVal = params[DELAY_PARAMS + i].value;
+				int newDelayKnobIndex = clamp((int) round( params[DELAY_PARAMS + i].value ), 0, 8 - 1);
 				if (scheduledReset) {
 					delayInfo[i] = 0l;
-					delayVal[i] = newDelayVal;
+					delayKnobIndexes[i] = newDelayKnobIndex;
 				}
-				if (newDelayVal != delayVal[i]) {
-					delayVal[i] = newDelayVal;
+				if (newDelayKnobIndex != delayKnobIndexes[i]) {
+					delayKnobIndexes[i] = newDelayKnobIndex;
 					delayInfo[i] = (long) (delayInfoTime * (float)sampleRate);// trigger delay info on channel i
 					swingInfo[i] = 0l;// cancel swing being displayed (if so)
 				}
@@ -520,38 +517,43 @@ struct Clocked : Module {
 					clk[i].start();
 				}
 			}
-		}
+
 			
-		// Delays
-		for (int i = 0; i < 4; i++) {
-			float pulseWidth = params[PW_PARAMS + i].value;
-			if (i < 3 && inputs[PW_INPUTS + i].active) {
-				pulseWidth += (inputs[PW_INPUTS + i].value / 10.0f) - 0.5f;
-				pulseWidth = clamp(pulseWidth, 0.0f, 1.0f);
+			// Delays
+			for (int i = 0; i < 4; i++) {
+				float pulseWidth = params[PW_PARAMS + i].value;
+				if (i < 3 && inputs[PW_INPUTS + i].active) {
+					pulseWidth += (inputs[PW_INPUTS + i].value / 10.0f) - 0.5f;
+					pulseWidth = clamp(pulseWidth, 0.0f, 1.0f);
+				}
+				float swingAmount = swingVal[i];
+				if (i < 3 && inputs[SWING_INPUTS + i].active) {
+					swingAmount += (inputs[SWING_INPUTS + i].value / 5.0f) - 1.0f;
+					swingAmount = clamp(swingAmount, -1.0f, 1.0f);
+				}
+				delay[i].write(clk[i].isHigh(swingAmount, pulseWidth));
 			}
-			float swingAmount = swingVal[i];
-			if (i < 3 && inputs[SWING_INPUTS + i].active) {
-				swingAmount += (inputs[SWING_INPUTS + i].value / 5.0f) - 1.0f;
-				swingAmount = clamp(swingAmount, -1.0f, 1.0f);
-			}
-			delay[i].write(clk[i].isHigh(swingAmount, pulseWidth));
-		}
 		
 		
 		
 		//********** Outputs and lights **********
 		
-		// Clock outputs
-		for (int i = 0; i < 4; i++) {
-			long delaySamples = 0l;
-			if (i > 0) {
-				float delayFraction = delayValues[getDelayKnobIndex(i)];
-				float ratioValue = ((float)ratiosDoubled[i]) / 2.0f;
-				if (ratioValue < 0)
-					ratioValue = 1.0f / (-1.0f * ratioValue);
-				delaySamples = (long)(masterPeriod * delayFraction * sampleRate / ratioValue) ;
+			// Clock outputs
+			for (int i = 0; i < 4; i++) {
+				long delaySamples = 0l;
+				if (i > 0) {
+					float delayFraction = delayValues[delayKnobIndexes[i]];
+					float ratioValue = ((float)ratiosDoubled[i]) / 2.0f;
+					if (ratioValue < 0)
+						ratioValue = 1.0f / (-1.0f * ratioValue);
+					delaySamples = (long)(masterPeriod * delayFraction * sampleRate / ratioValue) ;
+				}
+				outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples) ? 10.0f : 0.0f;
 			}
-			outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples) ? 10.0f : 0.0f;
+		}
+		else {
+			for (int i = 0; i < 4; i++) 
+				outputs[CLK_OUTPUTS + i].value = 0.0f;
 		}
 		
 		// Chaining outputs
@@ -625,7 +627,7 @@ struct ClockedWidget : ModuleWidget {
 			}
 			else if (module->delayInfo[knobIndex] > 0)
 			{
-				int delayKnobIndex = module->getDelayKnobIndex(knobIndex);
+				int delayKnobIndex = module->delayKnobIndexes[knobIndex];
 				if (module->displayDelayNoteMode)
 					snprintf(displayStr, 4, "%s", (delayLabelsNote[delayKnobIndex]).c_str());
 				else
