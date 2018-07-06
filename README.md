@@ -89,7 +89,7 @@ A touch-like controller module with dual CV outputs and variable rate of change.
 
 **ATTV**: Typical attenuverter to set the maximum CV range output by the module. At full right, a 0 to 10V CV is produced, and at full left, a 0 to -10V CV is produced.
 
-**EXP**: Procudes an exponential slide (top position) instead of a linear slide (bottom position).
+**EXP**: Produces an exponential slide (top position) instead of a linear slide (bottom position).
 
 A 0V CV is initially stored in the CV memory and the slide switches are in the off position, thereby allowing the Recall to act as a **Reset** by default. An **Expansion pannel** with EOC outputs is also available in the right-click menu. EOC is a trigger that is emitted when a slide is completed (to signal its end); this can be used for more automation, for example, by triggering or chaining other operations when a fade in/out completes.
 
@@ -136,9 +136,7 @@ For a tutorial on Clocked regarding chaining, clock multiplications and division
 
 In place of a detailed explanation of these three main controls, it is recommended to connect the outputs to a scope or a logic analyzer, such as the Fundamental Scope (pictured above) or the SubmarineFree LA-108, to observe the effects of the different controls.
 
-The PW and Swing CV inputs (some are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default position. When this is the case, no swing and normal pulse width (50% duty cycle) correspond to 5V on the CV inputs.
-
-When changing the internal sample rate of Rack, it is recommended to reset the module to ensure proper timing of all clocks.
+The PW and Swing CV inputs (some are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default position. When this is the case, no-swing and normal-pulse-width (50% duty cycle) correspond to 5V on the CV inputs.
 
 ([Back to module list](#modules))
 
@@ -232,15 +230,15 @@ A 6-channel 64-step sequencer based on the infamous [BigButton](https://www.yout
 
 * [lookmom](https://www.youtube.com/watch?v=Jcdok8jJ5hQ) and [bbs](https://www.youtube.com/watch?v=j5ejGH5XgFg) by Clément Foulc.
 
-Here are a few more details on some of the uses of the buttons. Two types of buttons exist, namely trigger buttons and state buttons. Trigger buttons react to the change in a button's state as it is being pressed, while state buttons are always effective and react to the position of the push-button, i.e. pressed or not pressed.
+Here are a few more details on some of the uses of the buttons. Two types of buttons exist, namely trigger buttons and state buttons. Trigger buttons react to the change in a button's state as it's being pressed, while state buttons are always effective and react to the position of the push-button, i.e. pressed or not pressed.
 
-**CHAN**: channel select button (can be changed in real time, all state buttons will have an effect immediately when the channel is changed.
+**CHAN**: channel select button (can be changed in real time). All state buttons will have an effect immediately when the channel is changed.
 
 **BIG BUTTON**: trigger button to set the gate at the current step in the current channel (when pressing on a step that has a gate, nothing is done).
 
 **CLK**: clock input. The sequencer is always running. To stop it, the clock has to be stopped.
 
-**RND**: a 0 to 1 probability knob, used to randomly change the state of the current step. Applies the probability to the next step being reached at every clock pulse, in the current channel.
+**RND**: a 0 to 1 probability knob, used to randomly change the state of a step. The probability is applied to the gate of the next step being reached at every clock pulse, in the current channel.
 
 **CLEAR**: state button that turns of all gates of the current channel.
 
@@ -248,7 +246,7 @@ Here are a few more details on some of the uses of the buttons. Two types of but
 
 **DEL**: state button that clears the gate at the current step. The button can be held to clear multiple steps.
 
-**FILL**: plays continuous gates for the given channel as long as the button is kept pressed. By default the fills are not written to memory and are only for playback; however, an option to allow the writing of fill steps to memory is available in the right-click menu.
+**FILL**: plays continuous gate pulses for the given channel as long as the button is kept pressed. By default the fills are not written to memory and are only for playback; however, an option to allow the writing of fill steps to memory is available in the right-click menu.
 
 ([Back to module list](#modules))
 
