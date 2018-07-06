@@ -89,7 +89,9 @@ A touch-like controller module with dual CV outputs and variable rate of change.
 
 **ATTV**: Typical attenuverter to set the maximum CV range output by the module. At full right, a 0 to 10V CV is produced, and at full left, a 0 to -10V CV is produced.
 
-A 0V CV is initially stored in the CV memory and the slide switches are in the off position, thereby allowing the Recall to act as a **Reset** by default.
+**EXP**: Procudes an exponential slide (top position) instead of a linear slide (bottom position).
+
+A 0V CV is initially stored in the CV memory and the slide switches are in the off position, thereby allowing the Recall to act as a **Reset** by default. An **Expansion pannel** with EOC outputs is also available in the right-click menu. EOC is a trigger that is emitted when a slide is completed (to signal its end); this can be used for more automation, for example, by triggering or chaining other operations when a fade in/out completes.
 
 ([Back to module list](#modules))
 
@@ -121,7 +123,7 @@ For a brief tutorial on setting up the controller, please see [this segment](htt
 
 ![IM](res/img/Clocked.jpg)
 
-A chainable master clock module with swing, clock delay and pulse width controls, with master BPM from 30 to 300 and all mult/div ratios up to 16, including 1.5 and 2.5, and with additional ratios spanning prime numbers and powers of two up to 64. The clock can produce waveforms with adjustable pulse widths for use with envelope generators or sequencers that use the clock pulse to produce their gate signals. The clock's BPM input is level sensitive (0 V = 30 BPM, 10 V = 300 BPM); synchronizing it to an external clock signal is not possible.
+A chainable master clock module with swing, clock delay and pulse width controls, with master BPM from 30 to 300 and all mult/div ratios up to 16, including 1.5 and 2.5, and with additional ratios spanning prime numbers and powers of two up to 64. The clock can produce waveforms with adjustable pulse widths for use with envelope generators or sequencers that use the clock pulse to produce their gate signals. The clock's BPM input is level sensitive and follows [Rack standards for BPM CVs](https://vcvrack.com/manual/VoltageStandards.html#pitch-and-frequencies); synchronizing it to an external clock signal is not possible.
 
 For a tutorial on Clocked regarding chaining, clock multiplications and divisions, swing and clock delay features, please see Nigel Sixsmith's [Talking Rackheads episode 12](https://www.youtube.com/watch?v=KOpo2oUPTjg). 
 
@@ -134,7 +136,7 @@ For a tutorial on Clocked regarding chaining, clock multiplications and division
 
 In place of a detailed explanation of these three main controls, it is recommended to connect the outputs to a scope or a logic analyzer, such as the Fundamental Scope (pictured above) or the SubmarineFree LA-108, to observe the effects of the different controls.
 
-The PW and Swing CV inputs (some are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default position. 
+The PW and Swing CV inputs (some are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default position. When this is the case, no swing and normal pulse width (50% duty cycle) correspond to 5V on the CV inputs.
 
 When changing the internal sample rate of Rack, it is recommended to reset the module to ensure proper timing of all clocks.
 
