@@ -2,7 +2,7 @@
 
 Modules for [VCV Rack](https://vcvrack.com), available in the [plugin manager](https://vcvrack.com/plugins.html).
 
-Version 0.6.7
+Version 0.6.8
 
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!   120% Zoom for jpgs)
 
@@ -17,7 +17,7 @@ Impromptu Modular is not a single-person endeavor:
 
 * Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in Talking Rackheads [epsiode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg), as well as PhraseSeq32 and GateSeq64 in [episode 10](https://www.youtube.com/watch?v=bjqWwTKqERQ). 
 * Thanks to **Xavier Belmont** for suggesting improvements to the modules, for testing/bug-reports, for the concept design of the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
-* Thanks to **Alfredo Santamaria**, **Nay Seven** and **Latif Fital** for suggesting improvements to the modules, and to **Omri Cohen** for bug reports and testing.
+* Thanks to **Alfredo Santamaria**, **Nay Seven**, **Omri Cohen**, **Alberto Zamora**, **Clément Foulc** and **Latif Fital** for suggesting improvements to the modules, bug reports and testing.
 
 
 
@@ -36,6 +36,8 @@ Each module is available in light (Classic) or dark (Dark-valor) panels, selecta
 * [PhraseSeq32](#phrase-seq-32): 32-phrase sequencer with 32 steps per sequence, with onboard keyboard and CV input for easy sequence programming (can be configured as 1x32 or 2x16).
 
 * [GateSeq64](#gate-seq-64): 16-phrase gate sequencer with 64 steps per sequence and per-step gate probability control, perfect for adding controlled randomness to your drum patterns (can be configured as 1x64, 2x32 or 4x16).
+
+* [BigButtonSeq](#big-button-seq): 6-channel 64-step sequencer based on the infamous BigButton by Look Mum No Computer.
 
 * [Semi-Modular Synth 16](#sms-16): Internally pre-patched all in one synthesizer for quickly getting sounds and learning the basics of modular synthesis.
 
@@ -211,6 +213,40 @@ The **SEQ** CV input and run **MODES** are identical to those found in PhraseSeq
 When running in the 4x16 configuration, each of the four rows is sent to the four **GATE** output jacks (jacks 1 to 4, with jack 1 being the top-most jack). In the 2x32 configuration, jacks 1 and 3 are used, and in the 1x64 configuration, only jack 1 is used (top-most jack). The pulse width of the gates emitted corresponds to the pulse width of the clock.
 
 Although no **write** capabilities appear in the main part of the module, automatically storing patterns into the sequencer can be performed using the CV inputs in the **expansion panel**. A write cursor is implicitly stepped forward on each write, and can be repositioned at the first step by pressing the reset button, or at an arbitrary step by simply clicking that given step.
+
+([Back to module list](#modules))
+
+
+
+## BigButtonSeq <a id="big-button-seq"></a>
+
+![IM](res/img/BigButtonSeq.jpg)
+
+A 6-channel 64-step sequencer based on the infamous [BigButton](https://www.youtube.com/watch?v=6ArDGcUqiWM) by [Look Mum No Computer](https://www.lookmumnocomputer.com/projects/#/big-button/). The sequencer is mainly for live uses. Although this is not a direct port of the original module, the intent was to keep it as faithful as possible, while adding a few minor extras such as CV inputs. When applicable, it is recommended to connect the sequencer to a midi control surface using Rack's Core MIDI-CC module, in order to have two-handed control of the knobs and buttons. To see more examples of what the sequencer can do, please see the following videos:
+
+* [BigButton VCV Rack Module test](https://www.youtube.com/watch?v=uN2l2t5SCyE) by Alberto Zamora;
+
+* [Small impromptu VCV jam](https://www.youtube.com/watch?v=wm5JEH5spbc) by Matt Tyas;
+
+* [lookmom](https://www.youtube.com/watch?v=Jcdok8jJ5hQ) and [bbs](https://www.youtube.com/watch?v=j5ejGH5XgFg) by Clément Foulc.
+
+Here are a few more details on some of the uses of the buttons. Two types of buttons exist, namely trigger buttons and state buttons. Trigger buttons react to the change in a button's state as it is being pressed, while state buttons are always effective and react to the position of the push-button, i.e. pressed or not pressed.
+
+**CHAN**: channel select button (can be changed in real time, all state buttons will have an effect immediately when the channel is changed.
+
+**BIG BUTTON**: trigger button to set the gate at the current step in the current channel (when pressing on a step that has a gate, nothing is done).
+
+**CLK**: clock input. The sequencer is always running. To stop it, the clock has to be stopped.
+
+**RND**: a 0 to 1 probability knob, used to randomly change the state of the current step. Applies the probability to the next step being reached at every clock pulse, in the current channel.
+
+**CLEAR**: state button that turns of all gates of the current channel.
+
+**BANK**: trigger button that toggles between two possible banks (i.e. sequences) for the current channel.
+
+**DEL**: state button that clears the gate at the current step. The button can be held to clear multiple steps.
+
+**FILL**: plays continuous gates for the given channel as long as the button is kept pressed. By default the fills are not written to memory and are only for playback; however, an option to allow the writing of fill steps to memory is available in the right-click menu.
 
 ([Back to module list](#modules))
 
