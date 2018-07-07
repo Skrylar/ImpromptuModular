@@ -37,7 +37,7 @@ Each module is available in light (Classic) or dark (Dark-valor) panels, selecta
 
 * [GateSeq64](#gate-seq-64): 16-phrase gate sequencer with 64 steps per sequence and per-step gate probability control, perfect for adding controlled randomness to your drum patterns (can be configured as 1x64, 2x32 or 4x16).
 
-* [BigButtonSeq](#big-button-seq): 6-channel 64-step sequencer based on the infamous BigButton by Look Mum No Computer.
+* [BigButtonSeq](#big-button-seq): 6-channel 64-step trigger sequencer based on the infamous BigButton by Look Mum No Computer.
 
 * [Semi-Modular Synth 16](#sms-16): Internally pre-patched all in one synthesizer for quickly getting sounds and learning the basics of modular synthesis.
 
@@ -222,7 +222,7 @@ Although no **write** capabilities appear in the main part of the module, automa
 
 ![IM](res/img/BigButtonSeq.jpg)
 
-A 6-channel 64-step sequencer based on the infamous [BigButton](https://www.youtube.com/watch?v=6ArDGcUqiWM) by [Look Mum No Computer](https://www.lookmumnocomputer.com/projects/#/big-button/). The sequencer is mainly for live uses. Although this is not a direct port of the original module, the intent was to keep it as faithful as possible, while adding a few minor extras such as CV inputs. When applicable, it is recommended to connect the sequencer to a midi control surface using Rack's Core MIDI-CC module, in order to have two-handed control of the knobs and buttons. To see more examples of what the sequencer can do, please see the following videos:
+A 6-channel 64-step trigger sequencer based on the infamous [BigButton](https://www.youtube.com/watch?v=6ArDGcUqiWM) by [Look Mum No Computer](https://www.lookmumnocomputer.com/projects/#/big-button/). The sequencer is mainly for live uses. Although this is not a direct port of the original module, the intent was to keep it as faithful as possible, while adding a few minor extras such as CV inputs. When applicable, it is recommended to connect the sequencer to a midi control surface using Rack's Core MIDI-CC module, in order to have two-handed control of the knobs and buttons. To see more examples of what the sequencer can do, please see the following videos:
 
 * [BigButton VCV Rack Module test](https://www.youtube.com/watch?v=uN2l2t5SCyE) by Alberto Zamora;
 
@@ -230,23 +230,23 @@ A 6-channel 64-step sequencer based on the infamous [BigButton](https://www.yout
 
 * [lookmom](https://www.youtube.com/watch?v=Jcdok8jJ5hQ) and [bbs](https://www.youtube.com/watch?v=j5ejGH5XgFg) by Clément Foulc.
 
-Here are a few more details on some of the uses of the buttons. Two types of buttons exist, namely trigger buttons and state buttons. Trigger buttons react to the change in a button's state as it's being pressed, while state buttons are always effective and react to the position of the push-button, i.e. pressed or not pressed.
+Here are a few more details on some of the uses of the buttons. The sequencer uses has two types of pushbuttons, namely trigger buttons and state buttons. Trigger buttons react to the change in a button's state as it's being pressed, while state buttons react to the position of the push-button, i.e. pressed or not pressed.
 
 **CHAN**: channel select button (can be changed in real time). All state buttons will have an effect immediately when the channel is changed.
 
-**BIG BUTTON**: trigger button to set the gate at the current step in the current channel (when pressing on a step that has a gate, nothing is done).
+**BIG BUTTON**: trigger-type button to set the trigger at the current step in the current channel (when pressing on a step that has a trigger, nothing is done).
 
 **CLK**: clock input. The sequencer is always running. To stop it, the clock has to be stopped.
 
-**RND**: a 0 to 1 probability knob, used to randomly change the state of a step. The probability is applied to the gate of the next step being reached at every clock pulse, in the current channel.
+**RND**: a 0 to 1 probability knob, used to randomly change the state of a step. The probability is applied to the trigger of the next step being reached at every clock pulse, in the current channel. A 0 value means no change, 1 means the state of the trigger will be toggled (useful for inverting a pattern). The RND CV input's voltage is divided by 10 and added to the value of the knob to yield the actual probablility. For example, with the knob at full right, the CV input has no effet, and with the knob at full left, an value of 10V on the CV input gives a probability of 1.  
 
-**CLEAR**: state button that turns of all gates of the current channel.
+**CLEAR**: state-type button that turns of all triggers of the current channel.
 
-**BANK**: trigger button that toggles between two possible banks (i.e. sequences) for the current channel.
+**BANK**: trigger-type button that toggles between two possible banks (i.e. sequences) for the current channel.
 
-**DEL**: state button that clears the gate at the current step. The button can be held to clear multiple steps.
+**DEL**: state-type button that clears the trigger at the current step. The button can be held to clear multiple steps.
 
-**FILL**: plays continuous gate pulses for the given channel as long as the button is kept pressed. By default the fills are not written to memory and are only for playback; however, an option to allow the writing of fill steps to memory is available in the right-click menu.
+**FILL**: plays continuous triggers for the given channel as long as the button is kept pressed. By default the fills are not written to memory and are only for playback; however, an option to allow the writing of fill steps to memory is available in the right-click menu.
 
 ([Back to module list](#modules))
 
