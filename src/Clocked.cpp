@@ -213,12 +213,12 @@ class ClockDelay2 {
 		else if (delayedStepCounter == stepFall1 || delayedStepCounter == stepFall2)
 			readState = false;
 		stepCounter++;
-		if (stepCounter > 1e6) {
-			stepCounter -= 1e6;
-			stepRise1 -= 1e6;
-			stepFall1 -= 1e6;
-			stepRise2 -= 1e6;
-			stepFall2 -= 1e6;
+		if (stepCounter > 1e8) {// keep within long's bounds (could go higher or could allow negative)
+			stepCounter -= 1e8;// 192000 samp/s * 2s * 64 * (3/4) = 18.4 Msamp
+			stepRise1 -= 1e8;
+			stepFall1 -= 1e8;
+			stepRise2 -= 1e8;
+			stepFall2 -= 1e8;
 		}
 		return readState;
 	}
