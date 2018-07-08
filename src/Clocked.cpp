@@ -298,6 +298,9 @@ struct Clocked : Module {
 	SchmittTrigger runTrigger;
 	TriggerGenerator resetPulse;
 	TriggerGenerator runPulse;
+	double prevBPMpulseLag;
+	float bpmInValueLast;
+	
 
 	
 	// called from the main thread (step() can not be called until all modules created)
@@ -326,6 +329,8 @@ struct Clocked : Module {
 		runTrigger.reset();
 		resetPulse.reset();
 		runPulse.reset();
+		prevBPMpulseLag = 1000.0;// in seconds
+		bpmInValueLast = 0.0f;
 		
 		onReset();
 	}
@@ -464,7 +469,9 @@ struct Clocked : Module {
 			resetTrigger.reset();
 			runTrigger.reset();
 			resetPulse.reset();
-			runPulse.reset();			
+			runPulse.reset();	
+			prevBPMpulseLag = 1000.0;// in seconds
+			bpmInValueLast = 0.0f;
 		}
 		
 		// Run button
@@ -487,9 +494,35 @@ struct Clocked : Module {
 			resetLight -= (resetLight / lightLambda) * (float)sampleTime;	
 
 		// BPM input and knob
-		int newBpm = clamp(inputs[BPM_INPUT].active ? 
-			(int) round( 120.0f * powf(2.0f, inputs[BPM_INPUT].value) ) : 
-			(int)(params[RATIO_PARAMS + 0].value + 0.5f), bpmMin, bpmMax);
+		int newBpm = 120;
+		if (inputs[BPM_INPUT].active) { 
+			float bpmInValue = inputs[BPM_INPUT].value;
+			if (bpmInValue > 1.33f && bpmInValueLast == 0.0f) {// 30 to 300 BPM is -2 to 1.32194 Volts
+				if (prevBPMpulseLag <= 2.0) {
+					newBpm = (int)(60.0 / prevBPMpulseLag + 0.5);
+					//info("*** GOT RISING, BPM detected at %d ***", newBpm);
+				}
+				else {
+					newBpm = bpm;
+					//info("*** GOT RISING, keeping old BPM of %f ***", newBpm);
+				}
+				prevBPMpulseLag = 0.0;
+			}
+			else {
+				if (prevBPMpulseLag > 2.0)
+					newBpm = (int) round( 120.0f * powf(2.0f, bpmInValue) );
+				else
+					newBpm = bpm;
+			}
+			bpmInValueLast = bpmInValue;
+		}
+		else {
+			newBpm = (int)(params[RATIO_PARAMS + 0].value + 0.5f);
+			bpmInValueLast = 0.0f;
+		}
+		newBpm = clamp(newBpm, bpmMin, bpmMax);
+		if (prevBPMpulseLag <= 2.0)
+			prevBPMpulseLag += sampleTime;
 		if (scheduledReset)
 			bpm = newBpm;
 		if (newBpm != bpm) {
