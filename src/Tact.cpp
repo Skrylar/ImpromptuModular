@@ -197,6 +197,7 @@ struct Tact : Module {
 		float sampleTime = engineGetSampleTime();
 		long initInfoStore = (long) (storeInfoTime * sampleRate);
 		
+		// Scheduled reset (just the parts that do not have a place below in rest of function)
 		if (scheduledReset) {
 			infoStore = 0l;
 			for (int i = 0; i < 2; i++) {

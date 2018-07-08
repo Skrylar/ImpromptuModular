@@ -29,10 +29,10 @@ class Clock {
 	
 	public:
 	
-	bool isHigh(float swing, float pulseWidth) {
+	int isHigh(float swing, float pulseWidth) {
 		// last 0.5ms (guard time) must be low so that sync mechanism will work properly (i.e. no missed pulses)
 		//   this will automatically be the case, since code below disallows any pulses or inter-pulse times less than 1ms
-		bool high = false;
+		int high = 0;
 		if (step > 0.0) {
 			float swParam = swing;// swing is [-1 : 1]
 			//swParam *= (swParam * (swParam > 0.0f ? 1.0f : -1.0f));// non-linear behavior for more sensitivity at center: f(x) = x^2 * sign(x)
@@ -52,8 +52,10 @@ class Clock {
 			double p3 = (double)(period + swing);
 			double p4 = ((double)(period + swing)) + p2;
 			
-			if ( (step <= p2) || ((step > p3) && (step <= p4)) )
-				high = true;
+			if (step <= p2)
+				high = 1;
+			else if ((step > p3) && (step <= p4))
+				high = 2;
 		}
 		return high;
 	}
@@ -107,9 +109,9 @@ class Clock {
 
 //*****************************************************************************
 
-
+/*
 class ClockDelay {
-	// TODO: !!!! This is not the worst case !!! worst case is same as next line, but with ratio set to /64 !!!
+	// !!!! This is not the worst case !!! worst case is same as next line, but with ratio set to /64 !!!
 	static const long maxSamples = 288000;// @ 30 BPM period is 2s, thus need at most 3/4 * 2s @ 192000 kHz = 288000 samples
 	static const long entrySize = 64;
 	static const long bufSize = maxSamples / entrySize;// = 4500 with 64 per uint64_t 
@@ -125,10 +127,10 @@ class ClockDelay {
 		finishedOnePass = false;
 	}
 	
-	void write(bool value) {
+	void write(int value) {
 		long bufIndex = writeHead / entrySize;
 		uint64_t mask = ((uint64_t)1) << (uint64_t)(writeHead % entrySize);
-		if (value)
+		if (value != 0)
 			buffer[bufIndex] |= mask;
 		else
 			buffer[bufIndex] &= ~mask;
@@ -159,6 +161,66 @@ class ClockDelay {
 		}
 		
 		return ret;
+	}
+};
+*/
+
+
+class ClockDelay2 {
+	long stepCounter;
+	int lastWriteValue;
+	bool readState;
+	long stepRise1;
+	long stepFall1;
+	long stepRise2;
+	long stepFall2;
+	
+	public:
+	
+	void reset() {
+		stepCounter = 0l;
+		lastWriteValue = 0;
+		readState = false;
+		stepRise1 = 0l;
+		stepFall1 = 0l;
+		stepRise2 = 0l;
+		stepFall2 = 0l;
+	}
+	
+	void write(int value) {
+		if (value == 1) {
+			if (lastWriteValue == 0) // if got rise 1
+				stepRise1 = stepCounter;
+		}
+		else if (value == 2) {
+			if (lastWriteValue == 0) // if got rise 2
+				stepRise2 = stepCounter;
+		}
+		else {// value = 0
+			if (lastWriteValue == 1) // if got fall 1
+				stepFall1 = stepCounter;
+			else if (lastWriteValue == 2) // if got fall 2
+				stepFall2 = stepCounter;
+		}
+		
+		lastWriteValue = value;
+	}
+	
+	bool read(long delaySamples) {
+		long delayedStepCounter = stepCounter - delaySamples;
+		if (delayedStepCounter == stepRise1 || delayedStepCounter == stepRise2)
+			readState = true;
+		else if (delayedStepCounter == stepFall1 || delayedStepCounter == stepFall2)
+			readState = false;
+		stepCounter++;
+		if (stepCounter > 1e6) {
+			stepCounter -= 1e6;
+			stepRise1 -= 1e6;
+			stepFall1 -= 1e6;
+			stepRise2 -= 1e6;
+			stepFall2 -= 1e6;
+		}
+		return readState;
 	}
 };
 
@@ -228,7 +290,8 @@ struct Clocked : Module {
 	int ratiosDoubled[4];
 	int newRatiosDoubled[4];
 	Clock clk[4];
-	ClockDelay delay[4];
+	//ClockDelay delay[4];
+	ClockDelay2 delay2[4];
 	int bpm;
 	float resetLight;
 	SchmittTrigger resetTrigger;
@@ -254,7 +317,8 @@ struct Clocked : Module {
 			ratiosDoubled[i] = 0;
 			newRatiosDoubled[i] = 0;
 			clk[i].reset();
-			delay[i].reset();
+			//delay[i].reset();
+			delay2[i].reset();
 			bpm = 0;
 		}		
 		resetLight = 0.0f;
@@ -373,7 +437,8 @@ struct Clocked : Module {
 		resetPulse.trigger(0.001f);
 		for (int i = 0; i < 4; i++) {
 			clk[i].reset();
-			delay[i].reset();
+			//delay[i].reset();
+			delay2[i].reset();
 		}
 	}		
 	
@@ -392,7 +457,8 @@ struct Clocked : Module {
 		if (scheduledReset) {
 			for (int i = 0; i < 4; i++) {
 				clk[i].reset();
-				delay[i].reset();
+				//delay[i].reset();
+				delay2[i].reset();
 			}
 			resetLight = 0.0f;
 			resetTrigger.reset();
@@ -407,7 +473,8 @@ struct Clocked : Module {
 			// reset on any change of run state (will not re-launch if not running, thus clock railed low)
 			for (int i = 0; i < 4; i++) {
 				clk[i].reset();
-				delay[i].reset();
+				//delay[i].reset();
+				delay2[i].reset();
 			}
 			runPulse.trigger(0.001f);
 		}
@@ -519,7 +586,7 @@ struct Clocked : Module {
 			}
 
 			
-			// Delays
+			// Write clk outputs into delay buffer
 			for (int i = 0; i < 4; i++) {
 				float pulseWidth = params[PW_PARAMS + i].value;
 				if (i < 3 && inputs[PW_INPUTS + i].active) {
@@ -531,7 +598,8 @@ struct Clocked : Module {
 					swingAmount += (inputs[SWING_INPUTS + i].value / 5.0f) - 1.0f;
 					swingAmount = clamp(swingAmount, -1.0f, 1.0f);
 				}
-				delay[i].write(clk[i].isHigh(swingAmount, pulseWidth));
+				//delay[i].write(clk[i].isHigh(swingAmount, pulseWidth));
+				delay2[i].write(clk[i].isHigh(swingAmount, pulseWidth));
 			}
 		
 		
@@ -548,8 +616,11 @@ struct Clocked : Module {
 						ratioValue = 1.0f / (-1.0f * ratioValue);
 					delaySamples = (long)(masterPeriod * delayFraction * sampleRate / ratioValue) ;
 				}
-				outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples) ? 10.0f : 0.0f;
+				//outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples[i]) ? 10.0f : 0.0f;
+				outputs[CLK_OUTPUTS + i].value = delay2[i].read(delaySamples) ? 10.0f : 0.0f;
 			}
+			//if (outputs[CLK_OUTPUTS + 2].value != outputs[CLK_OUTPUTS + 3].value)
+				//info("**** NEQ ****");
 		}
 		else {
 			for (int i = 0; i < 4; i++) 
@@ -872,6 +943,9 @@ struct ClockedWidget : ModuleWidget {
 Model *modelClocked = Model::create<Clocked, ClockedWidget>("Impromptu Modular", "Clocked", "CLK - Clocked", CLOCK_TAG);
 
 /*CHANGE LOG
+
+0.6.9:
+new event-based delay engine
 
 0.6.8:
 updated BPM CV levels (in, out) to new Rack standard for clock CVs
