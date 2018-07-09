@@ -498,14 +498,10 @@ struct Clocked : Module {
 		if (inputs[BPM_INPUT].active) { 
 			float bpmInValue = inputs[BPM_INPUT].value;
 			if (bpmInValue > 1.33f && bpmInValueLast == 0.0f) {// 30 to 300 BPM is -2 to 1.32194 Volts
-				if (prevBPMpulseLag <= 2.0) {
+				if (prevBPMpulseLag <= 2.0)
 					newBpm = (int)(60.0 / prevBPMpulseLag + 0.5);
-					//info("*** GOT RISING, BPM detected at %d ***", newBpm);
-				}
-				else {
+				else
 					newBpm = bpm;
-					//info("*** GOT RISING, keeping old BPM of %f ***", newBpm);
-				}
 				prevBPMpulseLag = 0.0;
 			}
 			else {
@@ -652,8 +648,6 @@ struct Clocked : Module {
 				//outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples[i]) ? 10.0f : 0.0f;
 				outputs[CLK_OUTPUTS + i].value = delay2[i].read(delaySamples) ? 10.0f : 0.0f;
 			}
-			//if (outputs[CLK_OUTPUTS + 2].value != outputs[CLK_OUTPUTS + 3].value)
-				//info("**** NEQ ****");
 		}
 		else {
 			for (int i = 0; i < 4; i++) 
@@ -978,7 +972,8 @@ Model *modelClocked = Model::create<Clocked, ClockedWidget>("Impromptu Modular",
 /*CHANGE LOG
 
 0.6.9:
-new event-based delay engine
+replace bit-ring-buffer delay engine with event-based delay engine
+add BPM pulse frequency vs CV level autodetect 
 
 0.6.8:
 updated BPM CV levels (in, out) to new Rack standard for clock CVs
