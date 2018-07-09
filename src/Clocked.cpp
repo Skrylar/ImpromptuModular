@@ -298,8 +298,8 @@ struct Clocked : Module {
 	float resetLight;
 	SchmittTrigger resetTrigger;
 	SchmittTrigger runTrigger;
-	TriggerGenerator resetPulse;
-	TriggerGenerator runPulse;
+	PulseGenerator resetPulse;
+	PulseGenerator runPulse;
 	double beatTime;
 	double beatOld;
 	bool bpmPulseHigh;

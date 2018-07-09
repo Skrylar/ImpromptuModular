@@ -69,7 +69,7 @@ struct Tact : Module {
 	SchmittTrigger botTriggers[2];
 	SchmittTrigger storeTriggers[2];
 	SchmittTrigger recallTriggers[2];
-	TriggerGenerator eocPulses[2];
+	PulseGenerator eocPulses[2];
 	float paramReadRequest[2]; 
 
 	

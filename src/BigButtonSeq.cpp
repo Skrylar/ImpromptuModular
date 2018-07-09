@@ -83,10 +83,10 @@ struct BigButtonSeq : Module {
 	SchmittTrigger resetTrigger;
 	SchmittTrigger bankTrigger;
 	SchmittTrigger bigTrigger;
-	TriggerGenerator outPulse;
-	TriggerGenerator outLightPulse;
-	TriggerGenerator bigPulse;
-	TriggerGenerator bigLightPulse;
+	PulseGenerator outPulse;
+	PulseGenerator outLightPulse;
+	PulseGenerator bigPulse;
+	PulseGenerator bigLightPulse;
 
 	
 	inline void toggleGate(int chan) {gates[chan][bank[chan]] ^= (((uint64_t)1) << (uint64_t)indexStep);}
