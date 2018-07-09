@@ -298,8 +298,11 @@ struct Clocked : Module {
 	SchmittTrigger runTrigger;
 	TriggerGenerator resetPulse;
 	TriggerGenerator runPulse;
-	double prevBPMpulseLag;
-	float bpmInValueLast;
+	double beatTime;
+	double beatOld;
+	bool bpmPulseHigh;
+	long beatCount;
+	bool beatLock;
 	
 
 	
@@ -322,15 +325,18 @@ struct Clocked : Module {
 			clk[i].reset();
 			//delay[i].reset();
 			delay2[i].reset();
-			bpm = 0;
 		}		
+		bpm = 0;
 		resetLight = 0.0f;
 		resetTrigger.reset();
 		runTrigger.reset();
 		resetPulse.reset();
 		runPulse.reset();
-		prevBPMpulseLag = 1000.0;// in seconds
-		bpmInValueLast = 0.0f;
+		beatTime = 0.0;
+		beatOld = 0.0;
+		bpmPulseHigh = false;
+		beatCount = 0l;
+		beatLock = false;
 		
 		onReset();
 	}
@@ -470,8 +476,11 @@ struct Clocked : Module {
 			runTrigger.reset();
 			resetPulse.reset();
 			runPulse.reset();	
-			prevBPMpulseLag = 1000.0;// in seconds
-			bpmInValueLast = 0.0f;
+			beatTime = 0.0;
+			beatOld = 0.0;
+			bpmPulseHigh = false;
+			beatCount = 0l;
+			beatLock = false;
 		}
 		
 		// Run button
@@ -494,31 +503,55 @@ struct Clocked : Module {
 			resetLight -= (resetLight / lightLambda) * (float)sampleTime;	
 
 		// BPM input and knob
-		int newBpm = 120;
+		int newBpm = bpm;
 		if (inputs[BPM_INPUT].active) { 
 			float bpmInValue = inputs[BPM_INPUT].value;
-			if (bpmInValue > 1.33f && bpmInValueLast == 0.0f) {// 30 to 300 BPM is -2 to 1.32194 Volts
-				if (prevBPMpulseLag <= 2.0)
-					newBpm = (int)(60.0 / prevBPMpulseLag + 0.5);
-				else
-					newBpm = bpm;
-				prevBPMpulseLag = 0.0;
+			
+			// rising edge detected
+			if (bpmInValue > 1.33f && !bpmPulseHigh) {// 30 to 300 BPM is -2 to 1.32194 Volts
+				beatCount++;
+				bpmPulseHigh = true;
+			 
+				// bpm locked
+				if ( beatCount == 2 ) {
+					beatLock = true;
+					beatOld = beatTime;
+				}
+				// bpm lost
+				if ( beatCount > 2 ) {
+					if ( fabs( beatOld - beatTime ) > 0.0005f ) {
+						beatLock = false;
+						beatCount = 0;
+					}
+				}
+				beatTime = 0.0f;
 			}
-			else {
-				if (prevBPMpulseLag > 2.0)
-					newBpm = (int) round( 120.0f * powf(2.0f, bpmInValue) );
-				else
-					newBpm = bpm;
+			
+			// reset rising edge detect (falling edge)
+			if ( bpmInValue <= 0.0f ) {
+				bpmPulseHigh = false;
 			}
-			bpmInValueLast = bpmInValue;
+			
+			if (beatLock) {
+				newBpm = (int)(60.0 / beatOld + 0.5);
+			} 
+
+			beatTime += sampleTime;
+
+			// beat is lost
+			if ( beatTime > 2.0f ) {
+				beatLock = false;
+				beatCount = 0;
+				newBpm = (int) round( 120.0f * powf(2.0f, bpmInValue) );
+			}
 		}
 		else {
+			beatLock = false;
+			beatCount = 0;
 			newBpm = (int)(params[RATIO_PARAMS + 0].value + 0.5f);
-			bpmInValueLast = 0.0f;
+			bpmPulseHigh = false;
 		}
 		newBpm = clamp(newBpm, bpmMin, bpmMax);
-		if (prevBPMpulseLag <= 2.0)
-			prevBPMpulseLag += sampleTime;
 		if (scheduledReset)
 			bpm = newBpm;
 		if (newBpm != bpm) {
@@ -666,6 +699,7 @@ struct Clocked : Module {
 		lights[RUN_LIGHT].value = running;
 		
 		// Sync lights
+		lights[CLK_LIGHTS + 0].value = beatLock ? 1.0f : 0.0f;
 		for (int i = 1; i < 4; i++) {
 			lights[CLK_LIGHTS + i].value = (syncRatios[i] && running) ? 1.0f: 0.0f;
 		}
@@ -903,6 +937,8 @@ struct ClockedWidget : ModuleWidget {
 		displayRatios[0]->module = module;
 		displayRatios[0]->knobIndex = 0;
 		addChild(displayRatios[0]);
+		// BPM external pulses lock light
+		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(colRulerT4 + 11 + 62, rowRuler0 + 10), module, Clocked::CLK_LIGHTS + 0));		
 		
 		// Row 1
 		// Reset LED bezel and light
