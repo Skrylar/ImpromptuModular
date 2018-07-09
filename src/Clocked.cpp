@@ -278,6 +278,7 @@ struct Clocked : Module {
 	int panelTheme;
 	int expansion;
 	bool displayDelayNoteMode;
+	bool bpmDetectionMode;
 	
 	// No need to save, with reset
 	// none
@@ -304,7 +305,8 @@ struct Clocked : Module {
 	bool bpmPulseHigh;
 	long beatCount;
 	bool beatLock;
-	
+	int bpm_;// the bpm that is part of the freq detection algorithm
+	int last_bpm;
 
 	
 	// called from the main thread (step() can not be called until all modules created)
@@ -313,6 +315,7 @@ struct Clocked : Module {
 		panelTheme = 0;
 		expansion = 0;
 		displayDelayNoteMode = true;
+		bpmDetectionMode = false;
 		// No need to save, no reset
 		scheduledReset = false;
 		for (int i = 0; i < 4; i++) {
@@ -338,6 +341,8 @@ struct Clocked : Module {
 		bpmPulseHigh = false;
 		beatCount = 0l;
 		beatLock = false;
+		bpm_ = 120;// do not reset anywhere else
+		last_bpm = 0;// do not reset anywhere else
 		
 		onReset();
 	}
@@ -387,6 +392,9 @@ struct Clocked : Module {
 		// displayDelayNoteMode
 		json_object_set_new(rootJ, "displayDelayNoteMode", json_boolean(displayDelayNoteMode));
 		
+		// bpmDetectionMode
+		json_object_set_new(rootJ, "bpmDetectionMode", json_boolean(bpmDetectionMode));
+		
 		return rootJ;
 	}
 
@@ -414,6 +422,11 @@ struct Clocked : Module {
 		json_t *displayDelayNoteModeJ = json_object_get(rootJ, "displayDelayNoteMode");
 		if (displayDelayNoteModeJ)
 			displayDelayNoteMode = json_is_true(displayDelayNoteModeJ);
+
+		// bpmDetectionMode
+		json_t *bpmDetectionModeJ = json_object_get(rootJ, "bpmDetectionMode");
+		if (bpmDetectionModeJ)
+			bpmDetectionMode = json_is_true(bpmDetectionModeJ);
 
 		// No need to save, with reset
 		// none
@@ -504,53 +517,60 @@ struct Clocked : Module {
 			resetLight -= (resetLight / lightLambda) * (float)sampleTime;	
 
 		// BPM input and knob
-		int newBpm = bpm;
+		int newBpm = 120;
 		if (inputs[BPM_INPUT].active) { 
 			float bpmInValue = inputs[BPM_INPUT].value;
 			
-			// rising edge detected
-			if (bpmInValue > 1.33f && !bpmPulseHigh) {// 30 to 300 BPM is -2 to 1.32194 Volts
-				beatCount++;
-				bpmPulseHigh = true;
-			 
-				// bpm locked
-				if ( beatCount == 2 ) {
-					beatLock = true;
-					beatOld = beatTime;
-				}
-				// bpm lost
-				if ( beatCount > 2 ) {
-					if ( fabs( beatOld - beatTime ) > 0.0005f ) {
-						beatLock = false;
-						beatCount = 0;
+			// Clock detection method
+			if (bpmDetectionMode) {
+				// rising edge detected
+				if (bpmInValue > 1.0f && !bpmPulseHigh) {// 30 to 300 BPM is -2 to 1.32194 Volts
+					beatCount++;
+					bpmPulseHigh = true;
+				 
+					// bpm locked
+					if ( beatCount == 2 ) {
+						beatLock = true;
+						beatOld = beatTime;
 					}
+					// bpm lost
+					if ( beatCount > 2 ) {
+						if ( fabs( beatOld - beatTime ) > 0.0005f ) {
+							beatLock = false;
+							beatCount = 0;
+						}
+					}
+					beatTime = 0.0f;
 				}
-				beatTime = 0.0f;
-			}
-			
-			// reset rising edge detect (falling edge)
-			if ( bpmInValue <= 0.0f ) {
-				bpmPulseHigh = false;
-			}
-			
-			if (beatLock) {
-				newBpm = (int)(60.0 / beatOld + 0.5);
-			} 
+				
+				// reset rising edge detect (falling edge)
+				if ( bpmInValue <= 0.0f ) {
+					bpmPulseHigh = false;
+				}
+				
+				// when BPM is locked
+				if (beatLock) {
+					bpm_ = (int)(60.0 / beatOld + 0.5);
+					if (bpm_ != last_bpm)
+						last_bpm = bpm_;
+				} 
 
-			beatTime += sampleTime;
+				beatTime += sampleTime;
 
-			// beat is lost
-			if ( beatTime > 2.0f ) {
-				beatLock = false;
-				beatCount = 0;
+				// beat is lost
+				if ( beatTime > 2.0f ) {
+					beatLock = false;
+					beatCount = 0;
+				}
+				newBpm = bpm_;
+			}
+			// BPM CV method
+			else {
 				newBpm = (int) round( 120.0f * powf(2.0f, bpmInValue) );
 			}
 		}
 		else {
-			beatLock = false;
-			beatCount = 0;
 			newBpm = (int)(params[RATIO_PARAMS + 0].value + 0.5f);
-			bpmPulseHigh = false;
 		}
 		newBpm = clamp(newBpm, bpmMin, bpmMax);
 		if (scheduledReset)
@@ -813,7 +833,12 @@ struct ClockedWidget : ModuleWidget {
 			module->displayDelayNoteMode = !module->displayDelayNoteMode;
 		}
 	};
-	Menu *createContextMenu() override {
+	struct BpmDetectionItem : MenuItem {
+		Clocked *module;
+		void onAction(EventAction &e) override {
+			module->bpmDetectionMode = !module->bpmDetectionMode;
+		}
+	};	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
 		MenuLabel *spacerLabel = new MenuLabel();
@@ -847,6 +872,10 @@ struct ClockedWidget : ModuleWidget {
 		DelayDisplayNoteItem *ddnItem = MenuItem::create<DelayDisplayNoteItem>("Display Delay Values in Notes", CHECKMARK(module->displayDelayNoteMode));
 		ddnItem->module = module;
 		menu->addChild(ddnItem);
+
+		BpmDetectionItem *detectItem = MenuItem::create<BpmDetectionItem>("Use BPM Detection (as opposed to BPM CV)", CHECKMARK(module->bpmDetectionMode));
+		detectItem->module = module;
+		menu->addChild(detectItem);
 
 		menu->addChild(new MenuLabel());// empty line
 		
