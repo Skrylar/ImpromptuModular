@@ -210,6 +210,16 @@ struct WriteSeq64 : Module {
 		if (indexChannelJ)
 			indexChannel = json_integer_value(indexChannelJ);
 		
+		// indexStep
+		json_t *indexStepJ = json_object_get(rootJ, "indexStep");
+		if (indexStepJ)
+			for (int c = 0; c < 5; c++)
+			{
+				json_t *indexStepArrayJ = json_array_get(indexStepJ, c);
+				if (indexStepArrayJ)
+					indexStep[c] = json_integer_value(indexStepArrayJ);
+			}
+
 		// indexSteps
 		json_t *indexStepsJ = json_object_get(rootJ, "indexSteps");
 		if (indexStepsJ)
