@@ -62,7 +62,7 @@ struct Tact : Module {
 	
 	// No need to save, no reset
 	bool scheduledReset;
-	IMTactile* tactWidgets[2];		
+	//IMTactile* tactWidgets[2];		
 	long infoStore;// 0 when no info, positive downward step counter when store left channel, negative upward for right
 	float infoCVinLight[2];
 	SchmittTrigger topTriggers[2];
@@ -70,6 +70,7 @@ struct Tact : Module {
 	SchmittTrigger storeTriggers[2];
 	SchmittTrigger recallTriggers[2];
 	TriggerGenerator eocPulses[2];
+	float paramReadRequest[2]; 
 
 	
 	inline bool isLinked(void) {return params[LINK_PARAM].value > 0.5f;}
@@ -84,13 +85,14 @@ struct Tact : Module {
 		scheduledReset = false;
 		infoStore = 0l;
 		for (int i = 0; i < 2; i++) {
-			tactWidgets[i] = nullptr;
+			//tactWidgets[i] = nullptr;
 			infoCVinLight[i] = 0.0f;
 			topTriggers[i].reset();
 			botTriggers[i].reset();
 			storeTriggers[i].reset();
 			recallTriggers[i].reset();
 			eocPulses[i].reset();
+			paramReadRequest[i] = -10.0f;// -10.0f when no request being made, value to read otherwize
 		}
 		
 		onReset();
@@ -207,6 +209,7 @@ struct Tact : Module {
 				storeTriggers[i].reset();
 				recallTriggers[i].reset();
 				eocPulses[i].reset();
+				paramReadRequest[i] = -10.0f;// -10.0f when no request being made, value to read otherwize
 			}		
 		}
 		
@@ -223,20 +226,23 @@ struct Tact : Module {
 		// top/bot/recall CV inputs
 		for (int i = 0; i < 2; i++) {
 			if (topTriggers[i].process(inputs[TOP_INPUTS + i].value)) {
-				if ( tactWidgets[i] != nullptr && !(i == 1 && isLinked()) ) {// ignore right channel top cv in when linked
-					tactWidgets[i]->changeValue(10.0f);
+				if ( !(i == 1 && isLinked()) ) {// ignore right channel top cv in when linked
+					//tactWidgets[i]->changeValue(10.0f);
+					paramReadRequest[i] = 10.0f;
 					infoCVinLight[i] = 1.0f;
 				}
 			}
 			if (botTriggers[i].process(inputs[BOT_INPUTS + i].value)) {
-				if ( tactWidgets[i] != nullptr && !(i == 1 && isLinked()) ) {// ignore right channel bot cv in when linked
-					tactWidgets[i]->changeValue(0.0f);
+				if ( !(i == 1 && isLinked()) ) {// ignore right channel bot cv in when linked
+					//tactWidgets[i]->changeValue(0.0f);
+					paramReadRequest[i] = 0.0f;
 					infoCVinLight[i] = 1.0f;
 				}				
 			}
 			if (recallTriggers[i].process(inputs[RECALL_INPUTS + i].value)) {// ignore right channel recall cv in when linked
-				if ( tactWidgets[i] != nullptr && !(i == 1 && isLinked()) ) {
-					tactWidgets[i]->changeValue(storeCV[i]);
+				if ( !(i == 1 && isLinked()) ) {
+					//tactWidgets[i]->changeValue(storeCV[i]);
+					paramReadRequest[i] = storeCV[i];
 					if (params[SLIDE_PARAMS + i].value < 0.5f) //if no slide
 						cv[i]=storeCV[i];
 					infoCVinLight[i] = 1.0f;
@@ -248,6 +254,8 @@ struct Tact : Module {
 		// cv
 		bool expSliding = isExpSliding();
 		for (int i = 0; i < 2; i++) {
+			if (paramReadRequest[i] != -10.0f)
+				continue;			
 			float newParamValue = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
 			if (newParamValue != cv[i]) {
 				double transitionRate = params[RATE_PARAMS + i].value; // s/V
@@ -418,8 +426,8 @@ struct TactWidget : ModuleWidget {
 	}
 	
 	TactWidget(Tact *module) : ModuleWidget(module) {
-		IMTactile* tactL;
-		IMTactile* tactR;		
+		//IMTactile* tactL;
+		//IMTactile* tactR;		
 		this->module = module;
 		oldExpansion = -1;
 		
@@ -449,13 +457,9 @@ struct TactWidget : ModuleWidget {
 		
 		// Tactile touch pads
 		// Right (no dynamic width, but must do first so that left will get mouse events when wider overlaps)
-		tactR = createDynamicParam2<IMTactile>(Vec(colRulerPadR, rowRuler0), module, Tact::TACT_PARAMS + 1, -1.0f, 11.0f, 0.0f, nullptr);
-		addParam(tactR);
+		addParam(createDynamicParam2<IMTactile>(Vec(colRulerPadR, rowRuler0), module, Tact::TACT_PARAMS + 1, -1.0f, 11.0f, 0.0f, nullptr, &module->paramReadRequest[1]));
 		// Left (with width dependant on Link value)	
-		tactL = createDynamicParam2<IMTactile>(Vec(colRulerPadL, rowRuler0), module, Tact::TACT_PARAMS + 0, -1.0f, 11.0f, 0.0f,  &module->params[Tact::LINK_PARAM].value);
-		addParam(tactL);
-		module->tactWidgets[0] = tactL;
-		module->tactWidgets[1] = tactR;
+		addParam(createDynamicParam2<IMTactile>(Vec(colRulerPadL, rowRuler0), module, Tact::TACT_PARAMS + 0, -1.0f, 11.0f, 0.0f,  &module->params[Tact::LINK_PARAM].value, &module->paramReadRequest[0]));
 			
 
 			
@@ -557,6 +561,9 @@ struct TactWidget : ModuleWidget {
 Model *modelTact = Model::create<Tact, TactWidget>("Impromptu Modular", "Tact", "CTRL - Tact", CONTROLLER_TAG);
 
 /*CHANGE LOG
+
+0.6.9
+remove widget pointer dependancy in module for changing a tact param value
 
 0.6.8:
 implement exponential sliding

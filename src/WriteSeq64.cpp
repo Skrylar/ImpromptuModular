@@ -64,13 +64,13 @@ struct WriteSeq64 : Module {
 	int panelTheme = 0;
 	bool running;
 	int indexChannel;
+	int indexStep[5];// [0;63] each
 	int indexSteps[5];// [1;64] each
 	float cv[5][64];
 	bool gates[5][64];
 	bool resetOnRun;
 
 	// No need to save
-	int indexStep[5];// [0;63] each
 	float cvCPbuffer[64];// copy paste buffer for CVs
 	float gateCPbuffer[64];// copy paste buffer for gates
 	int stepsCPbuffer;
@@ -160,6 +160,12 @@ struct WriteSeq64 : Module {
 		// indexChannel
 		json_object_set_new(rootJ, "indexChannel", json_integer(indexChannel));
 		
+		// indexStep
+		json_t *indexStepJ = json_array();
+		for (int c = 0; c < 5; c++)
+			json_array_insert_new(indexStepJ, c, json_integer(indexStep[c]));
+		json_object_set_new(rootJ, "indexStep", indexStepJ);
+
 		// indexSteps 
 		json_t *indexStepsJ = json_array();
 		for (int c = 0; c < 5; c++)

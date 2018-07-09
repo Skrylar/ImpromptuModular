@@ -63,14 +63,14 @@ struct WriteSeq32 : Module {
 	// Need to save
 	int panelTheme = 0;
 	bool running;
+	int indexStep;
+	int indexStepStage;
 	int indexChannel;
 	float cv[4][32];
 	bool gates[4][32];
 	bool resetOnRun;
 
 	// No need to save
-	int indexStep;
-	int indexStepStage;
 	int notesPos[8]; // used for rendering notes in LCD_24, 8 gate and 8 step LEDs 
 	float cvCPbuffer[32];// copy paste buffer for CVs
 	bool gateCPbuffer[32];// copy paste buffer for gates
@@ -144,6 +144,12 @@ struct WriteSeq32 : Module {
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
 
+		// indexStep
+		json_object_set_new(rootJ, "indexStep", json_integer(indexStep));
+
+		// indexStepStage
+		json_object_set_new(rootJ, "indexStepStage", json_integer(indexStepStage));
+
 		// indexChannel
 		json_object_set_new(rootJ, "indexChannel", json_integer(indexChannel));
 
@@ -180,6 +186,16 @@ struct WriteSeq32 : Module {
 		if (runningJ)
 			running = json_is_true(runningJ);
 		
+		// indexStep
+		json_t *indexStepJ = json_object_get(rootJ, "indexStep");
+		if (indexStepJ)
+			indexStep = json_integer_value(indexStepJ);
+
+		// indexStepStage
+		json_t *indexStepStageJ = json_object_get(rootJ, "indexStepStage");
+		if (indexStepStageJ)
+			indexStepStage = json_integer_value(indexStepStageJ);
+
 		// indexChannel
 		json_t *indexChannelJ = json_object_get(rootJ, "indexChannel");
 		if (indexChannelJ)

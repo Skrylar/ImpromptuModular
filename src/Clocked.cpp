@@ -3,6 +3,7 @@
 //
 //Based on code from the Fundamental and Audible Instruments plugins by Andrew Belt and graphics  
 //  from the Component Library by Wes Milholen. 
+//BPM frequency detection code based on code by Tomasz Sosnowski (KoralFX)
 //See ./LICENSE.txt for all licenses
 //See ./res/fonts/ for font licenses
 //

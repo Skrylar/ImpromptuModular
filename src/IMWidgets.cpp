@@ -330,6 +330,7 @@ DynamicIMTactile::DynamicIMTactile() {
 	snap = false;
 	smooth = false;// must be false or else DynamicIMTactile::changeValue() call from module will crash Rack
 	wider = nullptr;
+	paramReadRequest = nullptr;
 	oldWider = -1.0f;
 	box.size = Vec(padWidth, padHeight);
 }
@@ -344,6 +345,13 @@ void DynamicIMTactile::step() {
 		}
         oldWider = *wider;
     }	
+	if (paramReadRequest != nullptr) {
+		float readVal = *paramReadRequest;
+		if (readVal != -10.0f) {
+			setValue(readVal);
+			*paramReadRequest = -10.0f;
+		}
+	}
 	FramebufferWidget::step();
 }
 
@@ -372,8 +380,8 @@ void DynamicIMTactile::onMouseDown(EventMouseDown &e) {
 	ParamWidget::onMouseDown(e);
 }
 
-void DynamicIMTactile::changeValue(float newVal) {
-	setValue(newVal);
-}
+//void DynamicIMTactile::changeValue(float newVal) {
+//	setValue(newVal);
+//}
 
 
