@@ -531,7 +531,9 @@ struct Clocked : Module {
 		if (inputs[BPM_INPUT].active) { 
 			float bpmInValue = inputs[BPM_INPUT].value;
 			
-			// Clock detection method
+			// Clock detection method base on KoralFX code
+			// When using AS_BPM_Cala and FrankBuss' Formula for comparisons, 
+			//    use output “1” of AS BPM and formula "log10((240/x)/120)/log10(2)"
 			if (bpmDetectionMode) {
 				// rising edge detected
 				if (bpmInValue > 1.0f && !bpmPulseHigh) {// 30 to 300 BPM is -2 to 1.32194 Volts

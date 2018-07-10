@@ -17,7 +17,7 @@ Impromptu Modular is not a single-person endeavor:
 
 * Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in Talking Rackheads [epsiode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg), as well as PhraseSeq32 and GateSeq64 in [episode 10](https://www.youtube.com/watch?v=bjqWwTKqERQ). 
 * Thanks to **Xavier Belmont** for suggesting improvements to the modules, for testing/bug-reports, for the concept design of the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
-* Thanks to **Alfredo Santamaria**, **Nay Seven**, **Omri Cohen**, **Alberto Zamora**, **Clément Foulc** and **Latif Fital** for suggesting improvements to the modules, bug reports and testing.
+* Thanks to **Alfredo Santamaria**, **Nay Seven**, **Omri Cohen**, **Alberto Zamora**, **Clément Foulc**, **Steve Baker** and **Latif Fital** for suggesting improvements to the modules, bug reports and testing.
 
 
 
@@ -136,9 +136,11 @@ For a tutorial on Clocked regarding chaining, clock multiplications and division
 
 In place of a detailed explanation of these three main controls, it is recommended to connect the outputs to a scope or a logic analyzer, such as the Fundamental Scope (pictured above) or the SubmarineFree LA-108, to observe the effects of the different controls.
 
-The PW and Swing CV inputs (some are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default position. When this is the case, no-swing and normal-pulse-width (50% duty cycle) correspond to 5V on the CV inputs.
+The PW and Swing **CV inputs** (some are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default position. When this is the case, no-swing and normal-pulse-width correspond to 5V on the CV inputs.
 
-By default, the clock's BPM input is level sensitive and follows [Rack standards for BPM CVs](https://vcvrack.com/manual/VoltageStandards.html#pitch-and-frequencies). For getting the BPM from an external clock signal, an optional setting is available in the right-click menu called "Use BPM Detection (as opposed to BPM CV)". When using this option in a chain of Clocked modules, only the first module in the chain must have this option checked. The green LED to the right of the main BPM display will light up when a BPM is properly detected and locked. Also keep in mind that Clocked rounds all BPM values to their nearest integers, and for this and other reasons, there is no guarantee that Clocked will stay perfectly synchronized to incomming clock pulses over long periods of time. Proper use of resets can help mitigate these issues.
+By default, the clock's BPM input is level sensitive and follows [Rack standards for BPM CVs](https://vcvrack.com/manual/VoltageStandards.html#pitch-and-frequencies). For getting the BPM from an external clock signal, an optional setting is available in the right-click menu called "**Use BPM Detection (as opposed to BPM CV)**". When using this option in a chain of Clocked modules, only the first module in the chain must have this option checked (**NOTE**: in version 0.6.8, all modules have to have the option checked, but this has been corrected in the source files and will be done in the 0.6.9 release; by using BPM detection with chaining now, you will have to adjust your patch after the next release). The green LED to the right of the main BPM display will light up when a BPM is properly detected and locked. Also keep in mind that Clocked rounds all BPM values to their nearest integers, and for this and other reasons, there is no guarantee that Clocked will stay perfectly synchronized to incoming clock pulses over long periods of time. Proper use of resets can help mitigate these issues.
+
+Finally, when using the BPM detection method, another menu setting allows the module to use **4PPQN BPM detection** (4 pulses per quarter note), whereby the module needs to be clocked at a rate 4 times higher than normal (which is implicitly 1PPQN). This has the advantage of faster synchronization when the BPM changes.
 
 ([Back to module list](#modules))
 
