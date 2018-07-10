@@ -279,6 +279,7 @@ struct Clocked : Module {
 	int expansion;
 	bool displayDelayNoteMode;
 	bool bpmDetectionMode;
+	bool bpmDetection4ppqnMode;
 	
 	// No need to save, with reset
 	// none
@@ -316,6 +317,7 @@ struct Clocked : Module {
 		expansion = 0;
 		displayDelayNoteMode = true;
 		bpmDetectionMode = false;
+		bpmDetection4ppqnMode = false;
 		// No need to save, no reset
 		scheduledReset = false;
 		for (int i = 0; i < 4; i++) {
@@ -395,6 +397,9 @@ struct Clocked : Module {
 		// bpmDetectionMode
 		json_object_set_new(rootJ, "bpmDetectionMode", json_boolean(bpmDetectionMode));
 		
+		// bpmDetection4ppqnMode
+		json_object_set_new(rootJ, "bpmDetection4ppqnMode", json_boolean(bpmDetection4ppqnMode));
+		
 		return rootJ;
 	}
 
@@ -427,6 +432,11 @@ struct Clocked : Module {
 		json_t *bpmDetectionModeJ = json_object_get(rootJ, "bpmDetectionMode");
 		if (bpmDetectionModeJ)
 			bpmDetectionMode = json_is_true(bpmDetectionModeJ);
+
+		// bpmDetection4ppqnMode
+		json_t *bpmDetection4ppqnModeJ = json_object_get(rootJ, "bpmDetection4ppqnMode");
+		if (bpmDetection4ppqnModeJ)
+			bpmDetection4ppqnMode = json_is_true(bpmDetection4ppqnModeJ);
 
 		// No need to save, with reset
 		// none
@@ -550,7 +560,7 @@ struct Clocked : Module {
 				
 				// when BPM is locked
 				if (beatLock) {
-					bpm_ = (int)(60.0 / beatOld + 0.5);
+					bpm_ = (int)((bpmDetection4ppqnMode ? 15.0 : 60.0) / beatOld + 0.5);
 					if (bpm_ != last_bpm)
 						last_bpm = bpm_;
 				} 
@@ -711,7 +721,7 @@ struct Clocked : Module {
 		// Chaining outputs
 		outputs[RESET_OUTPUT].value = (resetPulse.process((float)sampleTime) ? 10.0f : 0.0f);
 		outputs[RUN_OUTPUT].value = (runPulse.process((float)sampleTime) ? 10.0f : 0.0f);
-		outputs[BPM_OUTPUT].value =  (inputs[BPM_INPUT].active ? inputs[BPM_INPUT].value : log2f(1.0f / (2.0f * masterPeriod)));
+		outputs[BPM_OUTPUT].value =  /*inputs[BPM_INPUT].active ? inputs[BPM_INPUT].value :*/ log2f(1.0f / (2.0f * masterPeriod));
 			
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
@@ -838,7 +848,14 @@ struct ClockedWidget : ModuleWidget {
 		void onAction(EventAction &e) override {
 			module->bpmDetectionMode = !module->bpmDetectionMode;
 		}
-	};	Menu *createContextMenu() override {
+	};	
+	struct BpmDetection4ppqnItem : MenuItem {
+		Clocked *module;
+		void onAction(EventAction &e) override {
+			module->bpmDetection4ppqnMode = !module->bpmDetection4ppqnMode;
+		}
+	};	
+	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
 		MenuLabel *spacerLabel = new MenuLabel();
@@ -876,6 +893,10 @@ struct ClockedWidget : ModuleWidget {
 		BpmDetectionItem *detectItem = MenuItem::create<BpmDetectionItem>("Use BPM Detection (as opposed to BPM CV)", CHECKMARK(module->bpmDetectionMode));
 		detectItem->module = module;
 		menu->addChild(detectItem);
+
+		BpmDetection4ppqnItem *detect4Item = MenuItem::create<BpmDetection4ppqnItem>("4PPQN BPM Detect (as opposed to 1PPQN)", CHECKMARK(module->bpmDetection4ppqnMode));
+		detect4Item->module = module;
+		menu->addChild(detect4Item);
 
 		menu->addChild(new MenuLabel());// empty line
 		
@@ -1036,6 +1057,10 @@ struct ClockedWidget : ModuleWidget {
 Model *modelClocked = Model::create<Clocked, ClockedWidget>("Impromptu Modular", "Clocked", "CLK - Clocked", CLOCK_TAG);
 
 /*CHANGE LOG
+
+0.6.9:
+fixed chaining bpm output bug when using BPM detection (now always a BPM CV chain out)
+added 4PPQN option when using BPM detection
 
 0.6.8:
 replace bit-ring-buffer delay engine with event-based delay engine
