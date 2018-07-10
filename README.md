@@ -123,7 +123,7 @@ For a brief tutorial on setting up the controller, please see [this segment](htt
 
 ![IM](res/img/Clocked.jpg)
 
-A chainable master clock module with swing, clock delay and pulse width controls, with master BPM from 30 to 300 and all mult/div ratios up to 16, including 1.5 and 2.5, and with additional ratios spanning prime numbers and powers of two up to 64. The clock can produce waveforms with adjustable pulse widths for use with envelope generators or sequencers that use the clock pulse to produce their gate signals. The clock's BPM input is level sensitive and follows [Rack standards for BPM CVs](https://vcvrack.com/manual/VoltageStandards.html#pitch-and-frequencies); synchronizing it to an external clock signal is not possible.
+A chainable master clock module with swing, clock delay and pulse width controls, with master BPM from 30 to 300 and all mult/div ratios up to 16, including 1.5 and 2.5, and with additional ratios spanning prime numbers and powers of two up to 64. The clock can produce waveforms with adjustable pulse widths for use with envelope generators or sequencers that use the clock pulse to produce their gate signals. 
 
 For a tutorial on Clocked regarding chaining, clock multiplications and divisions, swing and clock delay features, please see Nigel Sixsmith's [Talking Rackheads episode 12](https://www.youtube.com/watch?v=KOpo2oUPTjg). 
 
@@ -137,6 +137,8 @@ For a tutorial on Clocked regarding chaining, clock multiplications and division
 In place of a detailed explanation of these three main controls, it is recommended to connect the outputs to a scope or a logic analyzer, such as the Fundamental Scope (pictured above) or the SubmarineFree LA-108, to observe the effects of the different controls.
 
 The PW and Swing CV inputs (some are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default position. When this is the case, no-swing and normal-pulse-width (50% duty cycle) correspond to 5V on the CV inputs.
+
+By default, the clock's BPM input is level sensitive and follows [Rack standards for BPM CVs](https://vcvrack.com/manual/VoltageStandards.html#pitch-and-frequencies). For getting the BPM from an external clock signal, an optional setting is available in the right-click menu called "Use BPM Detection (as opposed to BPM CV)". When using this option in a chain of Clocked modules, only the first module in the chain must have this option checked. The green LED to the right of the main BPM display will light up when a BPM is properly detected and locked. Also keep in mind that Clocked rounds all BPM values to their nearest integers, and for this an other reasons, there is no guarantee that Clocked will stay perfectly synchronized to incomming clock pulses over long periods of time. Proper use of resets can help mitigate these issues.
 
 ([Back to module list](#modules))
 

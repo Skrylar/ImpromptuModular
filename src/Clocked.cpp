@@ -1037,11 +1037,9 @@ Model *modelClocked = Model::create<Clocked, ClockedWidget>("Impromptu Modular",
 
 /*CHANGE LOG
 
-0.6.9:
-replace bit-ring-buffer delay engine with event-based delay engine
-add BPM pulse frequency vs CV level autodetect 
-
 0.6.8:
+replace bit-ring-buffer delay engine with event-based delay engine
+add BPM pulse frequency vs CV level option in right click settings
 updated BPM CV levels (in, out) to new Rack standard for clock CVs
 
 0.6.7:

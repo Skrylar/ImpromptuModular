@@ -562,10 +562,8 @@ Model *modelTact = Model::create<Tact, TactWidget>("Impromptu Modular", "Tact", 
 
 /*CHANGE LOG
 
-0.6.9
-remove widget pointer dependancy in module for changing a tact param value
-
 0.6.8:
+remove widget pointer dependancy in module for changing a tact param value
 implement exponential sliding
 add expansion panel with EOC outputs 
 
