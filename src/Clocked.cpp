@@ -279,7 +279,7 @@ struct Clocked : Module {
 	int expansion;
 	bool displayDelayNoteMode;
 	bool bpmDetectionMode;
-	bool bpmDetection4ppqnMode;
+	int ppqn;
 	
 	// No need to save, with reset
 	// none
@@ -317,7 +317,7 @@ struct Clocked : Module {
 		expansion = 0;
 		displayDelayNoteMode = true;
 		bpmDetectionMode = false;
-		bpmDetection4ppqnMode = false;
+		ppqn = 1;
 		// No need to save, no reset
 		scheduledReset = false;
 		for (int i = 0; i < 4; i++) {
@@ -397,8 +397,8 @@ struct Clocked : Module {
 		// bpmDetectionMode
 		json_object_set_new(rootJ, "bpmDetectionMode", json_boolean(bpmDetectionMode));
 		
-		// bpmDetection4ppqnMode
-		json_object_set_new(rootJ, "bpmDetection4ppqnMode", json_boolean(bpmDetection4ppqnMode));
+		// ppqn
+		json_object_set_new(rootJ, "ppqn", json_integer(ppqn));
 		
 		return rootJ;
 	}
@@ -433,10 +433,10 @@ struct Clocked : Module {
 		if (bpmDetectionModeJ)
 			bpmDetectionMode = json_is_true(bpmDetectionModeJ);
 
-		// bpmDetection4ppqnMode
-		json_t *bpmDetection4ppqnModeJ = json_object_get(rootJ, "bpmDetection4ppqnMode");
-		if (bpmDetection4ppqnModeJ)
-			bpmDetection4ppqnMode = json_is_true(bpmDetection4ppqnModeJ);
+		// ppqn
+		json_t *ppqnJ = json_object_get(rootJ, "ppqn");
+		if (ppqnJ)
+			ppqn = json_integer_value(ppqnJ);
 
 		// No need to save, with reset
 		// none
@@ -562,7 +562,7 @@ struct Clocked : Module {
 				
 				// when BPM is locked
 				if (beatLock) {
-					bpm_ = (int)((bpmDetection4ppqnMode ? 15.0 : 60.0) / beatOld + 0.5);
+					bpm_ = (int)( 60.0 / ((double)ppqn * beatOld) + 0.5 );
 					if (bpm_ != last_bpm)
 						last_bpm = bpm_;
 				} 
@@ -851,10 +851,44 @@ struct ClockedWidget : ModuleWidget {
 			module->bpmDetectionMode = !module->bpmDetectionMode;
 		}
 	};	
-	struct BpmDetection4ppqnItem : MenuItem {
+	struct BpmPpqnItem : MenuItem {
 		Clocked *module;
+		int oldPpqn = -1;
 		void onAction(EventAction &e) override {
-			module->bpmDetection4ppqnMode = !module->bpmDetection4ppqnMode;
+			if (module->ppqn == 1) {
+				module->ppqn = 4;
+			}
+			else if (module->ppqn == 4) {
+				module->ppqn = 8;
+			}
+			else if (module->ppqn == 8) {
+				module->ppqn = 24;
+			}
+			else {
+				module->ppqn = 1;
+			}	
+		}
+		void step() override {
+			if (oldPpqn != module->ppqn) {
+				oldPpqn = module->ppqn;
+			
+				if (oldPpqn == 1) {
+					text = "  PPQN: <1>, 4, 8, 24";
+				}
+				else if (oldPpqn == 4) {
+					text = "  PPQN: 1, <4>, 8, 24";
+				}
+				else if (module->ppqn == 8) {
+					text = "  PPQN: 1, 4, <8>, 24";
+				}
+				else if (module->ppqn == 24) {
+					text = "  PPQN: 1, 4, 8, <24>";
+				}
+				else {
+					text = "  PPQN: *error*";
+				}	
+			}
+			MenuItem::step();
 		}
 	};	
 	Menu *createContextMenu() override {
@@ -896,7 +930,7 @@ struct ClockedWidget : ModuleWidget {
 		detectItem->module = module;
 		menu->addChild(detectItem);
 
-		BpmDetection4ppqnItem *detect4Item = MenuItem::create<BpmDetection4ppqnItem>("4PPQN BPM Detect (as opposed to 1PPQN)", CHECKMARK(module->bpmDetection4ppqnMode));
+		BpmPpqnItem *detect4Item = MenuItem::create<BpmPpqnItem>("  PPQN", CHECKMARK(false));
 		detect4Item->module = module;
 		menu->addChild(detect4Item);
 
