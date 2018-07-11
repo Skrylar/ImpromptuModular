@@ -189,15 +189,15 @@ class ClockDelay2 {
 	}
 	
 	void write(int value) {
-		if (value == 1) {
+		if (value == 1) {// first pulse is high
 			if (lastWriteValue == 0) // if got rise 1
 				stepRise1 = stepCounter;
 		}
-		else if (value == 2) {
+		else if (value == 2) {// second pulse is high
 			if (lastWriteValue == 0) // if got rise 2
 				stepRise2 = stepCounter;
 		}
-		else {// value = 0
+		else {// value = 0 (pulse is low)
 			if (lastWriteValue == 1) // if got fall 1
 				stepFall1 = stepCounter;
 			else if (lastWriteValue == 2) // if got fall 2
@@ -279,7 +279,7 @@ struct Clocked : Module {
 	int expansion;
 	bool displayDelayNoteMode;
 	bool bpmDetectionMode;
-	long ppqn;
+	int ppqn;
 	
 	// No need to save, with reset
 	// none
@@ -317,7 +317,7 @@ struct Clocked : Module {
 		expansion = 0;
 		displayDelayNoteMode = true;
 		bpmDetectionMode = false;
-		ppqn = 1l;
+		ppqn = 1;
 		// No need to save, no reset
 		scheduledReset = false;
 		for (int i = 0; i < 4; i++) {
@@ -398,7 +398,7 @@ struct Clocked : Module {
 		json_object_set_new(rootJ, "bpmDetectionMode", json_boolean(bpmDetectionMode));
 		
 		// ppqn
-		json_object_set_new(rootJ, "ppqn", json_integer((int)ppqn));
+		json_object_set_new(rootJ, "ppqn", json_integer(ppqn));
 		
 		return rootJ;
 	}
@@ -436,7 +436,7 @@ struct Clocked : Module {
 		// ppqn
 		json_t *ppqnJ = json_object_get(rootJ, "ppqn");
 		if (ppqnJ)
-			ppqn = (long)json_integer_value(ppqnJ);
+			ppqn = json_integer_value(ppqnJ);
 
 		// No need to save, with reset
 		// none
@@ -539,15 +539,17 @@ struct Clocked : Module {
 				if (bpmInValue > 1.0f && !bpmPulseHigh) {// 30 to 300 BPM is -2 to 1.32194 Volts
 					beatCount++;
 					bpmPulseHigh = true;
-				 
-					if (beatCount % ppqn == 0) { 
+					long ppqnPartial = (long)(ppqn == 1 ? 1 : ppqn / 2); // part of the ppqn implementation is right below with modulo, other part is in 60.0 line further down
+																		 //   Was split so best compromise between lock-speed and high-ppqn stability of BPM detect
+					
+					if (beatCount % ppqnPartial == 0) { 
 						// bpm locked
-						if ( (beatCount/ppqn) == 1l ) {
+						if ( (beatCount/ppqnPartial) == 1l ) {
 							beatLock = true;
 							beatOld = beatTime;
 						}
 						// bpm lost
-						if ( (beatCount/ppqn) > 1l ) {
+						if ( (beatCount/ppqnPartial) > 1l ) {
 							if ( fabs( beatOld - beatTime ) > 0.0005f ) {
 								beatLock = false;
 								beatCount = -1l;
@@ -564,7 +566,7 @@ struct Clocked : Module {
 				
 				// when BPM is locked
 				if (beatLock) {
-					bpm_ = (int)( 60.0 / beatOld + 0.5 );
+					bpm_ = (int)( (ppqn == 1 ? 60.0 : 30.0) / beatOld + 0.5 );// other part of ppqn implementation.
 					if (bpm_ != last_bpm)
 						last_bpm = bpm_;
 				} 
@@ -855,35 +857,35 @@ struct ClockedWidget : ModuleWidget {
 	};	
 	struct BpmPpqnItem : MenuItem {
 		Clocked *module;
-		long oldPpqn = -1;
+		int oldPpqn = -1;
 		void onAction(EventAction &e) override {
-			if (module->ppqn == 1l) {
-				module->ppqn = 4l;
+			if (module->ppqn == 1) {
+				module->ppqn = 4;
 			}
-			else if (module->ppqn == 4l) {
-				module->ppqn = 8l;
+			else if (module->ppqn == 4) {
+				module->ppqn = 8;
 			}
-			else if (module->ppqn == 8l) {
-				module->ppqn = 24l;
+			else if (module->ppqn == 8) {
+				module->ppqn = 24;
 			}
 			else {
-				module->ppqn = 1l;
+				module->ppqn = 1;
 			}	
 		}
 		void step() override {
 			if (oldPpqn != module->ppqn) {
 				oldPpqn = module->ppqn;
 			
-				if (oldPpqn == 1l) {
+				if (oldPpqn == 1) {
 					text = "BPM detection PPQN: <1>, 4, 8, 24";
 				}
-				else if (oldPpqn == 4l) {
+				else if (oldPpqn == 4) {
 					text = "BPM detection PPQN: 1, <4>, 8, 24";
 				}
-				else if (module->ppqn == 8l) {
+				else if (module->ppqn == 8) {
 					text = "BPM detection PPQN: 1, 4, <8>, 24";
 				}
-				else if (module->ppqn == 24l) {
+				else if (module->ppqn == 24) {
 					text = "BPM detection PPQN: 1, 4, 8, <24>";
 				}
 				else {
