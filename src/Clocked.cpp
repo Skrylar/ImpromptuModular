@@ -279,7 +279,7 @@ struct Clocked : Module {
 	int expansion;
 	bool displayDelayNoteMode;
 	bool bpmDetectionMode;
-	int ppqn;
+	long ppqn;
 	
 	// No need to save, with reset
 	// none
@@ -317,7 +317,7 @@ struct Clocked : Module {
 		expansion = 0;
 		displayDelayNoteMode = true;
 		bpmDetectionMode = false;
-		ppqn = 1;
+		ppqn = 1l;
 		// No need to save, no reset
 		scheduledReset = false;
 		for (int i = 0; i < 4; i++) {
@@ -341,7 +341,7 @@ struct Clocked : Module {
 		beatTime = 0.0;
 		beatOld = 0.0;
 		bpmPulseHigh = false;
-		beatCount = 0l;
+		beatCount = -1l;
 		beatLock = false;
 		bpm_ = 120;// do not reset anywhere else
 		last_bpm = 0;// do not reset anywhere else
@@ -398,7 +398,7 @@ struct Clocked : Module {
 		json_object_set_new(rootJ, "bpmDetectionMode", json_boolean(bpmDetectionMode));
 		
 		// ppqn
-		json_object_set_new(rootJ, "ppqn", json_integer(ppqn));
+		json_object_set_new(rootJ, "ppqn", json_integer((int)ppqn));
 		
 		return rootJ;
 	}
@@ -436,7 +436,7 @@ struct Clocked : Module {
 		// ppqn
 		json_t *ppqnJ = json_object_get(rootJ, "ppqn");
 		if (ppqnJ)
-			ppqn = json_integer_value(ppqnJ);
+			ppqn = (long)json_integer_value(ppqnJ);
 
 		// No need to save, with reset
 		// none
@@ -503,7 +503,7 @@ struct Clocked : Module {
 			beatTime = 0.0;
 			beatOld = 0.0;
 			bpmPulseHigh = false;
-			beatCount = 0l;
+			beatCount = -1l;
 			beatLock = false;
 		}
 		
@@ -531,28 +531,30 @@ struct Clocked : Module {
 		if (inputs[BPM_INPUT].active) { 
 			float bpmInValue = inputs[BPM_INPUT].value;
 			
-			// Clock detection method base on KoralFX code
-			// When using AS_BPM_Cala and FrankBuss' Formula for comparisons, 
-			//    use output “1” of AS BPM and formula "log10((240/x)/120)/log10(2)"
+			// Clock detection method based on KoralFX code (modified by Marc Boulé)
+			// When using AS_BPM_Calc and FrankBuss' Formula for comparisons, 
+			//    use output “1” of AS BPM_Calc and formula "log10((240/x)/120)/log10(2)"
 			if (bpmDetectionMode) {
 				// rising edge detected
 				if (bpmInValue > 1.0f && !bpmPulseHigh) {// 30 to 300 BPM is -2 to 1.32194 Volts
 					beatCount++;
 					bpmPulseHigh = true;
 				 
-					// bpm locked
-					if ( beatCount == 2 ) {
-						beatLock = true;
-						beatOld = beatTime;
-					}
-					// bpm lost
-					if ( beatCount > 2 ) {
-						if ( fabs( beatOld - beatTime ) > 0.0005f ) {
-							beatLock = false;
-							beatCount = 0;
+					if (beatCount % ppqn == 0) { 
+						// bpm locked
+						if ( (beatCount/ppqn) == 1l ) {
+							beatLock = true;
+							beatOld = beatTime;
 						}
+						// bpm lost
+						if ( (beatCount/ppqn) > 1l ) {
+							if ( fabs( beatOld - beatTime ) > 0.0005f ) {
+								beatLock = false;
+								beatCount = -1l;
+							}
+						}
+						beatTime = 0.0f;
 					}
-					beatTime = 0.0f;
 				}
 				
 				// reset rising edge detect (falling edge)
@@ -562,7 +564,7 @@ struct Clocked : Module {
 				
 				// when BPM is locked
 				if (beatLock) {
-					bpm_ = (int)( 60.0 / ((double)ppqn * beatOld) + 0.5 );
+					bpm_ = (int)( 60.0 / beatOld + 0.5 );
 					if (bpm_ != last_bpm)
 						last_bpm = bpm_;
 				} 
@@ -572,7 +574,7 @@ struct Clocked : Module {
 				// beat is lost
 				if ( beatTime > 2.0f ) {
 					beatLock = false;
-					beatCount = 0;
+					beatCount = -1l;
 				}
 				newBpm = bpm_;
 			}
@@ -853,39 +855,39 @@ struct ClockedWidget : ModuleWidget {
 	};	
 	struct BpmPpqnItem : MenuItem {
 		Clocked *module;
-		int oldPpqn = -1;
+		long oldPpqn = -1;
 		void onAction(EventAction &e) override {
-			if (module->ppqn == 1) {
-				module->ppqn = 4;
+			if (module->ppqn == 1l) {
+				module->ppqn = 4l;
 			}
-			else if (module->ppqn == 4) {
-				module->ppqn = 8;
+			else if (module->ppqn == 4l) {
+				module->ppqn = 8l;
 			}
-			else if (module->ppqn == 8) {
-				module->ppqn = 24;
+			else if (module->ppqn == 8l) {
+				module->ppqn = 24l;
 			}
 			else {
-				module->ppqn = 1;
+				module->ppqn = 1l;
 			}	
 		}
 		void step() override {
 			if (oldPpqn != module->ppqn) {
 				oldPpqn = module->ppqn;
 			
-				if (oldPpqn == 1) {
-					text = "  PPQN: <1>, 4, 8, 24";
+				if (oldPpqn == 1l) {
+					text = "BPM detection PPQN: <1>, 4, 8, 24";
 				}
-				else if (oldPpqn == 4) {
-					text = "  PPQN: 1, <4>, 8, 24";
+				else if (oldPpqn == 4l) {
+					text = "BPM detection PPQN: 1, <4>, 8, 24";
 				}
-				else if (module->ppqn == 8) {
-					text = "  PPQN: 1, 4, <8>, 24";
+				else if (module->ppqn == 8l) {
+					text = "BPM detection PPQN: 1, 4, <8>, 24";
 				}
-				else if (module->ppqn == 24) {
-					text = "  PPQN: 1, 4, 8, <24>";
+				else if (module->ppqn == 24l) {
+					text = "BPM detection PPQN: 1, 4, 8, <24>";
 				}
 				else {
-					text = "  PPQN: *error*";
+					text = "BPM detection PPQN: *error*";
 				}	
 			}
 			MenuItem::step();
@@ -930,7 +932,7 @@ struct ClockedWidget : ModuleWidget {
 		detectItem->module = module;
 		menu->addChild(detectItem);
 
-		BpmPpqnItem *detect4Item = MenuItem::create<BpmPpqnItem>("  PPQN", CHECKMARK(false));
+		BpmPpqnItem *detect4Item = MenuItem::create<BpmPpqnItem>("PPQN", CHECKMARK(false));
 		detect4Item->module = module;
 		menu->addChild(detect4Item);
 
@@ -1096,7 +1098,7 @@ Model *modelClocked = Model::create<Clocked, ClockedWidget>("Impromptu Modular",
 
 0.6.9:
 fixed chaining bpm output bug when using BPM detection (now always a BPM CV chain out)
-added 4PPQN option when using BPM detection
+added 4, 8, 24 PPQN option when using BPM detection
 
 0.6.8:
 replace bit-ring-buffer delay engine with event-based delay engine
