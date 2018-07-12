@@ -62,7 +62,6 @@ struct Tact : Module {
 	
 	// No need to save, no reset
 	bool scheduledReset;
-	//IMTactile* tactWidgets[2];		
 	long infoStore;// 0 when no info, positive downward step counter when store left channel, negative upward for right
 	float infoCVinLight[2];
 	SchmittTrigger topTriggers[2];
@@ -85,7 +84,6 @@ struct Tact : Module {
 		scheduledReset = false;
 		infoStore = 0l;
 		for (int i = 0; i < 2; i++) {
-			//tactWidgets[i] = nullptr;
 			infoCVinLight[i] = 0.0f;
 			topTriggers[i].reset();
 			botTriggers[i].reset();
@@ -354,8 +352,9 @@ struct Tact : Module {
 
 struct TactWidget : ModuleWidget {
 	Tact *module;
-	DynamicSVGPanelEx *panel;
+	DynamicSVGPanel *panel;
 	int oldExpansion;
+	int expWidth = 60;
 	IMPort* expPorts[5];
 
 
@@ -421,34 +420,31 @@ struct TactWidget : ModuleWidget {
 			}
 			oldExpansion = module->expansion;		
 		}
-		box.size = panel->box.size;
+		box.size.x = panel->box.size.x - (1 - module->expansion) * expWidth;
 		Widget::step();
 	}
 	
 	TactWidget(Tact *module) : ModuleWidget(module) {
-		//IMTactile* tactL;
-		//IMTactile* tactR;		
 		this->module = module;
 		oldExpansion = -1;
 		
 		// Main panel from Inkscape
-        panel = new DynamicSVGPanelEx();
+        panel = new DynamicSVGPanel();
         panel->mode = &module->panelTheme;
-        panel->expansion = &module->expansion;
+		panel->expWidth = &expWidth;
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Tact.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/Tact_dark.svg")));
-        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/light/TactExp.svg")));
-        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/dark/TactExp_dark.svg")));
         box.size = panel->box.size;
+		box.size.x = box.size.x - (1 - module->expansion) * expWidth;
         addChild(panel);		
 		
 		// Screws
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 0), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 365), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x+30, 0), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x+30, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30-expWidth, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30-expWidth, 365), &module->panelTheme));
 		
 		
 		static const int rowRuler0 = 34;

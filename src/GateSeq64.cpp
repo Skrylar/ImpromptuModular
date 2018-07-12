@@ -833,8 +833,9 @@ struct GateSeq64 : Module {
 
 struct GateSeq64Widget : ModuleWidget {
 	GateSeq64 *module;
-	DynamicSVGPanelEx *panel;
+	DynamicSVGPanel *panel;
 	int oldExpansion;
+	int expWidth = 60;
 	IMPort* expPorts[5];
 		
 	struct SequenceDisplayWidget : TransparentWidget {
@@ -989,7 +990,7 @@ struct GateSeq64Widget : ModuleWidget {
 			}
 			oldExpansion = module->expansion;		
 		}
-		box.size = panel->box.size;
+		box.size.x = panel->box.size.x - (1 - module->expansion) * expWidth;
 		Widget::step();
 	}
 
@@ -998,23 +999,22 @@ struct GateSeq64Widget : ModuleWidget {
 		oldExpansion = -1;
 		
 		// Main panel from Inkscape
-        panel = new DynamicSVGPanelEx();
+        panel = new DynamicSVGPanel();
         panel->mode = &module->panelTheme;
-        panel->expansion = &module->expansion;
+		panel->expWidth = &expWidth;
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/GateSeq64.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/GateSeq64_dark.svg")));
-        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/light/GateSeqExp.svg")));
-        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/dark/GateSeqExp_dark.svg")));
         box.size = panel->box.size;
+		box.size.x = box.size.x - (1 - module->expansion) * expWidth;
         addChild(panel);		
 		
 		// Screws
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 0), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 365), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x+30, 0), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x+30, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30-expWidth, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30-expWidth, 365), &module->panelTheme));
 		
 		
 		// ****** Top portion (2 switches and LED button array ******

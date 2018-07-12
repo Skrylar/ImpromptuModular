@@ -1152,8 +1152,9 @@ struct PhraseSeq16 : Module {
 
 struct PhraseSeq16Widget : ModuleWidget {
 	PhraseSeq16 *module;
-	DynamicSVGPanelEx *panel;
+	DynamicSVGPanel *panel;
 	int oldExpansion;
+	int expWidth = 60;
 	IMPort* expPorts[5];
 
 	struct SequenceDisplayWidget : TransparentWidget {
@@ -1270,16 +1271,6 @@ struct PhraseSeq16Widget : ModuleWidget {
 
 		menu->addChild(new MenuLabel());// empty line
 		
-		MenuLabel *expansionLabel = new MenuLabel();
-		expansionLabel->text = "Expansion module";
-		menu->addChild(expansionLabel);
-
-		ExpansionItem *expItem = MenuItem::create<ExpansionItem>(expansionMenuLabel, CHECKMARK(module->expansion != 0));
-		expItem->module = module;
-		menu->addChild(expItem);
-		
-		menu->addChild(new MenuLabel());// empty line
-		
 		MenuLabel *settingsLabel = new MenuLabel();
 		settingsLabel->text = "Settings";
 		menu->addChild(settingsLabel);
@@ -1287,6 +1278,16 @@ struct PhraseSeq16Widget : ModuleWidget {
 		ResetOnRunItem *rorItem = MenuItem::create<ResetOnRunItem>("Reset on Run", CHECKMARK(module->resetOnRun));
 		rorItem->module = module;
 		menu->addChild(rorItem);
+		
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *expansionLabel = new MenuLabel();
+		expansionLabel->text = "Expansion module";
+		menu->addChild(expansionLabel);
+
+		ExpansionItem *expItem = MenuItem::create<ExpansionItem>(expansionMenuLabel, CHECKMARK(module->expansion != 0));
+		expItem->module = module;
+		menu->addChild(expItem);
 		
 		return menu;
 	}	
@@ -1299,7 +1300,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 			}
 			oldExpansion = module->expansion;		
 		}
-		box.size = panel->box.size;
+		box.size.x = panel->box.size.x - (1 - module->expansion) * expWidth;
 		Widget::step();
 	}
 	
@@ -1308,23 +1309,22 @@ struct PhraseSeq16Widget : ModuleWidget {
 		oldExpansion = -1;
 		
 		// Main panel from Inkscape
-        panel = new DynamicSVGPanelEx();
+        panel = new DynamicSVGPanel();
         panel->mode = &module->panelTheme;
-        panel->expansion = &module->expansion;
+		panel->expWidth = &expWidth;
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq16.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/PhraseSeq16_dark.svg")));
-        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/light/PhraseSeqExp.svg")));
-        panel->addPanelEx(SVG::load(assetPlugin(plugin, "res/dark/PhraseSeqExp_dark.svg")));
         box.size = panel->box.size;
+		box.size.x = box.size.x - (1 - module->expansion) * expWidth;
         addChild(panel);		
 		
 		// Screws
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 0), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 365), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x+30, 0), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x+30, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30-expWidth, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30-expWidth, 365), &module->panelTheme));
 
 		
 		

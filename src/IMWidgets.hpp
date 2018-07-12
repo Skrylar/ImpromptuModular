@@ -51,41 +51,19 @@ struct DynamicSVGScrew : FramebufferWidget {
 // Dynamic SVGPanel
 
 struct PanelBorderWidget : TransparentWidget { // from SVGPanel.cpp
+	int** expWidth = nullptr;
 	void draw(NVGcontext *vg) override;
 };
 
 struct DynamicSVGPanel : FramebufferWidget { // like SVGPanel (in app.hpp and SVGPanel.cpp) but with dynmically assignable panel
     int* mode;
     int oldMode;
+	int* expWidth;
     std::vector<std::shared_ptr<SVG>> panels;
     SVGWidget* visiblePanel;
     PanelBorderWidget* border;
-
     DynamicSVGPanel();
     void addPanel(std::shared_ptr<SVG> svg);
-    void step() override;
-};
-
-
-
-// Dynamic SVGPanel with expansion module
-
-struct DynamicSVGPanelEx : FramebufferWidget { // like SVGPanel (in app.hpp and SVGPanel.cpp) but with dynmically assignable panel
-    int* mode;
-    int oldMode;
-    int* expansion;
-	int oldExpansion;
-    std::vector<std::shared_ptr<SVG>> panels;// must add these before adding expansion panels
-    std::vector<std::shared_ptr<SVG>> panelsEx;
-    SVGWidget* visiblePanel;
-    SVGWidget* visiblePanelEx;
-	
-    PanelBorderWidget* border;
-    PanelBorderWidget* borderEx;
-
-    DynamicSVGPanelEx();
-    void addPanel(std::shared_ptr<SVG> svg);// must add these before adding expansion panels
-    void addPanelEx(std::shared_ptr<SVG> svg);
     void step() override;
 };
 
