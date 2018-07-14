@@ -24,6 +24,7 @@ extern Plugin *plugin;
 extern Model *modelTact;
 extern Model *modelTwelveKey;
 extern Model *modelClocked;
+extern Model *modelClockedTest;
 extern Model *modelPhraseSeq16;
 extern Model *modelPhraseSeq32;
 extern Model *modelGateSeq64;

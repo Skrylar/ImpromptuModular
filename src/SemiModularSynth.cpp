@@ -1256,16 +1256,22 @@ struct SemiModularSynth : Module {
 		}
 		
 		// LFO
-		oscillatorLfo.setPitch(params[LFO_FREQ_PARAM].value);
-		oscillatorLfo.setPulseWidth(0.5f);//params[PW_PARAM].value + params[PWM_PARAM].value * inputs[PW_INPUT].value / 10.0f);
-		oscillatorLfo.offset = false;//(params[OFFSET_PARAM].value > 0.0f);
-		oscillatorLfo.invert = false;//(params[INVERT_PARAM].value <= 0.0f);
-		oscillatorLfo.step(engineGetSampleTime());
-		oscillatorLfo.setReset(inputs[LFO_RESET_INPUT].value + inputs[RESET_INPUT].value + params[RESET_PARAM].value + params[RUN_PARAM].value + inputs[RUNCV_INPUT].value);
-		float lfoGain = params[LFO_GAIN_PARAM].value;
-		float lfoOffset = (2.0f - lfoGain) * params[LFO_OFFSET_PARAM].value;
-		outputs[LFO_SIN_OUTPUT].value = 5.0f * (lfoOffset + lfoGain * oscillatorLfo.sin());
-		outputs[LFO_TRI_OUTPUT].value = 5.0f * (lfoOffset + lfoGain * oscillatorLfo.tri());	
+		if (outputs[LFO_SIN_OUTPUT].active || outputs[LFO_TRI_OUTPUT].active) {
+			oscillatorLfo.setPitch(params[LFO_FREQ_PARAM].value);
+			oscillatorLfo.setPulseWidth(0.5f);//params[PW_PARAM].value + params[PWM_PARAM].value * inputs[PW_INPUT].value / 10.0f);
+			oscillatorLfo.offset = false;//(params[OFFSET_PARAM].value > 0.0f);
+			oscillatorLfo.invert = false;//(params[INVERT_PARAM].value <= 0.0f);
+			oscillatorLfo.step(engineGetSampleTime());
+			oscillatorLfo.setReset(inputs[LFO_RESET_INPUT].value + inputs[RESET_INPUT].value + params[RESET_PARAM].value + params[RUN_PARAM].value + inputs[RUNCV_INPUT].value);
+			float lfoGain = params[LFO_GAIN_PARAM].value;
+			float lfoOffset = (2.0f - lfoGain) * params[LFO_OFFSET_PARAM].value;
+			outputs[LFO_SIN_OUTPUT].value = 5.0f * (lfoOffset + lfoGain * oscillatorLfo.sin());
+			outputs[LFO_TRI_OUTPUT].value = 5.0f * (lfoOffset + lfoGain * oscillatorLfo.tri());	
+		} 
+		else {
+			outputs[LFO_SIN_OUTPUT].value = 0.0f;
+			outputs[LFO_TRI_OUTPUT].value = 0.0f;
+		}			
 		
 	}// step()
 	
@@ -1732,7 +1738,7 @@ Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthW
 /*CHANGE LOG
 
 0.6.9:
-update VCF code to match new Fundamental code
+update VCF code to match new Fundamental code (existing patches may sound different)
 
 0.6.8:
 show length in display when editing length
