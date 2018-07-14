@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #include "rack.hpp"
-#include "dsp/decimator.hpp"
+#include "dsp/resampler.hpp"
 #include "dsp/filter.hpp"
 #include "dsp/digital.hpp"
 

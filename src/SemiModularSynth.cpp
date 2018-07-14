@@ -1248,7 +1248,8 @@ struct SemiModularSynth : Module {
 		filter.process(input, 1.0f/engineGetSampleRate());
 		// Set outputs
 		outputs[VCF_LPF_OUTPUT].value = 5.0f * filter.state[3];
-		outputs[VCF_HPF_OUTPUT].value = 5.0f * (input - filter.state[3]);		
+		outputs[VCF_HPF_OUTPUT].value = 5.0f * (input - 4*filter.state[0] + 6*filter.state[1] - 4*filter.state[2] + filter.state[3]);
+		//outputs[BPF_OUTPUT].value = 5.0f * (filter.state[1] - 2*filter.state[2] + filter.state[3]);		
 		
 		
 		// LFO
