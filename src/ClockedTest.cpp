@@ -17,11 +17,13 @@
 
 
 class Clock {
-	// the 0.0d step does not actually to consume a sample step, it is used to reset every double-period so that lengths can be re-computed
+	// The 0.0 step does not actually to consume a sample step, it is used to reset every double-period so that 
+	//   lengths can be re-computed, and will stay at 0.0 when a clock is inactive.
 	// a clock frame is defined as "length * iterations + syncWait";
 	// for master, syncWait does not apply and iterations = 1
+
 	
-	double step;// 0.0d when stopped, [sampleTime to 2*period] for clock steps (*2 is because of swing, so we do groups of 2 periods)
+	double step;// 0.0 when stopped, [sampleTime to 2*period] for clock steps (*2 is because of swing, so we do groups of 2 periods)
 	double length;// double period
 	double sampleTime;
 	int iterations;// run this many double periods before going into sync if sub-clock
@@ -111,7 +113,7 @@ class Clock {
 //*****************************************************************************
 
 
-class ClockDelay2 {
+class ClockDelay {
 	long stepCounter;
 	int lastWriteValue;
 	bool readState;
@@ -211,8 +213,8 @@ struct ClockedTest : Module {
 	const float ratioValues[33] = {1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 23, 29, 31, 32, 37, 41, 43, 47, 48, 53, 59, 61, 64};
 	static const int bpmMax = 300;
 	static const int bpmMin = 30;
-	static constexpr float masterPeriodMax = 60.0f / bpmMin;
-	static constexpr float masterPeriodMin = 60.0f / bpmMax;
+	static constexpr float masterLengthMax = 120.0f / bpmMin;// a length is a double period
+	static constexpr float masterLengthMin = 120.0f / bpmMax;// a length is a double period
 	static constexpr float delayInfoTime = 3.0f;// seconds
 	static constexpr float swingInfoTime = 2.0f;// seconds
 	
@@ -224,6 +226,7 @@ struct ClockedTest : Module {
 	int expansion;
 	bool displayDelayNoteMode;
 	bool bpmDetectionMode;
+	bool autoRunOn1stClkPulse;
 	int ppqn;
 	
 	// No need to save, with reset
@@ -238,14 +241,16 @@ struct ClockedTest : Module {
 	int ratiosDoubled[4];
 	int newRatiosDoubled[4];
 	Clock clk[4];
-	//ClockDelay delay[4];
-	ClockDelay2 delay2[4];
-	float masterPeriod;
+	ClockDelay delay[4];
+	float masterLength;// a length is a double period
 	float resetLight;
 	SchmittTrigger resetTrigger;
 	SchmittTrigger runTrigger;
 	PulseGenerator resetPulse;
 	PulseGenerator runPulse;
+	SchmittTrigger bpmDetectTrigger;
+	int extPulseNumber;// 0 to ppqn - 1
+	double extIntervalTime;
 
 	
 	// called from the main thread (step() can not be called until all modules created)
@@ -255,7 +260,8 @@ struct ClockedTest : Module {
 		expansion = 0;
 		displayDelayNoteMode = true;
 		bpmDetectionMode = false;
-		ppqn = 1;
+		autoRunOn1stClkPulse = false;// TDOO Save/load this in json if end up using
+		ppqn = 4;
 		// No need to save, no reset
 		scheduledReset = false;
 		for (int i = 0; i < 4; i++) {
@@ -267,15 +273,17 @@ struct ClockedTest : Module {
 			ratiosDoubled[i] = 0;
 			newRatiosDoubled[i] = 0;
 			clk[i].reset();
-			//delay[i].reset();
-			delay2[i].reset();
+			delay[i].reset();
 		}		
-		masterPeriod = 0.5f;// 120 BPM
+		masterLength = 1.0f;// 120 BPM
 		resetLight = 0.0f;
 		resetTrigger.reset();
 		runTrigger.reset();
 		resetPulse.reset();
 		runPulse.reset();
+		bpmDetectTrigger.reset();
+		extPulseNumber = -1;
+		extIntervalTime = 0.0;// no need to reset anywhere else
 		
 		onReset();
 	}
@@ -367,7 +375,7 @@ struct ClockedTest : Module {
 		// ppqn
 		json_t *ppqnJ = json_object_get(rootJ, "ppqn");
 		if (ppqnJ)
-			ppqn = json_integer_value(ppqnJ);
+			ppqn = clamp(json_integer_value(ppqnJ), 4, 24);
 
 		// No need to save, with reset
 		// none
@@ -403,9 +411,9 @@ struct ClockedTest : Module {
 		resetPulse.trigger(0.001f);
 		for (int i = 0; i < 4; i++) {
 			clk[i].reset();
-			//delay[i].reset();
-			delay2[i].reset();
+			delay[i].reset();
 		}
+		extPulseNumber = -1;
 	}		
 	
 	// called by engine thread
@@ -423,14 +431,15 @@ struct ClockedTest : Module {
 		if (scheduledReset) {
 			for (int i = 0; i < 4; i++) {
 				clk[i].reset();
-				//delay[i].reset();
-				delay2[i].reset();
+				delay[i].reset();
 			}
 			resetLight = 0.0f;
 			resetTrigger.reset();
 			runTrigger.reset();
 			resetPulse.reset();
-			runPulse.reset();	
+			runPulse.reset();
+			bpmDetectTrigger.reset();
+			extPulseNumber = -1;			
 		}
 		
 		// Run button
@@ -439,50 +448,74 @@ struct ClockedTest : Module {
 			// reset on any change of run state (will not re-launch if not running, thus clock railed low)
 			for (int i = 0; i < 4; i++) {
 				clk[i].reset();
-				//delay[i].reset();
-				delay2[i].reset();
+				delay[i].reset();
 			}
+			extPulseNumber = -1;	
 			runPulse.trigger(0.001f);
 		}
 
 		// Reset (has to be near top because it sets steps to 0, and 0 not a real step (clock section will move to 1 before reaching outputs)
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			resetClockedTest();
+			resetClockedTest();	
 		}
 		else
 			resetLight -= (resetLight / lightLambda) * (float)sampleTime;	
 
 		// BPM input and knob
-		float newMasterPeriod = 0.5f;// not used
+		float newMasterLength = masterLength;
 		if (inputs[BPM_INPUT].active) { 
 			float bpmInValue = inputs[BPM_INPUT].value;
+			bool trigBpmInValue = bpmDetectTrigger.process(bpmInValue);
 			
 			// BPM Detection method
 			if (bpmDetectionMode) {
-				newMasterPeriod = 0.5f / powf(2.0f, bpmInValue);// bpm = 120*2^V, T = 60/bpm = 60/(120*2^V) = 0.5/2^V
+				
+				// rising edge detect
+				if (trigBpmInValue) {
+					if (autoRunOn1stClkPulse && !running) {
+						//runPulse.trigger(0.001f); don't need this since slaves will detect the same thing
+						running = true;
+					}
+					if (running) {
+						extPulseNumber++;
+						if (extPulseNumber >= ppqn * 2)// *2 because working with double_periods
+							extPulseNumber = 0;
+						if (extPulseNumber == 0)// if first pulse, start interval timer
+							extIntervalTime = 0.0;
+						else {
+							// all other ppqn pulses except the first one. now we have an interval upon which to plan a strecth 
+							newMasterLength = extIntervalTime * (double)(ppqn * 2) / ((double)extPulseNumber);
+							info("*** newMasterLength = %f ***", newMasterLength);
+						}
+					}
+				}
+				extIntervalTime += sampleTime;
+				
+				
+				
+				// temporary assignment until code is ready
+				//newMasterLength = 1.0f / powf(2.0f, bpmInValue);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
 			}
 			// BPM CV method
 			else {
-				newMasterPeriod = 0.5f / powf(2.0f, bpmInValue);// bpm = 120*2^V, T = 60/bpm = 60/(120*2^V) = 0.5/2^V
-				// do not round newMasterPeriod to nearest bpm (in period value) because of chaining!!
+				newMasterLength = 1.0f / powf(2.0f, bpmInValue);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
+				// do not round newMasterLength to nearest bpm (in double_period value) because of chaining!!
 				// if this clocked's master is in BPM detect mode, must grab his exact value.
 				// no problem if this clocked's master is using its BPM knob, since that is a snap knob thus already rounded
-				// TODO test if chaining slaves that are in BPM CV when master in BPM Detect will work (if not, 
-				//   then the BPM out will have to be a copy of its BPM input (when active) irrespective of mode
 			}
 		}
 		else {
-			newMasterPeriod = 60.0f / params[RATIO_PARAMS + 0].value;// already integer BPM since using snap knob
+			newMasterLength = 120.0f / params[RATIO_PARAMS + 0].value;// already integer BPM since using snap knob
 		}
-		newMasterPeriod = clamp(newMasterPeriod, masterPeriodMin, masterPeriodMax);
+		newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
 		if (scheduledReset)
-			masterPeriod = newMasterPeriod;
-		if (newMasterPeriod != masterPeriod) {// TODO: bpm integer difference criterion
-			double lengthStretchFactor = ((double)newMasterPeriod) / ((double)masterPeriod);
+			masterLength = newMasterLength;
+		if (newMasterLength != masterLength) {// TODO: difference criterion (integer bpm?)
+			double lengthStretchFactor = ((double)newMasterLength) / ((double)masterLength);
 			for (int i = 0; i < 4; i++) {
 				clk[i].applyNewLength(lengthStretchFactor);
 			}
-			masterPeriod = newMasterPeriod;
+			masterLength = newMasterLength;
 		}
 
 		// Ratio knobs changed (setup a sync)
@@ -528,10 +561,8 @@ struct ClockedTest : Module {
 		
 		// Clocks
 		if (running) {
-			// See if clocks finished their prescribed number of iteratios of double periods (and syncWait for sub) or were forced reset
-			//    and if so, recalc and restart them
-			// Note: the 0.0 step does not consume a sample step when runnnig, it's used to force length (re)computation
-			//     and will stay at 0.0 when a clock is inactive.
+			// See if clocks finished their prescribed number of iteratios of double periods (and syncWait for sub) or 
+			//    were forced reset and if so, recalc and restart them
 			
 			// Master clock
 			if (clk[0].isReset()) {
@@ -543,7 +574,7 @@ struct ClockedTest : Module {
 						syncRatios[i] = false;
 					}
 				}
-				clk[0].setup(2.0f * masterPeriod, 1, sampleTime);// must call setup before start
+				clk[0].setup(masterLength, 1, sampleTime);// must call setup before start. length = double_period
 				clk[0].start();
 			}
 			
@@ -555,12 +586,12 @@ struct ClockedTest : Module {
 					int ratioDoubled = ratiosDoubled[i];
 					if (ratioDoubled < 0) { // if div 
 						ratioDoubled *= -1;
-						length = masterPeriod * ((double)ratioDoubled);
+						length = masterLength * ((double)ratioDoubled) / 2.0;
 						iterations = 1l + (ratioDoubled % 2);		
 						clk[i].setup(length, iterations, sampleTime);
 					}
 					else {// mult 
-						length = (4.0f * masterPeriod) / ((double)ratioDoubled);
+						length = (2.0f * masterLength) / ((double)ratioDoubled);
 						iterations = ratioDoubled / (2l - (ratioDoubled % 2l));							
 						clk[i].setup(length, iterations, sampleTime);
 					}
@@ -581,8 +612,7 @@ struct ClockedTest : Module {
 					swingAmount += (inputs[SWING_INPUTS + i].value / 5.0f) - 1.0f;
 					swingAmount = clamp(swingAmount, -1.0f, 1.0f);
 				}
-				//delay[i].write(clk[i].isHigh(swingAmount, pulseWidth));
-				delay2[i].write(clk[i].isHigh(swingAmount, pulseWidth));
+				delay[i].write(clk[i].isHigh(swingAmount, pulseWidth));
 			}
 		
 		
@@ -597,10 +627,9 @@ struct ClockedTest : Module {
 					float ratioValue = ((float)ratiosDoubled[i]) / 2.0f;
 					if (ratioValue < 0)
 						ratioValue = 1.0f / (-1.0f * ratioValue);
-					delaySamples = (long)(masterPeriod * delayFraction * sampleRate / ratioValue) ;
+					delaySamples = (long)(masterLength * delayFraction * sampleRate / (ratioValue * 2.0)) ;
 				}
-				//outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples[i]) ? 10.0f : 0.0f;
-				outputs[CLK_OUTPUTS + i].value = delay2[i].read(delaySamples) ? 10.0f : 0.0f;
+				outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples) ? 10.0f : 0.0f;
 			}
 		}
 		else {
@@ -611,7 +640,7 @@ struct ClockedTest : Module {
 		// Chaining outputs
 		outputs[RESET_OUTPUT].value = (resetPulse.process((float)sampleTime) ? 10.0f : 0.0f);
 		outputs[RUN_OUTPUT].value = (runPulse.process((float)sampleTime) ? 10.0f : 0.0f);
-		outputs[BPM_OUTPUT].value =  /*inputs[BPM_INPUT].active ? inputs[BPM_INPUT].value :*/ log2f(1.0f / (2.0f * masterPeriod));
+		outputs[BPM_OUTPUT].value =  inputs[BPM_INPUT].active ? inputs[BPM_INPUT].value : log2f(1.0f / masterLength);
 			
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
@@ -704,7 +733,7 @@ struct ClockedTestWidget : ModuleWidget {
 					}
 				}
 				else {// BPM to display
-					snprintf(displayStr, 4, "%3u", (unsigned) round(60.0f / module->masterPeriod));
+					snprintf(displayStr, 4, "%3u", (unsigned) round(120.0f / module->masterLength));
 				}
 			}
 			displayStr[3] = 0;// more safety
@@ -744,34 +773,28 @@ struct ClockedTestWidget : ModuleWidget {
 		ClockedTest *module;
 		int oldPpqn = -1;
 		void onAction(EventAction &e) override {
-			if (module->ppqn == 1) {
-				module->ppqn = 4;
-			}
-			else if (module->ppqn == 4) {
+			if (module->ppqn == 4) {
 				module->ppqn = 8;
 			}
 			else if (module->ppqn == 8) {
 				module->ppqn = 24;
 			}
 			else {
-				module->ppqn = 1;
+				module->ppqn = 4;
 			}	
 		}
 		void step() override {
 			if (oldPpqn != module->ppqn) {
 				oldPpqn = module->ppqn;
 			
-				if (oldPpqn == 1) {
-					text = "BPM detection PPQN: <1>, 4, 8, 24";
-				}
-				else if (oldPpqn == 4) {
-					text = "BPM detection PPQN: 1, <4>, 8, 24";
+				if (oldPpqn == 4) {
+					text = "BPM detection PPQN: <4>, 8, 24";
 				}
 				else if (module->ppqn == 8) {
-					text = "BPM detection PPQN: 1, 4, <8>, 24";
+					text = "BPM detection PPQN: 4, <8>, 24";
 				}
 				else if (module->ppqn == 24) {
-					text = "BPM detection PPQN: 1, 4, 8, <24>";
+					text = "BPM detection PPQN: 4, 8, <24>";
 				}
 				else {
 					text = "BPM detection PPQN: *error*";
@@ -983,8 +1006,8 @@ Model *modelClockedTest = Model::create<ClockedTest, ClockedTestWidget>("Impromp
 /*CHANGE LOG
 
 0.6.9:
-fixed chaining bpm output bug when using BPM detection (now always a BPM CV chain out)
-added 4, 8, 24 PPQN option when using BPM detection
+new approach to BPM Detection (all slaves must enable Use BPM Detect if master does, and same ppqn)
+choice of 4, 8, 24 PPQN when using BPM detection
 
 0.6.8:
 replace bit-ring-buffer delay engine with event-based delay engine
