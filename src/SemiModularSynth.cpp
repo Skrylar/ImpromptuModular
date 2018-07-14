@@ -5,7 +5,6 @@
 //and graphics from the Component Library by Wes Milholen 
 //See ./LICENSE.txt for all licenses
 //See ./res/fonts/ for font licenses
-//See ./src/FundamentalUtil.hpp for the filter code license (by Miller Puckette)
 //
 //Module concept, desing and layout by Xavier Belmont
 //Code by Marc Boulé
@@ -16,7 +15,6 @@
 
 #include "ImpromptuModular.hpp"
 #include "FundamentalUtil.hpp"
-#include "dsp/digital.hpp"
 
 
 struct SemiModularSynth : Module {
@@ -1228,29 +1226,34 @@ struct SemiModularSynth : Module {
 		
 		
 		// VCF
-		float input = (inputs[VCF_IN_INPUT].active ? inputs[VCF_IN_INPUT].value : outputs[VCA_OUT1_OUTPUT].value) / 5.0f;// Pre-patching
-		float drive = params[VCF_DRIVE_PARAM].value + inputs[VCF_DRIVE_INPUT].value / 10.0f;
-		float gain = powf(100.0f, drive);
-		input *= gain;
-		// Add -60dB noise to bootstrap self-oscillation
-		input += 1e-6f * (2.0f*randomUniform() - 1.0f);
-		// Set resonance
-		float res = params[VCF_RES_PARAM].value + inputs[VCF_RES_INPUT].value / 5.0f;
-		res = 5.5f * clamp(res, 0.0f, 1.0f);
-		filter.resonance = res;
-		// Set cutoff frequency
-		float cutoffExp = params[VCF_FREQ_PARAM].value + params[VCF_FREQ_CV_PARAM].value * inputs[VCF_FREQ_INPUT].value / 5.0f;
-		cutoffExp = clamp(cutoffExp, 0.0f, 1.0f);
-		const float minCutoff = 15.0f;
-		const float maxCutoff = 8400.0f;
-		filter.cutoff = minCutoff * powf(maxCutoff / minCutoff, cutoffExp);
-		// Push a sample to the state filter
-		filter.process(input, 1.0f/engineGetSampleRate());
-		// Set outputs
-		outputs[VCF_LPF_OUTPUT].value = 5.0f * filter.state[3];
-		outputs[VCF_HPF_OUTPUT].value = 5.0f * (input - 4*filter.state[0] + 6*filter.state[1] - 4*filter.state[2] + filter.state[3]);
-		//outputs[BPF_OUTPUT].value = 5.0f * (filter.state[1] - 2*filter.state[2] + filter.state[3]);		
+		if (outputs[VCF_LPF_OUTPUT].active || outputs[VCF_HPF_OUTPUT].active) {
 		
+			float input = (inputs[VCF_IN_INPUT].active ? inputs[VCF_IN_INPUT].value : outputs[VCA_OUT1_OUTPUT].value) / 5.0f;// Pre-patching
+			float drive = clamp(params[VCF_DRIVE_PARAM].value + inputs[VCF_DRIVE_INPUT].value / 10.0f, 0.f, 1.f);
+			float gain = powf(1.f + drive, 5);
+			input *= gain;
+			// Add -60dB noise to bootstrap self-oscillation
+			input += 1e-6f * (2.f * randomUniform() - 1.f);
+			// Set resonance
+			float res = clamp(params[VCF_RES_PARAM].value + inputs[VCF_RES_INPUT].value / 10.f, 0.f, 1.f);
+			filter.resonance = powf(res, 2) * 10.f;
+			// Set cutoff frequency
+			float pitch = 0.f;
+			if (inputs[VCF_FREQ_INPUT].active)
+				pitch += inputs[VCF_FREQ_INPUT].value * quadraticBipolar(params[VCF_FREQ_CV_PARAM].value);
+			pitch += params[VCF_FREQ_PARAM].value * 10.f - 5.f;
+			//pitch += quadraticBipolar(params[FINE_PARAM].value * 2.f - 1.f) * 7.f / 12.f;
+			float cutoff = 261.626f * powf(2.f, pitch);
+			cutoff = clamp(cutoff, 1.f, 8000.f);
+			filter.setCutoff(cutoff);
+			filter.process(input, engineGetSampleTime());
+			outputs[VCF_LPF_OUTPUT].value = 5.f * filter.lowpass;
+			outputs[VCF_HPF_OUTPUT].value = 5.f * filter.highpass;	
+		}			
+		else {
+			outputs[VCF_LPF_OUTPUT].value = 0.0f;
+			outputs[VCF_HPF_OUTPUT].value = 0.0f;
+		}
 		
 		// LFO
 		oscillatorLfo.setPitch(params[LFO_FREQ_PARAM].value);
@@ -1727,6 +1730,9 @@ struct SemiModularSynthWidget : ModuleWidget {
 Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthWidget>("Impromptu Modular", "Semi-Modular Synth", "MISC - Semi-Modular Synth", SEQUENCER_TAG, OSCILLATOR_TAG);
 
 /*CHANGE LOG
+
+0.6.9:
+update VCF code to match new Fundamental code
 
 0.6.8:
 show length in display when editing length

@@ -3,7 +3,6 @@
 //
 //This is code from the Fundamental plugin by Andrew Belt 
 //See ./LICENSE.txt for all licenses
-//See FundamentalUtil.hpp for the filter code license (by Miller Puckette)
 //***********************************************************************************************
 
 
@@ -11,44 +10,28 @@
 
 
 // From Fundamental VCF.cpp
-// [Andrew Belt] The clipping function of a transistor pair is approximately tanh(x)
-// [Andrew Belt] TODO: Put this in a lookup table. 5th order approx doesn't seem to cut it
 
 inline float clip(float x) {
 	return tanhf(x);
 };
 
-void LadderFilter::calculateDerivatives(float input, float *dstate, const float *state) {
-	float cutoff2Pi = 2*M_PI * cutoff;
-
-	float satstate0 = clip(state[0]);
-	float satstate1 = clip(state[1]);
-	float satstate2 = clip(state[2]);
-
-	dstate[0] = cutoff2Pi * (clip(input - resonance * state[3]) - satstate0);
-	dstate[1] = cutoff2Pi * (satstate0 - satstate1);
-	dstate[2] = cutoff2Pi * (satstate1 - satstate2);
-	dstate[3] = cutoff2Pi * (satstate2 - clip(state[3]));
-};
-
 void LadderFilter::process(float input, float dt) {
-	float deriv1[4], deriv2[4], deriv3[4], deriv4[4], tempState[4];
+	ode::stepRK4(0.f, dt, state, 4, [&](float t, const float x[], float dxdt[]) {
+		float inputc = clip(input - resonance * x[3]);
+		float yc0 = clip(x[0]);
+		float yc1 = clip(x[1]);
+		float yc2 = clip(x[2]);
+		float yc3 = clip(x[3]);
 
-	calculateDerivatives(input, deriv1, state);
-	for (int i = 0; i < 4; i++)
-		tempState[i] = state[i] + 0.5f * dt * deriv1[i];
+		dxdt[0] = omega0 * (inputc - yc0);
+		dxdt[1] = omega0 * (yc0 - yc1);
+		dxdt[2] = omega0 * (yc1 - yc2);
+		dxdt[3] = omega0 * (yc2 - yc3);
+	});
 
-	calculateDerivatives(input, deriv2, tempState);
-	for (int i = 0; i < 4; i++)
-		tempState[i] = state[i] + 0.5f * dt * deriv2[i];
-
-	calculateDerivatives(input, deriv3, tempState);
-	for (int i = 0; i < 4; i++)
-		tempState[i] = state[i] + dt * deriv3[i];
-
-	calculateDerivatives(input, deriv4, tempState);
-	for (int i = 0; i < 4; i++)
-		state[i] += (1.0f / 6.0f) * dt * (deriv1[i] + 2.0f * deriv2[i] + 2.0f * deriv3[i] + deriv4[i]);
+	lowpass = state[3];
+	// TODO This is incorrect when `resonance > 0`. Is the math wrong?
+	highpass = clip((input - resonance*state[3]) - 4 * state[0] + 6*state[1] - 4*state[2] + state[3]);
 };
 
 

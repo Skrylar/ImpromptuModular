@@ -5,41 +5,13 @@
 //See ./LICENSE.txt for all licenses and see below for the filter code license
 //***********************************************************************************************
 
-/*
-The filter DSP code has been derived from
-Miller Puckette's code hosted at
-https://github.com/ddiakopoulos/MoogLadders/blob/master/src/RKSimulationModel.h
-which is licensed for use under the following terms (MIT license):
-
-
-Copyright (c) 2015, Miller Puckette. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-
-
 #include "rack.hpp"
+#include "dsp/functions.hpp"
 #include "dsp/resampler.hpp"
+#include "dsp/ode.hpp"
 #include "dsp/filter.hpp"
 #include "dsp/digital.hpp"
+
 
 using namespace rack;
 
@@ -49,17 +21,26 @@ extern float triTable[2048];// see end of file
 
 // From Fundamental VCF
 struct LadderFilter {
-	float cutoff = 1000.0f;
+	float omega0;
 	float resonance = 1.0f;
-	float state[4] = {};
-
-	void calculateDerivatives(float input, float *dstate, const float *state);
-	void process(float input, float dt);
+	float state[4];
+	float input;
+	float lowpass;
+	float highpass;
+	
+	LadderFilter() {
+		reset();
+		setCutoff(0.f);
+	}	
 	void reset() {
 		for (int i = 0; i < 4; i++) {
-			state[i] = 0.0f;
+			state[i] = 0.f;
 		}
 	}
+	void setCutoff(float cutoff) {
+		omega0 = 2.f*M_PI * cutoff;
+	}
+	void process(float input, float dt);
 };
 
 
