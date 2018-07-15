@@ -73,6 +73,9 @@ class Clock {
 	inline bool isReset() {
 		return step == 0.0;
 	}
+	inline double getStep() {
+		return step;
+	}
 	
 	inline void setup(double lengthGiven, int iterationsGiven, double sampleTimeGiven) {
 		length = lengthGiven;
@@ -260,7 +263,7 @@ struct ClockedTest : Module {
 		expansion = 0;
 		displayDelayNoteMode = true;
 		bpmDetectionMode = false;
-		autoRunOn1stClkPulse = false;// TDOO Save/load this in json if end up using
+		autoRunOn1stClkPulse = true;// TDOO Save/load this in json if end up using
 		ppqn = 4;
 		// No need to save, no reset
 		scheduledReset = false;
@@ -484,8 +487,9 @@ struct ClockedTest : Module {
 							extIntervalTime = 0.0;
 						else {
 							// all other ppqn pulses except the first one. now we have an interval upon which to plan a strecth 
-							newMasterLength = extIntervalTime * (double)(ppqn * 2) / ((double)extPulseNumber);
-							info("*** newMasterLength = %f ***", newMasterLength);
+							double timeLeft = extIntervalTime * (double)(ppqn * 2 - extPulseNumber) / ((double)extPulseNumber);
+							newMasterLength = clk[0].getStep() + timeLeft;
+							//info("*** ML = %f, NML = %f, TL = %f, PN = %i , IT = %f ***", masterLength, newMasterLength, timeLeft, extPulseNumber, extIntervalTime);
 						}
 					}
 				}
@@ -499,7 +503,7 @@ struct ClockedTest : Module {
 			// BPM CV method
 			else {
 				newMasterLength = 1.0f / powf(2.0f, bpmInValue);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
-				// do not round newMasterLength to nearest bpm (in double_period value) because of chaining!!
+				// do not round newMasterLength to nearest bpm (in double_period value) because of chaining
 				// if this clocked's master is in BPM detect mode, must grab his exact value.
 				// no problem if this clocked's master is using its BPM knob, since that is a snap knob thus already rounded
 			}
