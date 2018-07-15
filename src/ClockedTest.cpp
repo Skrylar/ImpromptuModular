@@ -230,6 +230,7 @@ struct ClockedTest : Module {
 	bool displayDelayNoteMode;
 	bool bpmDetectionMode;
 	bool autoRunOn1stClkPulse;
+	bool autoStopOnTimeout;
 	int ppqn;
 	
 	// No need to save, with reset
@@ -254,6 +255,7 @@ struct ClockedTest : Module {
 	SchmittTrigger bpmDetectTrigger;
 	int extPulseNumber;// 0 to ppqn - 1
 	double extIntervalTime;
+	double timeoutTime;
 
 	
 	// called from the main thread (step() can not be called until all modules created)
@@ -263,7 +265,6 @@ struct ClockedTest : Module {
 		expansion = 0;
 		displayDelayNoteMode = true;
 		bpmDetectionMode = false;
-		autoRunOn1stClkPulse = true;// TDOO Save/load this in json if end up using
 		ppqn = 4;
 		// No need to save, no reset
 		scheduledReset = false;
@@ -286,7 +287,8 @@ struct ClockedTest : Module {
 		runPulse.reset();
 		bpmDetectTrigger.reset();
 		extPulseNumber = -1;
-		extIntervalTime = 0.0;// no need to reset anywhere else
+		extIntervalTime = 0.0;
+		timeoutTime = 2.0 / ppqn + 0.1;
 		
 		onReset();
 	}
@@ -410,13 +412,13 @@ struct ClockedTest : Module {
 	
 	
 	void resetClockedTest() {
-		resetLight = 1.0f;
-		resetPulse.trigger(0.001f);
 		for (int i = 0; i < 4; i++) {
 			clk[i].reset();
 			delay[i].reset();
 		}
 		extPulseNumber = -1;
+		extIntervalTime = 0.0;
+		timeoutTime = 2.0 / ppqn + 0.1;
 	}		
 	
 	// called by engine thread
@@ -432,33 +434,28 @@ struct ClockedTest : Module {
 
 		// Scheduled reset (just the parts that do not have a place below in rest of function)
 		if (scheduledReset) {
-			for (int i = 0; i < 4; i++) {
-				clk[i].reset();
-				delay[i].reset();
-			}
+			resetClockedTest();		
 			resetLight = 0.0f;
 			resetTrigger.reset();
 			runTrigger.reset();
 			resetPulse.reset();
 			runPulse.reset();
 			bpmDetectTrigger.reset();
-			extPulseNumber = -1;			
 		}
 		
 		// Run button
 		if (runTrigger.process(params[RUN_PARAM].value + inputs[RUN_INPUT].value)) {
-			running = !running;
-			// reset on any change of run state (will not re-launch if not running, thus clock railed low)
-			for (int i = 0; i < 4; i++) {
-				clk[i].reset();
-				delay[i].reset();
+			if (!bpmDetectionMode || running) {// toggle when not BPM detect, turn off only when BPM detect (allows turn off faster than timeout if don't want any trailing beats after stoppage). If allow manually start in bpmDetectionMode   the clock will not know which pulse is the 1st of a ppqn set, so only allow stop
+				running = !running;
+				runPulse.trigger(0.001f);
+				resetClockedTest();// reset on any change of run state (will not re-launch if not running, thus clock railed low)
 			}
-			extPulseNumber = -1;	
-			runPulse.trigger(0.001f);
 		}
 
 		// Reset (has to be near top because it sets steps to 0, and 0 not a real step (clock section will move to 1 before reaching outputs)
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
+			resetLight = 1.0f;
+			resetPulse.trigger(0.001f);
 			resetClockedTest();	
 		}
 		else
@@ -472,11 +469,15 @@ struct ClockedTest : Module {
 			
 			// BPM Detection method
 			if (bpmDetectionMode) {
-				
+				if (scheduledReset)
+					newMasterLength = 1.0f;// 120 BPM
 				// rising edge detect
 				if (trigBpmInValue) {
-					if (autoRunOn1stClkPulse && !running) {
+					if (!running) {
+						// this must be the only way to start runnning when in bpmDetectionMode or else
+						//   when manually starting the clock will not know which pulse if the 1st of a ppqn set
 						//runPulse.trigger(0.001f); don't need this since slaves will detect the same thing
+						resetClockedTest();
 						running = true;
 					}
 					if (running) {
@@ -489,16 +490,26 @@ struct ClockedTest : Module {
 							// all other ppqn pulses except the first one. now we have an interval upon which to plan a strecth 
 							double timeLeft = extIntervalTime * (double)(ppqn * 2 - extPulseNumber) / ((double)extPulseNumber);
 							newMasterLength = clk[0].getStep() + timeLeft;
-							//info("*** ML = %f, NML = %f, TL = %f, PN = %i , IT = %f ***", masterLength, newMasterLength, timeLeft, extPulseNumber, extIntervalTime);
+							
+							// TODO if change in length too big, do something to avoid extreme stretch
+							
+							// additional smooth (does not work)
+							//double deltaMaster = masterLength - newMasterLength;
+							//deltaMaster = deltaMaster * (double)extPulseNumber / (double)(ppqn * 2 - 1);
+							//newMasterLength = masterLength - deltaMaster;
+							//info("*** delta = %f, pulse = %d ***", deltaMaster, extPulseNumber);
+							
+							timeoutTime = extIntervalTime * ((double)(1 + extPulseNumber) / ((double)extPulseNumber)) + 0.1;
 						}
 					}
 				}
-				extIntervalTime += sampleTime;
-				
-				
-				
-				// temporary assignment until code is ready
-				//newMasterLength = 1.0f / powf(2.0f, bpmInValue);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
+				if (running) {
+					extIntervalTime += sampleTime;
+					if (extIntervalTime > timeoutTime) {
+						running = false;
+						resetClockedTest();
+					}
+				}
 			}
 			// BPM CV method
 			else {
@@ -653,7 +664,7 @@ struct ClockedTest : Module {
 		lights[RUN_LIGHT].value = running;
 		
 		// Sync lights
-		lights[CLK_LIGHTS + 0].value = /*beatLock ? 1.0f : */0.0f;
+		lights[CLK_LIGHTS + 0].value = bpmDetectionMode ? 1.0f : 0.0f;
 		for (int i = 1; i < 4; i++) {
 			lights[CLK_LIGHTS + i].value = (syncRatios[i] && running) ? 1.0f: 0.0f;
 		}
@@ -792,16 +803,16 @@ struct ClockedTestWidget : ModuleWidget {
 				oldPpqn = module->ppqn;
 			
 				if (oldPpqn == 4) {
-					text = "BPM detection PPQN: <4>, 8, 24";
+					text = "- BPM detection PPQN: <4>, 8, 24";
 				}
 				else if (module->ppqn == 8) {
-					text = "BPM detection PPQN: 4, <8>, 24";
+					text = "- BPM detection PPQN: 4, <8>, 24";
 				}
 				else if (module->ppqn == 24) {
-					text = "BPM detection PPQN: 4, 8, <24>";
+					text = "- BPM detection PPQN: 4, 8, <24>";
 				}
 				else {
-					text = "BPM detection PPQN: *error*";
+					text = "- BPM detection PPQN: *error*";
 				}	
 			}
 			MenuItem::step();
