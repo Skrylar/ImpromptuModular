@@ -24,7 +24,6 @@ extern Plugin *plugin;
 extern Model *modelTact;
 extern Model *modelTwelveKey;
 extern Model *modelClocked;
-extern Model *modelClockedTest;
 extern Model *modelPhraseSeq16;
 extern Model *modelPhraseSeq32;
 extern Model *modelGateSeq64;
@@ -264,6 +263,6 @@ enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, NUM_MODES};
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box);
 int moveIndex(int index, int indexNext, int numSteps);
 bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history);
-
+bool calcWarningFlash(long count, long countInit);
 
 #endif

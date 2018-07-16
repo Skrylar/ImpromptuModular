@@ -21,7 +21,6 @@ void init(rack::Plugin *p) {
 	p->addModel(modelTact);
 	p->addModel(modelTwelveKey);
 	p->addModel(modelClocked);
-	p->addModel(modelClockedTest);
 	p->addModel(modelPhraseSeq16);
 	p->addModel(modelPhraseSeq32);
 	p->addModel(modelGateSeq64);
@@ -199,3 +198,12 @@ bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {
 
 	return crossBoundary;
 }
+
+bool calcWarningFlash(long count, long countInit) {
+		bool warningFlashState = true;
+		if (count > (countInit * 2l / 4l) && count < (countInit * 3l / 4l))
+			warningFlashState = false;
+		else if (count < (countInit * 1l / 4l))
+			warningFlashState = false;
+		return warningFlashState;
+	}	

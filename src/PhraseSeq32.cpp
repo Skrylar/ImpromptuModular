@@ -1177,7 +1177,7 @@ struct PhraseSeq32 : Module {
 				lights[OCTAVE_LIGHTS + i].value = 0.0f;
 			else {
 				if (tiedWarning > 0l) {
-					bool warningFlashState = calcTiedWarning(tiedWarning, tiedWarningInit);
+					bool warningFlashState = calcWarningFlash(tiedWarning, tiedWarningInit);
 					lights[OCTAVE_LIGHTS + i].value = (warningFlashState && (i == (6 - octLightIndex))) ? 1.0f : 0.0f;
 				}
 				else				
@@ -1200,7 +1200,7 @@ struct PhraseSeq32 : Module {
 				lights[KEY_LIGHTS + i].value = 0.0f;
 			else {
 				if (tiedWarning > 0l) {
-					bool warningFlashState = calcTiedWarning(tiedWarning, tiedWarningInit);
+					bool warningFlashState = calcWarningFlash(tiedWarning, tiedWarningInit);
 					lights[KEY_LIGHTS + i].value = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
 				}
 				else				
@@ -1218,7 +1218,7 @@ struct PhraseSeq32 : Module {
 		lights[GATE2_LIGHT].value = ((attributesVal & ATT_MSK_GATE2) != 0) ? 1.0f : 0.0f;
 		lights[SLIDE_LIGHT].value = ((attributesVal & ATT_MSK_SLIDE) != 0) ? 1.0f : 0.0f;
 		if (tiedWarning > 0l) {
-			bool warningFlashState = calcTiedWarning(tiedWarning, tiedWarningInit);
+			bool warningFlashState = calcWarningFlash(tiedWarning, tiedWarningInit);
 			lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
 		}
 		else
@@ -1261,15 +1261,6 @@ struct PhraseSeq32 : Module {
 		lights[id + 1].value = red;
 	}
 
-	bool calcTiedWarning(long tiedWarning, long tiedWarningInit) {
-		bool warningFlashState = true;
-		if (tiedWarning > (tiedWarningInit * 2l / 4l) && tiedWarning < (tiedWarningInit * 3l / 4l))
-			warningFlashState = false;
-		else if (tiedWarning < (tiedWarningInit * 1l / 4l))
-			warningFlashState = false;
-		return warningFlashState;
-	}	
-	
 	void applyTiedStep(int seqNum, int indexTied, int seqLength) {
 		// Start on indexTied and loop until seqLength
 		// Called because either:
