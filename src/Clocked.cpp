@@ -494,7 +494,7 @@ struct Clocked : Module {
 						else {
 							// all other ppqn pulses except the first one. now we have an interval upon which to plan a strecth 
 							double timeLeft = extIntervalTime * (double)(ppqn * 2 - extPulseNumber) / ((double)extPulseNumber);
-							newMasterLength = clamp(clk[0].getStep() + timeLeft, masterLengthMin, 3.0 * masterLengthMax);// allow going to 10 BPM for flexible synching
+							newMasterLength = clk[0].getStep() + timeLeft;
 							timeoutTime = extIntervalTime * ((double)(1 + extPulseNumber) / ((double)extPulseNumber)) + 0.1;
 						}
 					}
@@ -509,16 +509,16 @@ struct Clocked : Module {
 			}
 			// BPM CV method
 			else {
-				newMasterLength = clamp(1.0f / powf(2.0f, bpmInValue), masterLengthMin, masterLengthMax);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
+				newMasterLength = 1.0f / powf(2.0f, bpmInValue);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
 				// do not round newMasterLength to nearest bpm (in double_period value) because of chaining
 				// if this clocked's master is in BPM detect mode, must grab his exact value.
 				// no problem if this clocked's master is using its BPM knob, since that is a snap knob thus already rounded
 			}
 		}
 		else {
-			newMasterLength = clamp(120.0f / params[RATIO_PARAMS + 0].value, masterLengthMin, masterLengthMax);// already integer BPM since using snap knob
+			newMasterLength = 120.0f / params[RATIO_PARAMS + 0].value;// already integer BPM since using snap knob
 		}
-		//newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
+		newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
 		if (scheduledReset)
 			masterLength = newMasterLength;
 		if (newMasterLength != masterLength) {
