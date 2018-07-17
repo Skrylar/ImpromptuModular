@@ -18,8 +18,8 @@
 class Clock {
 	// The 0.0 step does not actually to consume a sample step, it is used to reset every double-period so that 
 	//   lengths can be re-computed, and will stay at 0.0 when a clock is inactive.
-	// a clock frame is defined as "length * iterations + syncWait";
-	// for master, syncWait does not apply and iterations = 1
+	// a clock frame is defined as "length * iterations + syncWait", and
+	//   for master, syncWait does not apply and iterations = 1
 
 	
 	double step;// 0.0 when stopped, [sampleTime to 2*period] for clock steps (*2 is because of swing, so we do groups of 2 periods)
@@ -480,7 +480,7 @@ struct Clocked : Module {
 				if (trigBpmInValue) {
 					if (!running) {
 						// this must be the only way to start runnning when in bpmDetectionMode or else
-						//   when manually starting the clock will not know which pulse is the 1st of a ppqn set
+						//   when manually starting, the clock will not know which pulse is the 1st of a ppqn set
 						//runPulse.trigger(0.001f); don't need this since slaves will detect the same thing
 						resetClocked();
 						running = true;
@@ -494,16 +494,7 @@ struct Clocked : Module {
 						else {
 							// all other ppqn pulses except the first one. now we have an interval upon which to plan a strecth 
 							double timeLeft = extIntervalTime * (double)(ppqn * 2 - extPulseNumber) / ((double)extPulseNumber);
-							newMasterLength = clk[0].getStep() + timeLeft;
-							
-							// TODO if change in length too big, do something to avoid extreme stretch
-							
-							// additional smooth (does not work)
-							//double deltaMaster = masterLength - newMasterLength;
-							//deltaMaster = deltaMaster * (double)extPulseNumber / (double)(ppqn * 2 - 1);
-							//newMasterLength = masterLength - deltaMaster;
-							//info("*** delta = %f, pulse = %d ***", deltaMaster, extPulseNumber);
-							
+							newMasterLength = clamp(clk[0].getStep() + timeLeft, masterLengthMin, 3.0 * masterLengthMax);// allow going to 10 BPM for flexible synching
 							timeoutTime = extIntervalTime * ((double)(1 + extPulseNumber) / ((double)extPulseNumber)) + 0.1;
 						}
 					}
@@ -518,19 +509,19 @@ struct Clocked : Module {
 			}
 			// BPM CV method
 			else {
-				newMasterLength = 1.0f / powf(2.0f, bpmInValue);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
+				newMasterLength = clamp(1.0f / powf(2.0f, bpmInValue), masterLengthMin, masterLengthMax);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
 				// do not round newMasterLength to nearest bpm (in double_period value) because of chaining
 				// if this clocked's master is in BPM detect mode, must grab his exact value.
 				// no problem if this clocked's master is using its BPM knob, since that is a snap knob thus already rounded
 			}
 		}
 		else {
-			newMasterLength = 120.0f / params[RATIO_PARAMS + 0].value;// already integer BPM since using snap knob
+			newMasterLength = clamp(120.0f / params[RATIO_PARAMS + 0].value, masterLengthMin, masterLengthMax);// already integer BPM since using snap knob
 		}
-		newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
+		//newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
 		if (scheduledReset)
 			masterLength = newMasterLength;
-		if (newMasterLength != masterLength) {// TODO: difference criterion (integer bpm?)
+		if (newMasterLength != masterLength) {
 			double lengthStretchFactor = ((double)newMasterLength) / ((double)masterLength);
 			for (int i = 0; i < 4; i++) {
 				clk[i].applyNewLength(lengthStretchFactor);
