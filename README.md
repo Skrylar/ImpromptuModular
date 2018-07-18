@@ -140,8 +140,8 @@ By default, the clock's BPM input is level sensitive and follows [Rack standards
 
 Coming in 0.6.9: A new clock synchronization method that syncs itself to the incoming clock pulse, and will stay synchronized, as opposed to just calculating the BPM from the external source. This means that it will not drift (or that it will drift in time with the incoming pulses if they drift), and it should stay perfectly synchronized over time; it also allows for latency compensation. Here are a few points to keep in mind when using BPM Detection.
 
-1. When using the BPM detection mode, you must have an external clock source capable of sending clocks at a minumum of 4 pulses per quarter note (PPQN).
-1. The clock can not be manually turned on, it will autostart on the first pulse it receives.
+1. When using the BPM detection mode, you must have an external clock source capable of sending clocks at a minumum of 4 pulses per quarter note (PPQN), and this external clock should not have any swing.
+1. Clocked can not be manually turned on, it will autostart on the first pulse it receives.
 1. The clock will automatically stop when the pulses stop, but in order to detect this, it take a small amount of time. To stop the clock quickly, you can simply send a pulse to the RUN CV, and if it is running, it will turn off.
 1. For low clock BPMs, synchronization may take some time if the external clock changes markedly from the last BPM it was synchronized to. Making gradualy tempo changes is always recommended, and increasing the PPQN setting may also help.
 

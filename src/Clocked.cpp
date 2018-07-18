@@ -878,7 +878,7 @@ struct ClockedWidget : ModuleWidget {
 		ddnItem->module = module;
 		menu->addChild(ddnItem);
 
-		EmitResetItem *erItem = MenuItem::create<EmitResetItem>("Emit Reset when Run Turned Off", CHECKMARK(module->emitResetOnStopRun));
+		EmitResetItem *erItem = MenuItem::create<EmitResetItem>("Emit Reset when Run is Turned Off", CHECKMARK(module->emitResetOnStopRun));
 		erItem->module = module;
 		menu->addChild(erItem);
 
