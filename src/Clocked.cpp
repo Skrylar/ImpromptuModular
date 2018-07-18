@@ -16,13 +16,13 @@
 
 
 class Clock {
-	// The 0.0 step does not actually to consume a sample step, it is used to reset every double-period so that 
-	//   lengths can be re-computed, and will stay at 0.0 when a clock is inactive.
+	// The -1.0 step is used as a reset state every double-period so that 
+	//   lengths can be re-computed; it will stay at -1.0 when a clock is inactive.
 	// a clock frame is defined as "length * iterations + syncWait", and
 	//   for master, syncWait does not apply and iterations = 1
 
 	
-	double step;// 0.0 when stopped, [sampleTime to 2*period] for clock steps (*2 is because of swing, so we do groups of 2 periods)
+	double step;// -1.0 when stopped, [0 to 2*period[ for clock steps (*2 is because of swing, so we do groups of 2 periods)
 	double length;// double period
 	double sampleTime;
 	int iterations;// run this many double periods before going into sync if sub-clock
@@ -35,9 +35,8 @@ class Clock {
 		// last 0.5ms (guard time) must be low so that sync mechanism will work properly (i.e. no missed pulses)
 		//   this will automatically be the case, since code below disallows any pulses or inter-pulse times less than 1ms
 		int high = 0;
-		if (step > 0.0) {
+		if (step >= 0.0) {
 			float swParam = swing;// swing is [-1 : 1]
-			//swParam *= (swParam * (swParam > 0.0f ? 1.0f : -1.0f));// non-linear behavior for more sensitivity at center: f(x) = x^2 * sign(x)
 			
 			// all following values are in seconds
 			float onems = 0.001f;
@@ -49,14 +48,14 @@ class Clock {
 				p2max = p2min;
 			}
 			
-			//double p1 = sampleTime;// implicit, no need 
+			//double p1 = 0.0;// implicit, no need 
 			double p2 = (double)((p2max - p2min) * pulseWidth + p2min);// pulseWidth is [0 : 1]
 			double p3 = (double)(period + swing);
 			double p4 = ((double)(period + swing)) + p2;
 			
-			if (step <= p2)
+			if (step < p2)
 				high = 1;
-			else if ((step > p3) && (step <= p4))
+			else if ((step >= p3) && (step < p4))
 				high = 2;
 		}
 		return high;
@@ -67,10 +66,10 @@ class Clock {
 	}
 	
 	inline void reset() {
-		step = 0.0;
+		step = -1.0;
 	}
 	inline bool isReset() {
-		return step == 0.0;
+		return step == -1.0;
 	}
 	inline double getStep() {
 		return step;
@@ -83,11 +82,11 @@ class Clock {
 	}
 	
 	inline void start() {
-		step = sampleTime;
+		step = 0.0;
 	}
 	
 	void stepClock() {// here the clock was output on step "step", this function is called at end of module::step()
-		if (step > 0.0) {// if active clock
+		if (step >= 0.0) {// if active clock
 			step += sampleTime;
 			if ( (syncSrc != nullptr) && (iterations == 1) && (step > (length - guard)) ) {// if in sync region
 				if (syncSrc->isReset()) {
@@ -95,7 +94,7 @@ class Clock {
 				}// else nothing needs to be done, just wait and step stays the same
 			}
 			else {
-				if (step > length) {// reached end iteration
+				if (step >= length) {// reached end iteration
 					iterations--;
 					step -= length;
 					if (iterations <= 0) 
@@ -106,7 +105,8 @@ class Clock {
 	}
 	
 	void applyNewLength(double lengthStretchFactor) {
-		step *= lengthStretchFactor;
+		if (step != -1.0)
+			step *= lengthStretchFactor;
 		length *= lengthStretchFactor;
 	}
 };
@@ -228,8 +228,7 @@ struct Clocked : Module {
 	int expansion;
 	bool displayDelayNoteMode;
 	bool bpmDetectionMode;
-	bool autoRunOn1stClkPulse;
-	bool autoStopOnTimeout;
+	bool emitResetOnStopRun;
 	int ppqn;
 	
 	// No need to save, with reset
@@ -265,6 +264,7 @@ struct Clocked : Module {
 		expansion = 0;
 		displayDelayNoteMode = true;
 		bpmDetectionMode = false;
+		emitResetOnStopRun = false;
 		ppqn = 4;
 		// No need to save, no reset
 		scheduledReset = false;
@@ -342,6 +342,9 @@ struct Clocked : Module {
 		// bpmDetectionMode
 		json_object_set_new(rootJ, "bpmDetectionMode", json_boolean(bpmDetectionMode));
 		
+		// emitResetOnStopRun
+		json_object_set_new(rootJ, "emitResetOnStopRun", json_boolean(emitResetOnStopRun));
+		
 		// ppqn
 		json_object_set_new(rootJ, "ppqn", json_integer(ppqn));
 		
@@ -377,6 +380,11 @@ struct Clocked : Module {
 		json_t *bpmDetectionModeJ = json_object_get(rootJ, "bpmDetectionMode");
 		if (bpmDetectionModeJ)
 			bpmDetectionMode = json_is_true(bpmDetectionModeJ);
+
+		// emitResetOnStopRun
+		json_t *emitResetOnStopRunJ = json_object_get(rootJ, "emitResetOnStopRun");
+		if (emitResetOnStopRunJ)
+			emitResetOnStopRun = json_is_true(emitResetOnStopRunJ);
 
 		// ppqn
 		json_t *ppqnJ = json_object_get(rootJ, "ppqn");
@@ -452,6 +460,10 @@ struct Clocked : Module {
 				running = !running;
 				runPulse.trigger(0.001f);
 				resetClocked();// reset on any change of run state (will not re-launch if not running, thus clock railed low)
+				if (!running && emitResetOnStopRun) {
+					//resetLight = 1.0f;
+					resetPulse.trigger(0.001f);
+				}
 			}
 			else
 				cantRunWarning = cantRunWarningInit;
@@ -510,9 +522,7 @@ struct Clocked : Module {
 			// BPM CV method
 			else {
 				newMasterLength = 1.0f / powf(2.0f, bpmInValue);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
-				// do not round newMasterLength to nearest bpm (in double_period value) because of chaining
-				// if this clocked's master is in BPM detect mode, must grab his exact value.
-				// no problem if this clocked's master is using its BPM knob, since that is a snap knob thus already rounded
+				// no need to round since this clocked's master's BPM knob is a snap knob thus already rounded, and with passthru approach, no cumul error
 			}
 		}
 		else {
@@ -638,7 +648,7 @@ struct Clocked : Module {
 					float ratioValue = ((float)ratiosDoubled[i]) / 2.0f;
 					if (ratioValue < 0)
 						ratioValue = 1.0f / (-1.0f * ratioValue);
-					delaySamples = (long)(masterLength * delayFraction * sampleRate / (ratioValue * 2.0)) ;
+					delaySamples = (long)(masterLength * delayFraction * sampleRate / (ratioValue * 2.0));
 				}
 				outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples) ? 10.0f : 0.0f;
 			}
@@ -787,6 +797,16 @@ struct ClockedWidget : ModuleWidget {
 		Clocked *module;
 		void onAction(EventAction &e) override {
 			module->bpmDetectionMode = !module->bpmDetectionMode;
+			if (module->bpmDetectionMode && module->running) {
+				module->running = false;
+				module->resetClocked();
+			}
+		}
+	};	
+	struct EmitResetItem : MenuItem {
+		Clocked *module;
+		void onAction(EventAction &e) override {
+			module->emitResetOnStopRun = !module->emitResetOnStopRun;
 		}
 	};	
 	struct BpmPpqnItem : MenuItem {
@@ -857,6 +877,10 @@ struct ClockedWidget : ModuleWidget {
 		DelayDisplayNoteItem *ddnItem = MenuItem::create<DelayDisplayNoteItem>("Display Delay Values in Notes", CHECKMARK(module->displayDelayNoteMode));
 		ddnItem->module = module;
 		menu->addChild(ddnItem);
+
+		EmitResetItem *erItem = MenuItem::create<EmitResetItem>("Emit Reset when Run Turned Off", CHECKMARK(module->emitResetOnStopRun));
+		erItem->module = module;
+		menu->addChild(erItem);
 
 		BpmDetectionItem *detectItem = MenuItem::create<BpmDetectionItem>("Use BPM Detection (as opposed to BPM CV)", CHECKMARK(module->bpmDetectionMode));
 		detectItem->module = module;

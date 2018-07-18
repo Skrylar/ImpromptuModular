@@ -47,7 +47,7 @@ Details about each module are given below. Feedback and bug reports (and [donati
 
 
 ## Known issues <a id="known-issues"></a>
-For modules such as PhraseSeq16 and GateSeq64, it is advisable to have a core audio module added to your patch and assigned to a sound card in order for the response delays in the user interface to be of the proper duration (for length selection and probability selection respectively in these two modules, for example). This is a [known artifact](https://github.com/VCVRack/Rack/issues/919) in VCV Rack.
+For sequencers and clock modules, it is advisable to have a core audio module added to your patch and assigned to a sound card in order for the timing and response delays in the user interface to be of the proper duration. This is a [known artifact](https://github.com/VCVRack/Rack/issues/919) in VCV Rack.
 
 
 
