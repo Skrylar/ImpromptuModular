@@ -1512,6 +1512,9 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 
 /*CHANGE LOG
 
+0.6.9:
+add FW2, FW3 and FW4 run modes for sequences (but not for song)
+
 0.6.8:
 show length in display when editing length
 

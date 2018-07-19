@@ -1115,6 +1115,9 @@ Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Mod
 
 /*CHANGE LOG
 
+0.6.9:
+add FW2, FW3 and FW4 run modes for sequences (but not for song)
+
 0.6.7:
 add expansion panel with extra CVs for writing steps into the module
 allow full edit capabilities in song mode

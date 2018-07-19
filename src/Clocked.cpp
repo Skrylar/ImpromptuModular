@@ -1058,7 +1058,8 @@ Model *modelClocked = Model::create<Clocked, ClockedWidget>("Impromptu Modular",
 0.6.9:
 new approach to BPM Detection (all slaves must enable Use BPM Detect if master does, and same ppqn)
 choice of 4, 8, 24 PPQN when using BPM detection
-add ratio of 24 (existing patches making use of greater than 23 mult or div will need to adjust
+add sub-clock ratio of 24 (existing patches making use of greater than 23 mult or div will need to adjust)
+add right click option for emit reset when run turned off
 
 0.6.8:
 replace bit-ring-buffer delay engine with event-based delay engine

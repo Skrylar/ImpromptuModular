@@ -1660,6 +1660,9 @@ Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromp
 
 /*CHANGE LOG
 
+0.6.9:
+add FW2, FW3 and FW4 run modes for sequences (but not for song)
+
 0.6.8:
 allow rollover when selecting sequences in a song phrase (easier access to higher numbered seqs)
 
