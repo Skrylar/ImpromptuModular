@@ -39,7 +39,9 @@ static const float lightLambda = 0.075f;
 static const std::string lightPanelID = "Classic";
 static const std::string darkPanelID = "Dark-valor";
 static const std::string expansionMenuLabel = "Extra CVs (requires +4HP to the right!)";
-
+enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, MODE_FW2, MODE_FW3, MODE_FW4, NUM_MODES};
+//static const int numModeLabels = 8;
+static const std::string modeLabels[NUM_MODES]={"FWD","REV","PPG","BRN","RND","FW2","FW3","FW4"};
 
 // Constants for displaying notes
 
@@ -257,8 +259,6 @@ struct ScrewHole : TransparentWidget {
 	void draw(NVGcontext *vg) override;
 };	
 
-
-enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, NUM_MODES};
 
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box);
 int moveIndex(int index, int indexNext, int numSteps);

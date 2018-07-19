@@ -189,7 +189,7 @@ struct GateSeq64 : Module {
 			for (int s = 0; s < 64; s++) {
 				attributes[i][s] = (randomu32() % 101) | (randomu32() & (ATT_MSK_GATEP | ATT_MSK_GATE));
 			}
-			runModeSeq[i] = randomu32() % 5;
+			runModeSeq[i] = randomu32() % NUM_MODES;
 			phrase[i] = randomu32() % 16;
 			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
 		}
@@ -465,12 +465,12 @@ struct GateSeq64 : Module {
 					if (editingSequence) {
 						runModeSeq[sequence] += deltaKnob;
 						if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
-						if (runModeSeq[sequence] > 4) runModeSeq[sequence] = 4;
+						if (runModeSeq[sequence] >= NUM_MODES) runModeSeq[sequence] = NUM_MODES - 1;
 					}
 					else {
 						runModeSong += deltaKnob;
 						if (runModeSong < 0) runModeSong = 0;
-						if (runModeSong > 4) runModeSong = 4;
+						if (runModeSong >= 5) runModeSong = 5 - 1;
 					}
 				}
 				else if (displayState == DISP_LENGTH) {
@@ -842,14 +842,14 @@ struct GateSeq64Widget : ModuleWidget {
 		GateSeq64 *module;
 		std::shared_ptr<Font> font;
 		char displayStr[4];
-		std::string modeLabels[5]={"FWD","REV","PPG","BRN","RND"};
+		//std::string modeLabels[5]={"FWD","REV","PPG","BRN","RND"};
 		
 		SequenceDisplayWidget() {
 			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
 		}
 		
 		void runModeToStr(int num) {
-			if (num >= 0 && num < 5)
+			if (num >= 0 && num < NUM_MODES)
 				snprintf(displayStr, 4, "%s", modeLabels[num].c_str());
 		}
 

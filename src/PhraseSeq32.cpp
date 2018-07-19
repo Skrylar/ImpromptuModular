@@ -250,7 +250,7 @@ struct PhraseSeq32 : Module {
 					applyTiedStep(i, s, lengths[i]);
 				}
 			}
-			runModeSeq[i] = randomu32() % 5;
+			runModeSeq[i] = randomu32() % NUM_MODES;
 			phrase[i] = randomu32() % 32;
 			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
 			cvCPbuffer[i] = 0.0f;
@@ -543,7 +543,7 @@ struct PhraseSeq32 : Module {
 		// Mode CV input
 		if (inputs[MODECV_INPUT].active) {
 			if (editingSequence)
-				runModeSeq[sequence] = (int) clamp( round(inputs[MODECV_INPUT].value * 4.0f / 10.0f), 0.0f, 4.0f );
+				runModeSeq[sequence] = (int) clamp( round(inputs[MODECV_INPUT].value * ((float)NUM_MODES - 1.0f) / 10.0f), 0.0f, (float)NUM_MODES - 1.0f );
 		}
 		
 		// Run button
@@ -811,13 +811,13 @@ struct PhraseSeq32 : Module {
 						if (!inputs[MODECV_INPUT].active) {
 							runModeSeq[sequence] += deltaKnob;
 							if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
-							if (runModeSeq[sequence] > 4) runModeSeq[sequence] = 4;
+							if (runModeSeq[sequence] >= NUM_MODES) runModeSeq[sequence] = NUM_MODES - 1;
 						}
 					}
 					else {
 						runModeSong += deltaKnob;
 						if (runModeSong < 0) runModeSong = 0;
-						if (runModeSong > 4) runModeSong = 4;
+						if (runModeSong >= 5) runModeSong = 5 - 1;
 					}
 				}
 				else if (displayState == DISP_LENGTH) {
@@ -1291,14 +1291,14 @@ struct PhraseSeq32Widget : ModuleWidget {
 		PhraseSeq32 *module;
 		std::shared_ptr<Font> font;
 		char displayStr[4];
-		std::string modeLabels[5]={"FWD","REV","PPG","BRN","RND"};
+		//std::string modeLabels[5]={"FWD","REV","PPG","BRN","RND"};
 		
 		SequenceDisplayWidget() {
 			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
 		}
 		
 		void runModeToStr(int num) {
-			if (num >= 0 && num < 5)
+			if (num >= 0 && num < NUM_MODES)
 				snprintf(displayStr, 4, "%s", modeLabels[num].c_str());
 		}
 
