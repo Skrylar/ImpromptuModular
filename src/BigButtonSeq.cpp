@@ -496,7 +496,7 @@ struct BigButtonSeqWidget : ModuleWidget {
 		met8Item->div = 8;
 		menu->addChild(met8Item);
 
-		MetronomeItem *met1000Item = MenuItem::create<MetronomeItem>("Length", CHECKMARK(module->metronomeDiv == 1000));
+		MetronomeItem *met1000Item = MenuItem::create<MetronomeItem>("Full length", CHECKMARK(module->metronomeDiv == 1000));
 		met1000Item->module = module;
 		met1000Item->div = 1000;
 		menu->addChild(met1000Item);

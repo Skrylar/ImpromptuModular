@@ -494,9 +494,9 @@ struct Clocked : Module {
 						// this must be the only way to start runnning when in bpmDetectionMode or else
 						//   when manually starting, the clock will not know which pulse is the 1st of a ppqn set
 						//runPulse.trigger(0.001f); don't need this since slaves will detect the same thing
-						resetClocked();
 						running = true;
 						runPulse.trigger(0.001f);
+						resetClocked();
 					}
 					if (running) {
 						extPulseNumber++;
@@ -516,6 +516,7 @@ struct Clocked : Module {
 					extIntervalTime += sampleTime;
 					if (extIntervalTime > timeoutTime) {
 						running = false;
+						runPulse.trigger(0.001f);
 						resetClocked();
 						if (emitResetOnStopRun) {
 							//resetLight = 1.0f;
