@@ -496,6 +496,7 @@ struct Clocked : Module {
 						//runPulse.trigger(0.001f); don't need this since slaves will detect the same thing
 						resetClocked();
 						running = true;
+						runPulse.trigger(0.001f);
 					}
 					if (running) {
 						extPulseNumber++;
@@ -516,6 +517,10 @@ struct Clocked : Module {
 					if (extIntervalTime > timeoutTime) {
 						running = false;
 						resetClocked();
+						if (emitResetOnStopRun) {
+							//resetLight = 1.0f;
+							resetPulse.trigger(0.001f);
+						}
 					}
 				}
 			}
