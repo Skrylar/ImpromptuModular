@@ -945,6 +945,11 @@ struct PhraseSeq32 : Module {
 						editingGateCV = cv[sequence][stepIndexEdit];
 						editingGateAttrib = attributes[sequence][stepIndexEdit];
 						editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
+						if (params[KEY_PARAMS + i].value > 1.5f) {
+							stepIndexEdit += 1;
+							if (stepIndexEdit >= 32)//lengths[sequence])// Commented for full edit capabilities
+								stepIndexEdit = 0;									
+						}
 					}						
 				}
 				displayState = DISP_NORMAL;
@@ -1662,6 +1667,7 @@ Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromp
 
 0.6.9:
 add FW2, FW3 and FW4 run modes for sequences (but not for song)
+right click on notes now does same as left click but with autostep
 
 0.6.8:
 allow rollover when selecting sequences in a song phrase (easier access to higher numbered seqs)

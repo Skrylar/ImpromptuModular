@@ -245,6 +245,8 @@ struct InvisibleKeySmall : MomentarySwitch {
 	InvisibleKeySmall() {
 		box.size = Vec(23, 50);
 	}
+	void onMouseDown(EventMouseDown &e) override;
+	void onMouseUp(EventMouseUp &e) override;
 };
 
 struct ScrewSilverRandomRot : FramebufferWidget {// location: include/app.hpp and src/app/SVGScrew.cpp [some code also from src/app/SVGKnob.cpp]

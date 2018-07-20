@@ -883,6 +883,9 @@ struct SemiModularSynth : Module {
 						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 						editingGateCV = cv[sequence][stepIndexEdit];
 						editingGateAttrib = attributes[sequence][stepIndexEdit];
+						if (params[KEY_PARAMS + i].value > 1.5f) {
+							stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
+						}
 					}						
 				}
 				displayState = DISP_NORMAL;
@@ -1731,7 +1734,7 @@ Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthW
 0.6.9:
 add FW2, FW3 and FW4 run modes for sequences (but not for song)
 update VCF code to match new Fundamental code (existing patches may sound different)
-
+right click on notes now does same as left click but with autostep
 
 0.6.8:
 show length in display when editing length

@@ -48,6 +48,28 @@ LEDBezelBig::LEDBezelBig() {
 }
 
 
+void InvisibleKeySmall::onMouseDown(EventMouseDown &e) {
+	if (e.button == 1) {// if right button (see events.hpp)
+		maxValue = 2.0f;
+		// Simulate MomentarySwitch::onDragStart() since not called for right clicks:
+		setValue(maxValue);
+		EventAction eAction;
+		onAction(eAction);
+	}
+	else 
+		maxValue = 1.0f;
+	//ParamWidget::onMouseDown(e);// don't want the reset() that is called in ParamWidget::onMouseDown(), so implement rest of that function here:
+	e.consumed = true;
+	e.target = this;
+}
+void InvisibleKeySmall::onMouseUp(EventMouseUp &e) {
+	if (e.button == 1) {// if right button (see events.hpp)
+		// Simulate MomentarySwitch::onDragEnd() since not called for right clicks:
+		setValue(minValue);
+	}
+	ParamWidget::onMouseUp(e);
+}
+
 
 ScrewSilverRandomRot::ScrewSilverRandomRot() {
 	float angle0_90 = randomUniform()*M_PI/2.0f;
