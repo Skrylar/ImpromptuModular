@@ -118,7 +118,7 @@ struct PhraseSeq32 : Module {
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
 	float editingGateCV;// no need to initialize, this is a companion to editingGate (output this only when editingGate > 0)
-	int editingGateAttrib;// no need to initialize, this is a companion to editingGate (use this only when editingGate > 0)
+	int editingGateKeyLight;// no need to initialize, this is a companion to editingGate (use this only when editingGate > 0)
 	int editingChannel;// 0 means channel A, 1 means channel B. no need to initialize, this is a companion to editingGate
 	int stepIndexRunHistory;// no need to initialize
 	int phraseIndexRunHistory;// no need to initialize
@@ -644,7 +644,7 @@ struct PhraseSeq32 : Module {
 					}
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = cv[sequence][stepIndexEdit];
-					editingGateAttrib = attributes[sequence][stepIndexEdit];
+					editingGateKeyLight = -1;
 					editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 					// Autostep (after grab all active inputs)
 					if (params[AUTOSTEP_PARAM].value > 0.5f) {
@@ -711,7 +711,7 @@ struct PhraseSeq32 : Module {
 							if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
 								editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 								editingGateCV = cv[sequence][stepIndexEdit];
-								editingGateAttrib = attributes[sequence][stepIndexEdit];
+								editingGateKeyLight = -1;
 								editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 							}
 						}
@@ -750,7 +750,7 @@ struct PhraseSeq32 : Module {
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 							editingGateCV = cv[sequence][stepIndexEdit];
-							editingGateAttrib = attributes[sequence][stepIndexEdit];
+							editingGateKeyLight = -1;
 							editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 						}
 					}
@@ -926,7 +926,7 @@ struct PhraseSeq32 : Module {
 					}
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = cv[sequence][stepIndexEdit];
-					editingGateAttrib = attributes[sequence][stepIndexEdit];
+					editingGateKeyLight = -1;
 					editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 				}
 			}
@@ -943,12 +943,13 @@ struct PhraseSeq32 : Module {
 						applyTiedStep(sequence, stepIndexEdit, ((stepIndexEdit >= 16 && stepConfig == 1) ? 16 : 0) + lengths[sequence]);
 						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 						editingGateCV = cv[sequence][stepIndexEdit];
-						editingGateAttrib = attributes[sequence][stepIndexEdit];
+						editingGateKeyLight = -1;
 						editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 						if (params[KEY_PARAMS + i].value > 1.5f) {
 							stepIndexEdit += 1;
 							if (stepIndexEdit >= 32)//lengths[sequence])// Commented for full edit capabilities
-								stepIndexEdit = 0;									
+								stepIndexEdit = 0;
+							editingGateKeyLight = i;
 						}
 					}						
 				}
@@ -1208,8 +1209,12 @@ struct PhraseSeq32 : Module {
 					bool warningFlashState = calcWarningFlash(tiedWarning, tiedWarningInit);
 					lights[KEY_LIGHTS + i].value = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
 				}
-				else				
-					lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+				else {
+					if (editingGate > 0ul && editingGateKeyLight != -1)
+						lights[KEY_LIGHTS + i].value = (i == editingGateKeyLight ? ((float) editingGate / (float)(gateTime * engineGetSampleRate())) : 0.0f);
+					else
+						lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+				}
 			}
 		}			
 		

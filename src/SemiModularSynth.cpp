@@ -203,7 +203,7 @@ struct SemiModularSynth : Module {
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
 	float editingGateCV;// no need to initialize, this is a companion to editingGate (output this only when editingGate > 0)
-	int editingGateAttrib;// no need to initialize, this is a companion to editingGate (use this only when editingGate > 0)
+	int editingGateKeyLight;// no need to initialize, this is a companion to editingGate (use this only when editingGate > 0)
 	int stepIndexRunHistory;// no need to initialize
 	int phraseIndexRunHistory;// no need to initialize
 	int displayState;
@@ -703,7 +703,7 @@ struct SemiModularSynth : Module {
 					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = cv[sequence][stepIndexEdit];
-					editingGateAttrib = attributes[sequence][stepIndexEdit];
+					editingGateKeyLight = -1;
 					// Autostep (after grab all active inputs)
 					if (params[AUTOSTEP_PARAM].value > 0.5f)
 						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);//lengths[sequence]);// Commented for full edit capabilities
@@ -746,7 +746,7 @@ struct SemiModularSynth : Module {
 							if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
 								editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 								editingGateCV = cv[sequence][stepIndexEdit];
-								editingGateAttrib = attributes[sequence][stepIndexEdit];
+								editingGateKeyLight = -1;
 							}
 						}
 					}
@@ -866,7 +866,7 @@ struct SemiModularSynth : Module {
 					}
 					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 					editingGateCV = cv[sequence][stepIndexEdit];
-					editingGateAttrib = attributes[sequence][stepIndexEdit];
+					editingGateKeyLight = -1;
 				}
 			}
 		}		
@@ -882,9 +882,10 @@ struct SemiModularSynth : Module {
 						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
 						editingGateCV = cv[sequence][stepIndexEdit];
-						editingGateAttrib = attributes[sequence][stepIndexEdit];
+						editingGateKeyLight = -1;
 						if (params[KEY_PARAMS + i].value > 1.5f) {
 							stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
+							editingGateKeyLight = i;
 						}
 					}						
 				}
@@ -1090,8 +1091,12 @@ struct SemiModularSynth : Module {
 					bool warningFlashState = calcWarningFlash(tiedWarning, tiedWarningInit);
 					lights[KEY_LIGHTS + i].value = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
 				}
-				else				
-					lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+				else {
+					if (editingGate > 0ul && editingGateKeyLight != -1)
+						lights[KEY_LIGHTS + i].value = (i == editingGateKeyLight ? ((float) editingGate / (float)(gateTime * engineGetSampleRate())) : 0.0f);
+					else
+						lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+				}
 			}
 		}			
 		
