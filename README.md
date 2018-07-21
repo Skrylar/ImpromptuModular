@@ -229,7 +229,7 @@ Although no **write** capabilities appear in the main part of the module, automa
 
 ![IM](res/img/BigButtonSeq.jpg)
 
-A 6-channel 64-step trigger sequencer based on the infamous [BigButton](https://www.youtube.com/watch?v=6ArDGcUqiWM) by [Look Mum No Computer](https://www.lookmumnocomputer.com/projects/#/big-button/). The sequencer is mainly for live uses. Although this is not a direct port of the original module, the intent was to keep it as faithful as possible, while adding a few minor extras such as CV inputs. When applicable, it is recommended to connect the sequencer to a midi control surface using Rack's Core MIDI-CC module, in order to have two-handed control of the knobs and buttons. To see more examples of what the sequencer can do, please see the following videos:
+A 6-channel 64-step trigger sequencer based on the infamous [BigButton](https://www.youtube.com/watch?v=6ArDGcUqiWM) by [Look Mum No Computer](https://www.lookmumnocomputer.com/projects/#/big-button/). The sequencer is mainly for live uses. Although this is not a direct port of the original module, the intent was to keep it as faithful as possible, while adding a few minor extras such as CV inputs. For two-handed control of the knobs and buttons, connect the sequencer to a midi control surface using Rack's Core MIDI-CC module. To see more examples of what the sequencer can do, please see the following videos:
 
 * [BigButton VCV Rack Module test](https://www.youtube.com/watch?v=uN2l2t5SCyE) by Alberto Zamora;
 
