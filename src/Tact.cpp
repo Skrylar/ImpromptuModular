@@ -55,7 +55,6 @@ struct Tact : Module {
 
 	// Need to save, no reset
 	int panelTheme;
-	int expansion;
 	
 	// No need to save, with reset
 	// none
@@ -79,7 +78,6 @@ struct Tact : Module {
 	Tact() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		// Need to save, no reset
 		panelTheme = 0;
-		expansion = 0;
 		// No need to save, no reset		
 		scheduledReset = false;
 		infoStore = 0l;
@@ -146,9 +144,6 @@ struct Tact : Module {
 		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
 
-		// expansion
-		json_object_set_new(rootJ, "expansion", json_integer(expansion));
-
 		return rootJ;
 	}
 
@@ -178,11 +173,6 @@ struct Tact : Module {
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
 			panelTheme = json_integer_value(panelThemeJ);
-
-		// expansion
-		json_t *expansionJ = json_object_get(rootJ, "expansion");
-		if (expansionJ)
-			expansion = json_integer_value(expansionJ);
 
 		// No need to save, with reset
 		// none
@@ -351,12 +341,6 @@ struct Tact : Module {
 
 
 struct TactWidget : ModuleWidget {
-	Tact *module;
-	DynamicSVGPanel *panel;
-	int oldExpansion;
-	int expWidth = 60;
-	IMPort* expPorts[5];
-
 
 	struct PanelThemeItem : MenuItem {
 		Tact *module;
@@ -366,12 +350,6 @@ struct TactWidget : ModuleWidget {
 		}
 		void step() override {
 			rightText = (module->panelTheme == theme) ? "✔" : "";
-		}
-	};
-	struct ExpansionItem : MenuItem {
-		Tact *module;
-		void onAction(EventAction &e) override {
-			module->expansion = module->expansion == 1 ? 0 : 1;
 		}
 	};
 	Menu *createContextMenu() override {
@@ -399,52 +377,23 @@ struct TactWidget : ModuleWidget {
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
 
-		menu->addChild(new MenuLabel());// empty line
-		
-		MenuLabel *expansionLabel = new MenuLabel();
-		expansionLabel->text = "Expansion module";
-		menu->addChild(expansionLabel);
-
-		ExpansionItem *expItem = MenuItem::create<ExpansionItem>(expansionMenuLabel, CHECKMARK(module->expansion != 0));
-		expItem->module = module;
-		menu->addChild(expItem);
-
 		return menu;
 	}	
 	
-	void step() override {
-		if(module->expansion != oldExpansion) {
-			if (oldExpansion!= -1 && module->expansion == 0) {// if just removed expansion panel, disconnect wires to those jacks
-				for (int i = 0; i < 5; i++)
-					gRackWidget->wireContainer->removeAllWires(expPorts[i]);
-			}
-			oldExpansion = module->expansion;		
-		}
-		box.size.x = panel->box.size.x - (1 - module->expansion) * expWidth;
-		Widget::step();
-	}
-	
 	TactWidget(Tact *module) : ModuleWidget(module) {
-		this->module = module;
-		oldExpansion = -1;
-		
 		// Main panel from Inkscape
-        panel = new DynamicSVGPanel();
-        panel->mode = &module->panelTheme;
-		panel->expWidth = &expWidth;
+        DynamicSVGPanel *panel = new DynamicSVGPanel();
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Tact.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/Tact_dark.svg")));
         box.size = panel->box.size;
-		box.size.x = box.size.x - (1 - module->expansion) * expWidth;
-        addChild(panel);		
-		
+        panel->mode = &module->panelTheme;
+        addChild(panel);
+
 		// Screws
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 365), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30, 0), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30, 365), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30-expWidth, 0), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30-expWidth, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->panelTheme));
 		
 		
 		static const int rowRuler0 = 34;
@@ -472,91 +421,85 @@ struct TactWidget : ModuleWidget {
 
 		
 		static const int colRulerCenter = 115;// not real center, but pos so that a jack would be centered
-		static const int offsetOutputX = 49;
-		static const int colRulerC1L = colRulerCenter - offsetOutputX - 1;
-		static const int colRulerC1R = colRulerCenter + offsetOutputX; 
 		static const int rowRuler2 = 265;// outputs and link
-		
-		// Link switch
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerCenter + hOffsetCKSS, rowRuler2 + vOffsetCKSS), module, Tact::LINK_PARAM, 0.0f, 1.0f, 0.0f));		
-		// Outputs
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerC1L, rowRuler2), Port::OUTPUT, module, Tact::CV_OUTPUTS + 0, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerC1R, rowRuler2), Port::OUTPUT, module, Tact::CV_OUTPUTS + 1, &module->panelTheme));
-		
-
-		static const int offsetRecallX = 52;
-		static const int colRulerC2L = colRulerC1L - offsetRecallX;
-		static const int colRulerC2R = colRulerC1R + offsetRecallX;
+		static const int colRulerC3L = colRulerCenter - 101 - 1;
+		static const int colRulerC3R = colRulerCenter + 101;
 		
 		// Recall CV inputs
-		addInput(createDynamicPort<IMPort>(Vec(colRulerC2L, rowRuler2), Port::INPUT, module, Tact::RECALL_INPUTS + 0, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(colRulerC2R, rowRuler2), Port::INPUT, module, Tact::RECALL_INPUTS + 1, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerC3L, rowRuler2), Port::INPUT, module, Tact::RECALL_INPUTS + 0, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerC3R, rowRuler2), Port::INPUT, module, Tact::RECALL_INPUTS + 1, &module->panelTheme));		
 		
-		
-		
+
 		static const int rowRuler1d = rowRuler2 - 54;
 		
 		// Slide switches
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerC2L + hOffsetCKSS, rowRuler1d + vOffsetCKSS), module, Tact::SLIDE_PARAMS + 0, 0.0f, 1.0f, 0.0f));		
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerC2R + hOffsetCKSS, rowRuler1d + vOffsetCKSS), module, Tact::SLIDE_PARAMS + 1, 0.0f, 1.0f, 0.0f));		
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerC3L + hOffsetCKSS, rowRuler1d + vOffsetCKSS), module, Tact::SLIDE_PARAMS + 0, 0.0f, 1.0f, 0.0f));		
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerC3R + hOffsetCKSS, rowRuler1d + vOffsetCKSS), module, Tact::SLIDE_PARAMS + 1, 0.0f, 1.0f, 0.0f));		
 
-		
 
 		static const int rowRuler1c = rowRuler1d - 46;
 
 		// Store buttons
-		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2L + offsetTL1105, rowRuler1c + offsetTL1105), module, Tact::STORE_PARAMS + 0, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<TL1105>(Vec(colRulerC2R + offsetTL1105, rowRuler1c + offsetTL1105), module, Tact::STORE_PARAMS + 1, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<TL1105>(Vec(colRulerC3L + offsetTL1105, rowRuler1c + offsetTL1105), module, Tact::STORE_PARAMS + 0, 0.0f, 1.0f, 0.0f));
+		addParam(ParamWidget::create<TL1105>(Vec(colRulerC3R + offsetTL1105, rowRuler1c + offsetTL1105), module, Tact::STORE_PARAMS + 1, 0.0f, 1.0f, 0.0f));
 		
 		
 		static const int rowRuler1b = rowRuler1c - 59;
 		
 		// Attv knobs
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerC2L + offsetIMSmallKnob, rowRuler1b + offsetIMSmallKnob), module, Tact::ATTV_PARAMS + 0, -1.0f, 1.0f, 1.0f, &module->panelTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerC2R + offsetIMSmallKnob, rowRuler1b + offsetIMSmallKnob), module, Tact::ATTV_PARAMS + 1, -1.0f, 1.0f, 1.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerC3L + offsetIMSmallKnob, rowRuler1b + offsetIMSmallKnob), module, Tact::ATTV_PARAMS + 0, -1.0f, 1.0f, 1.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerC3R + offsetIMSmallKnob, rowRuler1b + offsetIMSmallKnob), module, Tact::ATTV_PARAMS + 1, -1.0f, 1.0f, 1.0f, &module->panelTheme));
 
 		
 		static const int rowRuler1a = rowRuler1b - 59;
 		
 		// Rate knobs
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerC2L + offsetIMSmallKnob, rowRuler1a + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 0, 0.0f, 4.0f, 0.2f, &module->panelTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerC2R + offsetIMSmallKnob, rowRuler1a + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 1, 0.0f, 4.0f, 0.2f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerC3L + offsetIMSmallKnob, rowRuler1a + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 0, 0.0f, 4.0f, 0.2f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerC3R + offsetIMSmallKnob, rowRuler1a + offsetIMSmallKnob), module, Tact::RATE_PARAMS + 1, 0.0f, 4.0f, 0.2f, &module->panelTheme));
 		
 
-		static const int colRulerB1 = colRulerC1L;
-		static const int colRulerB2 = colRulerC1R;
-		static const int colRulerB0 = colRulerC2L;
-		static const int colRulerB3 = colRulerC2R;
-		
+		static const int colRulerC1L = colRulerCenter - 30 - 1;
+		static const int colRulerC1R = colRulerCenter + 30; 
+		static const int colRulerC2L = colRulerCenter - 65 - 1;
+		static const int colRulerC2R = colRulerCenter + 65 + 1; 
+
+		// Exp switch
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerCenter + hOffsetCKSS, rowRuler2 + vOffsetCKSS), module, Tact::EXP_PARAM, 0.0f, 1.0f, 0.0f));		
+
+		// Top/bot CV Inputs
+		addInput(createDynamicPort<IMPort>(Vec(colRulerC2L, rowRuler2), Port::INPUT, module, Tact::TOP_INPUTS + 0, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerC1L, rowRuler2), Port::INPUT, module, Tact::BOT_INPUTS + 0, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerC1R, rowRuler2), Port::INPUT, module, Tact::BOT_INPUTS + 1, &module->panelTheme));	
+		addInput(createDynamicPort<IMPort>(Vec(colRulerC2R, rowRuler2), Port::INPUT, module, Tact::TOP_INPUTS + 1, &module->panelTheme));		
+
 		
 		static const int rowRuler3 = rowRuler2 + 54;
 
-		// Top/bot CV Inputs
-		addInput(createDynamicPort<IMPort>(Vec(colRulerB0, rowRuler3), Port::INPUT, module, Tact::TOP_INPUTS + 0, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(colRulerB1, rowRuler3), Port::INPUT, module, Tact::BOT_INPUTS + 0, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(colRulerB2, rowRuler3), Port::INPUT, module, Tact::BOT_INPUTS + 1, &module->panelTheme));	
-		addInput(createDynamicPort<IMPort>(Vec(colRulerB3, rowRuler3), Port::INPUT, module, Tact::TOP_INPUTS + 1, &module->panelTheme));		
+		// Link switch
+		addParam(ParamWidget::create<CKSS>(Vec(colRulerCenter + hOffsetCKSS, rowRuler3 + vOffsetCKSS), module, Tact::LINK_PARAM, 0.0f, 1.0f, 0.0f));		
 
+		// Outputs
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerCenter - 49 - 1, rowRuler3), Port::OUTPUT, module, Tact::CV_OUTPUTS + 0, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerCenter + 49, rowRuler3), Port::OUTPUT, module, Tact::CV_OUTPUTS + 1, &module->panelTheme));
+		
+		// EOC
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerCenter - 89 - 1, rowRuler3), Port::OUTPUT, module, Tact::EOC_OUTPUTS + 0, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerCenter + 89, rowRuler3), Port::OUTPUT, module, Tact::EOC_OUTPUTS + 1, &module->panelTheme));
+
+		
 		// Lights
-		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(colRulerC2L + 26 + offsetMediumLight, rowRuler3 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 0 * 2));		
-		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(colRulerC2R - 26 + offsetMediumLight, rowRuler3 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 1 * 2));		
+		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(colRulerCenter - 47 - 1 + offsetMediumLight, rowRuler2 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 0 * 2));		
+		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(colRulerCenter + 47 + 1 + offsetMediumLight, rowRuler2 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 1 * 2));		
 
-		// Exp switch
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerCenter + hOffsetCKSS, rowRuler3 + vOffsetCKSS), module, Tact::EXP_PARAM, 0.0f, 1.0f, 0.0f));		
-		
-		
-		// Expansion module
-		static const int rowRulerExpTop = 65;
-		static const int rowSpacingExp = 60;
-		static const int colRulerExp = 497 - 30 -195;// Tact is (2+13)HP less than PS32
-		addOutput(expPorts[0] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 0), Port::OUTPUT, module, Tact::EOC_OUTPUTS + 0, &module->panelTheme));
-		addOutput(expPorts[1] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 1), Port::OUTPUT, module, Tact::EOC_OUTPUTS + 1, &module->panelTheme));
 	}
 };
 
 Model *modelTact = Model::create<Tact, TactWidget>("Impromptu Modular", "Tact", "CTRL - Tact", CONTROLLER_TAG);
 
 /*CHANGE LOG
+
+0.6.9:
+move EOC outputs to main panel and remove expansion panel
 
 0.6.8:
 remove widget pointer dependancy in module for changing a tact param value

@@ -89,7 +89,9 @@ A touch-like controller module with dual CV outputs and variable rate of change.
 
 **EXP**: Produces an exponential slide (top position) instead of a linear slide (bottom position).
 
-A 0V CV is initially stored in the CV memory and the slide switches are in the off position, thereby allowing the Recall to act as a **Reset** by default. An **Expansion pannel** with EOC outputs is also available in the right-click menu. EOC is a trigger that is emitted when a slide is completed (to signal its end); this can be used for more automation, for example, by triggering or chaining other operations when a fade in/out completes.
+**EOC**:  EOC is an end-of-cycle trigger that is emitted when a slide is completed (to signal its end); this can be used for more automation, for example, by triggering or chaining other operations when a fade in/out completes. The EOC triggers upon the end of any slide event, whether the end position is at the top/bottom or not.
+
+A 0V CV is initially stored in the CV memory and the slide switches are in the off position, thereby allowing the Recall to act as a **Reset** by default. 
 
 ([Back to module list](#modules))
 
