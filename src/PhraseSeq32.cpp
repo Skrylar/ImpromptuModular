@@ -936,8 +936,12 @@ struct PhraseSeq32 : Module {
 		for (int i = 0; i < 12; i++) {
 			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 				if (editingSequence) {
-					if (getTied(sequence,stepIndexEdit))
-						tiedWarning = tiedWarningInit;
+					if (getTied(sequence,stepIndexEdit)) {
+						if (params[KEY_PARAMS + i].value > 1.5f)
+							stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 32);
+						else
+							tiedWarning = tiedWarningInit;
+					}
 					else {			
 						cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
 						applyTiedStep(sequence, stepIndexEdit, ((stepIndexEdit >= 16 && stepConfig == 1) ? 16 : 0) + lengths[sequence]);
@@ -946,9 +950,7 @@ struct PhraseSeq32 : Module {
 						editingGateKeyLight = -1;
 						editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 						if (params[KEY_PARAMS + i].value > 1.5f) {
-							stepIndexEdit += 1;
-							if (stepIndexEdit >= 32)//lengths[sequence])// Commented for full edit capabilities
-								stepIndexEdit = 0;
+							stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 32);
 							editingGateKeyLight = i;
 						}
 					}						
@@ -1100,8 +1102,8 @@ struct PhraseSeq32 : Module {
 		else {// not running 
 			if (editingChannel == 0) {
 				outputs[CVA_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
-				outputs[GATE1A_OUTPUT].value = (editingGate > 0ul && getGate1(seq, step)) ? 10.0f : 0.0f;
-				outputs[GATE2A_OUTPUT].value = (editingGate > 0ul && getGate2(seq, step)) ? 10.0f : 0.0f;
+				outputs[GATE1A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+				outputs[GATE2A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 				outputs[CVB_OUTPUT].value = 0.0f;
 				outputs[GATE1B_OUTPUT].value = 0.0f;
 				outputs[GATE2B_OUTPUT].value = 0.0f;
@@ -1111,8 +1113,8 @@ struct PhraseSeq32 : Module {
 				outputs[GATE1A_OUTPUT].value = 0.0f;
 				outputs[GATE2A_OUTPUT].value = 0.0f;
 				outputs[CVB_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
-				outputs[GATE1B_OUTPUT].value = (editingGate > 0ul && getGate1(seq, step)) ? 10.0f : 0.0f;
-				outputs[GATE2B_OUTPUT].value = (editingGate > 0ul && getGate2(seq, step)) ? 10.0f : 0.0f;
+				outputs[GATE1B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+				outputs[GATE2B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 			}
 		}
 		

@@ -875,8 +875,12 @@ struct SemiModularSynth : Module {
 		for (int i = 0; i < 12; i++) {
 			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 				if (editingSequence) {
-					if (getTied(sequence,stepIndexEdit))
-						tiedWarning = tiedWarningInit;
+					if (getTied(sequence,stepIndexEdit)) {
+						if (params[KEY_PARAMS + i].value > 1.5f)
+							stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
+						else
+							tiedWarning = tiedWarningInit;
+					}
 					else {			
 						cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
 						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
@@ -1009,8 +1013,8 @@ struct SemiModularSynth : Module {
 		}
 		else {// not running 
 			outputs[CV_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
-			outputs[GATE1_OUTPUT].value = (editingGate > 0ul && getGate1(seq, step)) ? 10.0f : 0.0f;
-			outputs[GATE2_OUTPUT].value = (editingGate > 0ul && getGate2(seq, step)) ? 10.0f : 0.0f;
+			outputs[GATE1_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+			outputs[GATE2_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 		}
 		
 		// Step/phrase lights

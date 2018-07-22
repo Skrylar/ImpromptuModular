@@ -2,7 +2,7 @@
 
 Modules for [VCV Rack](https://vcvrack.com), available in the [plugin manager](https://vcvrack.com/plugins.html).
 
-Version 0.6.8
+Version 0.6.9
 
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!   120% Zoom for jpgs)
 
@@ -17,7 +17,8 @@ Impromptu Modular is not a single-person endeavor:
 
 * Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in Talking Rackheads [epsiode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg), as well as PhraseSeq32 and GateSeq64 in [episode 10](https://www.youtube.com/watch?v=bjqWwTKqERQ) and Clocked in [episode 12](https://www.youtube.com/watch?v=ymfOh1yCzU4). 
 * Thanks to **Xavier Belmont** for suggesting improvements to the modules, for testing/bug-reports, for the concept design of the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
-* Thanks to **Alfredo Santamaria**, **Nay Seven**, **Omri Cohen**, **Alberto Zamora**, **Clément Foulc**, **Steve Baker** and **Latif Fital** for suggesting improvements to the modules, bug reports and testing.
+* Thanks to **Steve Baker** for many fruitful discussions regarding the BPM Detection method in Clocked, testing and improvements that were suggested for that module. 
+* Thanks to **Omri Cohen**, **Latif Fital**, **Alfredo Santamaria**, **Nay Seven**, **Alberto Zamora**, **Clément Foulc** for suggesting improvements to the modules, bug reports and testing.
 
 
 
@@ -123,10 +124,9 @@ For a brief tutorial on setting up the controller, please see [this segment](htt
 
 ![IM](res/img/Clocked.jpg)
 
-A chainable master clock module with swing, clock delay and pulse width controls, with master BPM from 30 to 300 and all mult/div ratios up to 16, including 1.5 and 2.5, and with additional ratios spanning prime numbers and powers of two up to 64. The clock can produce waveforms with adjustable pulse widths for use with envelope generators or sequencers that use the clock pulse to produce their gate signals. 
+A chainable master clock module with swing, clock delay and pulse width controls, with master BPM from 30 to 300 and all mult/div ratios up to 16, including 1.5 and 2.5, and with additional ratios spanning prime numbers and powers of two up to 64. The clock can produce waveforms with adjustable pulse widths for use with envelope generators or sequencers that use the clock pulse to produce their gate signals. The clock can also be synchronized to an external clock source.
 
 For a tutorial on Clocked regarding chaining, clock multiplications and divisions, swing and clock delay features, please see Nigel Sixsmith's [Talking Rackheads episode 12](https://www.youtube.com/watch?v=ymfOh1yCzU4). 
-
 
 **SWING**: The clock swing is loosely based on the [Roger Linn method](https://www.attackmagazine.com/technique/passing-notes/daw-drum-machine-swing/). For a given clock, all even clocks pulses are offset forward/backward according to the setting of the Swing knob; at 0 (top) everything is aligned as normal. At -100, all even clocks would coincide with odd clocks preceding them, and at +100 they would line up with subsequent clock pulses). The knob thus goes from -99 to +99 such that no beats are missed. In its extreme positions, the timing is tighter than 99 percent of a clock period (the 99 value is only a rough indication). 
 
@@ -138,14 +138,16 @@ In place of a detailed explanation of these three main controls, it is recommend
 
 The PW and Swing **CV inputs** (some are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default position. When this is the case, no-swing and normal-pulse-width correspond to 5V on the CV inputs.
 
-By default, the clock's BPM input is level sensitive and follows [Rack standards for BPM CVs](https://vcvrack.com/manual/VoltageStandards.html#pitch-and-frequencies). For getting the BPM from an external clock signal, an optional setting is available in the right-click menu called "Use **BPM Detection** (as opposed to **BPM CV**)". When using this option in a chain of Clocked modules, all modules must have the option checked. The green LED to the right of the main BPM display will light up when a BPM is properly detected and locked. Also keep in mind that Clocked rounds all BPM values to their nearest integers, and for this and other reasons, there is no guarantee that Clocked will stay perfectly synchronized to incoming clock pulses over long periods of time. Proper use of resets can help mitigate these issues.
+### External synchronization <a id="clocked-sync"></a>
 
-Coming in 0.6.9: A new clock synchronization method that syncs itself to the incoming clock pulse, and will stay synchronized, as opposed to just calculating the BPM from the external source. This means that it will not drift (or that it will drift in time with the incoming pulses if they drift), and it should stay perfectly synchronized over time; it also allows for latency compensation. Here are a few points to keep in mind when using BPM Detection.
+By default, the clock's BPM input is level sensitive and follows [Rack standards for BPM CVs](https://vcvrack.com/manual/VoltageStandards.html#pitch-and-frequencies). For synchronizing Clocked an external clock signal, an optional setting is available in the right-click menu called "Use **BPM Detection** (as opposed to **BPM CV**)". When using this option in a chain of Clocked modules, all modules must have the option checked. The green LED to the right of the main BPM display will light up when this mode is enabled and a cable is connected to the BPM input. 
 
-1. When using the BPM detection mode, you must have an external clock source capable of sending clocks at a minumum of 4 pulses per quarter note (PPQN), and this external clock should not have any swing.
-1. Clocked can not be manually turned on, it will autostart on the first pulse it receives.
-1. The clock will automatically stop when the pulses stop, but in order to detect this, it take a small amount of time. To stop the clock quickly, you can simply send a pulse to the RUN CV, and if it is running, it will turn off.
-1. For low clock BPMs, synchronization may take some time if the external clock changes markedly from the last BPM it was synchronized to. Making gradualy tempo changes is always recommended, and increasing the PPQN setting may also help.
+When using BPM detection, Clocked syncs itself to the incoming clock pulse, and will stay synchronized, as opposed to just calculating the BPM from the external source. This means that it will not drift (or that it will drift in time with the incoming pulses if they drift), and it should stay perfectly synchronized over time; it also allows for latency compensation. Here are a few points to keep in mind when using BPM Detection.
+
+1. When using the BPM detection mode, Clocked can not be manually turned on, it will autostart on the first pulse it receives.
+1. Clocked will automatically stop when the pulses stop, but in order to detect this, it take a small amount of time. To stop the clock quickly, you can simply send a pulse to the RUN CV input, and if the clock is running, it will turn off.
+1. The external clock must be capable of sending clocks at a minumum of 4 pulses per quarter note (PPQN) and should not have any swing.
+1. For low clock BPMs, synchronization may take some time if the external clock changes markedly from the last BPM it was synchronized to. Making gradual tempo changes is always recommended, and increasing the PPQN setting may also help. An other method is to first prime Clocked with is correct BPM to let it learn the new BPM, so that all further runs at that BPM will sync perfectly.
 
 ([Back to module list](#modules))
 
@@ -155,7 +157,7 @@ Coming in 0.6.9: A new clock synchronization method that syncs itself to the inc
 
 ![IM](res/img/PhraseSeq16.jpg)
 
-A 16 phrase sequencer module, where each phrase is an index into a set of 16 sequences of 16 steps (maximum). CVs can be entered via a CV input when using an external keyboard controller or via the built-in keyboard on the module itself. If you need a 256-step sequence in a single module, this is the sequencer for you! With two separate gates per step, gate 2 is perfect for using as an accent if desired. New for 0.6.9: When notes are instead clicked with the right mouse button, the sequencer automatically moves to the next step.
+A 16 phrase sequencer module, where each phrase is an index into a set of 16 sequences of 16 steps (maximum). CVs can be entered via a CV input when using an external keyboard controller or via the built-in keyboard on the module itself. If you need a 256-step sequence in a single module, this is the sequencer for you! With two separate gates per step, gate 2 is perfect for using as an accent if desired. When notes are entered with the *right mouse button* instead of the left button, the sequencer automatically moves to the next step.
 
 The following block diagram shows how sequences and phrases relate to each other to create a song. In the diagram, a 12-bar blues pattern is created by setting the song length to 12, the step lengths to 8 (not visible in the figure), and then creating 4 sequences. The 12 phrases are indexes into the 4 sequences that were created. (Not sure anyone plays blues in a modular synth, but it shows the idea at least!)
 
