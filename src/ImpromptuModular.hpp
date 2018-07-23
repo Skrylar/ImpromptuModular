@@ -13,7 +13,6 @@
 
 #include "rack.hpp"
 #include "IMWidgets.hpp"
-#include <climits>
 
 using namespace rack;
 
