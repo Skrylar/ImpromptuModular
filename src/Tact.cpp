@@ -323,7 +323,7 @@ struct Tact : Module {
 		for (int i = 0; i < numLights; i++) {
 			float level = clamp( cvValue - ((float)(i)), 0.0f, 1.0f);
 			// Green diode
-			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 0].value = level;
+			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 0].setBrightness(level);
 			// Red diode
 			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 1].value = 0.0f;
 		}
@@ -332,7 +332,7 @@ struct Tact : Module {
 		for (int i = 0; i < numLights; i++) {
 			float level = (i == (int) round((float(infoCount)) / ((float)initInfoStore) * (float)(numLights - 1)) ? 1.0f : 0.0f);
 			// Green diode
-			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 0].value = level;
+			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 0].setBrightness(level);
 			// Red diode
 			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 1].value = 0.0f;
 		}	
