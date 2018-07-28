@@ -136,7 +136,7 @@ struct PhraseSeq32 : Module {
 	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
-	int sequenceKnob = 0;// INT_MAX when knob not seen yet
+	int sequenceKnob = 0;
 	bool gate1RandomEnable[2];
 	bool attachedChanB;
 	long revertDisplay;
@@ -212,7 +212,6 @@ struct PhraseSeq32 : Module {
 		lengthCPbuffer = 32;
 		modeCPbuffer = MODE_FWD;
 		countCP = 32;
-		//sequenceKnob = INT_MAX;
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
@@ -260,7 +259,6 @@ struct PhraseSeq32 : Module {
 		lengthCPbuffer = 32;
 		modeCPbuffer = MODE_FWD;
 		countCP = 32;
-		//sequenceKnob = INT_MAX;
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
@@ -465,7 +463,6 @@ struct PhraseSeq32 : Module {
 			stepConfig = 2;
 		stepConfigLast = stepConfig;			
 		initRun(stepConfig, true);
-		//sequenceKnob = INT_MAX;
 		editingSequence = isEditingSequence();
 		editingSequenceLast = editingSequence;
 	}
@@ -801,7 +798,7 @@ struct PhraseSeq32 : Module {
 		// Sequence knob 
 		float seqParamValue = params[SEQUENCE_PARAM].value;
 		int newSequenceKnob = (int)roundf(seqParamValue * 7.0f);
-		if (/*sequenceKnob == INT_MAX*/ seqParamValue == 0.0f)// true when constructor or fromJson() occured
+		if (seqParamValue == 0.0f)// true when constructor or fromJson() occured
 			sequenceKnob = newSequenceKnob;
 		int deltaKnob = newSequenceKnob - sequenceKnob;
 		if (deltaKnob != 0) {
