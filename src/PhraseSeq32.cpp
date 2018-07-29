@@ -1240,7 +1240,7 @@ struct PhraseSeq32 : Module {
 		lights[RESET_LIGHT].value =	resetLight;	
 		
 		// Run light
-		lights[RUN_LIGHT].value = running;
+		lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
 
 		if (editingGate > 0ul)
 			editingGate--;
