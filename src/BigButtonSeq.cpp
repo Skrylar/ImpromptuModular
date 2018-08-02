@@ -76,6 +76,9 @@ struct BigButtonSeq : Module {
 	bool scheduledReset;
 	int len; 
 	long clockIgnoreOnReset;
+	double lastPeriod;//2.0 when not seen yet (init or stopped clock and went greater than 2s, which is max period supported for time-snap)
+	double clockTime;//clock time counter (time since last clock)
+	int pendingOp;// 0 means nothing pending, +1 means pending big button push, -1 means pending del
 	float bigLight;
 	float metronomeLightStart;
 	float metronomeLightDiv;
@@ -104,6 +107,9 @@ struct BigButtonSeq : Module {
 		scheduledReset = false;
 		len = 0;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		lastPeriod = 2.0;
+		clockTime = 0.0;
+		pendingOp = 0;
 		bigLight = 0.0f;
 		metronomeLightStart = 0.0f;
 		metronomeLightDiv = 0.0f;
@@ -254,12 +260,15 @@ struct BigButtonSeq : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
-		float sampleTime = engineGetSampleTime();
+		double sampleTime = 1.0 / engineGetSampleRate();
 		static const float lightTime = 0.1f;
 		
 		// Scheduled reset (just the parts that do not have a place below in rest of function)
 		if (scheduledReset) {
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+			lastPeriod = 0.0;
+			clockTime = 0.0;
+			pendingOp = 0;
 			bigLight = 0.0f;
 			metronomeLightStart = 0.0f;
 			metronomeLightDiv = 0.0f;
@@ -285,12 +294,16 @@ struct BigButtonSeq : Module {
 		// Big button
 		if (bigTrigger.process(params[BIG_PARAM].value + inputs[BIG_INPUT].value)) {
 			bigLight = 1.0f;
-			if (!getGate(chan)) {
-				toggleGate(chan);// bank and indexStep are global
-				bigPulse.trigger(0.001f);
-				bigLightPulse.trigger(lightTime);
+			if (clockTime > (lastPeriod / 2.0) && clockTime <= lastPeriod)
+				pendingOp = 1;
+			else {
+				if (!getGate(chan)) {
+					setGate(chan);// bank and indexStep are global
+					bigPulse.trigger(0.001f);
+					bigLightPulse.trigger(lightTime);
+				}
 			}
-		}	
+		}
 
 		// Bank button
 		if (bankTrigger.process(params[BANK_PARAM].value + inputs[BANK_INPUT].value))
@@ -301,8 +314,9 @@ struct BigButtonSeq : Module {
 			gates[chan][bank[chan]] = 0;
 		
 		// Del button
-		if (params[DEL_PARAM].value + inputs[DEL_INPUT].value > 0.5f)
+		if (params[DEL_PARAM].value + inputs[DEL_INPUT].value > 0.5f) {
 			clearGate(chan);// bank and indexStep are global
+		}
 
 		// Fill button
 		bool fillPressed = (params[FILL_PARAM].value + inputs[FILL_INPUT].value) > 0.5f;
@@ -315,10 +329,33 @@ struct BigButtonSeq : Module {
 		
 		// Clock
 		if (clockTrigger.process(inputs[CLK_INPUT].value)) {
-			outPulse.trigger(0.001f);
-			outLightPulse.trigger(lightTime);
 			if (clockIgnoreOnReset == 0l) {
+				outPulse.trigger(0.001f);
+				outLightPulse.trigger(lightTime);
+				
+				bool pendingSyncOk = (clockTime > (lastPeriod / 2.0) && clockTime <= (lastPeriod * 1.01));// allow 1% positive jitter
+				
+				if (pendingOp == 1 && !pendingSyncOk) {
+					if (!getGate(chan)) {
+						setGate(chan);// bank and indexStep are global
+						bigPulse.trigger(0.001f);
+						bigLightPulse.trigger(lightTime);
+					}
+					pendingOp = 0;
+				}
+			
 				indexStep = moveIndex(indexStep, indexStep + 1, len);
+				
+				if (pendingOp == 1 && pendingSyncOk) {
+					if (!getGate(chan)) {
+						setGate(chan);// bank and indexStep are global
+						bigPulse.trigger(0.001f);
+						bigLightPulse.trigger(lightTime);
+					}
+					pendingOp = 0;
+				}
+				
+				
 				if (indexStep == 0)
 					metronomeLightStart = 1.0f;
 				metronomeLightDiv = ((indexStep % metronomeDiv) == 0 && indexStep != 0) ? 1.0f : 0.0f;
@@ -329,8 +366,11 @@ struct BigButtonSeq : Module {
 					if (randomUniform() < rnd01)// randomUniform is [0.0, 1.0), see include/util/common.hpp
 						toggleGate(chan);
 				}
+				lastPeriod = clockTime > 2.0 ? 2.0 : clockTime;
+				clockTime = 0.0;
 			}
 		}
+			
 		
 		// Reset
 		if (resetTrigger.process(params[RESET_PARAM].value + inputs[RESET_INPUT].value)) {
@@ -373,10 +413,12 @@ struct BigButtonSeq : Module {
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
 		
-		bigLight -= (bigLight / lightLambda) * sampleTime;	
-		metronomeLightStart -= (metronomeLightStart / lightLambda) * sampleTime;	
-		metronomeLightDiv -= (metronomeLightDiv / lightLambda) * sampleTime;
+		bigLight -= (bigLight / lightLambda) * (float)sampleTime;	
+		metronomeLightStart -= (metronomeLightStart / lightLambda) * (float)sampleTime;	
+		metronomeLightDiv -= (metronomeLightDiv / lightLambda) * (float)sampleTime;
 
+		clockTime += sampleTime;
+		
 		scheduledReset = false;		
 	}
 };
@@ -617,6 +659,8 @@ struct BigButtonSeqWidget : ModuleWidget {
 Model *modelBigButtonSeq = Model::create<BigButtonSeq, BigButtonSeqWidget>("Impromptu Modular", "Big-Button-Seq", "SEQ - Big-Button-Seq", SEQUENCER_TAG);
 
 /*CHANGE LOG
+
+0.6.8: detect BPM and snap BigButton press to nearest beat
 
 0.6.8:
 created
