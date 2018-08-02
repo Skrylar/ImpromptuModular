@@ -783,7 +783,20 @@ struct SemiModularSynth : Module {
 		int deltaKnob = newSequenceKnob - sequenceKnob;
 		if (deltaKnob != 0) {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
-				if (displayState == DISP_MODE) {
+				 if (editingLength > 0ul) {
+					editingLength = (unsigned long) (editLengthTime * engineGetSampleRate());// restart editing length timer
+					if (editingSequence) {
+						lengths[sequence] += deltaKnob;
+						if (lengths[sequence] > 16) lengths[sequence] = 16 ;
+						if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+					}
+					else {
+						phrases += deltaKnob;
+						if (phrases > 16) phrases = 16;
+						if (phrases < 1 ) phrases = 1;
+					}
+				}
+				else if (displayState == DISP_MODE) {
 					if (editingSequence) {
 						runModeSeq[sequence] += deltaKnob;
 						if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
