@@ -266,7 +266,7 @@ struct BigButtonSeq : Module {
 		// Scheduled reset (just the parts that do not have a place below in rest of function)
 		if (scheduledReset) {
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-			lastPeriod = 0.0;
+			lastPeriod = 2.0;
 			clockTime = 0.0;
 			pendingOp = 0;
 			bigLight = 0.0f;
@@ -294,7 +294,7 @@ struct BigButtonSeq : Module {
 		// Big button
 		if (bigTrigger.process(params[BIG_PARAM].value + inputs[BIG_INPUT].value)) {
 			bigLight = 1.0f;
-			if (clockTime > (lastPeriod / 2.0) && clockTime <= lastPeriod)
+			if (clockTime > (lastPeriod / 2.0) && clockTime <= (lastPeriod * 1.01))// allow for 1% clock jitter
 				pendingOp = 1;
 			else {
 				if (!getGate(chan)) {
@@ -315,13 +315,21 @@ struct BigButtonSeq : Module {
 		
 		// Del button
 		if (params[DEL_PARAM].value + inputs[DEL_INPUT].value > 0.5f) {
-			clearGate(chan);// bank and indexStep are global
+			if (clockTime > (lastPeriod / 2.0) && clockTime <= (lastPeriod * 1.01))// allow for 1% clock jitter
+				pendingOp = -1;// overrides the pending write if it exists
+			else 
+				clearGate(chan);// bank and indexStep are global
 		}
 
 		// Fill button
 		bool fillPressed = (params[FILL_PARAM].value + inputs[FILL_INPUT].value) > 0.5f;
 		if (fillPressed && writeFillsToMemory)
 			setGate(chan);// bank and indexStep are global
+
+
+		// Pending timeout (write/del current step)
+		if (pendingOp != 0 && clockTime > (lastPeriod * 1.01) ) 
+			performPending(chan, lightTime);
 
 		
 		
@@ -333,28 +341,10 @@ struct BigButtonSeq : Module {
 				outPulse.trigger(0.001f);
 				outLightPulse.trigger(lightTime);
 				
-				bool pendingSyncOk = (clockTime > (lastPeriod / 2.0) && clockTime <= (lastPeriod * 1.01));// allow 1% positive jitter
-				
-				if (pendingOp == 1 && !pendingSyncOk) {
-					if (!getGate(chan)) {
-						setGate(chan);// bank and indexStep are global
-						bigPulse.trigger(0.001f);
-						bigLightPulse.trigger(lightTime);
-					}
-					pendingOp = 0;
-				}
-			
 				indexStep = moveIndex(indexStep, indexStep + 1, len);
 				
-				if (pendingOp == 1 && pendingSyncOk) {
-					if (!getGate(chan)) {
-						setGate(chan);// bank and indexStep are global
-						bigPulse.trigger(0.001f);
-						bigLightPulse.trigger(lightTime);
-					}
-					pendingOp = 0;
-				}
-				
+				if (pendingOp != 0)
+					performPending(chan, lightTime);// Proper pending write/del to next step which is now reached
 				
 				if (indexStep == 0)
 					metronomeLightStart = 1.0f;
@@ -420,6 +410,21 @@ struct BigButtonSeq : Module {
 		clockTime += sampleTime;
 		
 		scheduledReset = false;		
+	}// step()
+	
+	
+	inline void performPending(int chan, float lightTime) {
+		if (pendingOp == 1) {
+			if (!getGate(chan)) {
+				setGate(chan);// bank and indexStep are global
+				bigPulse.trigger(0.001f);
+				bigLightPulse.trigger(lightTime);
+			}
+		}
+		else {
+			clearGate(chan);// bank and indexStep are global
+		}
+		pendingOp = 0;
 	}
 };
 
@@ -660,7 +665,7 @@ Model *modelBigButtonSeq = Model::create<BigButtonSeq, BigButtonSeqWidget>("Impr
 
 /*CHANGE LOG
 
-0.6.8: detect BPM and snap BigButton press to nearest beat
+0.6.10: detect BPM and snap BigButton and Del to nearest beat (with timeout if beat slows down too much or stops). TODO: update manual
 
 0.6.8:
 created

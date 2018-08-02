@@ -1534,6 +1534,9 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 
 /*CHANGE LOG
 
+0.6.10:
+allow main knob to also change length when length editing is active
+
 0.6.9:
 add FW2, FW3 and FW4 run modes for sequences (but not for song)
 right click on notes now does same as left click but with autostep

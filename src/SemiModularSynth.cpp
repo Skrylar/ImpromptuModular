@@ -1750,6 +1750,9 @@ Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthW
 
 /*CHANGE LOG
 
+0.6.10:
+allow main knob to also change length when length editing is active
+
 0.6.9:
 add FW2, FW3 and FW4 run modes for sequences (but not for song)
 update VCF code to match new Fundamental code (existing patches may sound different)
