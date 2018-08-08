@@ -20,10 +20,11 @@ using namespace rack;
 extern Plugin *plugin;
 
 // All modules that are part of plugin go here
-extern Model *modelEngTest1;
+//extern Model *modelEngTest1;
 extern Model *modelTact;
 extern Model *modelTwelveKey;
 extern Model *modelClocked;
+extern Model *modelMidiFile;
 extern Model *modelPhraseSeq16;
 extern Model *modelPhraseSeq32;
 extern Model *modelGateSeq64;
