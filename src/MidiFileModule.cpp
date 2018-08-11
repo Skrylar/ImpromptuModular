@@ -10,8 +10,6 @@
 //Module concept by Marc Boulé
 //***********************************************************************************************
 
-// TODO: use osdialog's OSDIALOG_OPEN_DIR to open just a dir, and have next/prev load buttons to
-//   scan all midi files in the dir (NOT SURE this is a GOOD IDEA)
 
 /* temporary notes
 
@@ -52,7 +50,7 @@ struct MidiFileModule : Module {
 		NUM_OUTPUTS
 	};
 	enum LightIds {
-		LOADMIDI_LIGHT,
+		ENUMS(LOADMIDI_LIGHT, 2),
 		NUM_LIGHTS
 	};
 	
@@ -62,23 +60,25 @@ struct MidiFileModule : Module {
 	
 	// Need to save, no reset
 	int panelTheme;
+	string lastPath;// TODO: save also the filename so that it can automatically be reloaded when Rack starts?
 	
 	// No need to save, with reset
 	// none
 	
 	// No need to save, no reset
 	MidiFile midifile;
-	string lastPath;// TODO make this a Need to save, no reset
+	bool fileLoaded;
 	
 	
 	
 	MidiFileModule() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		// Need to save, no reset
 		panelTheme = 0;
+		lastPath = "";
 		
 		// No need to save, no reset
-		lastPath = "";
-
+		fileLoaded = false;
+		
 		onReset();
 	}
 
@@ -115,41 +115,47 @@ struct MidiFileModule : Module {
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
-		lights[LOADMIDI_LIGHT].value = params[LOADMIDI_PARAM].value > 0.5f ? 1.0f : 0.0f;
+		lights[LOADMIDI_LIGHT + 0].value = fileLoaded ? 1.0f : 0.0f;
+		lights[LOADMIDI_LIGHT + 1].value = !fileLoaded ? 1.0f : 0.0f;
 	}// step()	
 	
 	
 	void loadMidiFile() {
 		
-		osdialog_filters *filters = osdialog_filters_parse("MidiFile:mid;TextFile:txt");
+		osdialog_filters *filters = osdialog_filters_parse("Midi File (.mid):mid;Text File (.txt):txt");
 		string dir = lastPath.empty() ? assetLocal("") : stringDirectory(lastPath);
 		char *path = osdialog_file(OSDIALOG_OPEN, dir.c_str(), NULL, filters);
 		if (path) {
-			midifile.read(path);//"MIDI_sample.mid"
-			midifile.doTimeAnalysis();
-			midifile.linkNotePairs();
+			lastPath = path;
+			//lastFilename = stringFilename(path);
+			if (midifile.read(path)) {
+				fileLoaded = true;
+				midifile.doTimeAnalysis();
+				midifile.linkNotePairs();
 
-			int tracks = midifile.getTrackCount();
-			cout << "TPQ: " << midifile.getTicksPerQuarterNote() << endl;
-			if (tracks > 1) cout << "TRACKS: " << tracks << endl;
-			for (int track=0; track<tracks; track++) {
-				if (tracks > 1) cout << "\nTrack " << track << endl;
-				cout << "Tick\tSeconds\tDur\tMessage" << endl;
-				for (int event=0; event<midifile[track].size(); event++) {
-					cout << dec << midifile[track][event].tick;
-					cout << '\t' << dec << midifile[track][event].seconds;
-					cout << '\t';
-					if (midifile[track][event].isNoteOn())
-						cout << midifile[track][event].getDurationInSeconds();
-					cout << '\t' << hex;
-					for (unsigned int i=0; i<midifile[track][event].size(); i++)
-						cout << (int)midifile[track][event][i] << ' ';
-					cout << endl;
-				}
-			}			
-			
+				int tracks = midifile.getTrackCount();
+				cout << "TPQ: " << midifile.getTicksPerQuarterNote() << endl;
+				if (tracks > 1) cout << "TRACKS: " << tracks << endl;
+				for (int track=0; track<tracks; track++) {
+					if (tracks > 1) cout << "\nTrack " << track << endl;
+					cout << "Tick\tSeconds\tDur\tMessage" << endl;
+					for (int event=0; event<midifile[track].size(); event++) {
+						cout << dec << midifile[track][event].tick;
+						cout << '\t' << dec << midifile[track][event].seconds;
+						cout << '\t';
+						if (midifile[track][event].isNoteOn())
+							cout << midifile[track][event].getDurationInSeconds();
+						cout << '\t' << hex;
+						for (unsigned int i=0; i<midifile[track][event].size(); i++)
+							cout << (int)midifile[track][event][i] << ' ';
+						cout << endl;
+					}
+				}			
+			}
+			else
+				fileLoaded = false;
 			free(path);
-		}		
+		}	
 		osdialog_filters_free(filters);
 	}
 	
@@ -189,7 +195,7 @@ struct MidiFileWidget : ModuleWidget {
 		addParam(midiButton);
 		
 		// load light
-		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(100, 200), module, MidiFileModule::LOADMIDI_LIGHT + 0));		
+		addChild(ModuleLightWidget::create<SmallLight<GreenRedLight>>(Vec(100, 200), module, MidiFileModule::LOADMIDI_LIGHT + 0));		
 	}
 };
 
