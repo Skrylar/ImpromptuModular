@@ -158,6 +158,7 @@ struct PhraseSeq16 : Module {
 	long gate1HoldDetect;// 0 when not detecting, downward counter when detecting
 	long editingGateLength;// 0 when no info, positive downward step counter timer when gate1, negative upward when gate2
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
+	int ppqnCount;//
 
 	static constexpr float EDIT_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
 	bool editingSequence;
@@ -261,6 +262,7 @@ struct PhraseSeq16 : Module {
 					attributes[i][s] = ATT_MSK_TIED;// clear other attributes if tied
 					applyTiedStep(i, s, lengths[i]);
 				}
+				// TODO Randomize gate lengths (even though randomize forces ppqn to 1, can be useful when set to other than 1 after a random)
 			}
 			runModeSeq[i] = randomu32() % NUM_MODES;
 			phrase[i] = randomu32() % 16;
@@ -298,6 +300,7 @@ struct PhraseSeq16 : Module {
 				stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 		}
 		gate1RandomEnable = false;
+		ppqnCount = 0;
 		if (editingSequence)
 			gate1RandomEnable = calcGate1RandomEnable(getGate1P(sequence, stepIndexRun));
 		else
@@ -582,7 +585,7 @@ struct PhraseSeq16 : Module {
 		static const float editLengthTime = 2.0f;// seconds
 		static const float tiedWarningTime = 0.7f;// seconds
 		static const float gateHoldDetectTime = 2.0f;// seconds
-		static const float editGateLengthTime = 2.0f;// seconds
+		static const float editGateLengthTime = 2.5f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * sampleRate);
 		
 		
@@ -821,15 +824,11 @@ struct PhraseSeq16 : Module {
 				else if (editingGateLength != 0) {
 					if (editingGateLength > 0) {
 						editingGateLength = (long) (editGateLengthTime * engineGetSampleRate());
-						info("*** G1 attributes before = %X", attributes[sequence][stepIndexEdit]);
 						setGate1Mode(sequence, stepIndexEdit, calcNewGateMode(getGate1Mode(sequence, stepIndexEdit), deltaKnob));
-						info("       attributes after  = %X", attributes[sequence][stepIndexEdit]);
 					}
 					else {
 						editingGateLength = (long) (-1 * editGateLengthTime * engineGetSampleRate());
-						info("*** G2 attributes before = %X", attributes[sequence][stepIndexEdit]);
 						setGate2Mode(sequence, stepIndexEdit, calcNewGateMode(getGate2Mode(sequence, stepIndexEdit), deltaKnob));
-						info("       attributes after  = %X", attributes[sequence][stepIndexEdit]);
 					}				
 				}
 				else if (displayState == DISP_MODE) {
@@ -952,9 +951,11 @@ struct PhraseSeq16 : Module {
 					//tiedWarning = tiedWarningInit;
 				//else {
 					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1;
-					if (pulsesPerStep != 1)
-						editingGateLength = getGate1(sequence,stepIndexEdit) ? (long) (editGateLengthTime * engineGetSampleRate()) : 0l;
-					gate1HoldDetect = (long) (gateHoldDetectTime * engineGetSampleRate());
+					if (!running) {
+						if (pulsesPerStep != 1)
+							editingGateLength = getGate1(sequence,stepIndexEdit) ? (long) (editGateLengthTime * engineGetSampleRate()) : 0l;
+						gate1HoldDetect = (long) (gateHoldDetectTime * engineGetSampleRate());
+					}
 				//}
 			}
 			displayState = DISP_NORMAL;
@@ -974,8 +975,10 @@ struct PhraseSeq16 : Module {
 					//tiedWarning = tiedWarningInit;
 				//else {
 					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE2;
-					if (pulsesPerStep != 1)
-						editingGateLength = getGate2(sequence,stepIndexEdit) ? (long) (-1 * editGateLengthTime * engineGetSampleRate()) : 0l;
+					if (!running) {
+						if (pulsesPerStep != 1)
+							editingGateLength = getGate2(sequence,stepIndexEdit) ? (long) (-1 * editGateLengthTime * engineGetSampleRate()) : 0l;
+					}
 				//}
 			}
 			displayState = DISP_NORMAL;
@@ -1007,35 +1010,40 @@ struct PhraseSeq16 : Module {
 		
 		// Clock
 		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
-			if (running && clockIgnoreOnReset == 0l) {
-				float slideFromCV = 0.0f;
-				float slideToCV = 0.0f;
-				if (editingSequence) {
-					slideFromCV = cv[sequence][stepIndexRun];
-					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
-					slideToCV = cv[sequence][stepIndexRun];
-					gate1RandomEnable = calcGate1RandomEnable(getGate1P(sequence,stepIndexRun));// must be calculated on clock edge only
-				}
-				else {
-					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
-					if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory)) {
-						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
-						stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
+			if (ppqnCount >= (pulsesPerStep - 1)) {
+				if (running && clockIgnoreOnReset == 0l) {
+					float slideFromCV = 0.0f;
+					float slideToCV = 0.0f;
+					if (editingSequence) {
+						slideFromCV = cv[sequence][stepIndexRun];
+						moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
+						slideToCV = cv[sequence][stepIndexRun];
+						gate1RandomEnable = calcGate1RandomEnable(getGate1P(sequence,stepIndexRun));// must be calculated on clock edge only
 					}
-					slideToCV = cv[phrase[phraseIndexRun]][stepIndexRun];
-					gate1RandomEnable = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun],stepIndexRun));// must be calculated on clock edge only
+					else {
+						slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
+						if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory)) {
+							moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
+							stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
+						}
+						slideToCV = cv[phrase[phraseIndexRun]][stepIndexRun];
+						gate1RandomEnable = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun],stepIndexRun));// must be calculated on clock edge only
+					}
+					
+					// Slide
+					if ( (editingSequence && ((attributes[sequence][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) || 
+						(!editingSequence && ((attributes[phrase[phraseIndexRun]][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) ) {
+						// avtivate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
+						slideStepsRemain =   (unsigned long) (((float)clockPeriod)   * params[SLIDE_KNOB_PARAM].value / 2.0f);// 0-T slide, where T is clock period (can be too long when user does clock gating)
+						//slideStepsRemain = (unsigned long)  (engineGetSampleRate() * params[SLIDE_KNOB_PARAM].value );// 0-2s slide
+						slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
+					}
 				}
-				
-				// Slide
-				if ( (editingSequence && ((attributes[sequence][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) || 
-				    (!editingSequence && ((attributes[phrase[phraseIndexRun]][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) ) {
-					// avtivate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
-					slideStepsRemain =   (unsigned long) (((float)clockPeriod)   * params[SLIDE_KNOB_PARAM].value / 2.0f);// 0-T slide, where T is clock period (can be too long when user does clock gating)
-					//slideStepsRemain = (unsigned long)  (engineGetSampleRate() * params[SLIDE_KNOB_PARAM].value );// 0-2s slide
-					slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
-				}
+				clockPeriod = 0ul;
+				ppqnCount = 0;
 			}
-			clockPeriod = 0ul;
+			else
+				ppqnCount++;
 		}	
 		clockPeriod++;
 		
@@ -1207,13 +1215,10 @@ struct PhraseSeq16 : Module {
 			else {
 				if (gate1HoldDetect == 1l) {
 					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE1;
-					if (pulsesPerStep != 1) {
-						pulsesPerStep = 1;
-					}
-					else {
+					if (pulsesPerStep == 1) {
 						pulsesPerStep = 4;// default
-						editingPpqn = (long) (editGateLengthTime * engineGetSampleRate());
 					}
+					editingPpqn = (long) (editGateLengthTime * engineGetSampleRate());
 				}
 				gate1HoldDetect--;
 			}
@@ -1246,7 +1251,7 @@ struct PhraseSeq16 : Module {
 	}
 	
 	int calcNewGateMode(int currentGateMode, int deltaKnob) {
-		return clamp(currentGateMode + deltaKnob, 0, 15); 
+		return clamp(currentGateMode + deltaKnob, 0, NUM_GATES - 1); 
 	}
 };
 
@@ -1263,7 +1268,6 @@ struct PhraseSeq16Widget : ModuleWidget {
 		PhraseSeq16 *module;
 		std::shared_ptr<Font> font;
 		char displayStr[4];
-		//std::string modeLabels[5]={"FWD","REV","PPG","BRN","RND"};
 		
 		SequenceDisplayWidget() {
 			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
@@ -1272,6 +1276,10 @@ struct PhraseSeq16Widget : ModuleWidget {
 		void runModeToStr(int num) {
 			if (num >= 0 && num < NUM_MODES)
 				snprintf(displayStr, 4, "%s", modeLabels[num].c_str());
+		}
+		void gateModeToStr(int num) {
+			if (num >= 0 && num < NUM_GATES)
+				snprintf(displayStr, 4, "%s", gateLabels[num].c_str());
 		}
 
 		void draw(NVGcontext *vg) override {
@@ -1304,14 +1312,16 @@ struct PhraseSeq16Widget : ModuleWidget {
 					else
 						snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
 				}
-				else if (module->editingGateLength != 0l) {
-					if (module->editingGateLength > 0l)
-						snprintf(displayStr, 4, "G%2u", (unsigned) module->getGate1Mode(module->sequence, module->stepIndexEdit));
-					else
-						snprintf(displayStr, 4, "G%2u", (unsigned) module->getGate2Mode(module->sequence, module->stepIndexEdit));
-				}
 				else if (module->editingPpqn != 0ul) {
 					snprintf(displayStr, 4, "x%2u", (unsigned) module->pulsesPerStep);
+				}
+				else if (module->editingGateLength != 0l) {
+					if (module->editingGateLength > 0l)
+						//snprintf(displayStr, 4, "G%2u", (unsigned) module->getGate1Mode(module->sequence, module->stepIndexEdit));
+						gateModeToStr(module->getGate1Mode(module->sequence, module->stepIndexEdit));
+					else
+						//snprintf(displayStr, 4, "G%2u", (unsigned) module->getGate2Mode(module->sequence, module->stepIndexEdit));
+						gateModeToStr(module->getGate2Mode(module->sequence, module->stepIndexEdit));
 				}
 				else if (module->displayState == PhraseSeq16::DISP_TRANSPOSE) {
 					snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffset));

@@ -200,7 +200,7 @@ struct MidiFileWidget : ModuleWidget {
 };
 
 
-Model *modelMidiFile = Model::create<MidiFileModule, MidiFileWidget>("Impromptu Modular", "Midi-File", "UTIL - Midi-File", UTILITY_TAG);
+Model *modelMidiFile = Model::create<MidiFileModule, MidiFileWidget>("Impromptu Modular", "Midi-File", "UTIL - Midi-File", MIDI_TAG);
 
 /*CHANGE LOG
 
