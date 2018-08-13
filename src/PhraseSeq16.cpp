@@ -158,7 +158,7 @@ struct PhraseSeq16 : Module {
 	long gate1HoldDetect;// 0 when not detecting, downward counter when detecting
 	long editingGateLength;// 0 when no info, positive downward step counter timer when gate1, negative upward when gate2
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
-	int ppqnCount;//
+	int ppqnCount;
 
 	static constexpr float EDIT_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
 	bool editingSequence;
@@ -1317,10 +1317,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 				}
 				else if (module->editingGateLength != 0l) {
 					if (module->editingGateLength > 0l)
-						//snprintf(displayStr, 4, "G%2u", (unsigned) module->getGate1Mode(module->sequence, module->stepIndexEdit));
 						gateModeToStr(module->getGate1Mode(module->sequence, module->stepIndexEdit));
 					else
-						//snprintf(displayStr, 4, "G%2u", (unsigned) module->getGate2Mode(module->sequence, module->stepIndexEdit));
 						gateModeToStr(module->getGate2Mode(module->sequence, module->stepIndexEdit));
 				}
 				else if (module->displayState == PhraseSeq16::DISP_TRANSPOSE) {
