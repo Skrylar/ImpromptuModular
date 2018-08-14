@@ -13,7 +13,6 @@
 
 
 #include "ImpromptuModular.hpp"
-#include "dsp/digital.hpp"
 
 
 struct GateSeq64 : Module {

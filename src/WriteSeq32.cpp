@@ -9,7 +9,6 @@
 
 
 #include "ImpromptuModular.hpp"
-#include "dsp/digital.hpp"
 
 
 struct WriteSeq32 : Module {

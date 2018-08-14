@@ -13,6 +13,7 @@
 
 #include "rack.hpp"
 #include "IMWidgets.hpp"
+#include "dsp/digital.hpp"
 
 using namespace rack;
 
@@ -270,5 +271,9 @@ NVGcolor prepareDisplay(NVGcontext *vg, Rect *box);
 int moveIndex(int index, int indexNext, int numSteps);
 bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history);
 bool calcWarningFlash(long count, long countInit);
+
+inline int ppsToIndex(int pulsesPerStep) {return (pulsesPerStep == 24 ? 3 : (pulsesPerStep == 12 ? 2 : (pulsesPerStep == 4 ? 1 : 0)));}// map 1,4,12,24, to 0,1,2,3
+inline int indexToPps(int index) {return (index == 3 ? 24 : (index == 2 ? 12 : (index == 1 ? 4 : 1)));}// inverse map of above
+bool calcGate(bool gateOn, SchmittTrigger clockTrigger, int ppqnCount, int pulsesPerStep);
 
 #endif

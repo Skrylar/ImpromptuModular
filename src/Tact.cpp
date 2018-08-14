@@ -10,7 +10,6 @@
 
 
 #include "ImpromptuModular.hpp"
-#include "dsp/digital.hpp"
 
 
 struct Tact : Module {

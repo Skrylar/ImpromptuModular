@@ -13,7 +13,6 @@
 
 
 #include "ImpromptuModular.hpp"
-#include "dsp/digital.hpp"
 
 
 struct PhraseSeq16 : Module {
@@ -194,8 +193,6 @@ struct PhraseSeq16 : Module {
 	inline bool getTied(int seq, int step) {return (attributes[seq][step] & ATT_MSK_TIED) != 0;}
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
 	inline bool calcGate1RandomEnable(bool gate1P) {return (randomUniform() < (params[GATE1_KNOB_PARAM].value)) || !gate1P;}// randomUniform is [0.0, 1.0), see include/util/common.hpp
-	inline int ppsToIndex() {return (pulsesPerStep == 24 ? 3 : (pulsesPerStep == 12 ? 2 : (pulsesPerStep == 4 ? 1 : 0)));}// map 1,4,12,24, to 0,1,2,3
-	inline int indexToPps(int index) {return (index == 3 ? 24 : (index == 2 ? 12 : (index == 1 ? 4 : 1)));}// inverse map of above
 	inline int getGate1Mode(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE1MODE) >> gate1ModeShift;}
 	inline int getGate2Mode(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE2MODE) >> gate2ModeShift;}
 	inline void setGate1Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE1MODE; attributes[seq][step] |= (gateMode << gate1ModeShift);}
@@ -257,12 +254,11 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 16; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
-				attributes[i][s] = randomu32() % 32;// 32 because 5 attributes
+				attributes[i][s] = randomu32() & 0x1FFF;// 5 bit for normal attributes + 2 * 4 bits for advanced gate modes
 				if (getTied(i,s)) {
 					attributes[i][s] = ATT_MSK_TIED;// clear other attributes if tied
 					applyTiedStep(i, s, lengths[i]);
 				}
-				// TODO Randomize gate lengths (even though randomize forces ppqn to 1, can be useful when set to other than 1 after a random)
 			}
 			runModeSeq[i] = randomu32() % NUM_MODES;
 			phrase[i] = randomu32() % 16;
@@ -819,7 +815,7 @@ struct PhraseSeq16 : Module {
 				}
 				else if (editingPpqn != 0) {
 					editingPpqn = (long) (editGateLengthTime * engineGetSampleRate());
-					pulsesPerStep = indexToPps(clamp(ppsToIndex() + deltaKnob, 0, 3));
+					pulsesPerStep = indexToPps(clamp(ppsToIndex(pulsesPerStep) + deltaKnob, 0, 3));
 				}
 				else if (editingGateLength != 0) {
 					if (editingGateLength > 0) {
@@ -1010,8 +1006,12 @@ struct PhraseSeq16 : Module {
 		
 		// Clock
 		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
-			if (ppqnCount >= (pulsesPerStep - 1)) {
-				if (running && clockIgnoreOnReset == 0l) {
+			if (running && clockIgnoreOnReset == 0l) {
+				ppqnCount++;
+				if (ppqnCount >= pulsesPerStep)
+					ppqnCount = 0;
+
+				if (ppqnCount == 0) {
 					float slideFromCV = 0.0f;
 					float slideToCV = 0.0f;
 					if (editingSequence) {
@@ -1033,17 +1033,15 @@ struct PhraseSeq16 : Module {
 					// Slide
 					if ( (editingSequence && ((attributes[sequence][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) || 
 						(!editingSequence && ((attributes[phrase[phraseIndexRun]][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) ) {
-						// avtivate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
+						// activate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
 						slideStepsRemain =   (unsigned long) (((float)clockPeriod)   * params[SLIDE_KNOB_PARAM].value / 2.0f);// 0-T slide, where T is clock period (can be too long when user does clock gating)
 						//slideStepsRemain = (unsigned long)  (engineGetSampleRate() * params[SLIDE_KNOB_PARAM].value );// 0-2s slide
 						slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
 					}
 				}
-				clockPeriod = 0ul;
-				ppqnCount = 0;
+				
 			}
-			else
-				ppqnCount++;
+			clockPeriod = 0ul;
 		}	
 		clockPeriod++;
 		
@@ -1068,12 +1066,10 @@ struct PhraseSeq16 : Module {
 		if (running) {
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
 			outputs[CV_OUTPUT].value = cv[seq][step] - slideOffset;
-			outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
-											((attributes[seq][step] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
-			outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && 
-											((attributes[seq][step] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
+			outputs[GATE1_OUTPUT].value = (calcGate(getGate1(seq,step), clockTrigger, ppqnCount, pulsesPerStep) && gate1RandomEnable) ? 10.0f : 0.0f;
+			outputs[GATE2_OUTPUT].value = (calcGate(getGate2(seq,step), clockTrigger, ppqnCount, pulsesPerStep) 					) ? 10.0f : 0.0f;
 		}
-		else {// not running 
+		else {// not running
 			outputs[CV_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
 			outputs[GATE1_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 			outputs[GATE2_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
@@ -1215,9 +1211,6 @@ struct PhraseSeq16 : Module {
 			else {
 				if (gate1HoldDetect == 1l) {
 					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE1;
-					if (pulsesPerStep == 1) {
-						pulsesPerStep = 4;// default
-					}
 					editingPpqn = (long) (editGateLengthTime * engineGetSampleRate());
 				}
 				gate1HoldDetect--;
