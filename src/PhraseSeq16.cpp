@@ -13,7 +13,7 @@
 
 
 #include "ImpromptuModular.hpp"
-
+#include "PhraseSeqUtil.hpp"
 
 struct PhraseSeq16 : Module {
 	enum ParamIds {

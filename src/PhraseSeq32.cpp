@@ -13,6 +13,7 @@
 
 
 #include "ImpromptuModular.hpp"
+#include "PhraseSeqUtil.hpp"
 
 
 struct PhraseSeq32 : Module {

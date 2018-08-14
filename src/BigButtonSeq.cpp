@@ -14,6 +14,7 @@
 
 
 #include "ImpromptuModular.hpp"
+#include "PhraseSeqUtil.hpp"
 
 
 struct BigButtonSeq : Module {

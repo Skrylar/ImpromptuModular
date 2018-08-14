@@ -13,6 +13,7 @@
 
 
 #include "ImpromptuModular.hpp"
+#include "PhraseSeqUtil.hpp"
 
 
 struct GateSeq64 : Module {

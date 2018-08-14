@@ -15,6 +15,7 @@
 
 #include "ImpromptuModular.hpp"
 #include "FundamentalUtil.hpp"
+#include "PhraseSeqUtil.hpp"
 
 
 struct SemiModularSynth : Module {
