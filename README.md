@@ -315,3 +315,16 @@ WriteSeq64 has dual clock inputs, where each controls a pair of channels. When n
 Ideas: The first part of the famous [Piano Phase](https://en.wikipedia.org/wiki/Piano_Phase) piece by Steve Reich can be easily programmed into the sequencer by entering the twelve notes into channel 1 with a keyboard, setting STEPS to 12, copy-pasting channel 1 into channel 3, and then driving each clock input with two LFOs that have ever so slightly different frequencies. Exercise left to the reader!
 
 ([Back to module list](#modules))
+
+
+# Hall of Fame <a id="hall-of-fame"></a>
+
+Here are a few videos featuring Impromptu Modular, which I find particularly very inspiring and interesting (listed in no particular order). Many talented Rackheads have made tracks using Impromptu modules, and this list could in fact be quite long. I have no formal criteria for why a track ends up in the list or doesn't, perhaps just that I found it hard to think that I could loose track of these and never see them again, adrift in a sea of so many great contributions. 
+
+* **Isaac Hu**, [In the Hall of the Mountain King](https://www.youtube.com/watch?v=fxYc0H5i6HA)
+
+* **Omri Cohen**, [Arvo Pärt - Spiegel im Spiegel VCV Rack Cover](https://www.youtube.com/watch?v=6bm4LjRYDmI)
+
+* **John Melcher**, [Steppes](https://www.youtube.com/watch?v=ruo4s_Hyhrw)
+
+* **Nigel Sixsmith**, [Talking Rackheads episode 8, PS16 MegaPatch Play Out](https://www.youtube.com/watch?v=KOpo2oUPTjg&t=5504s)
