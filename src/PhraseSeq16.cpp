@@ -816,8 +816,8 @@ struct PhraseSeq16 : Module {
 					}
 				}
 				else if (editingPpqn != 0) {
-					editingPpqn = editGateLengthTimeInit;
 					pulsesPerStep = indexToPps(clamp(ppsToIndex(pulsesPerStep) + deltaKnob, 0, 3));
+					editingPpqn = editGateLengthTimeInit;
 				}
 				else if (editingGateLength != 0) {
 					if (editingGateLength > 0) {
@@ -876,8 +876,6 @@ struct PhraseSeq16 : Module {
 							sequence += deltaKnob;
 							if (sequence < 0) sequence = 0;
 							if (sequence >= 16) sequence = (16 - 1);
-							//if (stepIndexEdit >= lengths[sequence])// Commented for full edit capabilities
-								//stepIndexEdit = lengths[sequence] - 1;// Commented for full edit capabilities
 						}
 					}
 					else {
