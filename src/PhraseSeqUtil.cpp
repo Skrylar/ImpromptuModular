@@ -119,19 +119,3 @@ bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {
 
 	return crossBoundary;
 }
-
-
-//static const int hitMasks[4] = {0, 0x, 2, 3};
-int calcGates(int attribute, SchmittTrigger clockTrigger, int ppqnCount, int pulsesPerStep) {
-	int ret = 0;
-	if (getGate1a(attribute))
-		ret = 1;
-	if (getGate2a(attribute))
-		ret |= 0x2;
-	return ret;
-	//if (!gateOn)
-	//	return false;	
-	//if (pulsesPerStep == 1)
-	//	return clockTrigger.isHigh();
-	//return ppqnCount < 2;//(hitMasks[ppsToIndex(pulsesPerStep)] >> ppqnCount) != 0;
-}

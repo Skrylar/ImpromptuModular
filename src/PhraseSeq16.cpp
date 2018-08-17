@@ -149,7 +149,6 @@ struct PhraseSeq16 : Module {
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
 	int sequenceKnob = 0;
-	//bool gate1RandomEnable;
 	int gate1Code;
 	int gate2Code;
 	long gate1HoldDetect;// 0 when not detecting, downward counter when detecting
@@ -191,7 +190,6 @@ struct PhraseSeq16 : Module {
 	inline bool getSlide(int seq, int step) {return (attributes[seq][step] & ATT_MSK_SLIDE) != 0;}
 	inline bool getTied(int seq, int step) {return (attributes[seq][step] & ATT_MSK_TIED) != 0;}
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
-	//inline bool calcGate1RandomEnable(bool gate1P) {return (randomUniform() < (params[GATE1_KNOB_PARAM].value)) || !gate1P;}// randomUniform is [0.0, 1.0), see include/util/common.hpp
 	inline int getGate1Mode(int seq, int step) {return getGate1aMode(attributes[seq][step]);}
 	inline int getGate2Mode(int seq, int step) {return getGate2aMode(attributes[seq][step]);}
 	inline void setGate1Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE1MODE; attributes[seq][step] |= (gateMode << gate1ModeShift);}
@@ -293,7 +291,6 @@ struct PhraseSeq16 : Module {
 		if (hard)	
 			stepIndexRun = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
 		ppqnCount = 0;
-		//gate1RandomEnable = calcGate1RandomEnable(getGate1P(seq, stepIndexRun));
 		gate1Code = calcGate1Code(attributes[seq][stepIndexRun], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
 		gate2Code = calcGate2Code(attributes[seq][stepIndexRun], 0, pulsesPerStep);
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
@@ -1021,7 +1018,6 @@ struct PhraseSeq16 : Module {
 						}
 						newSeq = phrase[phraseIndexRun];
 					}
-					//gate1RandomEnable = calcGate1RandomEnable(getGate1P(newSeq,stepIndexRun));// must be calculated on clock edge only
 					
 					// Slide
 					if (getSlide(newSeq, stepIndexRun)) {
