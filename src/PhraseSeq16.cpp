@@ -151,7 +151,9 @@ struct PhraseSeq16 : Module {
 	int sequenceKnob = 0;
 	int gate1Code;
 	int gate2Code;
+	long modeHoldDetect;// 0 when not detecting, downward counter when detecting
 	long gate1HoldDetect;// 0 when not detecting, downward counter when detecting
+	long gate2HoldDetect;// 0 when not detecting, downward counter when detecting
 	long editingGateLength;// 0 when no info, positive downward step counter timer when gate1, negative upward when gate2
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
@@ -235,7 +237,9 @@ struct PhraseSeq16 : Module {
 		editingSequence = EDIT_PARAM_INIT_VALUE > 0.5f;
 		editingSequenceLast = editingSequence;
 		resetOnRun = false;
+		modeHoldDetect = 0l;
 		gate1HoldDetect = 0l;
+		gate2HoldDetect = 0l;
 		editingGateLength = 0l;
 		editingPpqn = 0l;
 	}
@@ -278,7 +282,9 @@ struct PhraseSeq16 : Module {
 		editingSequence = isEditingSequence();
 		editingSequenceLast = editingSequence;
 		resetOnRun = false;
+		modeHoldDetect = 0l;
 		gate1HoldDetect = 0l;
+		gate2HoldDetect = 0l;
 		editingGateLength = 0l;
 		editingPpqn = 0l;
 	}
@@ -575,6 +581,7 @@ struct PhraseSeq16 : Module {
 		static const float gateHoldDetectTime = 2.0f;// seconds
 		static const float editGateLengthTime = 2.5f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * sampleRate);
+		long editGateLengthTimeInit = (long) (editGateLengthTime * sampleRate);
 		
 		
 		//********** Buttons, knobs, switches and inputs **********
@@ -630,7 +637,7 @@ struct PhraseSeq16 : Module {
 		// Copy button
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
 			if (editingSequence) {
-				infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate());
+				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate);
 				//CPinfo must be set to 0 for copy/paste all, and 0x1ii for copy/paste 4 at pos ii, 0x2ii for copy/paste 8 at 0xii
 				int sStart = stepIndexEdit;
 				int sCount = 16;
@@ -656,7 +663,7 @@ struct PhraseSeq16 : Module {
 		// Paste button
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 			if (editingSequence) {
-				infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate());
+				infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate);
 				int sStart = ((countCP == 16) ? 0 : stepIndexEdit);
 				int sCount = countCP;
 				for (int i = 0, s = sStart; i < countCP; i++, s++) {
@@ -680,7 +687,7 @@ struct PhraseSeq16 : Module {
 			if (editingLength > 0ul)
 				editingLength = 0ul;// allow user to quickly leave editing mode when re-press
 			else
-				editingLength = (unsigned long) (editLengthTime * engineGetSampleRate());
+				editingLength = (unsigned long) (editLengthTime * sampleRate);
 			displayState = DISP_NORMAL;
 		}
 		
@@ -707,7 +714,7 @@ struct PhraseSeq16 : Module {
 						if (inputs[SLIDECV_INPUT].active)
 							attributes[sequence][stepIndexEdit] = (inputs[SLIDECV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_SLIDE) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_SLIDE);
 					}					
-					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+					editingGate = (unsigned long) (gateTime * sampleRate);
 					editingGateCV = cv[sequence][stepIndexEdit];
 					editingGateKeyLight = -1;
 					// Autostep (after grab all active inputs)
@@ -729,7 +736,7 @@ struct PhraseSeq16 : Module {
 		}
 		if (delta != 0) {
 			if (editingLength > 0ul) {
-				editingLength = (unsigned long) (editLengthTime * engineGetSampleRate());// restart editing length timer
+				editingLength = (unsigned long) (editLengthTime * sampleRate);// restart editing length timer
 				if (editingSequence) {
 					lengths[sequence] += delta;
 					if (lengths[sequence] > 16) lengths[sequence] = 16;
@@ -750,7 +757,7 @@ struct PhraseSeq16 : Module {
 						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, 16);//lengths[sequence]);// Commented for full edit capabilities
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
-								editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+								editingGate = (unsigned long) (gateTime * sampleRate);
 								editingGateCV = cv[sequence][stepIndexEdit];
 								editingGateKeyLight = -1;
 							}
@@ -768,6 +775,9 @@ struct PhraseSeq16 : Module {
 				displayState = DISP_MODE;
 			else
 				displayState = DISP_NORMAL;
+			if (!running) {
+				modeHoldDetect = (long) (gateHoldDetectTime * sampleRate);
+			}
 		}
 		if (transposeTrigger.process(params[TRAN_ROT_PARAM].value)) {
 			if (editingSequence) {
@@ -793,7 +803,7 @@ struct PhraseSeq16 : Module {
 		if (deltaKnob != 0) {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 				 if (editingLength > 0ul) {
-					editingLength = (unsigned long) (editLengthTime * engineGetSampleRate());// restart editing length timer
+					editingLength = (unsigned long) (editLengthTime * sampleRate);// restart editing length timer
 					if (editingSequence) {
 						lengths[sequence] += deltaKnob;
 						if (lengths[sequence] > 16) lengths[sequence] = 16 ;
@@ -806,19 +816,19 @@ struct PhraseSeq16 : Module {
 					}
 				}
 				else if (editingPpqn != 0) {
-					editingPpqn = (long) (editGateLengthTime * engineGetSampleRate());
+					editingPpqn = editGateLengthTimeInit;
 					pulsesPerStep = indexToPps(clamp(ppsToIndex(pulsesPerStep) + deltaKnob, 0, 3));
 				}
 				else if (editingGateLength != 0) {
 					if (editingGateLength > 0) {
-						editingGateLength = (long) (editGateLengthTime * engineGetSampleRate());
 						setGate1Mode(sequence, stepIndexEdit, calcNewGateMode(getGate1Mode(sequence, stepIndexEdit), deltaKnob));
+						editingGateLength = editGateLengthTimeInit;
 					}
 					else {
-						editingGateLength = (long) (-1 * editGateLengthTime * engineGetSampleRate());
 						setGate2Mode(sequence, stepIndexEdit, calcNewGateMode(getGate2Mode(sequence, stepIndexEdit), deltaKnob));
-					}				
-				}
+						editingGateLength = -1l * editGateLengthTimeInit;
+					}
+				}				
 				else if (displayState == DISP_MODE) {
 					if (editingSequence) {
 						if (!inputs[MODECV_INPUT].active) {
@@ -899,7 +909,7 @@ struct PhraseSeq16 : Module {
 						cv[sequence][stepIndexEdit] = newCV;
 						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 					}
-					editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+					editingGate = (unsigned long) (gateTime * sampleRate);
 					editingGateCV = cv[sequence][stepIndexEdit];
 					editingGateKeyLight = -1;
 				}
@@ -919,7 +929,7 @@ struct PhraseSeq16 : Module {
 					else {			
 						cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
 						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
-						editingGate = (unsigned long) (gateTime * engineGetSampleRate());
+						editingGate = (unsigned long) (gateTime * sampleRate);
 						editingGateCV = cv[sequence][stepIndexEdit];
 						editingGateKeyLight = -1;
 						if (params[KEY_PARAMS + i].value > 1.5f) {
@@ -935,16 +945,13 @@ struct PhraseSeq16 : Module {
 		// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingSequence) {
-				//if (getTied(sequence,stepIndexEdit))
-					//tiedWarning = tiedWarningInit;
-				//else {
-					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1;
-					if (!running) {
-						if (pulsesPerStep != 1)
-							editingGateLength = getGate1(sequence,stepIndexEdit) ? (long) (editGateLengthTime * engineGetSampleRate()) : 0l;
-						gate1HoldDetect = (long) (gateHoldDetectTime * engineGetSampleRate());
+				attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1;
+				if (!running) {
+					if (pulsesPerStep != 1) {
+						editingGateLength = getGate1(sequence,stepIndexEdit) ? editGateLengthTimeInit : 0l;
+						gate1HoldDetect = (long) (gateHoldDetectTime * sampleRate);
 					}
-				//}
+				}
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -959,15 +966,13 @@ struct PhraseSeq16 : Module {
 		}		
 		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
 			if (editingSequence) {
-				//if (getTied(sequence,stepIndexEdit))
-					//tiedWarning = tiedWarningInit;
-				//else {
-					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE2;
-					if (!running) {
-						if (pulsesPerStep != 1)
-							editingGateLength = getGate2(sequence,stepIndexEdit) ? (long) (-1 * editGateLengthTime * engineGetSampleRate()) : 0l;
+				attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE2;
+				if (!running) {
+					if (pulsesPerStep != 1) {
+						editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * editGateLengthTimeInit : 0l;
+						gate2HoldDetect = (long) (gateHoldDetectTime * sampleRate);
 					}
-				//}
+				}
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -1149,7 +1154,7 @@ struct PhraseSeq16 : Module {
 				}
 				else {
 					if (editingGate > 0ul && editingGateKeyLight != -1)
-						lights[KEY_LIGHTS + i].value = (i == editingGateKeyLight ? ((float) editingGate / (float)(gateTime * engineGetSampleRate())) : 0.0f);
+						lights[KEY_LIGHTS + i].value = (i == editingGateKeyLight ? ((float) editingGate / (float)(gateTime * sampleRate)) : 0.0f);
 					else
 						lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
 				}
@@ -1161,10 +1166,10 @@ struct PhraseSeq16 : Module {
 		if (!editingSequence)
 			attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
 		//
-		lights[GATE1_LIGHT + 1].value = ((attributesVal & ATT_MSK_GATE1) != 0) ? 1.0f : 0.0f;
+		lights[GATE1_LIGHT + 1].value = getGate1a(attributesVal) ? 1.0f : 0.0f;
 		lights[GATE1_LIGHT + 0].value = ((pulsesPerStep != 1) ? lights[GATE1_LIGHT + 1].value : 0.0f);
 		lights[GATE1_PROB_LIGHT].value = ((attributesVal & ATT_MSK_GATE1P) != 0) ? 1.0f : 0.0f;
-		lights[GATE2_LIGHT + 1].value = ((attributesVal & ATT_MSK_GATE2) != 0) ? 1.0f : 0.0f;
+		lights[GATE2_LIGHT + 1].value = getGate2a(attributesVal) ? 1.0f : 0.0f;
 		lights[GATE2_LIGHT + 0].value = ((pulsesPerStep != 1) ? lights[GATE2_LIGHT + 1].value : 0.0f);
 		lights[SLIDE_LIGHT].value = ((attributesVal & ATT_MSK_SLIDE) != 0) ? 1.0f : 0.0f;
 		if (tiedWarning > 0l) {
@@ -1199,15 +1204,37 @@ struct PhraseSeq16 : Module {
 			clockIgnoreOnReset--;
 		if (tiedWarning > 0l)
 			tiedWarning--;
+		if (modeHoldDetect > 0l) {
+			if (params[RUNMODE_PARAM].value < 0.5f)
+				modeHoldDetect = 0l;
+			else {
+				if (modeHoldDetect == 1l) {
+					displayState = DISP_NORMAL;
+					editingPpqn = editGateLengthTimeInit;
+				}
+				modeHoldDetect--;
+			}
+		}
 		if (gate1HoldDetect > 0l) {
 			if (params[GATE1_PARAM].value < 0.5f)
 				gate1HoldDetect = 0l;
 			else {
 				if (gate1HoldDetect == 1l) {
 					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE1;
-					editingPpqn = (long) (editGateLengthTime * engineGetSampleRate());
+					// TODO implement hold gate1 length edit
 				}
 				gate1HoldDetect--;
+			}
+		}
+		if (gate2HoldDetect > 0l) {
+			if (params[GATE2_PARAM].value < 0.5f)
+				gate2HoldDetect = 0l;
+			else {
+				if (gate2HoldDetect == 1l) {
+					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE2;
+					// TODO implement hold gate1 length edit
+				}
+				gate2HoldDetect--;
 			}
 		}
 		if (editingGateLength != 0l) {

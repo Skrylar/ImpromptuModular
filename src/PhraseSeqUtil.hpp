@@ -13,15 +13,15 @@ enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, MODE_FW2, MOD
 static const std::string modeLabels[NUM_MODES]={"FWD","REV","PPG","BRN","RND","FW2","FW3","FW4"};
 enum GateModeIds {GATE_24, GATE_34, GATE_44, GATE_14, GATE_TRIG, GATE_DUO, GATE_DU1, GATE_DU2, 
 				  GATE_TRIPLET, GATE_TRIP1, GATE_TRIP2, GATE_TRIP3, GATE_TRIP4, GATE_TRIP5, GATE_TRIP6, NUM_GATES};
-static const std::string gateLabels[NUM_GATES]={"2/4","3/4","4/4","1/4","TRG","DUO","DU1","DU2",
+static const std::string gateLabels[NUM_GATES]={"1/4","2/4","3/4","4/4","TRG","DUO","DU1","DU2",
 												"TRP","TR1","TR2","TR3","TR4","TR5","TR6"};
 enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_GATE2 = 0x04, ATT_MSK_SLIDE = 0x08, ATT_MSK_TIED = 0x10};// 5 bits
 static const int ATT_MSK_GATE1MODE = 0x01E0;// 4 bits
 static const int gate1ModeShift = 5;
 static const int ATT_MSK_GATE2MODE = 0x1E00;// 4 bits
 static const int gate2ModeShift = 9;
-static const uint32_t advGateHitMask[NUM_GATES] = {0x000FFF, 0x03FFFF, 0xFFFFFF, 0x00003F, 0, 0x03F03F, 0x00003F, 0x00003F,
-							0x0F0F0F, 0x00000F, 0x000F00, 0x00000F, 0x0F0F00, 0x0F000F, 0x000F0F};
+static const uint32_t advGateHitMask[NUM_GATES] = {0x00003F, 0x000FFF, 0x03FFFF, 0xFFFFFF, 0, 0x03F03F, 0x00003F, 0x03F000,
+							0x0F0F0F, 0x00000F, 0x000F00, 0x0F0000, 0x000F0F, 0x0F000F, 0x0F0F00};
 
 							
 				
