@@ -15,6 +15,7 @@
 #include "ImpromptuModular.hpp"
 #include "PhraseSeqUtil.hpp"
 
+
 struct PhraseSeq16 : Module {
 	enum ParamIds {
 		LEFT_PARAM,
@@ -98,11 +99,6 @@ struct PhraseSeq16 : Module {
 	};
 	
 	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_TRANSPOSE, DISP_ROTATE};
-	enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_GATE2 = 0x04, ATT_MSK_SLIDE = 0x08, ATT_MSK_TIED = 0x10};// 5 bits
-	static const int ATT_MSK_GATE1MODE = 0x01E0;// 4 bits
-	static const int gate1ModeShift = 5;
-	static const int ATT_MSK_GATE2MODE = 0x1E00;// 4 bits
-	static const int gate2ModeShift = 9;
 	
 
 	// Need to save
@@ -187,14 +183,14 @@ struct PhraseSeq16 : Module {
 	SchmittTrigger tiedTrigger;
 
 	
-	inline bool getGate1(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE1) != 0;}
-	inline bool getGate2(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE2) != 0;}
+	inline bool getGate1(int seq, int step) {return getGate1a(attributes[seq][step]);}
+	inline bool getGate2(int seq, int step) {return getGate2a(attributes[seq][step]);}
 	inline bool getGate1P(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE1P) != 0;}
 	inline bool getTied(int seq, int step) {return (attributes[seq][step] & ATT_MSK_TIED) != 0;}
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
 	inline bool calcGate1RandomEnable(bool gate1P) {return (randomUniform() < (params[GATE1_KNOB_PARAM].value)) || !gate1P;}// randomUniform is [0.0, 1.0), see include/util/common.hpp
-	inline int getGate1Mode(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE1MODE) >> gate1ModeShift;}
-	inline int getGate2Mode(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE2MODE) >> gate2ModeShift;}
+	inline int getGate1Mode(int seq, int step) {return getGate1aMode(attributes[seq][step]);}
+	inline int getGate2Mode(int seq, int step) {return getGate2aMode(attributes[seq][step]);}
 	inline void setGate1Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE1MODE; attributes[seq][step] |= (gateMode << gate1ModeShift);}
 	inline void setGate2Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE2MODE; attributes[seq][step] |= (gateMode << gate2ModeShift);}
 
@@ -1066,8 +1062,9 @@ struct PhraseSeq16 : Module {
 		if (running) {
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
 			outputs[CV_OUTPUT].value = cv[seq][step] - slideOffset;
-			outputs[GATE1_OUTPUT].value = (calcGate(getGate1(seq,step), clockTrigger, ppqnCount, pulsesPerStep) && gate1RandomEnable) ? 10.0f : 0.0f;
-			outputs[GATE2_OUTPUT].value = (calcGate(getGate2(seq,step), clockTrigger, ppqnCount, pulsesPerStep) 					) ? 10.0f : 0.0f;
+			int gateStates = calcGates(attributes[seq][step], clockTrigger, ppqnCount, pulsesPerStep);
+			outputs[GATE1_OUTPUT].value = (((gateStates & 0x1) != 0) && gate1RandomEnable) ? 10.0f : 0.0f;
+			outputs[GATE2_OUTPUT].value = ( (gateStates > 1)					         ) ? 10.0f : 0.0f;
 		}
 		else {// not running
 			outputs[CV_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
