@@ -1079,7 +1079,7 @@ struct PhraseSeq32 : Module {
 					for (int i = 0; i < 2; i += stepConfig) {
 						if (getSlide(newSeq, (i * 16) + stepIndexRun)) {
 							// activate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
-							slideStepsRemain[i] =   (unsigned long) (((float)clockPeriod)   * params[SLIDE_KNOB_PARAM].value / 2.0f);// 0-T slide, where T is clock period (can be too long when user does clock gating)
+							slideStepsRemain[i] =   (unsigned long) (((float)clockPeriod  * pulsesPerStep)   * params[SLIDE_KNOB_PARAM].value / 2.0f);// 0-T slide, where T is clock period (can be too long when user does clock gating)
 							//slideStepsRemain[i] = (unsigned long)  (engineGetSampleRate() * params[SLIDE_KNOB_PARAM].value );// 0-2s slide
 							float slideToCV = cv[newSeq][(i * 16) + stepIndexRun];
 							slideCVdelta[i] = (slideToCV - slideFromCV[i])/(float)slideStepsRemain[i];
