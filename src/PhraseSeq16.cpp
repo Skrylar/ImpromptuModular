@@ -918,7 +918,15 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 12; i++) {
 			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 				if (editingSequence) {
-					if (getTied(sequence,stepIndexEdit)) {
+					if (editingGateLength != 0l) {
+						int newMode = keyIndexToGateMode(i);
+						if (editingGateLength > 0l)
+							setGate1Mode(sequence, stepIndexEdit, newMode);
+						else
+							setGate2Mode(sequence, stepIndexEdit, newMode);
+						editingGateLength = editGateLengthTimeInit;
+					}
+					else if (getTied(sequence,stepIndexEdit)) {
 						if (params[KEY_PARAMS + i].value > 1.5f)
 							stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
 						else
@@ -1134,29 +1142,40 @@ struct PhraseSeq16 : Module {
 		}
 		
 		// Keyboard lights
-		float cvValOffset;
-		if (editingSequence) 
-			cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
-		else	
-			cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
-		int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
-		for (int i = 0; i < 12; i++) {
-			if (!editingSequence && (!attached || !running))// no keyboard lights when song mode and either (detached [1] or stopped [2])
-											// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
-											// [2] CV is set to 0V when not running and in song mode, so cv[][] makes no sense to display
-				lights[KEY_LIGHTS + i].value = 0.0f;
-			else {
-				if (tiedWarning > 0l) {
-					bool warningFlashState = calcWarningFlash(tiedWarning, tiedWarningInit);
-					lights[KEY_LIGHTS + i].value = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
-				}
-				else {
-					if (editingGate > 0ul && editingGateKeyLight != -1)
-						lights[KEY_LIGHTS + i].value = (i == editingGateKeyLight ? ((float) editingGate / (float)(gateTime * sampleRate)) : 0.0f);
-					else
-						lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
-				}
+		if (editingGateLength != 0) {
+			int modeLightIndex = gateModeToKeyLightIndex(attributes[sequence][stepIndexEdit], editingGateLength > 0l);
+			for (int i = 0; i < 12; i++) {
+				if (i == modeLightIndex)
+					lights[KEY_LIGHTS + i].value = 0.1f;// TODO make this orange
+				else
+					lights[KEY_LIGHTS + i].value = 0.0f;
 			}
+		}
+		else {
+			float cvValOffset;
+			if (editingSequence) 
+				cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
+			else	
+				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
+			int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
+			for (int i = 0; i < 12; i++) {
+				if (!editingSequence && (!attached || !running))// no keyboard lights when song mode and either (detached [1] or stopped [2])
+												// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
+												// [2] CV is set to 0V when not running and in song mode, so cv[][] makes no sense to display
+					lights[KEY_LIGHTS + i].value = 0.0f;
+				else {
+					if (tiedWarning > 0l) {
+						bool warningFlashState = calcWarningFlash(tiedWarning, tiedWarningInit);
+						lights[KEY_LIGHTS + i].value = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
+					}
+					else {
+						if (editingGate > 0ul && editingGateKeyLight != -1)
+							lights[KEY_LIGHTS + i].value = (i == editingGateKeyLight ? ((float) editingGate / (float)(gateTime * sampleRate)) : 0.0f);
+						else
+							lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+					}
+				}
+			}	
 		}			
 		
 		// Gate1, Gate1Prob, Gate2, Slide and Tied lights
@@ -1289,10 +1308,6 @@ struct PhraseSeq16Widget : ModuleWidget {
 			if (num >= 0 && num < NUM_MODES)
 				snprintf(displayStr, 4, "%s", modeLabels[num].c_str());
 		}
-		void gateModeToStr(int num) {
-			if (num >= 0 && num < NUM_GATES)
-				snprintf(displayStr, 4, "%s", gateLabels[num].c_str());
-		}
 
 		void draw(NVGcontext *vg) override {
 			NVGcolor textColor = prepareDisplay(vg, &box);
@@ -1326,12 +1341,6 @@ struct PhraseSeq16Widget : ModuleWidget {
 				}
 				else if (module->editingPpqn != 0ul) {
 					snprintf(displayStr, 4, "x%2u", (unsigned) module->pulsesPerStep);
-				}
-				else if (module->editingGateLength != 0l) {
-					if (module->editingGateLength > 0l)
-						gateModeToStr(module->getGate1Mode(module->sequence, module->stepIndexEdit));
-					else
-						gateModeToStr(module->getGate2Mode(module->sequence, module->stepIndexEdit));
 				}
 				else if (module->displayState == PhraseSeq16::DISP_TRANSPOSE) {
 					snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffset));
@@ -1493,35 +1502,36 @@ struct PhraseSeq16Widget : ModuleWidget {
 		}
 		// Keys and Key lights
 		static const int keyNudgeX = 7;
-		static const int keyNudgeY = 2;
+		static const int KeyBlackY = 103;
+		static const int KeyWhiteY = 141;
 		static const int offsetKeyLEDx = 6;
-		static const int offsetKeyLEDy = 28;
+		static const int offsetKeyLEDy = 16;
 		// Black keys and lights
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(65+keyNudgeX, 89+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(65+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 1));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(93+keyNudgeX, 89+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(93+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 3));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(150+keyNudgeX, 89+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(150+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 6));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(178+keyNudgeX, 89+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(178+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 8));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(206+keyNudgeX, 89+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(206+keyNudgeX+offsetKeyLEDx, 89+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 10));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(65+keyNudgeX, KeyBlackY), module, PhraseSeq16::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(65+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 1));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(93+keyNudgeX, KeyBlackY), module, PhraseSeq16::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(93+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 3));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(150+keyNudgeX, KeyBlackY), module, PhraseSeq16::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(150+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 6));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(178+keyNudgeX, KeyBlackY), module, PhraseSeq16::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(178+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 8));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(206+keyNudgeX, KeyBlackY), module, PhraseSeq16::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(206+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 10));
 		// White keys and lights
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(51+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(51+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 0));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(79+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(79+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 2));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(107+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(107+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 4));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(136+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(136+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 5));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(164+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(164+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 7));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(192+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(192+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 9));
-		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(220+keyNudgeX, 139+keyNudgeY), module, PhraseSeq16::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
-		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(220+keyNudgeX+offsetKeyLEDx, 139+keyNudgeY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 11));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(51+keyNudgeX, KeyWhiteY), module, PhraseSeq16::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(51+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 0));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(79+keyNudgeX, KeyWhiteY), module, PhraseSeq16::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(79+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 2));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(107+keyNudgeX, KeyWhiteY), module, PhraseSeq16::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(107+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 4));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(136+keyNudgeX, KeyWhiteY), module, PhraseSeq16::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(136+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 5));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(164+keyNudgeX, KeyWhiteY), module, PhraseSeq16::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(164+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 7));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(192+keyNudgeX, KeyWhiteY), module, PhraseSeq16::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(192+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 9));
+		addParam(ParamWidget::create<InvisibleKeySmall>(			Vec(220+keyNudgeX, KeyWhiteY), module, PhraseSeq16::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
+		addChild(ModuleLightWidget::create<MediumLight<RedLight>>(Vec(220+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq16::KEY_LIGHTS + 11));
 		
 		
 		
@@ -1653,7 +1663,7 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 /*CHANGE LOG
 
 0.6.10:
-allow main knob to also change length when length editing is active
+add advanced gate mode
 
 0.6.9:
 add FW2, FW3 and FW4 run modes for sequences (but not for song)

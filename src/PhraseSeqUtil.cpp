@@ -119,3 +119,41 @@ bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {
 
 	return crossBoundary;
 }
+
+
+int gateModeToKeyLightIndex(int attribute, bool isGate1) {
+	int gateMode = isGate1 ? getGate1aMode(attribute) : getGate2aMode(attribute);
+	switch (gateMode) {
+		case (0) : return 2; break;
+		case (1) : return 4; break;
+		case (2) : return 5; break;
+		case (3) : return 7; break;
+		case (4) : return 0; break;
+		case (5) : return 9; break;
+		case (6) : return 1; break;
+		case (7) : return 3; break;
+		case (8) : return 11; break;
+		case (9) : return 6; break;
+		case (10) : return 8; break;
+		default: return 10;
+	}
+	return 2;
+}
+
+int keyIndexToGateMode(int keyIndex) {
+	switch (keyIndex) {
+		case (2) : return 0; break;
+		case (4) : return 1; break;
+		case (5) : return 2; break;
+		case (7) : return 3; break;
+		case (0) : return 4; break;
+		case (9) : return 5; break;
+		case (1) : return 6; break;
+		case (3) : return 7; break;
+		case (11) : return 8; break;
+		case (6) : return 9; break;
+		case (8) : return 10; break;
+		default: return 11;
+	}
+	return 0;
+}

@@ -243,7 +243,7 @@ struct InvisibleKey : MomentarySwitch {
 
 struct InvisibleKeySmall : MomentarySwitch {
 	InvisibleKeySmall() {
-		box.size = Vec(23, 50);
+		box.size = Vec(23, 38);
 	}
 	void onMouseDown(EventMouseDown &e) override;
 	void onMouseUp(EventMouseUp &e) override;
