@@ -842,8 +842,6 @@ struct SemiModularSynth : Module {
 							sequence += deltaKnob;
 							if (sequence < 0) sequence = 0;
 							if (sequence >= 16) sequence = (16 - 1);
-							//if (stepIndexEdit >= lengths[sequence])// Commented for full edit capabilities
-								//stepIndexEdit = lengths[sequence] - 1;// Commented for full edit capabilities
 						}
 					}
 					else {
@@ -1346,42 +1344,37 @@ struct SemiModularSynthWidget : ModuleWidget {
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
 			if (module->infoCopyPaste != 0l) {
-				if (module->infoCopyPaste > 0l) {// if copy display "CPY"
+				if (module->infoCopyPaste > 0l)
 					snprintf(displayStr, 4, "CPY");
-				}
-				else {// if paste display "PST"
+				else
 					snprintf(displayStr, 4, "PST");
-				}
 			}
-			else {
-				if (module->displayState == SemiModularSynth::DISP_MODE) {
-					if (module->editingSequence)
-						runModeToStr(module->runModeSeq[module->sequence]);
-					else
-						runModeToStr(module->runModeSong);
-				}
-				else if (module->editingLength > 0ul) {
-					if (module->editingSequence)
-						snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
-					else
-						snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
-				}
-				else if (module->displayState == SemiModularSynth::DISP_TRANSPOSE) {
-					snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffset));
-					if (module->transposeOffset < 0)
-						displayStr[0] = '-';
-				}
-				else if (module->displayState == SemiModularSynth::DISP_ROTATE) {
-					snprintf(displayStr, 4, ")%2u", (unsigned) abs(module->rotateOffset));
-					if (module->rotateOffset < 0)
-						displayStr[0] = '(';
-				}
-				else {// DISP_NORMAL
-					snprintf(displayStr, 4, " %2u", (unsigned) (module->editingSequence ? 
-						module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
-				}
+			else if (module->editingLength > 0ul) {
+				if (module->editingSequence)
+					snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
+				else
+					snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
 			}
-			displayStr[3] = 0;// more safety
+			else if (module->displayState == SemiModularSynth::DISP_MODE) {
+				if (module->editingSequence)
+					runModeToStr(module->runModeSeq[module->sequence]);
+				else
+					runModeToStr(module->runModeSong);
+			}
+			else if (module->displayState == SemiModularSynth::DISP_TRANSPOSE) {
+				snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffset));
+				if (module->transposeOffset < 0)
+					displayStr[0] = '-';
+			}
+			else if (module->displayState == SemiModularSynth::DISP_ROTATE) {
+				snprintf(displayStr, 4, ")%2u", (unsigned) abs(module->rotateOffset));
+				if (module->rotateOffset < 0)
+					displayStr[0] = '(';
+			}
+			else {// DISP_NORMAL
+				snprintf(displayStr, 4, " %2u", (unsigned) (module->editingSequence ? 
+					module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
+			}
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};		

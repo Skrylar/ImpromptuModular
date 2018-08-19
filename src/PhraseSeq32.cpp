@@ -755,15 +755,10 @@ struct PhraseSeq32 : Module {
 		}
 		if (stepPressed != -1) {
 			if (displayState == DISP_LENGTH) {
-				if (editingSequence) {
+				if (editingSequence)
 					lengths[sequence] = (stepPressed % (16 * stepConfig)) + 1;
-					//if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])// Commented for full edit capabilities
-						//stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));// Commented for full edit capabilities
-				}
-				else {
+				else
 					phrases = stepPressed + 1;
-					//if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;// Commented for full edit capabilities
-				}
 				revertDisplay = (long) (revertDisplayTime * sampleRate);
 			}
 			else {
@@ -835,18 +830,8 @@ struct PhraseSeq32 : Module {
 		if (deltaKnob != 0) {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 				if (editingPpqn != 0) {
-					pulsesPerStep = indexToPps(clamp(ppsToIndex(pulsesPerStep) + deltaKnob, 0, 3));
+					pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
 					editingPpqn = editGateLengthTimeInit;
-				}
-				else if (editingGateLength != 0) {
-					if (editingGateLength > 0) {
-						setGate1Mode(sequence, stepIndexEdit, calcNewGateMode(getGate1Mode(sequence, stepIndexEdit), deltaKnob));
-						editingGateLength = editGateLengthTimeInit;
-					}
-					else {
-						setGate2Mode(sequence, stepIndexEdit, calcNewGateMode(getGate2Mode(sequence, stepIndexEdit), deltaKnob));
-						editingGateLength = -1l * editGateLengthTimeInit;
-					}				
 				}
 				else if (displayState == DISP_MODE) {
 					if (editingSequence) {
@@ -867,14 +852,11 @@ struct PhraseSeq32 : Module {
 						lengths[sequence] += deltaKnob;
 						if (lengths[sequence] > (16 * stepConfig)) lengths[sequence] = (16 * stepConfig);
 						if (lengths[sequence] < 1 ) lengths[sequence] = 1;
-						//if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])// Commented for full edit capabilities
-							//stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));// Commented for full edit capabilities
 					}
 					else {
 						phrases += deltaKnob;
 						if (phrases > 32) phrases = 32;
 						if (phrases < 1 ) phrases = 1;
-						//if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;// Commented for full edit capabilities
 					}
 				}
 				else if (displayState == DISP_TRANSPOSE) {
@@ -970,11 +952,14 @@ struct PhraseSeq32 : Module {
 				if (editingSequence) {
 					if (editingGateLength != 0l) {
 						int newMode = keyIndexToGateMode(i);
-						if (editingGateLength > 0l)
+						if (editingGateLength > 0l) {
 							setGate1Mode(sequence, stepIndexEdit, newMode);
-						else
+							editingGateLength = editGateLengthTimeInit;
+						}
+						else {
 							setGate2Mode(sequence, stepIndexEdit, newMode);
-						editingGateLength = editGateLengthTimeInit;
+							editingGateLength = -1l * editGateLengthTimeInit;
+						}
 					}
 					else if (getTied(sequence,stepIndexEdit)) {
 						if (params[KEY_PARAMS + i].value > 1.5f)
@@ -1242,8 +1227,8 @@ struct PhraseSeq32 : Module {
 			int modeLightIndex = gateModeToKeyLightIndex(attributes[sequence][stepIndexEdit], editingGateLength > 0l);
 			for (int i = 0; i < 12; i++) {
 				if (i == modeLightIndex) {
-					lights[KEY_LIGHTS + i * 2 + 0].value = 1.0f;
-					lights[KEY_LIGHTS + i * 2 + 1].value = 1.0f;
+					lights[KEY_LIGHTS + i * 2 + 0].value = editingGateLength > 0l ? 1.0f : 0.2f;
+					lights[KEY_LIGHTS + i * 2 + 1].value = editingGateLength > 0l ? 0.2f : 1.0f;
 				}
 				else {
 					lights[KEY_LIGHTS + i * 2 + 0].value = 0.0f;
@@ -1285,11 +1270,9 @@ struct PhraseSeq32 : Module {
 		if (!editingSequence)
 			attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
 		//
-		lights[GATE1_LIGHT + 1].value = getGate1a(attributesVal) ? 1.0f : 0.0f;
-		lights[GATE1_LIGHT + 0].value = ((pulsesPerStep != 1) ? lights[GATE1_LIGHT + 1].value : 0.0f);
+		setGateLight(getGate1a(attributesVal), GATE1_LIGHT);
+		setGateLight(getGate2a(attributesVal), GATE2_LIGHT);
 		lights[GATE1_PROB_LIGHT].value = ((attributesVal & ATT_MSK_GATE1P) != 0) ? 1.0f : 0.0f;
-		lights[GATE2_LIGHT + 1].value = getGate2a(attributesVal) ? 1.0f : 0.0f;
-		lights[GATE2_LIGHT + 0].value = ((pulsesPerStep != 1) ? lights[GATE2_LIGHT + 1].value : 0.0f);
 		lights[SLIDE_LIGHT].value = ((attributesVal & ATT_MSK_SLIDE) != 0) ? 1.0f : 0.0f;
 		if (tiedWarning > 0l) {
 			bool warningFlashState = calcWarningFlash(tiedWarning, tiedWarningInit);
@@ -1395,6 +1378,22 @@ struct PhraseSeq32 : Module {
 	int calcNewGateMode(int currentGateMode, int deltaKnob) {
 		return clamp(currentGateMode + deltaKnob, 0, NUM_GATES - 1); 
 	}
+	
+	inline void setGateLight(bool gateOn, int lightIndex) {
+		if (!gateOn) {
+			lights[lightIndex + 0].value = 0.0f;
+			lights[lightIndex + 1].value = 0.0f;
+		}
+		else if (pulsesPerStep == 1) {
+			lights[lightIndex + 0].value = 0.0f;
+			lights[lightIndex + 1].value = 1.0f;
+		}
+		else {
+			lights[lightIndex + 0].value = lightIndex == GATE1_LIGHT ? 1.0f : 0.2f;
+			lights[lightIndex + 1].value = lightIndex == GATE1_LIGHT ? 0.2f : 1.0f;
+		}
+	}
+
 };
 
 
@@ -1430,45 +1429,40 @@ struct PhraseSeq32Widget : ModuleWidget {
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
 			if (module->infoCopyPaste != 0l) {
-				if (module->infoCopyPaste > 0l) {// if copy display "CPY"
+				if (module->infoCopyPaste > 0l)
 					snprintf(displayStr, 4, "CPY");
-				}
-				else {// if paste display "PST"
+				else
 					snprintf(displayStr, 4, "PST");
-				}
 			}
-			else {
-				if (module->displayState == PhraseSeq32::DISP_MODE) {
-					if (module->editingSequence)
-						runModeToStr(module->runModeSeq[module->sequence]);
-					else
-						runModeToStr(module->runModeSong);
-				}
-				else if (module->displayState == PhraseSeq32::DISP_LENGTH) {
-					if (module->editingSequence)
-						snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
-					else
-						snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
-				}
-				else if (module->editingPpqn != 0ul) {
-					snprintf(displayStr, 4, "x%2u", (unsigned) module->pulsesPerStep);
-				}
-				else if (module->displayState == PhraseSeq32::DISP_TRANSPOSE) {
-					snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffset));
-					if (module->transposeOffset < 0)
-						displayStr[0] = '-';
-				}
-				else if (module->displayState == PhraseSeq32::DISP_ROTATE) {
-					snprintf(displayStr, 4, ")%2u", (unsigned) abs(module->rotateOffset));
-					if (module->rotateOffset < 0)
-						displayStr[0] = '(';
-				}
-				else {// DISP_NORMAL
-					snprintf(displayStr, 4, " %2u", (unsigned) (module->editingSequence ? 
-						module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
-				}
+			else if (module->editingPpqn != 0ul) {
+				snprintf(displayStr, 4, "x%2u", (unsigned) module->pulsesPerStep);
 			}
-			displayStr[3] = 0;// more safety
+			else if (module->displayState == PhraseSeq32::DISP_MODE) {
+				if (module->editingSequence)
+					runModeToStr(module->runModeSeq[module->sequence]);
+				else
+					runModeToStr(module->runModeSong);
+			}
+			else if (module->displayState == PhraseSeq32::DISP_LENGTH) {
+				if (module->editingSequence)
+					snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
+				else
+					snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
+			}
+			else if (module->displayState == PhraseSeq32::DISP_TRANSPOSE) {
+				snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffset));
+				if (module->transposeOffset < 0)
+					displayStr[0] = '-';
+			}
+			else if (module->displayState == PhraseSeq32::DISP_ROTATE) {
+				snprintf(displayStr, 4, ")%2u", (unsigned) abs(module->rotateOffset));
+				if (module->rotateOffset < 0)
+					displayStr[0] = '(';
+			}
+			else {// DISP_NORMAL
+				snprintf(displayStr, 4, " %2u", (unsigned) (module->editingSequence ? 
+					module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
+			}
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};		
