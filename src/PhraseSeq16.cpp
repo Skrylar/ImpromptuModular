@@ -155,6 +155,7 @@ struct PhraseSeq16 : Module {
 	long gate1HoldDetect;// 0 when not detecting, downward counter when detecting
 	long gate2HoldDetect;// 0 when not detecting, downward counter when detecting
 	long editingGateLength;// 0 when no info, positive downward step counter timer when gate1, negative upward when gate2
+	long editGateLengthTimeInitMult;// multiplier for extended setting of advanced gates
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
 
@@ -241,6 +242,7 @@ struct PhraseSeq16 : Module {
 		gate1HoldDetect = 0l;
 		gate2HoldDetect = 0l;
 		editingGateLength = 0l;
+		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
 	}
 
@@ -286,6 +288,7 @@ struct PhraseSeq16 : Module {
 		gate1HoldDetect = 0l;
 		gate2HoldDetect = 0l;
 		editingGateLength = 0l;
+		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
 	}
 	
@@ -581,7 +584,7 @@ struct PhraseSeq16 : Module {
 		static const float gateHoldDetectTime = 2.0f;// seconds
 		static const float editGateLengthTime = 2.5f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * sampleRate);
-		long editGateLengthTimeInit = (long) (editGateLengthTime * sampleRate);
+		long editGateLengthTimeInit = (long) (editGateLengthTime * sampleRate) * editGateLengthTimeInitMult;
 		
 		
 		//********** Buttons, knobs, switches and inputs **********
@@ -1237,7 +1240,10 @@ struct PhraseSeq16 : Module {
 			else {
 				if (gate1HoldDetect == 1l) {
 					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE1;
-					// TODO implement hold gate1 length edit
+					if (editGateLengthTimeInitMult == 1)
+						editGateLengthTimeInitMult = 100;
+					else
+						editGateLengthTimeInitMult = 1;
 				}
 				gate1HoldDetect--;
 			}
@@ -1248,7 +1254,10 @@ struct PhraseSeq16 : Module {
 			else {
 				if (gate2HoldDetect == 1l) {
 					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE2;
-					// TODO implement hold gate1 length edit
+					if (editGateLengthTimeInitMult == 1)
+						editGateLengthTimeInitMult = 100;
+					else
+						editGateLengthTimeInitMult = 1;
 				}
 				gate2HoldDetect--;
 			}

@@ -146,6 +146,7 @@ struct PhraseSeq32 : Module {
 	long gate1HoldDetect;// 0 when not detecting, downward counter when detecting
 	long gate2HoldDetect;// 0 when not detecting, downward counter when detecting
 	long editingGateLength;// 0 when no info, positive downward step counter timer when gate1, negative upward when gate2
+	long editGateLengthTimeInitMult;// multiplier for extended setting of advanced gates
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
 	
@@ -242,6 +243,7 @@ struct PhraseSeq32 : Module {
 		gate1HoldDetect = 0l;
 		gate2HoldDetect = 0l;
 		editingGateLength = 0l;
+		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
 	}
 	
@@ -294,6 +296,7 @@ struct PhraseSeq32 : Module {
 		gate1HoldDetect = 0l;
 		gate2HoldDetect = 0l;
 		editingGateLength = 0l;
+		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
 	}
 	
@@ -526,7 +529,7 @@ struct PhraseSeq32 : Module {
 		static const float gateHoldDetectTime = 2.0f;// seconds
 		static const float editGateLengthTime = 2.5f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * sampleRate);
-		long editGateLengthTimeInit = (long) (editGateLengthTime * sampleRate);
+		long editGateLengthTimeInit = (long) (editGateLengthTime * sampleRate) * editGateLengthTimeInitMult;
 		
 		
 		//********** Buttons, knobs, switches and inputs **********
@@ -707,14 +710,11 @@ struct PhraseSeq32 : Module {
 					if (lengths[sequence] > (16 * stepConfig)) lengths[sequence] = (16 * stepConfig);
 					if (lengths[sequence] < 1 ) lengths[sequence] = 1;
 					lengths[sequence] = ((lengths[sequence] - 1) % (16 * stepConfig)) + 1;
-					//if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])// Commented for full edit capabilities
-						//stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));// Commented for full edit capabilities
 				}
 				else {
 					phrases += delta;
 					if (phrases > 32) phrases = 32;
 					if (phrases < 1 ) phrases = 1;
-					//if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;// Commented for full edit capabilities
 				}
 			}
 			else {
@@ -723,15 +723,8 @@ struct PhraseSeq32 : Module {
 						stepIndexEdit += delta;
 						if (stepIndexEdit < 0)
 							stepIndexEdit = ((stepConfig == 1) ? 16 : 0) + lengths[sequence] - 1;
-						//if (stepConfig == 1) {// Commented for full edit capabilities (whole if)
-						//	if (stepIndexEdit >= lengths[sequence] && stepIndexEdit < 16)// if past length in chan A
-						//		stepIndexEdit = delta > 0 ? 16 : lengths[sequence] - 1;
-						//	else if (stepIndexEdit >= 16 + lengths[sequence])// if past length in chan B (including >=32)
-						//		stepIndexEdit = delta > 0 ? 0 : 16 + lengths[sequence] - 1;
-						//}
-						//else// Commented for full edit capabilities
-							if (stepIndexEdit >= 32)//lengths[sequence]) // Commented for full edit capabilities
-								stepIndexEdit = 0;
+						if (stepIndexEdit >= 32)
+							stepIndexEdit = 0;
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
 								editingGate = (unsigned long) (gateTime * sampleRate);
@@ -742,7 +735,7 @@ struct PhraseSeq32 : Module {
 						}
 					}
 					else
-						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, 32);//phrases);// Commented for full edit capabilities
+						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, 32);
 				}
 			}
 		}
@@ -765,8 +758,6 @@ struct PhraseSeq32 : Module {
 				if (!running || !attached) {// not running or detached
 					if (editingSequence) {
 						stepIndexEdit = stepPressed;
-						//if ( (stepIndexEdit % (16 * stepConfig)) >= lengths[sequence])// Commented for full edit capabilities
-							//stepIndexEdit = (lengths[sequence] - 1) + 16 * (stepIndexEdit / (16 * stepConfig));// Commented for full edit capabilities
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							editingGate = (unsigned long) (gateTime * sampleRate);
 							editingGateCV = cv[sequence][stepIndexEdit];
@@ -776,8 +767,6 @@ struct PhraseSeq32 : Module {
 					}
 					else {
 						phraseIndexEdit = stepPressed;
-						//if (phraseIndexEdit >= phrases)// Commented for full edit capabilities
-							//phraseIndexEdit = phrases - 1;// Commented for full edit capabilities
 					}
 				}
 				else {// attached and running
@@ -1325,7 +1314,10 @@ struct PhraseSeq32 : Module {
 			else {
 				if (gate1HoldDetect == 1l) {
 					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE1;
-					// TODO implement hold gate1 length edit
+					if (editGateLengthTimeInitMult == 1)
+						editGateLengthTimeInitMult = 100;
+					else
+						editGateLengthTimeInitMult = 1;
 				}
 				gate1HoldDetect--;
 			}
@@ -1336,7 +1328,10 @@ struct PhraseSeq32 : Module {
 			else {
 				if (gate2HoldDetect == 1l) {
 					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE2;
-					// TODO implement hold gate1 length edit
+					if (editGateLengthTimeInitMult == 1)
+						editGateLengthTimeInitMult = 100;
+					else
+						editGateLengthTimeInitMult = 1;
 				}
 				gate2HoldDetect--;
 			}
