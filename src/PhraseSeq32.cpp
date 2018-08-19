@@ -1223,6 +1223,12 @@ struct PhraseSeq32 : Module {
 		}
 		
 		// Keyboard lights (can only show channel A when running attached in 1x16 mode, does not pose problem for all other situations)
+		float cvValOffset;
+		if (editingSequence) 
+			cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
+		else	
+			cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
+		int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
 		if (editingGateLength != 0) {
 			int modeLightIndex = gateModeToKeyLightIndex(attributes[sequence][stepIndexEdit], editingGateLength > 0l);
 			for (int i = 0; i < 12; i++) {
@@ -1230,19 +1236,16 @@ struct PhraseSeq32 : Module {
 					lights[KEY_LIGHTS + i * 2 + 0].value = editingGateLength > 0l ? 1.0f : 0.2f;
 					lights[KEY_LIGHTS + i * 2 + 1].value = editingGateLength > 0l ? 0.2f : 1.0f;
 				}
-				else {
+				else { 
 					lights[KEY_LIGHTS + i * 2 + 0].value = 0.0f;
-					lights[KEY_LIGHTS + i * 2 + 1].value = 0.0f;
+					if (i == keyLightIndex) 
+						lights[KEY_LIGHTS + i * 2 + 1].value = 0.1f;	
+					else 
+						lights[KEY_LIGHTS + i * 2 + 1].value = 0.0f;
 				}
 			}
 		}
 		else {
-			float cvValOffset;
-			if (editingSequence) 
-				cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
-			else	
-				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
-			int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
 			for (int i = 0; i < 12; i++) {
 				lights[KEY_LIGHTS + i * 2 + 0].value = 0.0f;
 				if (!editingSequence && (!attached || !running || (stepConfig == 1)))// no oct lights when song mode and either (detached [1] or stopped [2] or 2x16config [3])
