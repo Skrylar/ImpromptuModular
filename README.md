@@ -19,7 +19,7 @@ Impromptu Modular is not a single-person endeavor:
 * Thanks to **Xavier Belmont** for suggesting improvements to the modules, for testing/bug-reports, for the concept design of the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
 * Thanks to **Steve Baker** for many fruitful discussions regarding the BPM Detection method in Clocked, testing and improvements that were suggested for that module. 
 * Thanks to **Omri Cohen** for testing and suggesting improvements to the modules, and for the [PhraseSeq16/32 tutorial](https://www.youtube.com/watch?v=N8_rMNzsS7w).
-* Thanks also to **Latif Fital**, **Alfredo Santamaria**, **Nay Seven**, **Alberto Zamora**, **Clément Foulc** for suggesting improvements to the modules, bug reports and testing.
+* Thanks also to **Latif Fital**, **Pyer (Pierre Collard)**, **Alfredo Santamaria**, **Nay Seven**, **Alberto Zamora**, **Clément Foulc**, **Wouter Spekkink** for suggesting improvements to the modules, bug reports and testing.
 
 
 
@@ -193,7 +193,7 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 ### Advanced gate mode (new in version 0.6.10) <a id="advanced-gate-mode"></a>
 
-Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than 1, which unlocks the advaced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In such cases, a mutliplied clock must be supplied in order to keep the same tempo in the sequencer. 
+Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than 1, which unlocks the advanced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In such cases, a mutliplied clock must be supplied in order to keep the same tempo in the sequencer. 
 
 In the advanced gate mode, the Gate1 and Gate2 lights will be a different color, and the onboard keyboard can be used not only to enter note values, but also to select one of the 12 types of gates for a given step. Advanced gates can only be set while in Seq mode when the sequencer is stopped. Here are the different gate modes.
 
