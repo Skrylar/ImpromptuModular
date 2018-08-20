@@ -176,7 +176,7 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 * **ATTACH**: Allows the edit head to follow the run head (Attach on). The position of the edit head is shown with a red LED, and the position of the run head is shown with a green LED. When in Seq mode, the actual content of the step corresponding to the edit head position (i.e. note, oct, gates, slide) can be modified in real time whether the sequencer is running or not. The edit head automatically follows the run head when Attach is on, or can manually positioned by using the < and > buttons when Attach is off.
 
-* **MODE**: This controls the run mode of the sequences and the song (one setting for each sequence and one for the song). The modes are: FWD (forward), REV (reverse), PPG (ping-pong, also called forward-reverse), BRN (Brownian random), RND (random), FW2 (forward, play twice), FW3 (play three times) and FW4 (four times). For example, setting the run mode to FWD for sequences and to RND for the song will play the phrases that are part of a song randomly, and the probability of a given phrase playing is proportional to the number of times it appears in the song. For sequences, the FW2, FW3 and FW4 modes can be used to repeat sequences more easily without consuming additional phrases in the song. These last three modes are not available for the song's run mode however. Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step. When set to a value greater than one, the sequencer will skip this many clock pulses before advancing to the next step; this is the mechanism used to implement the [advanced gate mode](#advanced-gate-mode).
+* **MODE**: This controls the run mode of the sequences and the song (one setting for each sequence and one for the song). The modes are: FWD (forward), REV (reverse), PPG (ping-pong, also called forward-reverse), BRN (Brownian random), RND (random), FW2 (forward, play twice), FW3 (play three times) and FW4 (four times). For example, setting the run mode to FWD for sequences and to RND for the song will play the phrases that are part of a song randomly, and the probability of a given phrase playing is proportional to the number of times it appears in the song. For sequences, the FW2, FW3 and FW4 modes can be used to repeat sequences more easily without consuming additional phrases in the song. These last three modes are not available for the song's run mode however. Holding the MODE button for **two seconds** allows the selection of the clock resolution, and is the mechanism used to enable the [advanced gate mode](#advanced-gate-mode).
 
 * **TRAN/ROT**: Transpose/Rotate the currently selected sequence up-down/left-right by a given number of semi-tones/steps. The main knob is used to set the transposition/rotation amount. Only available in Seq mode.
 
@@ -191,9 +191,9 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 * **TIED STEP**: When CVs are intended to be held across subsequent steps, this button can be used to tie the CV of the previous step to the current step; when tied, the gates of the current step are automatically turned off. If the CV of the head note changes, all consecutive tied notes are updated automatically.
 
 
-### Advanced gate mode (new in v.0.6.10) <a id="advanced-gate-mode"></a>
+### Advanced gate mode (new in version 0.6.10) <a id="advanced-gate-mode"></a>
 
-When selecting a clock resolution (see MODE above) greater than 1 PPS (**Pulses Per Step**), the advanced gate mode is enabled (the Gate1 and Gate2 lights will be a different color). In this mode, the onboard keyboard can be used not only to enter note values, but also to select one of the 12 types of gates for a given step. Here are the different gate modes.
+Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than one, which is refered to as the advaced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In the advanced gate mode, the Gate1 and Gate2 lights will be a different color, and the onboard keyboard can be used not only to enter note values, but also to select one of the 12 types of gates for a given step. Advanced gates can only be set in sequence mode when the sequencer is stopped. Here are the different gate modes.
 
 ```
 Code    Gate        Commment
@@ -211,10 +211,9 @@ TR2     --G---      ""
 TR3     ----G-      ""
 ```
 
-The gate mode for a given step can be selected during a short time interval after a given gate has been turned on using the Gate1 or Gate2 buttons. If a gate is already turned on, clicking the gate button twice will allow it to be edited while keeping it in the same state. The onboard keyboard will temporarily show a yellow/orange light corresponding to the current gate mode for that step, during which time the gate mode can be changed. 
+The gate mode for a given step can be selected during a short time interval after a given gate has just been turned on using the Gate1 or Gate2 buttons. If a gate is already turned on and its gate mode is to be edited, clicking the gate button twice will allow it to be edited while keeping it in the same state. The onboard keyboard will temporarily show a yellow/orange light corresponding to the current gate mode for that step; during this time the gate mode can be changed. 
 
-Since the gate mode editing time is kept rather short (2.5s), holding the Gate2 button for 2s will set that default time interval to 250s. Holding Gate1 for 2s will revert to the default time of 2.5s. The extended time feature is useful when the gate modes for multiple steps of a sequence are to be editied or reviewed, for example.
-
+Since the editing time for gate modes is kept rather short (2.5s), holding the Gate2 button for 2s will set that default time interval to 250s. Holding Gate1 for 2s will revert to the default time of 2.5s. The extended time feature is useful when the gate modes for multiple steps of a sequence are to be editied or reviewed in a single pass, for example.
 
 ([Back to module list](#modules))
 

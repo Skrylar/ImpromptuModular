@@ -15,7 +15,7 @@ enum GateModeIds {GATE_14, GATE_24, GATE_34, GATE_44, GATE_TRIG, GATE_DUO, GATE_
 				  GATE_TRIPLET, GATE_TRIP1, GATE_TRIP2, GATE_TRIP3, NUM_GATES};
 static const std::string gateLabels[NUM_GATES]={"1/4","2/4","3/4","4/4","TRG","DUO","D2 ","D2'",
 												"TRP","TR1","TR2","TR3"};
-static const uint32_t advGateHitMask[NUM_GATES] = {0x00003F, 0x000FFF, 0x03FFFF, 0xFFFFFF, 0, 0x03F03F, 0x03F000, 0xFC00000,
+static const uint32_t advGateHitMask[NUM_GATES] = {0x00003F, 0x000FFF, 0x03FFFF, 0xFFFFFF, 0, 0x03F03F, 0x03F000, 0xFC0000,
 												   0x0F0F0F, 0x00000F, 0x000F00, 0x0F0000};
 enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_GATE2 = 0x04, ATT_MSK_SLIDE = 0x08, ATT_MSK_TIED = 0x10};// 5 bits
 static const int ATT_MSK_GATE1MODE = 0x01E0;// 4 bits

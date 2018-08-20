@@ -241,7 +241,6 @@ struct PhraseSeq16 : Module {
 		modeHoldDetect = 0l;
 		gate1HoldDetect = 0l;
 		gate2HoldDetect = 0l;
-		editingGateLength = 0l;
 		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
 	}
@@ -287,7 +286,6 @@ struct PhraseSeq16 : Module {
 		modeHoldDetect = 0l;
 		gate1HoldDetect = 0l;
 		gate2HoldDetect = 0l;
-		editingGateLength = 0l;
 		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
 	}
@@ -303,6 +301,7 @@ struct PhraseSeq16 : Module {
 		gate1Code = calcGate1Code(attributes[seq][stepIndexRun], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
 		gate2Code = calcGate2Code(attributes[seq][stepIndexRun], 0, pulsesPerStep);
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		editingGateLength = 0l;
 	}
 	
 	
@@ -1144,7 +1143,7 @@ struct PhraseSeq16 : Module {
 		else	
 			cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
 		int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
-		if (editingGateLength != 0) {
+		if (editingGateLength != 0 && editingSequence) {
 			int modeLightIndex = gateModeToKeyLightIndex(attributes[sequence][stepIndexEdit], editingGateLength > 0l);
 			for (int i = 0; i < 12; i++) {
 				if (i == modeLightIndex) {
