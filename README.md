@@ -195,25 +195,11 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than 1, which unlocks the advanced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In such cases, a mutliplied clock must be supplied in order to keep the same tempo in the sequencer. 
 
-In the advanced gate mode, the Gate1 and Gate2 lights will be a different color, and the onboard keyboard can be used not only to enter note values, but also to select one of the 12 types of gates for a given step. Advanced gates can only be set while in Seq mode when the sequencer is stopped. Here are the different gate modes.
+In the advanced gate mode, the Gate1 and Gate2 lights will be a different color, and the onboard keyboard can be used not only to enter note values, but also to select one of the 12 types of gates for a given step. Advanced gates can only be set while in Seq mode when the sequencer is stopped. Here are the different gate modes and their minimum PPS requirements.
 
-```
-Code    Gate        Commment
-TRG     Trigger     1 millisecond
-25%     G---        PPS must be multiple of 4
-50%     GG--        ""
-75%     GGG-        ""
-LEG     GGGG        Legato (full gate)
-DUO     G-G-        PPS must be multiple of 4
-D2      --G-        ""
-D2'     ---G        ""
-TRI     G-G-G-      PPS must be multiple of 6
-TR1     G-----      ""
-TR2     --G---      ""
-TR3     ----G-      ""
-```
+![IM](res/img/AdvancedGateDetails.jpg)
 
-In the table above, any consecutive `G` symbols represent a continuous single gate of extended duration. For example, for a LEG-type gate, the gate remains high during the entire step, and if the gate of the next step is active, then the gate continues without interruption into that next step.
+For a trigger and a full gate, all PPS settings will work. For the full gate, please note that the gate remains high during the entire step, and if the next step's gate is active, then the gate continues without interruption into that next step. When PPS requirements are not met, the sequencer will produce gate signals, but not exactly according to the pattern indicated. This can be explored and may actually be a way of producing other gate pattens than the ones provided by the sequencer.
 
 The gate mode for a given step can be selected during a short time interval after a given gate has just been turned on using the Gate1 or Gate2 buttons. If a gate is already turned on and its gate mode is to be edited, clicking the gate button twice will allow it to be edited while keeping it in the same state. The onboard keyboard will temporarily show a yellow/orange light corresponding to the current gate mode for that step; during this time the gate mode can be changed. 
 
