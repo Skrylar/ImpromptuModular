@@ -193,7 +193,9 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 ### Advanced gate mode (new in version 0.6.10) <a id="advanced-gate-mode"></a>
 
-Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than one, which is refered to as the advaced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In the advanced gate mode, the Gate1 and Gate2 lights will be a different color, and the onboard keyboard can be used not only to enter note values, but also to select one of the 12 types of gates for a given step. Advanced gates can only be set in sequence mode when the sequencer is stopped. Here are the different gate modes.
+Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than 1, which unlocks the advaced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In such cases, a mutliplied clock must be supplied in order to keep the same tempo in the sequencer. 
+
+In the advanced gate mode, the Gate1 and Gate2 lights will be a different color, and the onboard keyboard can be used not only to enter note values, but also to select one of the 12 types of gates for a given step. Advanced gates can only be set while in Seq mode when the sequencer is stopped. Here are the different gate modes.
 
 ```
 Code    Gate        Commment
@@ -211,9 +213,11 @@ TR2     --G---      ""
 TR3     ----G-      ""
 ```
 
+In the table above, any consecutive `G` symbols represent a continuous single gate of extended duration. For example, for a LEG-type gate, the gate remains high during the entire step, and if the gate of the next step is active, then the gate continues without interruption into that next step.
+
 The gate mode for a given step can be selected during a short time interval after a given gate has just been turned on using the Gate1 or Gate2 buttons. If a gate is already turned on and its gate mode is to be edited, clicking the gate button twice will allow it to be edited while keeping it in the same state. The onboard keyboard will temporarily show a yellow/orange light corresponding to the current gate mode for that step; during this time the gate mode can be changed. 
 
-Since the editing time for gate modes is kept rather short (2.5s), holding the Gate2 button for 2s will set that default time interval to 250s. Holding Gate1 for 2s will revert to the default time of 2.5s. The extended time feature is useful when the gate modes for multiple steps of a sequence are to be editied or reviewed in a single pass, for example.
+Since the editing time for the advanced gate mode is kept rather short (2.5s), holding the Gate2 button for 2s will set that default time interval to 250s. Holding Gate1 for 2s will revert to the default time of 2.5s. The extended time feature is useful when the gate modes for multiple steps of a sequence are to be editied or reviewed in a single pass, for example.
 
 ([Back to module list](#modules))
 
