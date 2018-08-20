@@ -1313,11 +1313,8 @@ struct PhraseSeq32 : Module {
 				gate1HoldDetect = 0l;
 			else {
 				if (gate1HoldDetect == 1l) {
-					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE1;
-					if (editGateLengthTimeInitMult == 1)
-						editGateLengthTimeInitMult = 100;
-					else
-						editGateLengthTimeInitMult = 1;
+					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1;
+					editGateLengthTimeInitMult = 1;
 				}
 				gate1HoldDetect--;
 			}
@@ -1327,11 +1324,8 @@ struct PhraseSeq32 : Module {
 				gate2HoldDetect = 0l;
 			else {
 				if (gate2HoldDetect == 1l) {
-					attributes[sequence][stepIndexEdit] |= ATT_MSK_GATE2;
-					if (editGateLengthTimeInitMult == 1)
-						editGateLengthTimeInitMult = 100;
-					else
-						editGateLengthTimeInitMult = 1;
+					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE2;
+					editGateLengthTimeInitMult = 100;
 				}
 				gate2HoldDetect--;
 			}
