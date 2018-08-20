@@ -1769,6 +1769,7 @@ Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromp
 
 0.6.10:
 add advanced gate mode
+unlock gates when tied (turn off when press tied, but allow to be turned back on)
 
 0.6.9:
 add FW2, FW3 and FW4 run modes for sequences (but not for song)

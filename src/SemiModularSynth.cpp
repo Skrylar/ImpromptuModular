@@ -909,9 +909,9 @@ struct SemiModularSynth : Module {
 		// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingSequence) {
-				if (getTied(sequence,stepIndexEdit))
-					tiedWarning = tiedWarningInit;
-				else
+				//if (getTied(sequence,stepIndexEdit))
+				//	tiedWarning = tiedWarningInit;
+				//else
 					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1;
 			}
 			displayState = DISP_NORMAL;
@@ -927,9 +927,9 @@ struct SemiModularSynth : Module {
 		}		
 		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
 			if (editingSequence) {
-				if (getTied(sequence,stepIndexEdit))
-					tiedWarning = tiedWarningInit;
-				else
+				//if (getTied(sequence,stepIndexEdit))
+				//	tiedWarning = tiedWarningInit;
+				//else
 					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE2;
 			}
 			displayState = DISP_NORMAL;
@@ -1745,6 +1745,7 @@ Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthW
 /*CHANGE LOG
 
 0.6.10:
+unlock gates when tied (turn off when press tied, but allow to be turned back on)
 allow main knob to also change length when length editing is active
 
 0.6.9:

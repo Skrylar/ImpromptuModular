@@ -1676,6 +1676,8 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 
 0.6.10:
 add advanced gate mode
+unlock gates when tied (turn off when press tied, but allow to be turned back on)
+allow main knob to also change length when length editing is active
 
 0.6.9:
 add FW2, FW3 and FW4 run modes for sequences (but not for song)

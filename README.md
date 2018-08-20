@@ -188,7 +188,7 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 * **SLIDE**: Portamento between CVs of successive steps. Slide can be activated for a given step using the slide button. The slide duration can be set using the slide knob. The slide duration can range from 0 to T seconds, where T is the duration of a clock period (the default is 10% of T). This knob's setting is not memorized for each step and applies to the sequencer as a whole.
 
-* **TIED STEP**: When CVs are intended to be held across subsequent steps, this button can be used to tie the CV of the previous step to the current step; when tied, the gates of the current step are automatically turned off. If the CV of the head note changes, all consecutive tied notes are updated automatically.
+* **TIED STEP**: When CVs are intended to be held across subsequent steps, this button can be used to tie the CV of the previous step to the current step. When tied is turned on for a step, the gates of that step are automatically turned off, but can be manually turned back on if desired. When tied, if the CV of the head note changes, all consecutive tied notes are updated automatically.
 
 
 ### Advanced gate mode (new in version 0.6.10) <a id="advanced-gate-mode"></a>
