@@ -104,7 +104,7 @@ struct PhraseSeq16 : Module {
 	// Need to save
 	int panelTheme = 0;
 	int expansion = 0;
-	int pulsesPerStep;// 1 means normal gate mode, alt choices are 4, 12, 24 PPS (Pulses per step)
+	int pulsesPerStep;// 1 means normal gate mode, alt choices are 4, 6, 12, 24 PPS (Pulses per step)
 	bool running;
 	int runModeSeq[16]; 
 	int runModeSong;
@@ -580,7 +580,7 @@ struct PhraseSeq16 : Module {
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float editLengthTime = 2.0f;// seconds
 		static const float tiedWarningTime = 0.7f;// seconds
-		static const float gateHoldDetectTime = 2.0f;// seconds
+		static const float holdDetectTime = 2.0f;// seconds
 		static const float editGateLengthTime = 2.5f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * sampleRate);
 		long editGateLengthTimeInit = (long) (editGateLengthTime * sampleRate) * editGateLengthTimeInitMult;
@@ -779,7 +779,7 @@ struct PhraseSeq16 : Module {
 			else
 				displayState = DISP_NORMAL;
 			if (!running) {
-				modeHoldDetect.start((long) (gateHoldDetectTime * sampleRate));
+				modeHoldDetect.start((long) (holdDetectTime * sampleRate));
 			}
 		}
 		if (transposeTrigger.process(params[TRAN_ROT_PARAM].value)) {
@@ -957,7 +957,7 @@ struct PhraseSeq16 : Module {
 				if (!running) {
 					if (pulsesPerStep != 1) {
 						editingGateLength = getGate1(sequence,stepIndexEdit) ? editGateLengthTimeInit : 0l;
-						gate1HoldDetect.start((long) (gateHoldDetectTime * sampleRate));
+						gate1HoldDetect.start((long) (holdDetectTime * sampleRate));
 					}
 				}
 			}
@@ -978,7 +978,7 @@ struct PhraseSeq16 : Module {
 				if (!running) {
 					if (pulsesPerStep != 1) {
 						editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * editGateLengthTimeInit : 0l;
-						gate2HoldDetect.start((long) (gateHoldDetectTime * sampleRate));
+						gate2HoldDetect.start((long) (holdDetectTime * sampleRate));
 					}
 				}
 			}
@@ -1225,8 +1225,6 @@ struct PhraseSeq16 : Module {
 		}
 		if (slideStepsRemain > 0ul)
 			slideStepsRemain--;
-		if (clockIgnoreOnReset > 0l)
-			clockIgnoreOnReset--;
 		if (tiedWarning > 0l)
 			tiedWarning--;
 		if (modeHoldDetect.process(params[RUNMODE_PARAM].value)) {
@@ -1249,6 +1247,8 @@ struct PhraseSeq16 : Module {
 		}
 		if (editingPpqn > 0l)
 			editingPpqn--;
+		if (clockIgnoreOnReset > 0l)
+			clockIgnoreOnReset--;
 
 	}// step()
 	
