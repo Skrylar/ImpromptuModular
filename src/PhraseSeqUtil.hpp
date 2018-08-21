@@ -90,6 +90,6 @@ inline int calcGate2Code(int attribute, int ppqnCount, int pulsesPerStep) {// 0 
 int moveIndex(int index, int indexNext, int numSteps);
 bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history);
 int gateModeToKeyLightIndex(int attribute, bool isGate1);
-int keyIndexToGateMode(int keyIndex);
+int keyIndexToGateMode(int keyIndex, int pulsesPerStep);
 
 

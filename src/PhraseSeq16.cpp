@@ -911,13 +911,19 @@ struct PhraseSeq16 : Module {
 			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 				if (editingSequence) {
 					if (editingGateLength != 0l) {
-						int newMode = keyIndexToGateMode(i);
+						int newMode = keyIndexToGateMode(i, pulsesPerStep);
 						if (editingGateLength > 0l) {
-							setGate1Mode(sequence, stepIndexEdit, newMode);
+							if (newMode != -1)
+								setGate1Mode(sequence, stepIndexEdit, newMode);
+							else
+								editingPpqn = editGateLengthTimeInit;
 							editingGateLength = editGateLengthTimeInit;
 						}
 						else {
-							setGate2Mode(sequence, stepIndexEdit, newMode);
+							if (newMode != -1)
+								setGate2Mode(sequence, stepIndexEdit, newMode);
+							else
+								editingPpqn = editGateLengthTimeInit;
 							editingGateLength = -1l * editGateLengthTimeInit;
 						}
 					}
