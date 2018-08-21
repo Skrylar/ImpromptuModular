@@ -142,9 +142,6 @@ struct PhraseSeq32 : Module {
 	int gate2Code[2];
 	bool attachedChanB;
 	long revertDisplay;
-	long modeHoldDetect;// 0 when not detecting, downward counter when detecting
-	long gate1HoldDetect;// 0 when not detecting, downward counter when detecting
-	long gate2HoldDetect;// 0 when not detecting, downward counter when detecting
 	long editingGateLength;// 0 when no info, positive downward step counter timer when gate1, negative upward when gate2
 	long editGateLengthTimeInitMult;// multiplier for extended setting of advanced gates
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
@@ -178,6 +175,9 @@ struct PhraseSeq32 : Module {
 	SchmittTrigger transposeTrigger;
 	SchmittTrigger tiedTrigger;
 	SchmittTrigger stepTriggers[32];
+	HoldDetect modeHoldDetect;
+	HoldDetect gate1HoldDetect;
+	HoldDetect gate2HoldDetect;
 	
 
 	inline bool getGate1(int seq, int step) {return getGate1a(attributes[seq][step]);}
@@ -239,9 +239,9 @@ struct PhraseSeq32 : Module {
 		editingSequence = EDIT_PARAM_INIT_VALUE > 0.5f;
 		editingSequenceLast = editingSequence;
 		resetOnRun = false;
-		modeHoldDetect = 0l;
-		gate1HoldDetect = 0l;
-		gate2HoldDetect = 0l;
+		modeHoldDetect.reset();
+		gate1HoldDetect.reset();
+		gate2HoldDetect.reset();
 		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
 	}
@@ -291,9 +291,9 @@ struct PhraseSeq32 : Module {
 		editingSequence = isEditingSequence();
 		editingSequenceLast = editingSequence;
 		resetOnRun = false;
-		modeHoldDetect = 0l;
-		gate1HoldDetect = 0l;
-		gate2HoldDetect = 0l;
+		modeHoldDetect.reset();
+		gate1HoldDetect.reset();
+		gate2HoldDetect.reset();
 		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
 	}
@@ -529,6 +529,7 @@ struct PhraseSeq32 : Module {
 		static const float editGateLengthTime = 2.5f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * sampleRate);
 		long editGateLengthTimeInit = (long) (editGateLengthTime * sampleRate) * editGateLengthTimeInitMult;
+		long editPpqnTimeInit = (long) (editGateLengthTime * sampleRate);
 		
 		
 		//********** Buttons, knobs, switches and inputs **********
@@ -789,7 +790,7 @@ struct PhraseSeq32 : Module {
 			else
 				displayState = DISP_NORMAL;
 			if (!running) {
-				modeHoldDetect = (long) (gateHoldDetectTime * sampleRate);
+				modeHoldDetect.start((long) (gateHoldDetectTime * sampleRate));
 			}
 		}
 		
@@ -819,7 +820,7 @@ struct PhraseSeq32 : Module {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 				if (editingPpqn != 0) {
 					pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
-					editingPpqn = editGateLengthTimeInit;
+					editingPpqn = editPpqnTimeInit;
 				}
 				else if (displayState == DISP_MODE) {
 					if (editingSequence) {
@@ -944,14 +945,14 @@ struct PhraseSeq32 : Module {
 							if (newMode != -1)
 								setGate1Mode(sequence, stepIndexEdit, newMode);
 							else
-								editingPpqn = editGateLengthTimeInit;
+								editingPpqn = editPpqnTimeInit;
 							editingGateLength = editGateLengthTimeInit;
 						}
 						else {
 							if (newMode != -1)
 								setGate2Mode(sequence, stepIndexEdit, newMode);
 							else
-								editingPpqn = editGateLengthTimeInit;
+								editingPpqn = editPpqnTimeInit;
 							editingGateLength = -1l * editGateLengthTimeInit;
 						}
 					}
@@ -985,7 +986,7 @@ struct PhraseSeq32 : Module {
 				if (!running) {
 					if (pulsesPerStep != 1) {
 						editingGateLength = getGate1(sequence,stepIndexEdit) ? editGateLengthTimeInit : 0l;
-						gate1HoldDetect = (long) (gateHoldDetectTime * sampleRate);
+						gate1HoldDetect.start((long) (gateHoldDetectTime * sampleRate));
 					}
 				}
 			}
@@ -1006,7 +1007,7 @@ struct PhraseSeq32 : Module {
 				if (!running) {
 					if (pulsesPerStep != 1) {
 						editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * editGateLengthTimeInit : 0l;
-						gate2HoldDetect = (long) (gateHoldDetectTime * sampleRate);
+						gate2HoldDetect.start((long) (gateHoldDetectTime * sampleRate));
 					}
 				}
 			}
@@ -1302,38 +1303,17 @@ struct PhraseSeq32 : Module {
 			clockIgnoreOnReset--;
 		if (tiedWarning > 0l)
 			tiedWarning--;
-		if (modeHoldDetect > 0l) {
-			if (params[RUNMODE_PARAM].value < 0.5f)
-				modeHoldDetect = 0l;
-			else {
-				if (modeHoldDetect == 1l) {
-					displayState = DISP_NORMAL;
-					editingPpqn = editGateLengthTimeInit;
-				}
-				modeHoldDetect--;
-			}
+		if (modeHoldDetect.process(params[RUNMODE_PARAM].value)) {
+			displayState = DISP_NORMAL;
+			editingPpqn = editPpqnTimeInit;
 		}
-		if (gate1HoldDetect > 0l) {
-			if (params[GATE1_PARAM].value < 0.5f)
-				gate1HoldDetect = 0l;
-			else {
-				if (gate1HoldDetect == 1l) {
-					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1;
-					editGateLengthTimeInitMult = 1;
-				}
-				gate1HoldDetect--;
-			}
+		if (gate1HoldDetect.process(params[GATE1_PARAM].value)) {
+			attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1;
+			editGateLengthTimeInitMult = 1;
 		}
-		if (gate2HoldDetect > 0l) {
-			if (params[GATE2_PARAM].value < 0.5f)
-				gate2HoldDetect = 0l;
-			else {
-				if (gate2HoldDetect == 1l) {
-					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE2;
-					editGateLengthTimeInitMult = 100;
-				}
-				gate2HoldDetect--;
-			}
+		if (gate2HoldDetect.process(params[GATE2_PARAM].value)) {
+			attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE2;
+			editGateLengthTimeInitMult = 100;
 		}
 		if (editingGateLength != 0l) {
 			if (editingGateLength > 0l)

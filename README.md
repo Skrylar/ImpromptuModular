@@ -19,7 +19,7 @@ Impromptu Modular is not a single-person endeavor:
 * Thanks to **Xavier Belmont** for suggesting improvements to the modules, for testing/bug-reports, for the concept design of the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
 * Thanks to **Steve Baker** for many fruitful discussions regarding the BPM Detection method in Clocked, testing and improvements that were suggested for that module. 
 * Thanks to **Omri Cohen** for testing and suggesting improvements to the modules, and for the [PhraseSeq16/32 tutorial](https://www.youtube.com/watch?v=N8_rMNzsS7w).
-* Thanks also to **Latif Fital**, **Pyer (Pierre Collard)**, **Alfredo Santamaria**, **Nay Seven**, **Alberto Zamora**, **Clément Foulc**, **Wouter Spekkink**, **John Melcher** for suggesting improvements to the modules, bug reports and testing.
+* Thanks also to **Latif Fital**, **Pyer (Pierre Collard)**, **Alfredo Santamaria**, **Nay Seven**, **Alberto Zamora**, **Clément Foulc**, **Espen Storo**, **Wouter Spekkink**, **John Melcher** for suggesting improvements to the modules, bug reports and testing.
 
 
 

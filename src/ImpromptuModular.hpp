@@ -232,7 +232,7 @@ struct GiantLight2 : BASE {
 	}
 };
 
-// Other
+// Other widgets
 
 struct InvisibleKey : MomentarySwitch {
 	InvisibleKey() {
@@ -261,8 +261,37 @@ struct ScrewHole : TransparentWidget {
 };	
 
 
+
+// Other
+
+struct HoldDetect {
+	long modeHoldDetect;// 0 when not detecting, downward counter when detecting
+	
+	void reset() {
+		modeHoldDetect = 0l;
+	}
+	
+	void start(long startValue) {
+		modeHoldDetect = startValue;
+	}
+
+	bool process(float paramValue) {
+		bool ret = false;
+		if (modeHoldDetect > 0l) {
+			if (paramValue < 0.5f)
+				modeHoldDetect = 0l;
+			else {
+				if (modeHoldDetect == 1l) {
+					ret = true;
+				}
+				modeHoldDetect--;
+			}
+		}
+		return ret;
+	}
+};
+
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box);
 bool calcWarningFlash(long count, long countInit);
-
 
 #endif
