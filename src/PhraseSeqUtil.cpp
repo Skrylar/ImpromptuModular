@@ -130,7 +130,7 @@ static const int keyToModeTable[NUM_GATES] = {4, 6, 0, 7,  1, 2, 9, 3,  10, 5, 1
 int keyIndexToGateMode(int keyIndex, int pulsesPerStep) {
 	if (pulsesPerStep == 4 && (keyIndex == 6 || keyIndex == 8 || keyIndex >= 10))
 		return -1;
-	if (pulsesPerStep == 6 && ( (keyIndex >= 1 && keyIndex <=5) || (keyIndex == 9) ))
+	if (pulsesPerStep == 6 && (keyIndex == 1 || keyIndex == 2 || keyIndex == 3 || keyIndex == 5 || keyIndex == 9))
 		return -1;
 	return keyToModeTable[keyIndex];
 }

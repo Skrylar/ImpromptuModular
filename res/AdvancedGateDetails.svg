@@ -22,7 +22,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -40,8 +40,8 @@
      id="namedview323"
      showgrid="false"
      inkscape:zoom="2.2043741"
-     inkscape:cx="131.39971"
-     inkscape:cy="163.33289"
+     inkscape:cx="325.06428"
+     inkscape:cy="73.719215"
      inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
@@ -462,40 +462,11 @@
        d="m 54.003,145.25461 v -5.2617 a 1.11729,1.11729 0 0 1 1.1173,-1.11729 h 2.68954 a 1.11729,1.11729 0 0 1 1.11729,1.11729 v 4.1444 a 1.1173,1.1173 0 0 0 1.1173,1.1173 H 73.6995"
        inkscape:connector-curvature="0" />
   </g>
-  <g
-     id="g176"
-     transform="matrix(0.26458426,0,0,0.26458426,-0.48897719,7.6943124)">
-    <g
-       id="g66">
-      <line
-         id="line60"
-         style="fill:none;stroke:#a8a8a8;stroke-linecap:round;stroke-linejoin:round"
-         y2="128.75461"
-         x2="94.370651"
-         y1="122.37562"
-         x1="94.370651" />
-      <line
-         id="line62"
-         style="fill:none;stroke:#a8a8a8;stroke-linecap:round;stroke-linejoin:round"
-         y2="128.75461"
-         x2="89.446518"
-         y1="122.37562"
-         x1="89.446518" />
-      <line
-         id="line64"
-         style="fill:none;stroke:#a8a8a8;stroke-linecap:round;stroke-linejoin:round"
-         y2="128.75461"
-         x2="79.598259"
-         y1="122.37562"
-         x1="79.598259" />
-    </g>
-    <path
-       id="path98"
-       style="fill:none;stroke:#333333;stroke-linecap:round;stroke-linejoin:round"
-       transform="translate(-14.81094,-16.5)"
-       d="m 89.48507,145.25461 v -5.2617 a 1.11729,1.11729 0 0 1 1.1173,-1.11729 H 98.216 a 1.11729,1.11729 0 0 1 1.11729,1.11729 v 4.1444 a 1.1173,1.1173 0 0 0 1.1173,1.1173 h 8.731"
-       inkscape:connector-curvature="0" />
-  </g>
+  <path
+     inkscape:connector-curvature="0"
+     d="m 19.268622,41.760756 v -1.392163 a 0.29561735,0.29561735 0 0 1 0.29562,-0.295618 h 2.014447 a 0.29561735,0.29561735 0 0 1 0.295617,0.295618 v 1.096543 a 0.29561999,0.29561999 0 0 0 0.29562,0.29562 h 2.310085"
+     style="fill:none;stroke:#333333;stroke-width:0.26458427;stroke-linecap:round;stroke-linejoin:round"
+     id="path98" />
   <g
      id="g183"
      transform="matrix(0.26458426,0,0,0.26458426,-3.1941026,7.6943124)">
@@ -807,17 +778,6 @@
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">ALL</tspan></text>
   <text
      xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;line-height:1.25;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
-     x="12.303345"
-     y="46.730034"
-     id="text249-5-7"><tspan
-       sodipodi:role="line"
-       id="tspan247-9-5"
-       x="12.303345"
-       y="46.730034"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">MULTIPLES OF 4</tspan></text>
-  <text
-     xml:space="preserve"
      style="font-style:normal;font-weight:normal;font-size:10.58337021px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
      x="42.249485"
      y="46.749786"
@@ -838,4 +798,37 @@
        x="49.711685"
        y="46.749786"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">M. 6</tspan></text>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;line-height:1.25;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
+     x="19.765877"
+     y="46.749744"
+     id="text249-5-3-3"><tspan
+       sodipodi:role="line"
+       id="tspan247-9-6-7"
+       x="19.765877"
+       y="46.749744"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">ALL</tspan></text>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-weight:normal;font-size:10.58337021px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
+     x="27.079248"
+     y="46.749744"
+     id="text343-6"><tspan
+       sodipodi:role="line"
+       id="tspan341-9"
+       x="27.079248"
+       y="46.749744"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">M. 4</tspan></text>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-weight:normal;font-size:10.58337021px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
+     x="12.070954"
+     y="46.749744"
+     id="text343-6-7"><tspan
+       sodipodi:role="line"
+       id="tspan341-9-7"
+       x="12.070954"
+       y="46.749744"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">M. 4</tspan></text>
 </svg>
