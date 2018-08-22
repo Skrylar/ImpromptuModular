@@ -27,10 +27,25 @@ static const int gate2ModeShift = 9;
 				
 // Inline methods
 inline bool getGate1a(int attribute) {return (attribute & ATT_MSK_GATE1) != 0;}
-inline bool getGate2a(int attribute) {return (attribute & ATT_MSK_GATE2) != 0;}
 inline bool getGate1Pa(int attribute) {return (attribute & ATT_MSK_GATE1P) != 0;}
+inline bool getGate2a(int attribute) {return (attribute & ATT_MSK_GATE2) != 0;}
+inline bool getSlideA(int attribute) {return (attribute & ATT_MSK_SLIDE) != 0;}
+inline bool getTiedA(int attribute) {return (attribute & ATT_MSK_TIED) != 0;}
 inline int getGate1aMode(int attribute) {return (attribute & ATT_MSK_GATE1MODE) >> gate1ModeShift;}
 inline int getGate2aMode(int attribute) {return (attribute & ATT_MSK_GATE2MODE) >> gate2ModeShift;}
+
+inline void setGate1a(int *attribute, bool gate1State) {(*attribute) &= ~ATT_MSK_GATE1; if (gate1State) (*attribute) |= ATT_MSK_GATE1;}
+inline void setGate1Pa(int *attribute, bool gate1PState) {(*attribute) &= ~ATT_MSK_GATE1P; if (gate1PState) (*attribute) |= ATT_MSK_GATE1P;}
+inline void setGate2a(int *attribute, bool gate2State) {(*attribute) &= ~ATT_MSK_GATE2; if (gate2State) (*attribute) |= ATT_MSK_GATE2;}
+inline void setSlideA(int *attribute, bool slideState) {(*attribute) &= ~ATT_MSK_SLIDE; if (slideState) (*attribute) |= ATT_MSK_SLIDE;}
+inline void setTiedA(int *attribute, bool tiedState) {(*attribute) &= ~ATT_MSK_TIED; if (tiedState) (*attribute) |= ATT_MSK_TIED;}
+
+inline void toggleGate1a(int *attribute) {(*attribute) ^= ATT_MSK_GATE1;}
+inline void toggleGate1Pa(int *attribute) {(*attribute) ^= ATT_MSK_GATE1P;}
+inline void toggleGate2a(int *attribute) {(*attribute) ^= ATT_MSK_GATE2;}
+inline void toggleSlideA(int *attribute) {(*attribute) ^= ATT_MSK_SLIDE;}
+inline void toggleTiedA(int *attribute) {(*attribute) ^= ATT_MSK_TIED;}
+
 
 inline int ppsToIndex(int pulsesPerStep) {// map 1,4,6,12,24, to 0,1,2,3,4
 	if (pulsesPerStep == 1) return 0;
@@ -65,7 +80,7 @@ inline int getAdvGate(int ppqnCount, int pulsesPerStep, int gateMode) {
 
 inline int calcGate1Code(int attribute, int ppqnCount, int pulsesPerStep, float randKnob) {
 	// -1 = gate off for whole step, 0 = gate off for current ppqn, 1 = gate on, 2 = clock high, 3 = trigger
-	if (getGate1Pa(attribute) && !(randomUniform() < randKnob))// randomUniform is [0.0, 1.0), see include/util/common.hpp
+	if (ppqnCount == 0 && getGate1Pa(attribute) && !(randomUniform() < randKnob))// randomUniform is [0.0, 1.0), see include/util/common.hpp
 		return -1;// must do this first in this method since it will kill rest of step if prob turns off the step
 	if (!getGate1a(attribute))
 		return 0;

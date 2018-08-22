@@ -180,14 +180,15 @@ struct PhraseSeq32 : Module {
 	HoldDetect gate2HoldDetect;
 	
 
-	inline bool getGate1(int seq, int step) {return getGate1a(attributes[seq][step]);}
-	inline bool getGate2(int seq, int step) {return getGate2a(attributes[seq][step]);}
-	inline bool getGate1P(int seq, int step) {return getGate1Pa(attributes[seq][step]);}
-	inline bool getSlide(int seq, int step) {return (attributes[seq][step] & ATT_MSK_SLIDE) != 0;}
-	inline bool getTied(int seq, int step) {return (attributes[seq][step] & ATT_MSK_TIED) != 0;}
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
+	inline bool getGate1(int seq, int step) {return getGate1a(attributes[seq][step]);}
+	inline bool getGate1P(int seq, int step) {return getGate1Pa(attributes[seq][step]);}
+	inline bool getGate2(int seq, int step) {return getGate2a(attributes[seq][step]);}
+	inline bool getSlide(int seq, int step) {return getSlideA(attributes[seq][step]);}
+	inline bool getTied(int seq, int step) {return getTiedA(attributes[seq][step]);}
 	inline int getGate1Mode(int seq, int step) {return getGate1aMode(attributes[seq][step]);}
 	inline int getGate2Mode(int seq, int step) {return getGate2aMode(attributes[seq][step]);}
+	
 	inline void setGate1Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE1MODE; attributes[seq][step] |= (gateMode << gate1ModeShift);}
 	inline void setGate2Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE2MODE; attributes[seq][step] |= (gateMode << gate2ModeShift);}
 	
@@ -650,32 +651,24 @@ struct PhraseSeq32 : Module {
 		bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 		if (writeTrig) {
 			if (editingSequence) {
-				if (getTied(sequence,stepIndexEdit) & !inputs[TIEDCV_INPUT].active)
-					tiedWarning = tiedWarningInit;
-				else {			
-					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
-					applyTiedStep(sequence, stepIndexEdit, ((stepIndexEdit >= 16 && stepConfig == 1) ? 16 : 0) + lengths[sequence]);
-					// Extra CVs from expansion panel:
-					if (inputs[TIEDCV_INPUT].active)
-						attributes[sequence][stepIndexEdit] = (inputs[TIEDCV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_TIED) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_TIED);
-					if (getTied(sequence, stepIndexEdit))
-						attributes[sequence][stepIndexEdit] = ATT_MSK_TIED;// clear other attributes if tied
-					else {
-						if (inputs[GATE1CV_INPUT].active)
-							attributes[sequence][stepIndexEdit] = (inputs[GATE1CV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_GATE1) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_GATE1);
-						if (inputs[GATE2CV_INPUT].active)
-							attributes[sequence][stepIndexEdit] = (inputs[GATE2CV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_GATE2) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_GATE2);
-						if (inputs[SLIDECV_INPUT].active)
-							attributes[sequence][stepIndexEdit] = (inputs[SLIDECV_INPUT].value > 1.0f) ? (attributes[sequence][stepIndexEdit] | ATT_MSK_SLIDE) : (attributes[sequence][stepIndexEdit] & ~ATT_MSK_SLIDE);
-					}
-					editingGate = (unsigned long) (gateTime * sampleRate);
-					editingGateCV = cv[sequence][stepIndexEdit];
-					editingGateKeyLight = -1;
-					editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
-					// Autostep (after grab all active inputs)
-					if (params[AUTOSTEP_PARAM].value > 0.5f)
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 32);
-				}
+				cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
+				// Extra CVs from expansion panel:
+				if (inputs[TIEDCV_INPUT].active)
+					setTiedA(&attributes[sequence][stepIndexEdit], inputs[TIEDCV_INPUT].value > 1.0f);
+				if (inputs[GATE1CV_INPUT].active)
+					setGate1a(&attributes[sequence][stepIndexEdit], inputs[GATE1CV_INPUT].value > 1.0f);
+				if (inputs[GATE2CV_INPUT].active)
+					setGate2a(&attributes[sequence][stepIndexEdit], inputs[GATE2CV_INPUT].value > 1.0f);
+				if (inputs[SLIDECV_INPUT].active)
+					setSlideA(&attributes[sequence][stepIndexEdit], inputs[SLIDECV_INPUT].value > 1.0f);			
+				applyTiedStep(sequence, stepIndexEdit, ((stepIndexEdit >= 16 && stepConfig == 1) ? 16 : 0) + lengths[sequence]);
+				editingGate = (unsigned long) (gateTime * sampleRate);
+				editingGateCV = cv[sequence][stepIndexEdit];
+				editingGateKeyLight = -1;
+				editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
+				// Autostep (after grab all active inputs)
+				if (params[AUTOSTEP_PARAM].value > 0.5f)
+					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 32);
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -970,7 +963,7 @@ struct PhraseSeq32 : Module {
 		// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingSequence) {
-				attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1;
+				toggleGate1a(&attributes[sequence][stepIndexEdit]);
 				if (!running) {
 					if (pulsesPerStep != 1) {
 						editingGateLength = getGate1(sequence,stepIndexEdit) ? editGateLengthTimeInit : 0l;
@@ -985,13 +978,13 @@ struct PhraseSeq32 : Module {
 				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else
-					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1P;
+					toggleGate1Pa(&attributes[sequence][stepIndexEdit]);
 			}
 			displayState = DISP_NORMAL;
 		}		
 		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
 			if (editingSequence) {
-				attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE2;
+				toggleGate2a(&attributes[sequence][stepIndexEdit]);
 				if (!running) {
 					if (pulsesPerStep != 1) {
 						editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * editGateLengthTimeInit : 0l;
@@ -1006,19 +999,19 @@ struct PhraseSeq32 : Module {
 				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = tiedWarningInit;
 				else
-					attributes[sequence][stepIndexEdit] ^= ATT_MSK_SLIDE;
+					toggleSlideA(&attributes[sequence][stepIndexEdit]);
 			}
 			displayState = DISP_NORMAL;
 		}		
 		if (tiedTrigger.process(params[TIE_PARAM].value)) {
 			if (editingSequence) {
-				attributes[sequence][stepIndexEdit] ^= ATT_MSK_TIED;
+				toggleTiedA(&attributes[sequence][stepIndexEdit]);
 				if (getTied(sequence,stepIndexEdit)) {
-					attributes[sequence][stepIndexEdit] = ATT_MSK_TIED;// clear other attributes if tied
+					setGate1a(&attributes[sequence][stepIndexEdit], false);
+					setGate2a(&attributes[sequence][stepIndexEdit], false);
+					setSlideA(&attributes[sequence][stepIndexEdit], false);
 					applyTiedStep(sequence, stepIndexEdit, ((stepIndexEdit >= 16 && stepConfig == 1) ? 16 : 0) + lengths[sequence]);
 				}
-				else
-					attributes[sequence][stepIndexEdit] |= (ATT_MSK_GATE1 | ATT_MSK_GATE2);
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -1259,14 +1252,14 @@ struct PhraseSeq32 : Module {
 		//
 		setGateLight(getGate1a(attributesVal), GATE1_LIGHT);
 		setGateLight(getGate2a(attributesVal), GATE2_LIGHT);
-		lights[GATE1_PROB_LIGHT].value = ((attributesVal & ATT_MSK_GATE1P) != 0) ? 1.0f : 0.0f;
-		lights[SLIDE_LIGHT].value = ((attributesVal & ATT_MSK_SLIDE) != 0) ? 1.0f : 0.0f;
+		lights[GATE1_PROB_LIGHT].value = getGate1Pa(attributesVal) ? 1.0f : 0.0f;
+		lights[SLIDE_LIGHT].value = getSlideA(attributesVal) ? 1.0f : 0.0f;
 		if (tiedWarning > 0l) {
 			bool warningFlashState = calcWarningFlash(tiedWarning, tiedWarningInit);
 			lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
 		}
 		else
-			lights[TIE_LIGHT].value = ((attributesVal & ATT_MSK_TIED) != 0) ? 1.0f : 0.0f;
+			lights[TIE_LIGHT].value = getTiedA(attributesVal) ? 1.0f : 0.0f;
 
 		// Attach light
 		lights[ATTACH_LIGHT].value = (running && attached) ? 1.0f : 0.0f;
@@ -1295,11 +1288,11 @@ struct PhraseSeq32 : Module {
 			editingPpqn = editPpqnTimeInit;
 		}
 		if (gate1HoldDetect.process(params[GATE1_PARAM].value)) {
-			attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1;
+			toggleGate1a(&attributes[sequence][stepIndexEdit]);
 			editGateLengthTimeInitMult = 1;
 		}
 		if (gate2HoldDetect.process(params[GATE2_PARAM].value)) {
-			attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE2;
+			toggleGate2a(&attributes[sequence][stepIndexEdit]);
 			editGateLengthTimeInitMult = 100;
 		}
 		if (editingGateLength != 0l) {
