@@ -536,8 +536,8 @@ struct PhraseSeq32 : Module {
 		
 		// Notes: 
 		// * a tied step's attributes can not be modified by any of the following: 
-		//   write input, oct and keyboard buttons, gate1, gate1Prob, gate2 and slide buttons
-		//   however, paste, transpose, rotate obviously can.
+		//   write input, oct and keyboard buttons, gate1Prob and slide buttons
+		//   however, paste, transpose, rotate obviously can, and gate1/2 can be turned back on if desired.
 		// * Whenever cv[][] is modified or tied[] is activated for a step, call applyTiedStep(sequence,stepIndexEdit,steps)
 		
 
@@ -565,8 +565,6 @@ struct PhraseSeq32 : Module {
 		// Seq CV input
 		if (inputs[SEQCV_INPUT].active) {
 			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (32.0f - 1.0f) / 10.0f), 0.0f, (32.0f - 1.0f) );
-			//if (stepIndexEdit >= lengths[sequence])// Commented for full edit capabilities
-				//stepIndexEdit = lengths[sequence] - 1;// Commented for full edit capabilities
 		}
 		// Mode CV input
 		if (inputs[MODECV_INPUT].active) {
@@ -675,18 +673,8 @@ struct PhraseSeq32 : Module {
 					editingGateKeyLight = -1;
 					editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 					// Autostep (after grab all active inputs)
-					if (params[AUTOSTEP_PARAM].value > 0.5f) {
-						stepIndexEdit += 1;
-						//if (stepConfig == 1) { // Commented for full edit capabilities (whole if)
-						//	if (stepIndexEdit >= lengths[sequence] && stepIndexEdit < 16)// if past length in chan A
-						//		stepIndexEdit = 16;
-						//	else if (stepIndexEdit >= 16 + lengths[sequence])// if past length in chan B (including >=32)
-						//		stepIndexEdit = 0;
-						//}
-						//else // Commented for full edit capabilities
-							if (stepIndexEdit >= 32)//lengths[sequence])// Commented for full edit capabilities
-								stepIndexEdit = 0;						
-					}
+					if (params[AUTOSTEP_PARAM].value > 0.5f)
+						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 32);
 				}
 			}
 			displayState = DISP_NORMAL;
