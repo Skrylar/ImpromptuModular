@@ -110,6 +110,7 @@ struct GateSeq64 : Module {
 	long revertDisplay;
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
+	long blinkCount;// positive upward counter, reset to 0 when max reached
 
 	
 	static constexpr float CONFIG_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget initialization, since module created before widget
@@ -208,6 +209,7 @@ struct GateSeq64 : Module {
 		editingSequenceLast = editingSequence;
 		resetOnRun = false;
 		editingPpqn = 0l;
+		blinkCount = 0l;
 	}
 
 	
@@ -428,6 +430,9 @@ struct GateSeq64 : Module {
 		feedbackCPinit = (long) (feedbackCPinitTime * sampleRate);
 		long displayProbInfoInit = (long) (displayProbInfoTime * sampleRate);
 		long editPpqnTimeInit = (long) (2.5f * sampleRate);
+		long blinkCountInit = (long) (1.0f * sampleRate);
+		long blinkCountNearStart = (long) (0.15f * sampleRate);
+		
 
 		
 		//********** Buttons, knobs, switches and inputs **********
@@ -742,7 +747,7 @@ struct GateSeq64 : Module {
 					if (!editingSequence)
 						newSeq = phrase[phraseIndexRun];
 				}
-				for (int i = 0; i < 4; i += stepConfig)
+				for (int i = 0; i < 4; i += stepConfig) 
 					gateCode[i] = calcGateCode(attributes[newSeq][(i * 16) + stepIndexRun], ppqnCount, pulsesPerStep);
 			}
 		}	
@@ -797,7 +802,31 @@ struct GateSeq64 : Module {
 						setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
 				}
 				else {
+					// BLINK VERSION
 					float stepHereOffset = ((stepIndexRun == col) && running) ? 0.5f : 0.0f;
+					if (getGate(sequence, i)) {
+						if (getGateP(sequence, i)) {
+							if (i == stepIndexEdit)// more orange than yellow
+								setGreenRed(STEP_LIGHTS + i * 2, (blinkCount > blinkCountNearStart) ? 1.0f : 0.0f, (blinkCount > blinkCountNearStart) ? 1.0f : 0.0f);
+							else// more yellow
+								setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, 1.0f - stepHereOffset);
+						}
+						else {
+							if (i == stepIndexEdit)
+								setGreenRed(STEP_LIGHTS + i * 2, (blinkCount > blinkCountNearStart) ? 1.0f : 0.0f, 0.0f);
+							else
+								setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, 0.0f);
+						}
+					}
+					else {
+						if (i == stepIndexEdit && blinkCount < blinkCountNearStart)
+							setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
+						else
+							setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset / 5.0f, 0.0f);
+					}
+					
+					// NO-BLINK VERSION
+					/*float stepHereOffset = ((stepIndexRun == col) && running) ? 0.5f : 0.0f;
 					if (getGate(sequence, i)) {
 						if (getGateP(sequence, i)) {
 							if (i == stepIndexEdit)// more orange than yellow
@@ -817,7 +846,7 @@ struct GateSeq64 : Module {
 							setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.05f);
 						else
 							setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset / 5.0f, 0.0f);
-					}				
+					}*/				
 				}
 			}
 			else {// editing Song
@@ -892,6 +921,11 @@ struct GateSeq64 : Module {
 				displayState = DISP_GATE;
 			revertDisplay--;
 		}
+		blinkCount++;
+		if (blinkCount >= blinkCountInit)
+			blinkCount = 0l;
+
+
 	}// step()
 	
 	
