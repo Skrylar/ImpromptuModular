@@ -150,10 +150,11 @@ struct GateSeq64 : Module {
 		uint32_t shiftAmt = ppqnCount * (24 / pulsesPerStep);
 		return (int)((advGateHitMaskGS[gateMode] >> shiftAmt) & (uint32_t)0x1);
 	}	
-	inline int calcGateCode(int attribute, int ppqnCount, int pulsesPerStep) {// 0 = gate off, 1 = gate on, 2 = clock high
-		if (!getGateA(attribute))
-			return 0;
+	inline int calcGateCode(int attribute, int ppqnCount, int pulsesPerStep) {
+		// -1 = gate off for whole step, 0 = gate off for current ppqn, 1 = gate on, 2 = clock high
 		if (getGatePa(attribute) && !(randomUniform() < ((float)(getGatePValA(attribute))/100.0f)))// randomUniform is [0.0, 1.0), see include/util/common.hpp
+			return -1;
+		if (!getGateA(attribute))
 			return 0;
 		if (pulsesPerStep == 1)
 			return 2;// clock high
@@ -259,7 +260,7 @@ struct GateSeq64 : Module {
 			stepIndexRun = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
 		ppqnCount = 0;
 		for (int i = 0; i < 4; i += stepConfig)
-			gateCode[i] = calcGate2Code(attributes[seq][(i * 16) + stepIndexRun], 0, pulsesPerStep);
+			gateCode[i] = calcGateCode(attributes[seq][(i * 16) + stepIndexRun], 0, pulsesPerStep);
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 	
@@ -431,7 +432,7 @@ struct GateSeq64 : Module {
 		long displayProbInfoInit = (long) (displayProbInfoTime * sampleRate);
 		long editPpqnTimeInit = (long) (2.5f * sampleRate);
 		long blinkCountInit = (long) (1.0f * sampleRate);
-		long blinkCountNearStart = (long) (0.15f * sampleRate);
+		long blinkCountMarker = (long) (0.45f * sampleRate);
 		
 
 		
@@ -667,7 +668,7 @@ struct GateSeq64 : Module {
 							pval = 100;
 						if (pval < 0)
 							pval = 0;
-						attributes[sequence][stepIndexEdit] = pval | (attributes[sequence][stepIndexEdit] & (ATT_MSK_GATE | ATT_MSK_GATEP));
+						attributes[sequence][stepIndexEdit] = pval | (attributes[sequence][stepIndexEdit] & (ATT_MSK_GATE | ATT_MSK_GATEP | ATT_MSK_GATEMODE));
 						displayProbInfo = displayProbInfoInit;
 				}
 				else if (editingPpqn != 0) {
@@ -747,8 +748,11 @@ struct GateSeq64 : Module {
 					if (!editingSequence)
 						newSeq = phrase[phraseIndexRun];
 				}
-				for (int i = 0; i < 4; i += stepConfig) 
-					gateCode[i] = calcGateCode(attributes[newSeq][(i * 16) + stepIndexRun], ppqnCount, pulsesPerStep);
+				for (int i = 0; i < 4; i += stepConfig) { 
+					if (gateCode[i] != -1 || ppqnCount == 0)
+						gateCode[i] = calcGateCode(attributes[newSeq][(i * 16) + stepIndexRun], ppqnCount, pulsesPerStep);
+				}
+				//info("*** calcGateCode of %i on chan 2",gateCode[2]);
 			}
 		}	
 		
@@ -807,20 +811,20 @@ struct GateSeq64 : Module {
 					if (getGate(sequence, i)) {
 						if (getGateP(sequence, i)) {
 							if (i == stepIndexEdit)// more orange than yellow
-								setGreenRed(STEP_LIGHTS + i * 2, (blinkCount > blinkCountNearStart) ? 1.0f : 0.0f, (blinkCount > blinkCountNearStart) ? 1.0f : 0.0f);
+								setGreenRed(STEP_LIGHTS + i * 2, (blinkCount > blinkCountMarker) ? 1.0f : 0.0f, (blinkCount > blinkCountMarker) ? 1.0f : 0.0f);
 							else// more yellow
 								setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, 1.0f - stepHereOffset);
 						}
 						else {
 							if (i == stepIndexEdit)
-								setGreenRed(STEP_LIGHTS + i * 2, (blinkCount > blinkCountNearStart) ? 1.0f : 0.0f, 0.0f);
+								setGreenRed(STEP_LIGHTS + i * 2, (blinkCount > blinkCountMarker) ? 1.0f : 0.0f, 0.0f);
 							else
 								setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, 0.0f);
 						}
 					}
 					else {
-						if (i == stepIndexEdit && blinkCount < blinkCountNearStart)
-							setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
+						if (i == stepIndexEdit && blinkCount > blinkCountMarker)
+							setGreenRed(STEP_LIGHTS + i * 2, 0.05f, 0.0f);
 						else
 							setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset / 5.0f, 0.0f);
 					}

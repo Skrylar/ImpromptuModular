@@ -1067,7 +1067,8 @@ struct PhraseSeq32 : Module {
 						newSeq = phrase[phraseIndexRun];
 				}
 				for (int i = 0; i < 2; i += stepConfig) {
-					gate1Code[i] = calcGate1Code(attributes[newSeq][(i * 16) + stepIndexRun], ppqnCount, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
+					if (gate1Code[i] != -1 || ppqnCount == 0)
+						gate1Code[i] = calcGate1Code(attributes[newSeq][(i * 16) + stepIndexRun], ppqnCount, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
 					gate2Code[i] = calcGate2Code(attributes[newSeq][(i * 16) + stepIndexRun], ppqnCount, pulsesPerStep);	
 				}
 			}

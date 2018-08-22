@@ -1043,7 +1043,8 @@ struct PhraseSeq16 : Module {
 					if (!editingSequence)
 						newSeq = phrase[phraseIndexRun];
 				}
-				gate1Code = calcGate1Code(attributes[newSeq][stepIndexRun], ppqnCount, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
+				if (gate1Code != -1 || ppqnCount == 0)
+					gate1Code = calcGate1Code(attributes[newSeq][stepIndexRun], ppqnCount, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
 				gate2Code = calcGate2Code(attributes[newSeq][stepIndexRun], ppqnCount, pulsesPerStep);						 
 			}
 			clockPeriod = 0ul;

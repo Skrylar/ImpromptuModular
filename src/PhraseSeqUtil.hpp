@@ -63,16 +63,18 @@ inline int getAdvGate(int ppqnCount, int pulsesPerStep, int gateMode) {
 	return (int)((advGateHitMask[gateMode] >> shiftAmt) & (uint32_t)0x1);
 }
 
-inline int calcGate1Code(int attribute, int ppqnCount, int pulsesPerStep, float randKnob) {// 0 = gate off, 1 = gate on, 2 = clock high, 3 = trigger
-	if (!getGate1a(attribute))
-		return 0;
+inline int calcGate1Code(int attribute, int ppqnCount, int pulsesPerStep, float randKnob) {
+	// -1 = gate off for whole step, 0 = gate off for current ppqn, 1 = gate on, 2 = clock high, 3 = trigger
 	if (getGate1Pa(attribute) && !(randomUniform() < randKnob))// randomUniform is [0.0, 1.0), see include/util/common.hpp
+		return -1;// must do this first in this method since it will kill rest of step if prob turns off the step
+	if (!getGate1a(attribute))
 		return 0;
 	if (pulsesPerStep == 1)
 		return 2;// clock high
 	return getAdvGate(ppqnCount, pulsesPerStep, getGate1aMode(attribute));
 }
-inline int calcGate2Code(int attribute, int ppqnCount, int pulsesPerStep) {// 0 = gate off, 1 = clock high, 2 = trigger, 3 = gate on
+inline int calcGate2Code(int attribute, int ppqnCount, int pulsesPerStep) {
+	// 0 = gate off, 1 = clock high, 2 = trigger, 3 = gate on
 	if (!getGate2a(attribute))
 		return 0;
 	if (pulsesPerStep == 1)
