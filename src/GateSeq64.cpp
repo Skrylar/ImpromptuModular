@@ -574,25 +574,17 @@ struct GateSeq64 : Module {
 				}
 				else {
 					if (!getGate(sequence, stepPressed)) {// clicked inactive, so turn gate on
-						setGate(sequence, stepPressed, true);
-						setGateP(sequence, stepPressed, false);
+						//if (stepIndexEdit == stepPressed) 
+							setGate(sequence, stepPressed, true);
 					}
-					else {
-						if (!getGateP(sequence, stepPressed)) {// clicked active, but not in prob mode
-							if (stepIndexEdit == stepPressed) {// switch to prob mode only if stepPressed on stepIndexEdit
-								displayProbInfo = displayProbInfoInit;
-								setGateP(sequence, stepPressed, true);
-							}
-						}
-						else {// clicked active, and in prob mode
-							if (stepIndexEdit != stepPressed) {// if coming from elsewhere, don't change any states, just show its prob
-								displayProbInfo = displayProbInfoInit;
-							}
-							else {// coming from current step, so turn off
-								setGate(sequence, stepPressed, false);
-								setGateP(sequence, stepPressed, false);
-							}
-						}
+					else {// clicked active
+						//if (stepIndexEdit == stepPressed) {// only if coming from current step, turn off
+							setGate(sequence, stepPressed, false);
+						//}
+						//else {
+							//if (getGateP(sequence, stepPressed))
+								//displayProbInfo = displayProbInfoInit;
+						//}
 					}
 					stepIndexEdit = stepPressed;
 				}
@@ -637,10 +629,14 @@ struct GateSeq64 : Module {
 		// Prob button
 		if (probTrigger.process(params[PROB_PARAM].value)) {
 			if (editingSequence) {
-				if (displayProbInfo == 0l)
-					displayProbInfo = displayProbInfoInit;
-				else
+				if (getGateP(sequence, stepIndexEdit)) {
 					displayProbInfo = 0l;
+					setGateP(sequence, stepIndexEdit, false);
+				}
+				else {
+					displayProbInfo = displayProbInfoInit;
+					setGateP(sequence, stepIndexEdit, true);
+				}
 			}
 		}
 		
@@ -766,7 +762,6 @@ struct GateSeq64 : Module {
 					if (gateCode[i] != -1 || ppqnCount == 0)
 						gateCode[i] = calcGateCode(attributes[newSeq][(i * 16) + stepIndexRun], ppqnCount, pulsesPerStep);
 				}
-				info("*** calcGateCode of %i on chan 2 at ppqn %i",gateCode[2], ppqnCount);
 			}
 		}	
 		
@@ -842,29 +837,6 @@ struct GateSeq64 : Module {
 						else
 							setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset / 5.0f, 0.0f);
 					}
-					
-					// NO-BLINK VERSION
-					/*float stepHereOffset = ((stepIndexRun == col) && running) ? 0.5f : 0.0f;
-					if (getGate(sequence, i)) {
-						if (getGateP(sequence, i)) {
-							if (i == stepIndexEdit)// more orange than yellow
-								setGreenRed(STEP_LIGHTS + i * 2, 0.4f, 1.0f - stepHereOffset);
-							else// more yellow
-								setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, 1.0f - stepHereOffset);
-						}
-						else {
-							if (i == stepIndexEdit)
-								setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, 0.01f);
-							else
-								setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, 0.0f);
-						}
-					}
-					else {
-						if (i == stepIndexEdit)
-							setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.05f);
-						else
-							setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset / 5.0f, 0.0f);
-					}*/				
 				}
 			}
 			else {// editing Song
@@ -890,12 +862,15 @@ struct GateSeq64 : Module {
 			}
 		}
 		
-		// GateMode lights
+		// GateType lights
 		if (editingSequence) {
 			int gmode = getGateMode(sequence, stepIndexEdit);
-			for (int i = 0; i < 8; i++) {	// TODO green for now, add red for pps requirement no met
+			for (int i = 0; i < 8; i++) {
 				if (i == gmode) {
-					setGreenRed(GMODE_LIGHTS + i * 2, 1.0f, 0.0f);
+					if ( (pulsesPerStep == 4 && i > 3) || (pulsesPerStep == 6 && i <= 3) ) // pps requirement not met
+						setGreenRed(GMODE_LIGHTS + i * 2, 0.0f, 1.0f);
+					else
+						setGreenRed(GMODE_LIGHTS + i * 2, 1.0f, 0.0f);
 				}
 				else
 					setGreenRed(GMODE_LIGHTS + i * 2, 0.0f, 0.0f);
@@ -1199,9 +1174,9 @@ struct GateSeq64Widget : ModuleWidget {
 		// ****** 5x3 Main bottom half Control section ******
 		
 		static const int colRulerC0 = 25;
-		static const int colRulerC1 = 80;
+		static const int colRulerC1 = 78;
 		static const int colRulerC2 = 126;
-		static const int colRulerC3 = 187;
+		static const int colRulerC3 = 189;
 		static const int colRulerC4 = 241;
 		static const int rowRulerC0 = 208; 
 		static const int rowRulerSpacing = 56;
