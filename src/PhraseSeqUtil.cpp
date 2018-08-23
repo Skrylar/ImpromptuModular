@@ -120,17 +120,11 @@ bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {
 	return crossBoundary;
 }
 
-static const int modeToLightTable[NUM_GATES] = {2, 4, 5, 7, 0, 9, 1, 3, 11, 6, 8, 10};
-int gateModeToKeyLightIndex(int attribute, bool isGate1) {
-	int gateMode = isGate1 ? getGate1aMode(attribute) : getGate2aMode(attribute);
-	return modeToLightTable[gateMode];
-}
 
-static const int keyToModeTable[NUM_GATES] = {4, 6, 0, 7,  1, 2, 9, 3,  10, 5, 11, 8};
 int keyIndexToGateMode(int keyIndex, int pulsesPerStep) {
-	if (pulsesPerStep == 4 && (keyIndex == 6 || keyIndex == 8 || keyIndex >= 10))
+	if (pulsesPerStep == 4 && (keyIndex == 1 || keyIndex == 3 || keyIndex == 6 || keyIndex == 8 || keyIndex == 10))
 		return -1;
-	if (pulsesPerStep == 6 && (keyIndex == 1 || keyIndex == 2 || keyIndex == 3 || keyIndex == 5 || keyIndex == 9))
+	if (pulsesPerStep == 6 && (keyIndex == 0 || keyIndex == 4 || keyIndex == 7 || keyIndex == 9))
 		return -1;
-	return keyToModeTable[keyIndex];
+	return keyIndex;// keyLight index now matches gate modes, so no mapping table needed anymore
 }

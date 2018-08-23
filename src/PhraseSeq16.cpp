@@ -640,7 +640,6 @@ struct PhraseSeq16 : Module {
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
 			if (editingSequence) {
 				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate);
-				//CPinfo must be set to 0 for copy/paste all, and 0x1ii for copy/paste 4 at pos ii, 0x2ii for copy/paste 8 at 0xii
 				int sStart = stepIndexEdit;
 				int sCount = 16;
 				if (params[CPMODE_PARAM].value > 1.5f)// all
@@ -735,20 +734,17 @@ struct PhraseSeq16 : Module {
 					lengths[sequence] += delta;
 					if (lengths[sequence] > 16) lengths[sequence] = 16;
 					if (lengths[sequence] < 1 ) lengths[sequence] = 1;
-					//if (stepIndexEdit >= lengths[sequence])// Commented for full edit capabilities
-						//stepIndexEdit = lengths[sequence] - 1;// Commented for full edit capabilities
 				}
 				else {
 					phrases += delta;
 					if (phrases > 16) phrases = 16;
 					if (phrases < 1 ) phrases = 1;
-					//if (phraseIndexEdit >= phrases) phraseIndexEdit = phrases - 1;// Commented for full edit capabilities
 				}
 			}
 			else {
 				if (!running || !attached) {// don't move heads when attach and running
 					if (editingSequence) {
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, 16);//lengths[sequence]);// Commented for full edit capabilities
+						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, 16);
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
 								editingGate = (unsigned long) (gateTime * sampleRate);
@@ -758,7 +754,7 @@ struct PhraseSeq16 : Module {
 						}
 					}
 					else
-						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, 16);//phrases);// Commented for full edit capabilities
+						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, 16);
 				}
 			}
 		}

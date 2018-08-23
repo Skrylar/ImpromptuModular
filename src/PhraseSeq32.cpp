@@ -601,7 +601,6 @@ struct PhraseSeq32 : Module {
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
 			if (editingSequence) {
 				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate);
-				//CPinfo must be set to 0 for copy/paste all, and 0x1ii for copy/paste 4 at pos ii, 0x2ii for copy/paste 8 at 0xii
 				int sStart = stepIndexEdit;
 				int sCount = 32;
 				if (params[CPMODE_PARAM].value > 1.5f)// all

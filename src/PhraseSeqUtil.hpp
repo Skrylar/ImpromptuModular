@@ -11,12 +11,12 @@ using namespace rack;
 
 enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, MODE_FW2, MODE_FW3, MODE_FW4, NUM_MODES};
 static const std::string modeLabels[NUM_MODES]={"FWD","REV","PPG","BRN","RND","FW2","FW3","FW4"};
-enum GateModeIds {GATE_14, GATE_24, GATE_34, GATE_44, GATE_TRIG, GATE_DUO, GATE_DU2, GATE_DU2P, 
-				  GATE_TRIPLET, GATE_TRIP1, GATE_TRIP2, GATE_TRIP3, NUM_GATES};
-												//{"1/4","2/4","3/4","4/4","TRG","DUO","D2 ","D2'",
-												//"TRP","TR1","TR2","TR3"};
-static const uint32_t advGateHitMask[NUM_GATES] = {0x00003F, 0x000FFF, 0x03FFFF, 0xFFFFFF, 0, 0x03F03F, 0x03F000, 0xFC0000,
-												   0x0F0F0F, 0x00000F, 0x000F00, 0x0F0000};
+
+static const int NUM_GATES = 12;												
+static const uint32_t advGateHitMask[NUM_GATES] = 
+{0x00003F, 0x0F0F0F, 0x000FFF, 0x0F0F00, 0x03FFFF, 0xFFFFFF, 0x00000F, 0x03F03F, 0x000F00, 0x03F000, 0x0F0000, 0};
+//	  25%		TRI		  50%		T23		  75%		FUL		  TR1 		DUO		  TR2 	     D2		  TR3  TRIG		
+
 enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_GATE2 = 0x04, ATT_MSK_SLIDE = 0x08, ATT_MSK_TIED = 0x10};// 5 bits
 static const int ATT_MSK_GATE1MODE = 0x01E0;// 4 bits
 static const int gate1ModeShift = 5;
@@ -72,7 +72,7 @@ inline bool calcGate(int gateCode, SchmittTrigger clockTrigger, unsigned long cl
 }
 
 inline int getAdvGate(int ppqnCount, int pulsesPerStep, int gateMode) { 
-	if (gateMode == GATE_TRIG)
+	if (gateMode == 11)
 		return ppqnCount == 0 ? 3 : 0;
 	uint32_t shiftAmt = ppqnCount * (24 / pulsesPerStep);
 	return (int)((advGateHitMask[gateMode] >> shiftAmt) & (uint32_t)0x1);
@@ -97,12 +97,16 @@ inline int calcGate2Code(int attribute, int ppqnCount, int pulsesPerStep) {
 	return getAdvGate(ppqnCount, pulsesPerStep, getGate2aMode(attribute));
 }
 
+inline int gateModeToKeyLightIndex(int attribute, bool isGate1) {// keyLight index now matches gate modes, so no mapping table needed anymore
+	return isGate1 ? getGate1aMode(attribute) : getGate2aMode(attribute);
+}
+
+
 
 // Other methods (code in PhraseSeqUtil.cpp)	
 												
 int moveIndex(int index, int indexNext, int numSteps);
 bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history);
-int gateModeToKeyLightIndex(int attribute, bool isGate1);
 int keyIndexToGateMode(int keyIndex, int pulsesPerStep);
 
 
