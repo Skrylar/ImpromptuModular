@@ -65,8 +65,8 @@ struct GateSeq64 : Module {
 	enum AttributeBitMasksGS {ATT_MSK_PROB = 0xFF, ATT_MSK_GATEP = 0x100, ATT_MSK_GATE = 0x200};
 	static const int ATT_MSK_GATEMODE = 0x1C00;// 3 bits
 	static const int gateModeShift = 10;
-	//										1/4		DUO			D2		D2'			TR1			TR2		TR3 		TRI
-	const uint32_t advGateHitMaskGS[8] = {0x00003F, 0x03F03F, 0x03F000, 0xFC0000, 0x00000F, 0x000F00, 0x0F0000, 0x0F0F0F};
+	//										1/4		DUO			D2			TR1		TR2		TR3 		TR23	   TRI
+	const uint32_t advGateHitMaskGS[8] = {0x00003F, 0x03F03F, 0x03F000, 0x00000F, 0x000F00, 0x0F0000, 0x0F0F00, 0x0F0F0F};
 	
 	// Need to save
 	int panelTheme = 0;
@@ -438,7 +438,7 @@ struct GateSeq64 : Module {
 		long displayProbInfoInit = (long) (displayProbInfoTime * sampleRate);
 		long editPpqnTimeInit = (long) (2.5f * sampleRate);
 		long blinkCountInit = (long) (1.0f * sampleRate);
-		long blinkCountMarker = (long) (0.45f * sampleRate);
+		long blinkCountMarker = (long) (0.67f * sampleRate);
 		
 
 		
@@ -574,17 +574,23 @@ struct GateSeq64 : Module {
 				}
 				else {
 					if (!getGate(sequence, stepPressed)) {// clicked inactive, so turn gate on
-						//if (stepIndexEdit == stepPressed) 
-							setGate(sequence, stepPressed, true);
+						setGate(sequence, stepPressed, true);
+						if (getGateP(sequence, stepPressed))
+							displayProbInfo = displayProbInfoInit;
+						else
+							displayProbInfo = 0l;
 					}
 					else {// clicked active
-						//if (stepIndexEdit == stepPressed) {// only if coming from current step, turn off
+						if (stepIndexEdit == stepPressed) {// only if coming from current step, turn off
 							setGate(sequence, stepPressed, false);
-						//}
-						//else {
-							//if (getGateP(sequence, stepPressed))
-								//displayProbInfo = displayProbInfoInit;
-						//}
+							displayProbInfo = 0l;
+						}
+						else {
+							if (getGateP(sequence, stepPressed))
+								displayProbInfo = displayProbInfoInit;
+							else
+								displayProbInfo = 0l;
+						}
 					}
 					stepIndexEdit = stepPressed;
 				}
@@ -815,18 +821,17 @@ struct GateSeq64 : Module {
 						setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
 				}
 				else {
-					// BLINK VERSION
 					float stepHereOffset = ((stepIndexRun == col) && running) ? 0.5f : 0.0f;
 					if (getGate(sequence, i)) {
 						if (getGateP(sequence, i)) {
 							if (i == stepIndexEdit)// more orange than yellow
-								setGreenRed(STEP_LIGHTS + i * 2, (blinkCount > blinkCountMarker) ? 1.0f : 0.0f, (blinkCount > blinkCountMarker) ? 1.0f : 0.0f);
+								setGreenRed(STEP_LIGHTS + i * 2, (blinkCount < blinkCountMarker) ? 1.0f : 0.0f, (blinkCount < blinkCountMarker) ? 1.0f : 0.0f);
 							else// more yellow
 								setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, 1.0f - stepHereOffset);
 						}
 						else {
 							if (i == stepIndexEdit)
-								setGreenRed(STEP_LIGHTS + i * 2, (blinkCount > blinkCountMarker) ? 1.0f : 0.0f, 0.0f);
+								setGreenRed(STEP_LIGHTS + i * 2, (blinkCount < blinkCountMarker) ? 1.0f : 0.0f, 0.0f);
 							else
 								setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, 0.0f);
 						}
@@ -867,7 +872,7 @@ struct GateSeq64 : Module {
 			int gmode = getGateMode(sequence, stepIndexEdit);
 			for (int i = 0; i < 8; i++) {
 				if (i == gmode) {
-					if ( (pulsesPerStep == 4 && i > 3) || (pulsesPerStep == 6 && i <= 3) ) // pps requirement not met
+					if ( (pulsesPerStep == 4 && i > 2) || (pulsesPerStep == 6 && i <= 2) ) // pps requirement not met
 						setGreenRed(GMODE_LIGHTS + i * 2, 0.0f, 1.0f);
 					else
 						setGreenRed(GMODE_LIGHTS + i * 2, 1.0f, 0.0f);
