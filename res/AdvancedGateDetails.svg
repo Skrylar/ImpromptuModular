@@ -39,9 +39,9 @@
      inkscape:window-height="1017"
      id="namedview323"
      showgrid="false"
-     inkscape:zoom="2.2043741"
-     inkscape:cx="325.06428"
-     inkscape:cy="73.719215"
+     inkscape:zoom="3.1174557"
+     inkscape:cx="144.03182"
+     inkscape:cy="84.993533"
      inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
@@ -409,7 +409,7 @@
      x="64.782875"
      style="font-weight:400;font-size:10.58300018px;line-height:1.25;font-family:sans-serif;letter-spacing:0;word-spacing:0;stroke-width:0.26499999" />
   <rect
-     y="16.659348"
+     y="12.95517"
      x="2.9069221"
      height="22.225079"
      width="52.916325"
@@ -418,19 +418,14 @@
      id="rect117"
      style="fill:#333333;stroke-width:1.000314;paint-order:markers stroke fill" />
   <path
-     d="m 15.230183,17.586728 0.03219,9.537557 2.327392,1.289025 v 9.560551 H 11.231562 V 28.41331 l 2.370542,-1.289025 v -9.537557 z m 22.398581,0 0.03288,9.537557 2.326708,1.289025 v 9.560551 h -6.35821 V 28.41331 l 2.370543,-1.289025 v -9.537557 z m 5.806151,0 -0.03288,9.537557 -2.326707,1.289025 v 9.560551 h 6.35752 V 28.41331 l -2.369854,-1.289025 v -9.537557 z m -35.6499211,0 0.03288,9.537557 2.3267081,1.289025 v 9.560551 H 3.7863718 V 28.41331 l -0.0055,-10.826582 h 2.3753371 z m 13.2465461,0 -0.03288,9.537557 -2.326707,1.289025 v 9.560551 h 6.35752 V 28.41331 l 0.0048,-10.826582 h -2.375337 z m 9.152035,0 0.03288,9.537557 2.326708,1.289025 v 9.560551 H 26.185638 V 28.41331 l -0.0055,-10.826582 h 2.376022 z m 20.69653,0 -0.03288,9.537557 -2.326707,1.289025 v 9.560551 h 6.35752 V 28.41331 l 0.0048,-10.826582 h -2.375337 z"
+     d="m 15.230183,13.882545 0.03219,9.537557 2.327392,1.289025 v 9.560551 h -6.358203 v -9.560551 l 2.370542,-1.289025 v -9.537557 z m 22.398581,0 0.03288,9.537557 2.326708,1.289025 v 9.560551 h -6.35821 v -9.560551 l 2.370543,-1.289025 v -9.537557 z m 5.806151,0 -0.03288,9.537557 -2.326707,1.289025 v 9.560551 h 6.35752 v -9.560551 l -2.369854,-1.289025 v -9.537557 z m -35.6499211,0 0.03288,9.537557 2.3267081,1.289025 v 9.560551 H 3.7863718 v -9.560551 l -0.0055,-10.826582 h 2.3753371 z m 13.2465461,0 -0.03288,9.537557 -2.326707,1.289025 v 9.560551 h 6.35752 v -9.560551 l 0.0048,-10.826582 h -2.375337 z m 9.152035,0 0.03288,9.537557 2.326708,1.289025 v 9.560551 h -6.357525 v -9.560551 l -0.0055,-10.826582 h 2.376022 z m 20.69653,0 -0.03288,9.537557 -2.326707,1.289025 v 9.560551 h 6.35752 v -9.560551 l 0.0048,-10.826582 h -2.375337 z"
      id="path119"
      inkscape:connector-curvature="0"
      style="fill:#999999;stroke:#000000;stroke-width:0.26458582"
      sodipodi:nodetypes="ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" />
-  <path
-     inkscape:connector-curvature="0"
-     d="m 4.3509148,40.072975 v 1.392161 a 0.29561999,0.29561999 0 0 0 0.2956201,0.295619 h 4.915769"
-     style="fill:none;stroke:#333333;stroke-width:0.26458427;stroke-linecap:round;stroke-linejoin:round"
-     id="path94" />
   <g
      id="g169"
-     transform="matrix(0.26458426,0,0,0.26458426,1.3949348,7.6943124)">
+     transform="matrix(0.26458426,0,0,0.26458426,-6.0187653,3.9901329)">
     <g
        id="g58">
       <line
@@ -464,12 +459,12 @@
   </g>
   <path
      inkscape:connector-curvature="0"
-     d="m 19.268622,41.760756 v -1.392163 a 0.29561735,0.29561735 0 0 1 0.29562,-0.295618 h 2.014447 a 0.29561735,0.29561735 0 0 1 0.295617,0.295618 v 1.096543 a 0.29561999,0.29561999 0 0 0 0.29562,0.29562 h 2.310085"
+     d="M 11.854922,38.056573 V 36.66441 a 0.29561735,0.29561735 0 0 1 0.29562,-0.295618 h 2.014447 a 0.29561735,0.29561735 0 0 1 0.295617,0.295618 v 1.096543 a 0.29561999,0.29561999 0 0 0 0.29562,0.29562 h 2.310085"
      style="fill:none;stroke:#333333;stroke-width:0.26458427;stroke-linecap:round;stroke-linejoin:round"
      id="path98" />
   <g
      id="g183"
-     transform="matrix(0.26458426,0,0,0.26458426,-3.1941026,7.6943124)">
+     transform="matrix(0.26458426,0,0,0.26458426,-10.607803,3.9901329)">
     <g
        id="g74">
       <line
@@ -503,12 +498,12 @@
   </g>
   <path
      inkscape:connector-curvature="0"
-     d="m 34.162766,41.760755 v -1.392163 a 0.29561735,0.29561735 0 0 1 0.295618,-0.295617 h 4.620152 a 0.29561735,0.29561735 0 0 1 0.29562,0.295617 v 1.392163"
+     d="m 26.749066,38.056572 v -1.392163 a 0.29561735,0.29561735 0 0 1 0.295618,-0.295617 h 4.620152 a 0.29561735,0.29561735 0 0 1 0.29562,0.295617 v 1.392163"
      style="fill:none;stroke:#333333;stroke-width:0.26458427;stroke-linecap:round;stroke-linejoin:round"
      id="path102" />
   <g
      id="g194"
-     transform="matrix(0.26458426,0,0,0.26458426,-6.3647504,7.6943124)">
+     transform="matrix(0.26458426,0,0,0.26458426,-13.778451,3.9901329)">
     <line
        id="line4"
        style="fill:none;stroke:#a8a8a8;stroke-linecap:round;stroke-linejoin:round"
@@ -524,25 +519,8 @@
        inkscape:connector-curvature="0" />
   </g>
   <g
-     id="g198"
-     transform="matrix(0.26458426,0,0,0.26458426,-8.2486624,7.6943124)">
-    <line
-       id="line6"
-       style="fill:none;stroke:#a8a8a8;stroke-linecap:round;stroke-linejoin:round"
-       y2="128.75461"
-       x2="236.47182"
-       y1="122.37562"
-       x1="236.47182" />
-    <path
-       id="path106"
-       style="fill:none;stroke:#333333;stroke-linecap:round;stroke-linejoin:round"
-       transform="translate(-14.81094,-16.5)"
-       d="m 231.58623,145.25461 v -5.2617 a 1.11729,1.11729 0 0 1 1.1173,-1.11729 h 1.04816 a 1.11729,1.11729 0 0 1 1.1173,1.11729 v 4.1444 a 1.11729,1.11729 0 0 0 1.11729,1.1173 h 1.04816 a 1.1173,1.1173 0 0 0 1.1173,-1.1173 v -4.1444 a 1.11729,1.11729 0 0 1 1.1173,-1.11729 h 1.04816 a 1.11729,1.11729 0 0 1 1.11729,1.11729 v 4.1444 a 1.1173,1.1173 0 0 0 1.1173,1.1173 H 243.6 a 1.1173,1.1173 0 0 0 1.1173,-1.1173 v -4.1444 a 1.11729,1.11729 0 0 1 1.11729,-1.11729 h 1.04816 A 1.11729,1.11729 0 0 1 248,139.99291 v 4.1444 a 1.1173,1.1173 0 0 0 1.1173,1.1173 h 2.16545"
-       inkscape:connector-curvature="0" />
-  </g>
-  <g
      id="g140"
-     transform="matrix(0.26458426,0,0,0.26458426,-3.8684196,13.620083)">
+     transform="matrix(0.26458426,0,0,0.26458426,-3.8684196,9.9159005)">
     <g
        id="g14">
       <line
@@ -576,7 +554,7 @@
   </g>
   <g
      id="g126"
-     transform="matrix(0.26458426,0,0,0.26458426,2.9514938,13.620083)">
+     transform="matrix(0.26458426,0,0,0.26458426,36.52507,36.236497)">
     <g
        id="g40">
       <line
@@ -609,42 +587,8 @@
        inkscape:connector-curvature="0" />
   </g>
   <g
-     id="g133-4"
-     transform="matrix(0.26458426,0,0,0.26458426,0.36492981,13.620083)">
-    <g
-       id="g92">
-      <line
-         id="line86"
-         style="fill:none;stroke:#a8a8a8;stroke-linecap:round;stroke-linejoin:round"
-         y2="6.8789902"
-         x2="67.101868"
-         y1="0.5"
-         x1="67.101868" />
-      <line
-         id="line88"
-         style="fill:none;stroke:#a8a8a8;stroke-linecap:round;stroke-linejoin:round"
-         y2="6.8789902"
-         x2="62.177738"
-         y1="0.5"
-         x1="62.177738" />
-      <line
-         id="line90"
-         style="fill:none;stroke:#a8a8a8;stroke-linecap:round;stroke-linejoin:round"
-         y2="6.8789902"
-         x2="57.253609"
-         y1="0.5"
-         x1="57.253609" />
-    </g>
-    <path
-       id="path112"
-       style="fill:none;stroke:#272727;stroke-linecap:round;stroke-linejoin:round"
-       transform="translate(-14.81094,-16.5)"
-       d="m 72.06456,23.379 h 13.65509 a 1.1173,1.1173 0 0 0 1.1173,-1.1173 V 18.1173 A 1.11729,1.11729 0 0 1 87.95424,17 h 2.68954 a 1.1173,1.1173 0 0 1 1.1173,1.1173 v 5.34251"
-       inkscape:connector-curvature="0" />
-  </g>
-  <g
      id="g358"
-     transform="translate(-6.7638893,-7.3282176)">
+     transform="translate(-6.7638893,-11.032398)">
     <g
        id="g22-4"
        transform="matrix(0.26458426,0,0,0.26458426,-2.729345,16.582661)">
@@ -678,7 +622,7 @@
   </g>
   <g
      id="g351"
-     transform="translate(-8.8805593,-7.3282176)">
+     transform="translate(-8.8805593,-11.032398)">
     <g
        id="g30-4"
        transform="matrix(0.26458426,0,0,0.26458426,-2.729345,16.582661)">
@@ -724,111 +668,146 @@
   <text
      xml:space="preserve"
      style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;line-height:1.25;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
-     x="3.2953837"
+     x="3.1753566"
      y="3.9635246"
      id="text249"><tspan
        sodipodi:role="line"
        id="tspan247"
-       x="3.2953837"
+       x="3.1753566"
        y="3.9635246"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">PULSES PER STEPS (PPS) - REQUIREMENTS</tspan></text>
   <text
      xml:space="preserve"
      style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;line-height:1.25;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
-     x="5.3179874"
-     y="10.746572"
-     id="text249-5"><tspan
-       sodipodi:role="line"
-       id="tspan247-9"
-       x="5.3179874"
-       y="10.746572"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">MULTIPLES OF 4</tspan></text>
-  <text
-     xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;line-height:1.25;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
-     x="34.893677"
-     y="46.749786"
+     x="12.148573"
+     y="41.321423"
      id="text249-5-3"><tspan
        sodipodi:role="line"
        id="tspan247-9-6"
-       x="34.893677"
-       y="46.749786"
+       x="12.148573"
+       y="41.321423"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">ALL</tspan></text>
   <text
      xml:space="preserve"
      style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;line-height:1.25;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
-     x="31.098511"
-     y="10.746572"
+     x="19.675114"
+     y="8.6498356"
      id="text249-5-8"><tspan
        sodipodi:role="line"
        id="tspan247-9-4"
-       x="31.098511"
-       y="10.746572"
+       x="19.675114"
+       y="8.6498356"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">MULTIPLES OF 6</tspan></text>
   <text
      xml:space="preserve"
      style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;line-height:1.25;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
-     x="4.3718143"
-     y="46.749786"
+     x="49.741993"
+     y="41.321423"
      id="text249-5-3-8"><tspan
        sodipodi:role="line"
        id="tspan247-9-6-2"
-       x="4.3718143"
-       y="46.749786"
+       x="49.741993"
+       y="41.321423"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">ALL</tspan></text>
-  <text
-     xml:space="preserve"
-     style="font-style:normal;font-weight:normal;font-size:10.58337021px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
-     x="42.249485"
-     y="46.749786"
-     id="text343"><tspan
-       sodipodi:role="line"
-       id="tspan341"
-       x="42.249485"
-       y="46.749786"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">M. 4</tspan></text>
-  <text
-     xml:space="preserve"
-     style="font-style:normal;font-weight:normal;font-size:10.58337021px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
-     x="49.711685"
-     y="46.749786"
-     id="text343-0"><tspan
-       sodipodi:role="line"
-       id="tspan341-4"
-       x="49.711685"
-       y="46.749786"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">M. 6</tspan></text>
   <text
      xml:space="preserve"
      style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;line-height:1.25;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
-     x="19.765877"
-     y="46.749744"
+     x="27.327574"
+     y="41.332336"
      id="text249-5-3-3"><tspan
        sodipodi:role="line"
        id="tspan247-9-6-7"
-       x="19.765877"
-       y="46.749744"
+       x="27.327574"
+       y="41.332336"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">ALL</tspan></text>
+  <g
+     id="g198-7"
+     transform="matrix(0.26458426,0,0,0.26458426,-49.235941,-22.33047)">
+    <line
+       id="line6-2"
+       style="fill:none;stroke:#a8a8a8;stroke-linecap:round;stroke-linejoin:round"
+       y2="128.75461"
+       x2="236.47182"
+       y1="122.37562"
+       x1="236.47182" />
+    <path
+       id="path106-8"
+       style="fill:none;stroke:#333333;stroke-linecap:round;stroke-linejoin:round"
+       transform="translate(-14.81094,-16.5)"
+       d="m 231.58623,145.25461 v -5.2617 a 1.11729,1.11729 0 0 1 1.1173,-1.11729 h 1.04816 a 1.11729,1.11729 0 0 1 1.1173,1.11729 v 4.1444 a 1.11729,1.11729 0 0 0 1.11729,1.1173 h 1.04816 a 1.1173,1.1173 0 0 0 1.1173,-1.1173 v -4.1444 a 1.11729,1.11729 0 0 1 1.1173,-1.11729 h 1.04816 a 1.11729,1.11729 0 0 1 1.11729,1.11729 v 4.1444 a 1.1173,1.1173 0 0 0 1.1173,1.1173 H 243.6 a 1.1173,1.1173 0 0 0 1.1173,-1.1173 v -4.1444 a 1.11729,1.11729 0 0 1 1.11729,-1.11729 h 1.04816 A 1.11729,1.11729 0 0 1 248,139.99291 v 4.1444 a 1.1173,1.1173 0 0 0 1.1173,1.1173 h 2.16545"
+       inkscape:connector-curvature="0" />
+  </g>
+  <g
+     id="g1007"
+     transform="translate(-45.905405,-6.2726063)">
+    <line
+       id="line6-2-3"
+       style="fill:none;stroke:#a8a8a8;stroke-width:0.26458427;stroke-linecap:round;stroke-linejoin:round"
+       y2="18.029966"
+       x2="66.630135"
+       y1="16.342186"
+       x1="66.630135" />
+    <line
+       id="line6-2-3-3"
+       style="fill:none;stroke:#a8a8a8;stroke-width:0.26458427;stroke-linecap:round;stroke-linejoin:round"
+       y2="18.029966"
+       x2="61.418743"
+       y1="16.342186"
+       x1="61.418743" />
+    <path
+       sodipodi:nodetypes="ccccccccssccccccsc"
+       id="path106-8-9"
+       style="fill:none;stroke:#333333;stroke-width:0.26458427;stroke-linecap:round;stroke-linejoin:round"
+       d="m 61.418742,18.029966 c 2.141299,0 -0.951586,0 1.441511,0 0.163266,0 0.295619,-0.132353 0.29562,-0.295619 v -1.096544 c 0,-0.163266 0.132354,-0.295618 0.29562,-0.295617 h 0.277326 c 0.163265,0 0.295618,0.132352 0.295618,0.295617 v 1.096544 c 10e-7,0.163266 0.132354,0.295619 0.29562,0.295619 h 0.27734 c 0.163266,0 0.295619,-0.132353 0.29562,-0.295619 v -1.096544 c 0,-0.163265 0.132352,-0.295617 0.295617,-0.295617 h 0.277327 c 0.16326,6e-6 0.295606,0.132357 0.295606,0.295617 v 1.096544 c 10e-7,0.163266 0.132354,0.295619 0.29562,0.295619 h 0.572944"
+       inkscape:connector-curvature="0" />
+  </g>
+  <path
+     inkscape:connector-curvature="0"
+     d="m 49.106667,36.368793 v 1.392161 a 0.29562,0.29562 0 0 0 0.29562,0.295619 h 4.915769"
+     style="fill:none;stroke:#333333;stroke-width:0.26458427;stroke-linecap:round;stroke-linejoin:round"
+     id="path94-9" />
   <text
      xml:space="preserve"
      style="font-style:normal;font-weight:normal;font-size:10.58337021px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
-     x="27.079248"
-     y="46.749744"
-     id="text343-6"><tspan
+     x="5.1611581"
+     y="41.337326"
+     id="text1040"><tspan
        sodipodi:role="line"
-       id="tspan341-9"
-       x="27.079248"
-       y="46.749744"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">M. 4</tspan></text>
+       id="tspan1038"
+       x="5.1611581"
+       y="41.337326"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">M4</tspan></text>
   <text
      xml:space="preserve"
      style="font-style:normal;font-weight:normal;font-size:10.58337021px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
-     x="12.070954"
-     y="46.749744"
-     id="text343-6-7"><tspan
+     x="20.233774"
+     y="41.303471"
+     id="text1040-4"><tspan
        sodipodi:role="line"
-       id="tspan341-9-7"
-       x="12.070954"
-       y="46.749744"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">M. 4</tspan></text>
+       id="tspan1038-5"
+       x="20.233774"
+       y="41.303471"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">M4</tspan></text>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-weight:normal;font-size:10.58337021px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
+     x="38.53788"
+     y="41.303474"
+     id="text1040-8"><tspan
+       sodipodi:role="line"
+       id="tspan1038-4"
+       x="38.53788"
+       y="41.303474"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">M4</tspan></text>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-weight:normal;font-size:10.58337021px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458427"
+     x="17.403894"
+     y="46.498486"
+     id="text1072"><tspan
+       sodipodi:role="line"
+       id="tspan1070"
+       x="17.403894"
+       y="46.498486"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.82223225px;font-family:Sniglet;-inkscape-font-specification:'Sniglet, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458427">M4: MULTIPLES OF 4</tspan></text>
 </svg>
