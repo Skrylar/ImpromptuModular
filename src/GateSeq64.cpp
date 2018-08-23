@@ -634,7 +634,7 @@ struct GateSeq64 : Module {
 
 		// Prob button
 		if (probTrigger.process(params[PROB_PARAM].value)) {
-			if (editingSequence) {
+			if (editingSequence && getGate(sequence, stepIndexEdit)) {
 				if (getGateP(sequence, stepIndexEdit)) {
 					displayProbInfo = 0l;
 					setGateP(sequence, stepIndexEdit, false);
