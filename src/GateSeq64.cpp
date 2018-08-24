@@ -789,7 +789,7 @@ struct GateSeq64 : Module {
 			for (int i = 0; i < 4; i++)
 				outputs[GATE_OUTPUTS + i].value = 0.0f;	
 		}
-		
+
 		// Step LED button lights
 		if (infoCopyPaste != 0l) {
 			for (int i = 0; i < 64; i++) {
@@ -801,10 +801,10 @@ struct GateSeq64 : Module {
 		}
 		else {
 			for (int i = 0; i < 64; i++) {
-				row = i / (16 * stepConfig);
+				row = i >> (3 + stepConfig);//i / (16 * stepConfig);// optimized (not equivalent code, but in this case has same effect)
 				if (stepConfig == 2 && row == 1) 
 					row++;
-				col = i % (16 * stepConfig);
+				col = (((stepConfig - 1) << 4) | 0xF) & i;//i % (16 * stepConfig);// optimized			
 				if (editingSequence) {
 					if (displayState == DISP_LENGTH) {
 						if (col < (lengths[sequence] - 1))
@@ -815,34 +815,34 @@ struct GateSeq64 : Module {
 							setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
 					}
 					else {
-						float stepHereOffset = ((stepIndexRun == col) && running) ? 0.5f : 0.0f;
-						bool blinkEnableOn = (displayState != DISP_MODES) && (blinkCount < blinkCountMarker);
+						float stepHereOffset = ((stepIndexRun == col) && running) ? 0.5f : 1.0f;
 						if (getGate(sequence, i)) {
+							bool blinkEnableOn = (displayState != DISP_MODES) && (blinkCount < blinkCountMarker);
 							if (getGateP(sequence, i)) {
 								if (i == stepIndexEdit)// more orange than yellow
 									setGreenRed(STEP_LIGHTS + i * 2, blinkEnableOn ? 1.0f : 0.0f, blinkEnableOn ? 1.0f : 0.0f);
 								else// more yellow
-									setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, 1.0f - stepHereOffset);
+									setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset, stepHereOffset);
 							}
 							else {
 								if (i == stepIndexEdit)
 									setGreenRed(STEP_LIGHTS + i * 2, blinkEnableOn ? 1.0f : 0.0f, 0.0f);
 								else
-									setGreenRed(STEP_LIGHTS + i * 2, 1.0f - stepHereOffset, 0.0f);
+									setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset, 0.0f);
 							}
 						}
 						else {
 							if (i == stepIndexEdit && blinkCount > blinkCountMarker && displayState != DISP_MODES)
 								setGreenRed(STEP_LIGHTS + i * 2, 0.05f, 0.0f);
 							else
-								setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset / 5.0f, 0.0f);
+								setGreenRed(STEP_LIGHTS + i * 2, ((stepIndexRun == col) && running) ? 0.1f : 0.0f, 0.0f);
 						}
 					}
 				}
 				else {// editing Song
 					if (displayState == DISP_LENGTH) {
-						row = i / 16;
-						col = i % 16;
+						row = i >> 4;//i / 16;// optimized
+						col = i & 0xF;//i % 16;// optimized
 						if (row == 3 && col < (phrases - 1))
 							setGreenRed(STEP_LIGHTS + i * 2, 0.1f, 0.0f);
 						else if (row == 3 && col == (phrases - 1))
@@ -881,7 +881,7 @@ struct GateSeq64 : Module {
 			for (int i = 0; i < 8; i++) 
 				setGreenRed(GMODE_LIGHTS + i * 2, 0.0f, 0.0f);
 		}
-			
+	
 		
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
@@ -918,7 +918,7 @@ struct GateSeq64 : Module {
 	}// step()
 	
 	
-	void setGreenRed(int id, float green, float red) {
+	inline void setGreenRed(int id, float green, float red) {
 		lights[id + 0].value = green;
 		lights[id + 1].value = red;
 	}
@@ -988,11 +988,6 @@ struct GateSeq64Widget : ModuleWidget {
 				else
 					runModeToStr(module->runModeSong);
 			}
-			/*else if (module->displayState == GateSeq64::DISP_ROW_SEL) {
-				snprintf(displayStr, 4, "CPY");
-				if (module->cpInfo == 2)
-					snprintf(displayStr, 4, "PST");
-			}*/
 			else {
 				int dispVal = 0;
 				if (module->editingSequence)

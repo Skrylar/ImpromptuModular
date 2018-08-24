@@ -582,7 +582,7 @@ struct PhraseSeq16 : Module {
 		static const float editLengthTime = 2.0f;// seconds
 		static const float tiedWarningTime = 0.7f;// seconds
 		static const float holdDetectTime = 2.0f;// seconds
-		static const float editGateLengthTime = 2.5f;// seconds
+		static const float editGateLengthTime = 4.0f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * sampleRate);
 		long editGateLengthTimeInit = (long) (editGateLengthTime * sampleRate) * editGateLengthTimeInitMult;
 		long editPpqnTimeInit = (long) (editGateLengthTime * sampleRate);

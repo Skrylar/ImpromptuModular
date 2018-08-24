@@ -707,7 +707,7 @@ struct Clocked : Module {
 		if (cantRunWarning > 0l) 
 			warningFlashState = calcWarningFlash(cantRunWarning, cantRunWarningInit);
 		lights[BPMSYNC_LIGHT + 0].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? 1.0f : 0.0f;
-		lights[BPMSYNC_LIGHT + 1].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? pow((((float)ppqn - 4.0f) / 20.0f),2.0) : 0.0f;			
+		lights[BPMSYNC_LIGHT + 1].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
 		
 		// ratios synched lights
 		for (int i = 1; i < 4; i++) {
@@ -804,7 +804,7 @@ struct ClockedWidget : ModuleWidget {
 							snprintf(displayStr, 4, "P%2u", (unsigned) module->ppqn);
 					}
 					else
-						snprintf(displayStr, 4, "%3u", (unsigned) round(120.0f / module->masterLength));
+						snprintf(displayStr, 4, "%3u", (unsigned)((120.0f / module->masterLength) + 0.5f));
 				}
 			}
 			displayStr[3] = 0;// more safety

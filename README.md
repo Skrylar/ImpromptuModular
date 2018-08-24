@@ -203,7 +203,7 @@ All PPS settings will work for the half and full gates (the D and F keys) as wel
 
 The gate type for a given step can be selected during a short time interval after a given gate has just been turned on using the Gate1 or Gate2 buttons. If a gate is already turned on and its gate type is to be edited, clicking the gate button twice will allow it to be edited while keeping it in the same state. The onboard keyboard will temporarily show a yellow/orange light corresponding to the current gate type for that step; during this time the gate type can be changed. 
 
-Since the editing time for the advanced gate mode is kept rather short (2.5s), holding the Gate2 button for 2s will set that default time interval to 250s. Holding Gate1 for 2s will revert to the default time of 2.5s. The extended time feature is useful when the gate modes for multiple steps of a sequence are to be editied or reviewed in a single pass, for example.
+Since the editing time for the advanced gate mode is kept rather short (4s), holding the Gate2 button for 2s will set that default time interval to 400s. Holding Gate1 for 2s will revert to the default time of 4s. The extended time feature is useful when the gate modes for multiple steps of a sequence are to be editied or reviewed in a single pass, for example.
 
 ([Back to module list](#modules))
 

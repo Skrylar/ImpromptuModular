@@ -527,7 +527,7 @@ struct PhraseSeq32 : Module {
 		static const float revertDisplayTime = 0.7f;// seconds
 		static const float tiedWarningTime = 0.7f;// seconds
 		static const float holdDetectTime = 2.0f;// seconds
-		static const float editGateLengthTime = 2.5f;// seconds
+		static const float editGateLengthTime = 4.0f;// seconds
 		long tiedWarningInit = (long) (tiedWarningTime * sampleRate);
 		long editGateLengthTimeInit = (long) (editGateLengthTime * sampleRate) * editGateLengthTimeInitMult;
 		long editPpqnTimeInit = (long) (editGateLengthTime * sampleRate);
@@ -1135,9 +1135,9 @@ struct PhraseSeq32 : Module {
 		}
 		else {
 			for (int i = 0; i < 32; i++) {
+				int col = (stepConfig == 1 ? (i & 0xF) : i);//i % (16 * stepConfig);// optimized
 				if (displayState == DISP_LENGTH) {
 					if (editingSequence) {
-						int col = i % (16 * stepConfig);
 						if (col < (lengths[sequence] - 1))
 							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.1f, 0.0f);
 						else if (col == (lengths[sequence] - 1))
@@ -1158,10 +1158,10 @@ struct PhraseSeq32 : Module {
 					
 					// Run cursor (green)
 					if (editingSequence)
-						green = ((running && (i % (16 * stepConfig)) == stepIndexRun)) ? 1.0f : 0.0f;
+						green = ((running && (col == stepIndexRun)) ? 1.0f : 0.0f);
 					else {
 						green = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
-						green += ((running && ((i % (16 * stepConfig)) == stepIndexRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
+						green += ((running && (col == stepIndexRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
 						green = clamp(green, 0.0f, 1.0f);
 					}
 					// Edit cursor (red)
