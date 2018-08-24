@@ -488,21 +488,23 @@ struct Clocked : Module {
 
 		// BPM mode
 		if (bpmModeTrigger.process(params[BPMMODE_PARAM].value)) {
-			if (editingBpmMode != 0ul) {// force active before allow change
-				if (bpmDetectionMode == false) {
-					bpmDetectionMode = true;
-					ppqn = 4;
+			if (inputs[BPM_INPUT].active) {
+				if (editingBpmMode != 0ul) {// force active before allow change
+					if (bpmDetectionMode == false) {
+						bpmDetectionMode = true;
+						ppqn = 4;
+					}
+					else {
+						if (ppqn == 4)
+							ppqn = 8;
+						else if (ppqn == 8)
+							ppqn = 24;
+						else 
+							bpmDetectionMode = false;
+					}
 				}
-				else {
-					if (ppqn == 4)
-						ppqn = 8;
-					else if (ppqn == 8)
-						ppqn = 24;
-					else 
-						bpmDetectionMode = false;
-				}
+				editingBpmMode = (unsigned long) (2.5 * sampleRate);
 			}
-			editingBpmMode = (unsigned long) (2.5 * sampleRate);
 		}
 		
 		// BPM input and knob
