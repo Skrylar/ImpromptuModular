@@ -765,9 +765,9 @@ struct PhraseSeq16 : Module {
 				displayState = DISP_MODE;
 			else
 				displayState = DISP_NORMAL;
-			if (!running) {
+			//if (!running) {
 				modeHoldDetect.start((long) (holdDetectTime * sampleRate));
-			}
+			//}
 		}
 		if (transposeTrigger.process(params[TRAN_ROT_PARAM].value)) {
 			if (editingSequence) {
@@ -941,12 +941,12 @@ struct PhraseSeq16 : Module {
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingSequence) {
 				toggleGate1a(&attributes[sequence][stepIndexEdit]);
-				if (!running) {
+				//if (!running) {
 					if (pulsesPerStep != 1) {
 						editingGateLength = getGate1(sequence,stepIndexEdit) ? editGateLengthTimeInit : 0l;
 						gate1HoldDetect.start((long) (holdDetectTime * sampleRate));
 					}
-				}
+				//}
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -962,12 +962,12 @@ struct PhraseSeq16 : Module {
 		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
 			if (editingSequence) {
 				toggleGate2a(&attributes[sequence][stepIndexEdit]);
-				if (!running) {
+				//if (!running) {
 					if (pulsesPerStep != 1) {
 						editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * editGateLengthTimeInit : 0l;
 						gate2HoldDetect.start((long) (holdDetectTime * sampleRate));
 					}
-				}
+				//}
 			}
 			displayState = DISP_NORMAL;
 		}		

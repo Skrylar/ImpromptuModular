@@ -624,9 +624,9 @@ struct GateSeq64 : Module {
 				displayState = DISP_MODES;
 			else
 				displayState = DISP_GATE;
-			if (!running) {
+			//if (!running) {
 				modeHoldDetect.start((long) (holdDetectTime * sampleRate));
-			}
+			//}
 		}
 
 		// Prob button
