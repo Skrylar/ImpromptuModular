@@ -19,7 +19,8 @@ Impromptu Modular is not a single-person endeavor:
 * Thanks to **Xavier Belmont** for suggesting improvements to the modules, for testing/bug-reports, for the concept design of the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
 * Thanks to **Steve Baker** for many fruitful discussions regarding the BPM Detection method in Clocked, testing and improvements that were suggested for that module. 
 * Thanks to **Omri Cohen** for testing and suggesting improvements to the modules, and for the [PhraseSeq16/32 tutorial](https://www.youtube.com/watch?v=N8_rMNzsS7w).
-* Thanks also to **Latif Fital**, **Pyer (Pierre Collard)**, **Alfredo Santamaria**, **Nay Seven**, **Alberto Zamora**, **Clément Foulc**, **Espen Storo**, **Wouter Spekkink**, **John Melcher** for suggesting improvements to the modules, bug reports and testing.
+* Thanks to **Latif Karoumi** for [testing](https://www.youtube.com/watch?v=5PZCXvWlFZM) and suggesting improvement to the modules, particularly the advanced gate modes in the GateSeq64 and PhraseSeq sequencers.
+* Thanks also to **Pyer (Pierre Collard)**, **Alfredo Santamaria**, **Nay Seven**, **Alberto Zamora**, **Clément Foulc**, **Espen Storo**, **Wouter Spekkink**, **John Melcher** for suggesting improvements to the modules, bug reports and testing.
 
 
 
@@ -65,7 +66,7 @@ Such sequencers have two main inputs that allow the capturing of (pitch) CVs, as
 
 When **AUTOSTEP** is activated, the sequencer automatically advances one step right on each write. For example, to automatically capture the notes played on a keyboard, send the midi keyboard's CV into the sequencer's CV IN, and send the keyboard's gate signal into the sequencer's Write input. With Autostep activated, each key-press will be automatically entered in sequence. An alternative way of automatically stepping the sequencer each time a note is entered is to send the gate signal of the keyboard to both the write and ">" inputs. 
 
-When Run is activated, the sequencer automatically starts playing in the current step position, provided **RESET on RUN** is not checked in the right-click menu; sequencers will start at the first step when this option is checked. All edge sensitive inputs have a threshold of 1V. In all sequencers, the duration of the gates corresponds to the pulse width (high time) of the clock signal.
+When Run is activated, the sequencer automatically starts playing in the current step position, provided **RESET on RUN** is not checked in the right-click menu; sequencers will start at the first step when this option is checked. All edge sensitive inputs have a threshold of 1V. In all sequencers, the duration of the gates normally corresponds to the pulse width (high time) of the clock signal. When sequencers offer an **Advanced gate mode** and this mode is activated, the pulse width of the clock signal has no effect on the sequencer.
 
 Many modules feature an **Expansion panel** to provide additional CV inputs for the module (available in the right-click menu of the module). An extra 4 HP is added on the right side of the module, thus it is advisable to first make room in your Rack for this.
 
@@ -141,7 +142,7 @@ The PW and Swing **CV inputs** (some are available in the expansion panel) are 0
 
 ### External synchronization <a id="clocked-sync"></a>
 
-By default, the clock's BPM input is level sensitive and follows [Rack standards for BPM CVs](https://vcvrack.com/manual/VoltageStandards.html#pitch-and-frequencies). For synchronizing Clocked an external clock signal, an optional setting is available in the right-click menu called "Use **BPM Detection** (as opposed to **BPM CV**)". When using this option in a chain of Clocked modules, all modules must have the option checked. The green LED to the right of the main BPM display will light up when this mode is enabled and a cable is connected to the BPM input. 
+By default, the clock's BPM input is level sensitive and follows [Rack standards for BPM CVs](https://vcvrack.com/manual/VoltageStandards.html#pitch-and-frequencies). For synchronizing Clocked an external clock signal, an optional setting is available in the right-click menu called "Use **BPM Detection** (as opposed to **BPM CV**)". When using this option in a chain of Clocked modules, all modules must have the option checked. The LED to the right of the main BPM display will light up when this mode is enabled and a cable is connected to the BPM input. New in version 0.6.10: this setting is available by using the MODE button located below the BPM input jack. When no cable is connected to the BPM input jack, the MODE button has no effect (the BPM CV mode is implicit); when a cable is connected, the possible settings are: P4, P8, P12, P24, where the number indicates the number of pulses per step of the external clock source.
 
 When using BPM detection, Clocked syncs itself to the incoming clock pulse, and will stay synchronized, as opposed to just calculating the BPM from the external source. This means that it will not drift (or that it will drift in time with the incoming pulses if they drift), and it should stay perfectly synchronized over time; it also allows for latency compensation. Here are a few points to keep in mind when using BPM Detection.
 
@@ -158,7 +159,7 @@ When using BPM detection, Clocked syncs itself to the incoming clock pulse, and 
 
 ![IM](res/img/PhraseSeq16.jpg)
 
-A 16 phrase sequencer module, where each phrase is an index into a set of 16 sequences of 16 steps (maximum). CVs can be entered via a CV input when using an external keyboard controller or via the built-in keyboard on the module itself. If you need a 256-step sequence in a single module, this is the sequencer for you! With two separate gates per step, gate 2 is perfect for using as an accent if desired. When notes are entered with the *right mouse button* instead of the left button, the sequencer automatically moves to the next step.
+A 16 phrase sequencer module, where each phrase is an index into a set of 16 sequences of 16 steps (maximum). CVs can be entered via a CV input when using an external keyboard controller or via the built-in keyboard on the module itself. If you need a 256-step sequence in a single module, this is the sequencer for you! With two separate gates per step, gate 2 is perfect for using as an accent if desired. When notes are entered with the **right mouse button** instead of the left button, the sequencer automatically moves to the next step.
 
 The following block diagram shows how sequences and phrases relate to each other to create a song. In the diagram, a 12-bar blues pattern is created by setting the song length to 12, the step lengths to 8 (not visible in the figure), and then creating 4 sequences. The 12 phrases are indexes into the 4 sequences that were created. (Not sure anyone plays blues in a modular synth, but it shows the idea at least!)
 
@@ -191,7 +192,7 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 * **TIED STEP**: When CVs are intended to be held across subsequent steps, this button can be used to tie the CV of the previous step to the current step. When tied is turned on for a step, the gates of that step are automatically turned off, but can be manually turned back on if desired. When tied, if the CV of the head note changes, all consecutive tied notes are updated automatically.
 
 
-### Advanced gate mode (new in version 0.6.10) <a id="advanced-gate-mode"></a>
+### Advanced gate mode (new in version 0.6.10) <a id="advanced-gate-mode-ps"></a>
 
 Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than 1, which unlocks the advanced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In such cases, a mutliplied clock must be supplied in order to keep the same tempo in the sequencer. In advanced gate mode, the pulse width of the clock is not used and has no effect on the gates.
 
@@ -241,6 +242,13 @@ When running in the 4x16 configuration, each of the four rows is sent to the fou
 
 Although no **write** capabilities appear in the main part of the module, automatically storing patterns into the sequencer can be performed using the CV inputs in the **expansion panel**. A write cursor is implicitly stepped forward on each write, and can be repositioned at the first step by pressing the reset button, or at an arbitrary step by simply clicking that given step.
 
+
+### Advanced gate mode (new in version 0.6.10) <a id="advanced-gate-mode-gs"></a>
+
+Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than 1, which unlocks the advanced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In such cases, a mutliplied clock must be supplied in order to keep the same tempo in the sequencer. In advanced gate mode, the pulse width of the clock is not used and has no effect on the gates.
+
+The first three gate types require that the PPS be a multiple of 4, while the last five gate types require that the PPS be a multiple of 6. A chosen gate type not meeting its required pulse rates will have a red LED beside it to indicate this (normally it is green). Selecting a PPS value of 12 or 24 will ensure that all gate types can be used (i.e. that all PPS requirements are met irrespective of the gate type chosen).
+
 ([Back to module list](#modules))
 
 
@@ -274,6 +282,8 @@ Here are a few more details on some of the uses of the buttons. The sequencer us
 **DEL**: state-type button that clears the trigger at the current step. The button can be held to clear multiple steps.
 
 **FILL**: plays continuous triggers for the given channel as long as the button is kept pressed. By default the fills are not written to memory and are only for playback; however, an option to allow the writing of fill steps to memory is available in the right-click menu.
+
+New in version 0.6.10: The BIG and DEL buttons are **quantized to the nearest beat**. In the previous versions, all button presses affect the current step of the sequencer. With quantized buttons, they affect the nearest beat. For example if you hit the big button 1 microsecond before a beat, for example, it gets stored in the current beat and not the next one that is about to occur, which is the closest. For the quantization to work properly, the sequencer must recieve a stable clock of at least 30 BPM. When this is not the case, the option is automatically disabled internally (when manually advancing the clock to programming a sequence in non real-time, for example).
 
 ([Back to module list](#modules))
 

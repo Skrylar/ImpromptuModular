@@ -257,7 +257,7 @@ struct Clocked : Module {
 	double extIntervalTime;
 	double timeoutTime;
 	long cantRunWarning;// 0 when no warning, positive downward step counter timer when warning
-	unsigned long editingBpmMode;// 0 when no edit bpmMode, downward step counter timer when edit
+	long editingBpmMode;// 0 when no edit bpmMode, downward step counter timer when edit, negative upward when show can't edit ("--") 
 	
 	
 	SchmittTrigger bpmModeTrigger;
@@ -459,7 +459,7 @@ struct Clocked : Module {
 			runPulse.reset();
 			bpmDetectTrigger.reset();
 			cantRunWarning = 0l;
-			editingBpmMode = 0ul;
+			editingBpmMode = 0l;
 		}
 		
 		// Run button
@@ -498,13 +498,17 @@ struct Clocked : Module {
 						if (ppqn == 4)
 							ppqn = 8;
 						else if (ppqn == 8)
+							ppqn = 12;
+						else if (ppqn == 12)
 							ppqn = 24;
 						else 
 							bpmDetectionMode = false;
 					}
 				}
-				editingBpmMode = (unsigned long) (2.5 * sampleRate);
+				editingBpmMode = (long) (3.0 * sampleRate);
 			}
+			else
+				editingBpmMode = (long) (-2.5 * sampleRate);
 		}
 		
 		// BPM input and knob
@@ -709,7 +713,10 @@ struct Clocked : Module {
 		if (cantRunWarning > 0l) 
 			warningFlashState = calcWarningFlash(cantRunWarning, cantRunWarningInit);
 		lights[BPMSYNC_LIGHT + 0].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? 1.0f : 0.0f;
-		lights[BPMSYNC_LIGHT + 1].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
+		if (editingBpmMode < 0l)
+			lights[BPMSYNC_LIGHT + 1].value = 1.0f;
+		else
+			lights[BPMSYNC_LIGHT + 1].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
 		
 		// ratios synched lights
 		for (int i = 1; i < 4; i++) {
@@ -726,9 +733,12 @@ struct Clocked : Module {
 		}
 		if (cantRunWarning > 0l)
 			cantRunWarning--;
-		if (editingBpmMode > 0ul)
-			editingBpmMode--;
-		
+		if (editingBpmMode != 0l) {
+			if (editingBpmMode > 0l)
+				editingBpmMode--;
+			else
+				editingBpmMode++;
+		}
 		scheduledReset = false;
 	}
 };
@@ -799,11 +809,15 @@ struct ClockedWidget : ModuleWidget {
 					}
 				}
 				else {// BPM to display
-					if (module->editingBpmMode > 0ul) {
-						if (!module->bpmDetectionMode)
-							snprintf(displayStr, 4, " CV");
+					if (module->editingBpmMode != 0l) {
+						if (module->editingBpmMode > 0l) {
+							if (!module->bpmDetectionMode)
+								snprintf(displayStr, 4, " CV");
+							else
+								snprintf(displayStr, 4, "P%2u", (unsigned) module->ppqn);
+						}
 						else
-							snprintf(displayStr, 4, "P%2u", (unsigned) module->ppqn);
+							snprintf(displayStr, 4, " --");
 					}
 					else
 						snprintf(displayStr, 4, "%3u", (unsigned)((120.0f / module->masterLength) + 0.5f));
@@ -970,8 +984,6 @@ struct ClockedWidget : ModuleWidget {
 		displayRatios[0]->module = module;
 		displayRatios[0]->knobIndex = 0;
 		addChild(displayRatios[0]);
-		// BPM sync mode
-		addChild(ModuleLightWidget::create<SmallLight<GreenRedLight>>(Vec(colRulerT4 + 11 + 62, rowRuler0 + 10), module, Clocked::BPMSYNC_LIGHT));		
 		
 		// Row 1
 		// Reset LED bezel and light
@@ -980,8 +992,9 @@ struct ClockedWidget : ModuleWidget {
 		// Run LED bezel and light
 		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerT1 + offsetLEDbezel, rowRuler1 + offsetLEDbezel), module, Clocked::RUN_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerT1 + offsetLEDbezel + offsetLEDbezelLight, rowRuler1 + offsetLEDbezel + offsetLEDbezelLight), module, Clocked::RUN_LIGHT));
-		// BPM mode
+		// BPM mode and light
 		addParam(ParamWidget::create<TL1105>(Vec(colRulerT2 + offsetTL1105, rowRuler1 + offsetTL1105), module, Clocked::BPMMODE_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(ModuleLightWidget::create<SmallLight<GreenRedLight>>(Vec(colRulerM1 + 62, rowRuler1 + offsetMediumLight), module, Clocked::BPMSYNC_LIGHT));		
 		// Swing master knob
 		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT3 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 0, -1.0f, 1.0f, 0.0f, &module->panelTheme));
 		// PW master knob
@@ -1041,7 +1054,8 @@ Model *modelClocked = Model::create<Clocked, ClockedWidget>("Impromptu Modular",
 /*CHANGE LOG
 
 0.6.10:
-move master PW to expansion panel and move BPM mode from right-click menu to main pannel button (TODO: dark panel)
+add ppqn setting of 12
+move master PW to expansion panel and move BPM mode from right-click menu to main pannel button
 
 0.6.9:
 new approach to BPM Detection (all slaves must enable Use BPM Detect if master does, and same ppqn)
