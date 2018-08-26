@@ -1172,8 +1172,8 @@ struct GateSeq64Widget : ModuleWidget {
 		static const int colRulerC2 = 126;
 		static const int colRulerC3 = 189;
 		static const int colRulerC4 = 241;
-		static const int rowRulerC0 = 208; 
-		static const int rowRulerSpacing = 56;
+		static const int rowRulerC0 = 206; 
+		static const int rowRulerSpacing = 58;
 		static const int rowRulerC1 = rowRulerC0 + rowRulerSpacing;
 		static const int rowRulerC2 = rowRulerC1 + rowRulerSpacing;
 		

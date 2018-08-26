@@ -1526,7 +1526,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int rowRulerMK0 = 101;// Edit mode row
 		static const int rowRulerMK1 = rowRulerMK0 + 56; // Run row
 		static const int rowRulerMK2 = rowRulerMK1 + 54; // Reset row
-		static const int columnRulerMK0 = 276;// Edit mode column
+		static const int columnRulerMK0 = 277;// Edit mode column
 		static const int columnRulerMK1 = columnRulerMK0 + 59;// Display column
 		static const int columnRulerMK2 = columnRulerT3;// Run mode column
 		

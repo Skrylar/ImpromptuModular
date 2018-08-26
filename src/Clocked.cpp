@@ -508,7 +508,7 @@ struct Clocked : Module {
 				editingBpmMode = (long) (3.0 * sampleRate);
 			}
 			else
-				editingBpmMode = (long) (-2.5 * sampleRate);
+				editingBpmMode = (long) (-1.5 * sampleRate);
 		}
 		
 		// BPM input and knob
