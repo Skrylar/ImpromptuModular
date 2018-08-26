@@ -1,4 +1,4 @@
 /build
-/dist/ImpromptuModular
+/dist
 plugin.*
 /src/midifile/midifile
