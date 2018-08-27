@@ -155,6 +155,7 @@ struct PhraseSeq16 : Module {
 	long editGateLengthTimeInitMult;// multiplier for extended setting of advanced gates
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
+	int lightRefreshCounter;
 
 	static constexpr float EDIT_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
 	bool editingSequence;
@@ -244,6 +245,7 @@ struct PhraseSeq16 : Module {
 		gate2HoldDetect.reset();
 		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
+		lightRefreshCounter = 0;
 	}
 
 	
@@ -583,9 +585,6 @@ struct PhraseSeq16 : Module {
 		static const float tiedWarningTime = 0.7f;// seconds
 		static const float holdDetectTime = 2.0f;// seconds
 		static const float editGateLengthTime = 4.0f;// seconds
-		long tiedWarningInit = (long) (tiedWarningTime * sampleRate);
-		long editGateLengthTimeInit = (long) (editGateLengthTime * sampleRate) * editGateLengthTimeInitMult;
-		long editPpqnTimeInit = (long) (editGateLengthTime * sampleRate);
 		
 		
 		//********** Buttons, knobs, switches and inputs **********
@@ -639,7 +638,7 @@ struct PhraseSeq16 : Module {
 		// Copy button
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
 			if (editingSequence) {
-				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate);
+				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 				int sStart = stepIndexEdit;
 				int sCount = 16;
 				if (params[CPMODE_PARAM].value > 1.5f)// all
@@ -664,7 +663,7 @@ struct PhraseSeq16 : Module {
 		// Paste button
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 			if (editingSequence) {
-				infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate);
+				infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 				int sStart = ((countCP == 16) ? 0 : stepIndexEdit);
 				int sCount = countCP;
 				for (int i = 0, s = sStart; i < countCP; i++, s++) {
@@ -688,7 +687,7 @@ struct PhraseSeq16 : Module {
 			if (editingLength > 0ul)
 				editingLength = 0ul;// allow user to quickly leave editing mode when re-press
 			else
-				editingLength = (unsigned long) (editLengthTime * sampleRate);
+				editingLength = (unsigned long) (editLengthTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_NORMAL;
 		}
 		
@@ -708,7 +707,7 @@ struct PhraseSeq16 : Module {
 				if (inputs[SLIDECV_INPUT].active)
 					setSlideA(&attributes[sequence][stepIndexEdit], inputs[SLIDECV_INPUT].value > 1.0f);			
 				applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
-				editingGate = (unsigned long) (gateTime * sampleRate);
+				editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 				editingGateCV = cv[sequence][stepIndexEdit];
 				editingGateKeyLight = -1;
 				// Autostep (after grab all active inputs)
@@ -729,7 +728,7 @@ struct PhraseSeq16 : Module {
 		}
 		if (delta != 0) {
 			if (editingLength > 0ul) {
-				editingLength = (unsigned long) (editLengthTime * sampleRate);// restart editing length timer
+				editingLength = (unsigned long) (editLengthTime * sampleRate / displayRefreshStepSkips);// restart editing length timer
 				if (editingSequence) {
 					lengths[sequence] += delta;
 					if (lengths[sequence] > 16) lengths[sequence] = 16;
@@ -747,7 +746,7 @@ struct PhraseSeq16 : Module {
 						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, 16);
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
-								editingGate = (unsigned long) (gateTime * sampleRate);
+								editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 								editingGateCV = cv[sequence][stepIndexEdit];
 								editingGateKeyLight = -1;
 							}
@@ -766,7 +765,7 @@ struct PhraseSeq16 : Module {
 			else
 				displayState = DISP_NORMAL;
 			//if (!running) {
-				modeHoldDetect.start((long) (holdDetectTime * sampleRate));
+				modeHoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
 			//}
 		}
 		if (transposeTrigger.process(params[TRAN_ROT_PARAM].value)) {
@@ -793,7 +792,7 @@ struct PhraseSeq16 : Module {
 		if (deltaKnob != 0) {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 				 if (editingLength > 0ul) {
-					editingLength = (unsigned long) (editLengthTime * sampleRate);// restart editing length timer
+					editingLength = (unsigned long) (editLengthTime * sampleRate / displayRefreshStepSkips);// restart editing length timer
 					if (editingSequence) {
 						lengths[sequence] += deltaKnob;
 						if (lengths[sequence] > 16) lengths[sequence] = 16 ;
@@ -807,7 +806,7 @@ struct PhraseSeq16 : Module {
 				}
 				else if (editingPpqn != 0) {
 					pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
-					editingPpqn = editPpqnTimeInit;
+					editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 				}
 				else if (displayState == DISP_MODE) {
 					if (editingSequence) {
@@ -879,7 +878,7 @@ struct PhraseSeq16 : Module {
 		if (newOct >= 0 && newOct <= 6) {
 			if (editingSequence) {
 				if (getTied(sequence,stepIndexEdit))
-					tiedWarning = tiedWarningInit;
+					tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 				else {			
 					float newCV = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
 					newCV = newCV - floor(newCV) + (float) (newOct - 3);
@@ -887,7 +886,7 @@ struct PhraseSeq16 : Module {
 						cv[sequence][stepIndexEdit] = newCV;
 						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 					}
-					editingGate = (unsigned long) (gateTime * sampleRate);
+					editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 					editingGateCV = cv[sequence][stepIndexEdit];
 					editingGateKeyLight = -1;
 				}
@@ -904,27 +903,27 @@ struct PhraseSeq16 : Module {
 							if (newMode != -1)
 								setGate1Mode(sequence, stepIndexEdit, newMode);
 							else
-								editingPpqn = editPpqnTimeInit;
-							editingGateLength = editGateLengthTimeInit;
+								editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+							editingGateLength = ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
 						}
 						else {
 							if (newMode != -1)
 								setGate2Mode(sequence, stepIndexEdit, newMode);
 							else
-								editingPpqn = editPpqnTimeInit;
-							editingGateLength = -1l * editGateLengthTimeInit;
+								editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+							editingGateLength = -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
 						}
 					}
 					else if (getTied(sequence,stepIndexEdit)) {
 						if (params[KEY_PARAMS + i].value > 1.5f)
 							stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
 						else
-							tiedWarning = tiedWarningInit;
+							tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 					}
 					else {			
 						cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
 						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
-						editingGate = (unsigned long) (gateTime * sampleRate);
+						editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 						editingGateCV = cv[sequence][stepIndexEdit];
 						editingGateKeyLight = -1;
 						if (params[KEY_PARAMS + i].value > 1.5f) {
@@ -943,8 +942,8 @@ struct PhraseSeq16 : Module {
 				toggleGate1a(&attributes[sequence][stepIndexEdit]);
 				//if (!running) {
 					if (pulsesPerStep != 1) {
-						editingGateLength = getGate1(sequence,stepIndexEdit) ? editGateLengthTimeInit : 0l;
-						gate1HoldDetect.start((long) (holdDetectTime * sampleRate));
+						editingGateLength = getGate1(sequence,stepIndexEdit) ? ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
+						gate1HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
 					}
 				//}
 			}
@@ -953,7 +952,7 @@ struct PhraseSeq16 : Module {
 		if (gate1ProbTrigger.process(params[GATE1_PROB_PARAM].value)) {
 			if (editingSequence) {
 				if (getTied(sequence,stepIndexEdit))
-					tiedWarning = tiedWarningInit;
+					tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 				else
 					toggleGate1Pa(&attributes[sequence][stepIndexEdit]);
 			}
@@ -964,8 +963,8 @@ struct PhraseSeq16 : Module {
 				toggleGate2a(&attributes[sequence][stepIndexEdit]);
 				//if (!running) {
 					if (pulsesPerStep != 1) {
-						editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * editGateLengthTimeInit : 0l;
-						gate2HoldDetect.start((long) (holdDetectTime * sampleRate));
+						editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
+						gate2HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
 					}
 				//}
 			}
@@ -974,7 +973,7 @@ struct PhraseSeq16 : Module {
 		if (slideTrigger.process(params[SLIDE_BTN_PARAM].value)) {
 			if (editingSequence) {
 				if (getTied(sequence,stepIndexEdit))
-					tiedWarning = tiedWarningInit;
+					tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 				else
 					toggleSlideA(&attributes[sequence][stepIndexEdit]);
 			}
@@ -1069,172 +1068,178 @@ struct PhraseSeq16 : Module {
 			outputs[GATE1_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 			outputs[GATE2_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 		}
-		
-		// Step/phrase lights
-		if (infoCopyPaste != 0l) {
-			for (int i = 0; i < 16; i++) {
-				if ( (i >= stepIndexEdit && i < (stepIndexEdit + countCP)) || (countCP == 16) )
-					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.5f;// Green when copy interval
-				else
-					lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.0f; // Green (nothing)
-				lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = 0.0f;// Red (nothing)
-			}
-		}
-		else {
-			for (int i = 0; i < 16; i++) {
-				if (editingLength > 0ul) {
-					// Length (green)
-					if (editingSequence)
-						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < lengths[sequence]) ? 0.5f : 0.0f);
-					else
-						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
-					// Nothing (red)
-					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = 0.0f;
-				}
-				else {
-					// Run cursor (green)
-					if (editingSequence)
-						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == stepIndexRun)) ? 1.0f : 0.0f);
-					else {
-						float green = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
-						green += ((running && (i == stepIndexRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
-						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = clamp(green, 0.0f, 1.0f);
-					}
-					// Edit cursor (red)
-					if (editingSequence)
-						lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexEdit ? 1.0f : 0.0f);
-					else
-						lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == phraseIndexEdit ? 1.0f : 0.0f);
-				}
-			}
-		}
-	
-		// Octave lights
-		float octCV = 0.0f;
-		if (editingSequence)
-			octCV = cv[sequence][stepIndexEdit];
-		else
-			octCV = cv[phrase[phraseIndexEdit]][stepIndexRun];
-		int octLightIndex = (int) floor(octCV + 3.0f);
-		for (int i = 0; i < 7; i++) {
-			if (!editingSequence && (!attached || !running))// no oct lights when song mode and either (detached [1] or stopped [2])
-											// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
-											// [2] CV is set to 0V when not running and in song mode, so cv[][] makes no sense to display
-				lights[OCTAVE_LIGHTS + i].value = 0.0f;
-			else {
-				if (tiedWarning > 0l) {
-					bool warningFlashState = calcWarningFlash(tiedWarning, tiedWarningInit);
-					lights[OCTAVE_LIGHTS + i].value = (warningFlashState && (i == (6 - octLightIndex))) ? 1.0f : 0.0f;
-				}
-				else				
-					lights[OCTAVE_LIGHTS + i].value = (i == (6 - octLightIndex) ? 1.0f : 0.0f);
-			}
-		}
-		
-		// Keyboard lights
-		float cvValOffset;
-		if (editingSequence) 
-			cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
-		else	
-			cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
-		int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
-		if (editingGateLength != 0 && editingSequence) {
-			int modeLightIndex = gateModeToKeyLightIndex(attributes[sequence][stepIndexEdit], editingGateLength > 0l);
-			for (int i = 0; i < 12; i++) {
-				if (i == modeLightIndex) {
-					lights[KEY_LIGHTS + i * 2 + 0].value = editingGateLength > 0l ? 1.0f : 0.2f;
-					lights[KEY_LIGHTS + i * 2 + 1].value = editingGateLength > 0l ? 0.2f : 1.0f;
-				}
-				else { 
-					lights[KEY_LIGHTS + i * 2 + 0].value = 0.0f;
-					if (i == keyLightIndex) 
-						lights[KEY_LIGHTS + i * 2 + 1].value = 0.1f;	
-					else 
-						lights[KEY_LIGHTS + i * 2 + 1].value = 0.0f;
-				}
-			}
-		}
-		else {
-			for (int i = 0; i < 12; i++) {
-				lights[KEY_LIGHTS + i * 2 + 0].value = 0.0f;
-				if (!editingSequence && (!attached || !running))// no keyboard lights when song mode and either (detached [1] or stopped [2])
-												// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
-												// [2] CV is set to 0V when not running and in song mode, so cv[][] makes no sense to display
-					lights[KEY_LIGHTS + i * 2 + 1].value = 0.0f;
-				else {
-					if (tiedWarning > 0l) {
-						bool warningFlashState = calcWarningFlash(tiedWarning, tiedWarningInit);
-						lights[KEY_LIGHTS + i * 2 + 1].value = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
-					}
-					else {
-						if (editingGate > 0ul && editingGateKeyLight != -1)
-							lights[KEY_LIGHTS + i * 2 + 1].value = (i == editingGateKeyLight ? ((float) editingGate / (float)(gateTime * sampleRate)) : 0.0f);
-						else
-							lights[KEY_LIGHTS + i * 2 + 1].value = (i == keyLightIndex ? 1.0f : 0.0f);
-					}
-				}
-			}	
-		}			
-		
-		// Gate1, Gate1Prob, Gate2, Slide and Tied lights
-		int attributesVal = attributes[sequence][stepIndexEdit];
-		if (!editingSequence)
-			attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
-		//
-		setGateLight(getGate1a(attributesVal), GATE1_LIGHT);
-		setGateLight(getGate2a(attributesVal), GATE2_LIGHT);
-		lights[GATE1_PROB_LIGHT].value = getGate1Pa(attributesVal) ? 1.0f : 0.0f;
-		lights[SLIDE_LIGHT].value = getSlideA(attributesVal) ? 1.0f : 0.0f;
-		if (tiedWarning > 0l) {
-			bool warningFlashState = calcWarningFlash(tiedWarning, tiedWarningInit);
-			lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
-		}
-		else
-			lights[TIE_LIGHT].value = getTiedA(attributesVal) ? 1.0f : 0.0f;
-
-		// Attach light
-		lights[ATTACH_LIGHT].value = (running && attached) ? 1.0f : 0.0f;
-		
-		// Reset light
-		lights[RESET_LIGHT].value =	resetLight;	
-		
-		// Run light
-		lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
-
-		if (editingLength > 0ul)
-			editingLength--;
-		if (editingGate > 0ul)
-			editingGate--;
-		if (infoCopyPaste != 0l) {
-			if (infoCopyPaste > 0l)
-				infoCopyPaste --;
-			if (infoCopyPaste < 0l)
-				infoCopyPaste ++;
-		}
 		if (slideStepsRemain > 0ul)
 			slideStepsRemain--;
-		if (tiedWarning > 0l)
-			tiedWarning--;
-		if (modeHoldDetect.process(params[RUNMODE_PARAM].value)) {
-			displayState = DISP_NORMAL;
-			editingPpqn = editPpqnTimeInit;
-		}
-		if (gate1HoldDetect.process(params[GATE1_PARAM].value)) {
-			toggleGate1a(&attributes[sequence][stepIndexEdit]);
-			editGateLengthTimeInitMult = 1;
-		}
-		if (gate2HoldDetect.process(params[GATE2_PARAM].value)) {
-			toggleGate2a(&attributes[sequence][stepIndexEdit]);
-			editGateLengthTimeInitMult = 100;
-		}
-		if (editingGateLength != 0l) {
-			if (editingGateLength > 0l)
-				editingGateLength --;
-			if (editingGateLength < 0l)
-				editingGateLength ++;
-		}
-		if (editingPpqn > 0l)
-			editingPpqn--;
+		
+		lightRefreshCounter++;
+		if (lightRefreshCounter > displayRefreshStepSkips) {
+			lightRefreshCounter = 0;
+
+			// Step/phrase lights
+			if (infoCopyPaste != 0l) {
+				for (int i = 0; i < 16; i++) {
+					if ( (i >= stepIndexEdit && i < (stepIndexEdit + countCP)) || (countCP == 16) )
+						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.5f;// Green when copy interval
+					else
+						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.0f; // Green (nothing)
+					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = 0.0f;// Red (nothing)
+				}
+			}
+			else {
+				for (int i = 0; i < 16; i++) {
+					if (editingLength > 0ul) {
+						// Length (green)
+						if (editingSequence)
+							lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < lengths[sequence]) ? 0.5f : 0.0f);
+						else
+							lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((i < phrases) ? 0.5f : 0.0f);
+						// Nothing (red)
+						lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = 0.0f;
+					}
+					else {
+						// Run cursor (green)
+						if (editingSequence)
+							lights[STEP_PHRASE_LIGHTS + (i<<1)].value = ((running && (i == stepIndexRun)) ? 1.0f : 0.0f);
+						else {
+							float green = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
+							green += ((running && (i == stepIndexRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
+							lights[STEP_PHRASE_LIGHTS + (i<<1)].value = clamp(green, 0.0f, 1.0f);
+						}
+						// Edit cursor (red)
+						if (editingSequence)
+							lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == stepIndexEdit ? 1.0f : 0.0f);
+						else
+							lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = (i == phraseIndexEdit ? 1.0f : 0.0f);
+					}
+				}
+			}
+		
+			// Octave lights
+			float octCV = 0.0f;
+			if (editingSequence)
+				octCV = cv[sequence][stepIndexEdit];
+			else
+				octCV = cv[phrase[phraseIndexEdit]][stepIndexRun];
+			int octLightIndex = (int) floor(octCV + 3.0f);
+			for (int i = 0; i < 7; i++) {
+				if (!editingSequence && (!attached || !running))// no oct lights when song mode and either (detached [1] or stopped [2])
+												// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
+												// [2] CV is set to 0V when not running and in song mode, so cv[][] makes no sense to display
+					lights[OCTAVE_LIGHTS + i].value = 0.0f;
+				else {
+					if (tiedWarning > 0l) {
+						bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+						lights[OCTAVE_LIGHTS + i].value = (warningFlashState && (i == (6 - octLightIndex))) ? 1.0f : 0.0f;
+					}
+					else				
+						lights[OCTAVE_LIGHTS + i].value = (i == (6 - octLightIndex) ? 1.0f : 0.0f);
+				}
+			}
+			
+			// Keyboard lights
+			float cvValOffset;
+			if (editingSequence) 
+				cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
+			else	
+				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
+			int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
+			if (editingGateLength != 0 && editingSequence) {
+				int modeLightIndex = gateModeToKeyLightIndex(attributes[sequence][stepIndexEdit], editingGateLength > 0l);
+				for (int i = 0; i < 12; i++) {
+					if (i == modeLightIndex) {
+						lights[KEY_LIGHTS + i * 2 + 0].value = editingGateLength > 0l ? 1.0f : 0.2f;
+						lights[KEY_LIGHTS + i * 2 + 1].value = editingGateLength > 0l ? 0.2f : 1.0f;
+					}
+					else { 
+						lights[KEY_LIGHTS + i * 2 + 0].value = 0.0f;
+						if (i == keyLightIndex) 
+							lights[KEY_LIGHTS + i * 2 + 1].value = 0.1f;	
+						else 
+							lights[KEY_LIGHTS + i * 2 + 1].value = 0.0f;
+					}
+				}
+			}
+			else {
+				for (int i = 0; i < 12; i++) {
+					lights[KEY_LIGHTS + i * 2 + 0].value = 0.0f;
+					if (!editingSequence && (!attached || !running))// no keyboard lights when song mode and either (detached [1] or stopped [2])
+													// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
+													// [2] CV is set to 0V when not running and in song mode, so cv[][] makes no sense to display
+						lights[KEY_LIGHTS + i * 2 + 1].value = 0.0f;
+					else {
+						if (tiedWarning > 0l) {
+							bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+							lights[KEY_LIGHTS + i * 2 + 1].value = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
+						}
+						else {
+							if (editingGate > 0ul && editingGateKeyLight != -1)
+								lights[KEY_LIGHTS + i * 2 + 1].value = (i == editingGateKeyLight ? ((float) editingGate / (float)(gateTime * sampleRate / displayRefreshStepSkips)) : 0.0f);
+							else
+								lights[KEY_LIGHTS + i * 2 + 1].value = (i == keyLightIndex ? 1.0f : 0.0f);
+						}
+					}
+				}	
+			}			
+			
+			// Gate1, Gate1Prob, Gate2, Slide and Tied lights
+			int attributesVal = attributes[sequence][stepIndexEdit];
+			if (!editingSequence)
+				attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
+			//
+			setGateLight(getGate1a(attributesVal), GATE1_LIGHT);
+			setGateLight(getGate2a(attributesVal), GATE2_LIGHT);
+			lights[GATE1_PROB_LIGHT].value = getGate1Pa(attributesVal) ? 1.0f : 0.0f;
+			lights[SLIDE_LIGHT].value = getSlideA(attributesVal) ? 1.0f : 0.0f;
+			if (tiedWarning > 0l) {
+				bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+				lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
+			}
+			else
+				lights[TIE_LIGHT].value = getTiedA(attributesVal) ? 1.0f : 0.0f;
+
+			// Attach light
+			lights[ATTACH_LIGHT].value = (running && attached) ? 1.0f : 0.0f;
+			
+			// Reset light
+			lights[RESET_LIGHT].value =	resetLight;	
+			
+			// Run light
+			lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
+			
+			if (tiedWarning > 0l)
+				tiedWarning--;
+			if (editingLength > 0ul)
+				editingLength--;
+			if (editingGate > 0ul)
+				editingGate--;
+			if (infoCopyPaste != 0l) {
+				if (infoCopyPaste > 0l)
+					infoCopyPaste --;
+				if (infoCopyPaste < 0l)
+					infoCopyPaste ++;
+			}
+			if (modeHoldDetect.process(params[RUNMODE_PARAM].value)) {
+				displayState = DISP_NORMAL;
+				editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+			}
+			if (gate1HoldDetect.process(params[GATE1_PARAM].value)) {
+				toggleGate1a(&attributes[sequence][stepIndexEdit]);
+				editGateLengthTimeInitMult = 1;
+			}
+			if (gate2HoldDetect.process(params[GATE2_PARAM].value)) {
+				toggleGate2a(&attributes[sequence][stepIndexEdit]);
+				editGateLengthTimeInitMult = 100;
+			}
+			if (editingPpqn > 0l)
+				editingPpqn--;
+			if (editingGateLength != 0l) {
+				if (editingGateLength > 0l)
+					editingGateLength --;
+				if (editingGateLength < 0l)
+					editingGateLength ++;
+			}
+		}// lightRefreshCounter
+		
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
 
@@ -1647,6 +1652,10 @@ struct PhraseSeq16Widget : ModuleWidget {
 Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromptu Modular", "Phrase-Seq-16", "SEQ - Phrase-Seq-16", SEQUENCER_TAG);
 
 /*CHANGE LOG
+
+0.6.11:
+step optimization of lights refresh
+
 
 0.6.10:
 add advanced gate mode

@@ -40,6 +40,7 @@ static const float lightLambda = 0.075f;
 static const std::string lightPanelID = "Classic";
 static const std::string darkPanelID = "Dark-valor";
 static const std::string expansionMenuLabel = "Extra CVs (requires +4HP to the right!)";
+static const int displayRefreshStepSkips = 200;
 
 
 // Constants for displaying notes

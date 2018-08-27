@@ -113,6 +113,7 @@ struct GateSeq64 : Module {
 	int ppqnCount;
 	long blinkCount;// positive upward counter, reset to 0 when max reached
 	int blinkNum;// number of blink cycles to do, downward counter
+	int lightRefreshCounter;
 
 	
 	static constexpr float CONFIG_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget initialization, since module created before widget
@@ -221,6 +222,7 @@ struct GateSeq64 : Module {
 		editingPpqn = 0l;
 		blinkCount = 0l;
 		blinkNum = 0;
+		lightRefreshCounter = 0;
 	}
 
 	
@@ -438,10 +440,6 @@ struct GateSeq64 : Module {
 		static const float revertDisplayTime = 0.7f;// seconds
 		static const float holdDetectTime = 2.0f;// seconds
 		float sampleRate = engineGetSampleRate();
-		long displayProbInfoInit = (long) (displayProbInfoTime * sampleRate);
-		long editPpqnTimeInit = (long) (2.5f * sampleRate);
-		long blinkCountInit = (long) (1.0f * sampleRate);
-		long blinkCountMarker = (long) (0.67f * sampleRate);
 		
 
 		
@@ -512,7 +510,7 @@ struct GateSeq64 : Module {
 					attributesCPbuffer[i] = attributes[sequence][s];
 				lengthCPbuffer = lengths[sequence];
 				modeCPbuffer = runModeSeq[sequence];
-				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate);
+				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			}
 			displayState = DISP_GATE;
 		}
@@ -537,7 +535,7 @@ struct GateSeq64 : Module {
 						lengths[sequence] = 16 * stepConfig;
 					runModeSeq[sequence] = modeCPbuffer;
 				}
-				infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate);
+				infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			}
 			displayState = DISP_GATE;
 		}
@@ -581,7 +579,7 @@ struct GateSeq64 : Module {
 				if (displayState == DISP_LENGTH) {
 					col = stepPressed % (16 * stepConfig);
 					lengths[sequence] = col + 1;
-					revertDisplay = (long) (revertDisplayTime * engineGetSampleRate());
+					revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 				}
 				else if (displayState == DISP_MODES) {
 				}
@@ -589,7 +587,7 @@ struct GateSeq64 : Module {
 					if (!getGate(sequence, stepPressed)) {// clicked inactive, so turn gate on
 						setGate(sequence, stepPressed, true);
 						if (getGateP(sequence, stepPressed))
-							displayProbInfo = displayProbInfoInit;
+							displayProbInfo = (long) (displayProbInfoTime * sampleRate / displayRefreshStepSkips);
 						else
 							displayProbInfo = 0l;
 					}
@@ -600,7 +598,7 @@ struct GateSeq64 : Module {
 						}
 						else {
 							if (getGateP(sequence, stepPressed))
-								displayProbInfo = displayProbInfoInit;
+								displayProbInfo = (long) (displayProbInfoTime * sampleRate / displayRefreshStepSkips);
 							else
 								displayProbInfo = 0l;
 						}
@@ -617,7 +615,7 @@ struct GateSeq64 : Module {
 						phrases = col + 1;
 						if (phrases > 16) phrases = 16;
 						if (phrases < 1 ) phrases = 1;
-						revertDisplay = (long) (revertDisplayTime * engineGetSampleRate());
+						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
 					else if (displayState == DISP_MODES) {
 						if (col >= 11 && col <= 15)
@@ -642,7 +640,7 @@ struct GateSeq64 : Module {
 			else
 				displayState = DISP_GATE;
 			//if (!running) {
-				modeHoldDetect.start((long) (holdDetectTime * sampleRate));
+				modeHoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
 			//}
 		}
 
@@ -655,7 +653,7 @@ struct GateSeq64 : Module {
 					setGateP(sequence, stepIndexEdit, false);
 				}
 				else {
-					displayProbInfo = displayProbInfoInit;
+					displayProbInfo = (long) (displayProbInfoTime * sampleRate / displayRefreshStepSkips);
 					setGateP(sequence, stepIndexEdit, true);
 				}
 			}
@@ -703,11 +701,11 @@ struct GateSeq64 : Module {
 					if (pval < 0)
 						pval = 0;
 					setGatePVal(sequence, stepIndexEdit, pval);
-					displayProbInfo = displayProbInfoInit;
+					displayProbInfo = (long) (displayProbInfoTime * sampleRate / displayRefreshStepSkips);
 				}
 				else if (editingPpqn != 0) {
 					pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
-					editingPpqn = editPpqnTimeInit;
+					editingPpqn = (long) (2.5f * sampleRate / displayRefreshStepSkips);
 				}
 				else if (displayState == DISP_MODES) {
 					if (editingSequence) {
@@ -814,134 +812,139 @@ struct GateSeq64 : Module {
 				outputs[GATE_OUTPUTS + i].value = 0.0f;	
 		}
 
-		// Step LED button lights
-		if (infoCopyPaste != 0l) {
-			for (int i = 0; i < 64; i++) {
-				if (i >= startCP && i < (startCP + countCP))
-					setGreenRed(STEP_LIGHTS + i * 2, 0.5f, 0.0f);
-				else
-					setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
+		lightRefreshCounter++;
+		if (lightRefreshCounter > displayRefreshStepSkips) {
+			lightRefreshCounter = 0;
+
+			// Step LED button lights
+			if (infoCopyPaste != 0l) {
+				for (int i = 0; i < 64; i++) {
+					if (i >= startCP && i < (startCP + countCP))
+						setGreenRed(STEP_LIGHTS + i * 2, 0.5f, 0.0f);
+					else
+						setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
+				}
 			}
-		}
-		else {
-			for (int i = 0; i < 64; i++) {
-				row = i >> (3 + stepConfig);//i / (16 * stepConfig);// optimized (not equivalent code, but in this case has same effect)
-				if (stepConfig == 2 && row == 1) 
-					row++;
-				col = (((stepConfig - 1) << 4) | 0xF) & i;//i % (16 * stepConfig);// optimized			
-				if (editingSequence) {
-					if (displayState == DISP_LENGTH) {
-						if (col < (lengths[sequence] - 1))
-							setGreenRed(STEP_LIGHTS + i * 2, 0.1f, 0.0f);
-						else if (col == (lengths[sequence] - 1))
-							setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
-						else 
-							setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
-					}
-					else {
-						float stepHereOffset = ((stepIndexRun == col) && running) ? 0.5f : 1.0f;
-						if (getGate(sequence, i)) {
-							bool blinkEnableOn = (displayState != DISP_MODES) && (blinkCount < blinkCountMarker);
-							if (getGateP(sequence, i)) {
-								if (i == stepIndexEdit)// more orange than yellow
-									setGreenRed(STEP_LIGHTS + i * 2, blinkEnableOn ? 1.0f : 0.0f, blinkEnableOn ? 1.0f : 0.0f);
-								else// more yellow
-									setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset, stepHereOffset);
-							}
-							else {
-								if (i == stepIndexEdit)
-									setGreenRed(STEP_LIGHTS + i * 2, blinkEnableOn ? 1.0f : 0.0f, 0.0f);
-								else
-									setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset, 0.0f);
-							}
+			else {
+				for (int i = 0; i < 64; i++) {
+					row = i >> (3 + stepConfig);//i / (16 * stepConfig);// optimized (not equivalent code, but in this case has same effect)
+					if (stepConfig == 2 && row == 1) 
+						row++;
+					col = (((stepConfig - 1) << 4) | 0xF) & i;//i % (16 * stepConfig);// optimized			
+					if (editingSequence) {
+						if (displayState == DISP_LENGTH) {
+							if (col < (lengths[sequence] - 1))
+								setGreenRed(STEP_LIGHTS + i * 2, 0.1f, 0.0f);
+							else if (col == (lengths[sequence] - 1))
+								setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
+							else 
+								setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
 						}
 						else {
-							if (i == stepIndexEdit && blinkCount > blinkCountMarker && displayState != DISP_MODES)
-								setGreenRed(STEP_LIGHTS + i * 2, 0.05f, 0.0f);
-							else
-								setGreenRed(STEP_LIGHTS + i * 2, ((stepIndexRun == col) && running) ? 0.1f : 0.0f, 0.0f);
+							float stepHereOffset = ((stepIndexRun == col) && running) ? 0.5f : 1.0f;
+							long blinkCountMarker = (long) (0.67f * sampleRate / displayRefreshStepSkips);							
+							if (getGate(sequence, i)) {
+								bool blinkEnableOn = (displayState != DISP_MODES) && (blinkCount < blinkCountMarker);
+								if (getGateP(sequence, i)) {
+									if (i == stepIndexEdit)// more orange than yellow
+										setGreenRed(STEP_LIGHTS + i * 2, blinkEnableOn ? 1.0f : 0.0f, blinkEnableOn ? 1.0f : 0.0f);
+									else// more yellow
+										setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset, stepHereOffset);
+								}
+								else {
+									if (i == stepIndexEdit)
+										setGreenRed(STEP_LIGHTS + i * 2, blinkEnableOn ? 1.0f : 0.0f, 0.0f);
+									else
+										setGreenRed(STEP_LIGHTS + i * 2, stepHereOffset, 0.0f);
+								}
+							}
+							else {
+								if (i == stepIndexEdit && blinkCount > blinkCountMarker && displayState != DISP_MODES)
+									setGreenRed(STEP_LIGHTS + i * 2, 0.05f, 0.0f);
+								else
+									setGreenRed(STEP_LIGHTS + i * 2, ((stepIndexRun == col) && running) ? 0.1f : 0.0f, 0.0f);
+							}
 						}
 					}
-				}
-				else {// editing Song
-					if (displayState == DISP_LENGTH) {
-						row = i >> 4;//i / 16;// optimized
-						col = i & 0xF;//i % 16;// optimized
-						if (row == 3 && col < (phrases - 1))
-							setGreenRed(STEP_LIGHTS + i * 2, 0.1f, 0.0f);
-						else if (row == 3 && col == (phrases - 1))
-							setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
-						else 
-							setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
+					else {// editing Song
+						if (displayState == DISP_LENGTH) {
+							row = i >> 4;//i / 16;// optimized
+							col = i & 0xF;//i % 16;// optimized
+							if (row == 3 && col < (phrases - 1))
+								setGreenRed(STEP_LIGHTS + i * 2, 0.1f, 0.0f);
+							else if (row == 3 && col == (phrases - 1))
+								setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
+							else 
+								setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
+						}
+						else {
+							float green;
+							if (running) 
+								green = (i == (phraseIndexRun + 48)) ? 1.0f : 0.0f;
+							else
+								green = (i == (phraseIndexEdit + 48)) ? 1.0f : 0.0f;
+							green += ((running && (col == stepIndexRun) && i != (phraseIndexEdit + 48)) ? 0.1f : 0.0f);
+							setGreenRed(STEP_LIGHTS + i * 2, clamp(green, 0.0f, 1.0f), 0.0f);
+						}				
 					}
-					else {
-						float green;
-						if (running) 
-							green = (i == (phraseIndexRun + 48)) ? 1.0f : 0.0f;
-						else
-							green = (i == (phraseIndexEdit + 48)) ? 1.0f : 0.0f;
-						green += ((running && (col == stepIndexRun) && i != (phraseIndexEdit + 48)) ? 0.1f : 0.0f);
-						setGreenRed(STEP_LIGHTS + i * 2, clamp(green, 0.0f, 1.0f), 0.0f);
-					}				
 				}
 			}
-		}
-		
-		// GateType lights
-		if (pulsesPerStep != 1 && editingSequence && getGate(sequence, stepIndexEdit)) {
-			int gmode = getGateMode(sequence, stepIndexEdit);
-			for (int i = 0; i < 8; i++) {
-				if (i == gmode) {
-					if ( (pulsesPerStep == 4 && i > 2) || (pulsesPerStep == 6 && i <= 2) ) // pps requirement not met
-						setGreenRed(GMODE_LIGHTS + i * 2, 0.0f, 1.0f);
+			
+			// GateType lights
+			if (pulsesPerStep != 1 && editingSequence && getGate(sequence, stepIndexEdit)) {
+				int gmode = getGateMode(sequence, stepIndexEdit);
+				for (int i = 0; i < 8; i++) {
+					if (i == gmode) {
+						if ( (pulsesPerStep == 4 && i > 2) || (pulsesPerStep == 6 && i <= 2) ) // pps requirement not met
+							setGreenRed(GMODE_LIGHTS + i * 2, 0.0f, 1.0f);
+						else
+							setGreenRed(GMODE_LIGHTS + i * 2, 1.0f, 0.0f);
+					}
 					else
-						setGreenRed(GMODE_LIGHTS + i * 2, 1.0f, 0.0f);
+						setGreenRed(GMODE_LIGHTS + i * 2, 0.0f, 0.0f);
 				}
-				else
+			}
+			else {
+				for (int i = 0; i < 8; i++) 
 					setGreenRed(GMODE_LIGHTS + i * 2, 0.0f, 0.0f);
 			}
-		}
-		else {
-			for (int i = 0; i < 8; i++) 
-				setGreenRed(GMODE_LIGHTS + i * 2, 0.0f, 0.0f);
-		}
-	
 		
-		// Reset light
-		lights[RESET_LIGHT].value =	resetLight;	
+			// Reset light
+			lights[RESET_LIGHT].value =	resetLight;	
 
-		// Run lights
-		lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
-				
-		if (infoCopyPaste != 0l) {
-			if (infoCopyPaste > 0l)
-				infoCopyPaste --;
-			if (infoCopyPaste < 0l)
-				infoCopyPaste ++;
-		}
-		if (displayProbInfo > 0l)
-			displayProbInfo--;
-		if (modeHoldDetect.process(params[MODES_PARAM].value)) {
-			displayState = DISP_GATE;
-			editingPpqn = editPpqnTimeInit;
-		}
-		if (editingPpqn > 0l)
-			editingPpqn--;
+			// Run lights
+			lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
+		
+			if (infoCopyPaste != 0l) {
+				if (infoCopyPaste > 0l)
+					infoCopyPaste --;
+				if (infoCopyPaste < 0l)
+					infoCopyPaste ++;
+			}
+			if (displayProbInfo > 0l)
+				displayProbInfo--;
+			if (modeHoldDetect.process(params[MODES_PARAM].value)) {
+				displayState = DISP_GATE;
+				editingPpqn = (long) (2.5f * sampleRate / displayRefreshStepSkips);
+			}
+			if (editingPpqn > 0l)
+				editingPpqn--;
+			if (revertDisplay > 0l) {
+				if (revertDisplay == 1)
+					displayState = DISP_GATE;
+				revertDisplay--;
+			}
+			if (blinkNum > 0) {
+				blinkCount++;
+				if (blinkCount >= (long) (1.0f * sampleRate / displayRefreshStepSkips)) {
+					blinkCount = 0l;
+					blinkNum--;
+				}
+			}
+		}// lightRefreshCounter
+
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
-		if (revertDisplay > 0l) {
-			if (revertDisplay == 1)
-				displayState = DISP_GATE;
-			revertDisplay--;
-		}
-		if (blinkNum > 0) {
-			blinkCount++;
-			if (blinkCount >= blinkCountInit) {
-				blinkCount = 0l;
-				blinkNum--;
-			}
-		}
-
 
 	}// step()
 	
@@ -1246,6 +1249,9 @@ struct GateSeq64Widget : ModuleWidget {
 Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Modular", "Gate-Seq-64", "SEQ - Gate-Seq-64", SEQUENCER_TAG);
 
 /*CHANGE LOG
+
+0.6.11:
+step optimization of lights refresh
 
 0.6.10:
 add advanced gate mode
