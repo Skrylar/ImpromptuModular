@@ -379,30 +379,29 @@ struct BigButtonSeq : Module {
 		
 		//********** Outputs and lights **********
 		
+		
+		// Gate outputs
 		bool bigPulseState = bigPulse.process((float)sampleTime);
 		bool outPulseState = outPulse.process((float)sampleTime);
-		
-		// Gate and light outputs
 		for (int i = 0; i < 6; i++) {
 			bool gate = getGate(i);
 			bool outSignal = (((gate || (i == chan && fillPressed)) && outPulseState) || (gate && bigPulseState && i == chan));
 			outputs[CHAN_OUTPUTS + i].value = outSignal ? 10.0f : 0.0f;
 		}
-		
+
 		
 		lightRefreshCounter++;
 		if (lightRefreshCounter > displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
 
+			// Gate light outputs
 			bool bigLightPulseState = bigLightPulse.process((float)sampleTime * displayRefreshStepSkips);
 			bool outLightPulseState = outLightPulse.process((float)sampleTime * displayRefreshStepSkips);
-			
-			// Gate and light outputs
 			for (int i = 0; i < 6; i++) {
 				bool gate = getGate(i);
 				bool outLight  = (((gate || (i == chan && fillPressed)) && outLightPulseState) || (gate && bigLightPulseState && i == chan));
-				lights[(CHAN_LIGHTS + i) * 2 + 1].setBrightnessSmooth(outLight ? 1.0f : 0.0f);
-				lights[(CHAN_LIGHTS + i) * 2 + 0].setBrightnessSmooth(i == chan ? (1.0f - lights[(CHAN_LIGHTS + i) * 2 + 1].value) / 2.0f : 0.0f);
+				lights[(CHAN_LIGHTS + i) * 2 + 1].setBrightnessSmooth(outLight ? 1.0f : 0.0f, displayRefreshStepSkips);
+				lights[(CHAN_LIGHTS + i) * 2 + 0].value = (i == chan ? (1.0f - lights[(CHAN_LIGHTS + i) * 2 + 1].value) / 2.0f : 0.0f);
 			}
 
 			// Big button lights
