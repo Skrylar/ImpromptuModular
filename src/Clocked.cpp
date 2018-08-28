@@ -258,7 +258,7 @@ struct Clocked : Module {
 	double timeoutTime;
 	long cantRunWarning;// 0 when no warning, positive downward step counter timer when warning
 	long editingBpmMode;// 0 when no edit bpmMode, downward step counter timer when edit, negative upward when show can't edit ("--") 
-	
+	int lightRefreshCounter;
 	
 	SchmittTrigger bpmModeTrigger;
 
@@ -297,6 +297,7 @@ struct Clocked : Module {
 		timeoutTime = 2.0 / ppqn + 0.1;
 		cantRunWarning = 0ul;
 		bpmModeTrigger.reset();
+		lightRefreshCounter = 0;
 		
 		onReset();
 	}
@@ -447,7 +448,6 @@ struct Clocked : Module {
 	void step() override {		
 		double sampleRate = (double)engineGetSampleRate();
 		double sampleTime = 1.0 / sampleRate;// do this here since engineGetSampleRate() returns float
-		long cantRunWarningInit = (long) (0.7 * engineGetSampleRate());
 
 		// Scheduled reset (just the parts that do not have a place below in rest of function)
 		if (scheduledReset) {
@@ -474,7 +474,7 @@ struct Clocked : Module {
 				}
 			}
 			else
-				cantRunWarning = cantRunWarningInit;
+				cantRunWarning = (long) (0.7 * sampleRate / displayRefreshStepSkips);
 		}
 
 		// Reset (has to be near top because it sets steps to 0, and 0 not a real step (clock section will move to 1 before reaching outputs)
@@ -482,9 +482,7 @@ struct Clocked : Module {
 			resetLight = 1.0f;
 			resetPulse.trigger(0.001f);
 			resetClocked();	
-		}
-		else
-			resetLight -= (resetLight / lightLambda) * (float)sampleTime;	
+		}	
 
 		// BPM mode
 		if (bpmModeTrigger.process(params[BPMMODE_PARAM].value)) {
@@ -505,10 +503,10 @@ struct Clocked : Module {
 							bpmDetectionMode = false;
 					}
 				}
-				editingBpmMode = (long) (3.0 * sampleRate);
+				editingBpmMode = (long) (3.0 * sampleRate / displayRefreshStepSkips);
 			}
 			else
-				editingBpmMode = (long) (-1.5 * sampleRate);
+				editingBpmMode = (long) (-1.5 * sampleRate / displayRefreshStepSkips);
 		}
 		
 		// BPM input and knob
@@ -598,7 +596,7 @@ struct Clocked : Module {
 			}
 			if (newSwingVal != swingVal[i]) {
 				swingVal[i] = newSwingVal;
-				swingInfo[i] = (long) (swingInfoTime * (float)sampleRate);// trigger swing info on channel i
+				swingInfo[i] = (long) (swingInfoTime * (float)sampleRate / displayRefreshStepSkips);// trigger swing info on channel i
 				delayInfo[i] = 0l;// cancel delayed being displayed (if so)
 			}
 			if (i > 0) {
@@ -609,7 +607,7 @@ struct Clocked : Module {
 				}
 				if (newDelayKnobIndex != delayKnobIndexes[i]) {
 					delayKnobIndexes[i] = newDelayKnobIndex;
-					delayInfo[i] = (long) (delayInfoTime * (float)sampleRate);// trigger delay info on channel i
+					delayInfo[i] = (long) (delayInfoTime * (float)sampleRate / displayRefreshStepSkips);// trigger delay info on channel i
 					swingInfo[i] = 0l;// cancel swing being displayed (if so)
 				}
 			}
@@ -696,51 +694,60 @@ struct Clocked : Module {
 			for (int i = 0; i < 4; i++) 
 				outputs[CLK_OUTPUTS + i].value = 0.0f;
 		}
-		
+		for (int i = 0; i < 4; i++)
+			clk[i].stepClock();
+			
 		// Chaining outputs
 		outputs[RESET_OUTPUT].value = (resetPulse.process((float)sampleTime) ? 10.0f : 0.0f);
 		outputs[RUN_OUTPUT].value = (runPulse.process((float)sampleTime) ? 10.0f : 0.0f);
 		outputs[BPM_OUTPUT].value =  inputs[BPM_INPUT].active ? inputs[BPM_INPUT].value : log2f(1.0f / masterLength);
 			
-		// Reset light
-		lights[RESET_LIGHT].value =	resetLight;	
 		
-		// Run light
-		lights[RUN_LIGHT].value = running;
-		
-		// BPM light
-		bool warningFlashState = true;
-		if (cantRunWarning > 0l) 
-			warningFlashState = calcWarningFlash(cantRunWarning, cantRunWarningInit);
-		lights[BPMSYNC_LIGHT + 0].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? 1.0f : 0.0f;
-		if (editingBpmMode < 0l)
-			lights[BPMSYNC_LIGHT + 1].value = 1.0f;
-		else
-			lights[BPMSYNC_LIGHT + 1].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
-		
-		// ratios synched lights
-		for (int i = 1; i < 4; i++) {
-			lights[CLK_LIGHTS + i].value = (syncRatios[i] && running) ? 1.0f: 0.0f;
-		}
+		lightRefreshCounter++;
+		if (lightRefreshCounter > displayRefreshStepSkips) {
+			lightRefreshCounter = 0;
 
-		// Incr/decr all counters related to step()
-		for (int i = 0; i < 4; i++) {
-			clk[i].stepClock();
-			if (swingInfo[i] > 0)
-				swingInfo[i]--;
-			if (delayInfo[i] > 0)
-				delayInfo[i]--;
-		}
-		if (cantRunWarning > 0l)
-			cantRunWarning--;
-		if (editingBpmMode != 0l) {
-			if (editingBpmMode > 0l)
-				editingBpmMode--;
+			// Reset light
+			lights[RESET_LIGHT].value =	resetLight;	
+			resetLight -= (resetLight / lightLambda) * (float)sampleTime * displayRefreshStepSkips;
+			
+			// Run light
+			lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
+			
+			// BPM light
+			bool warningFlashState = true;
+			if (cantRunWarning > 0l) 
+				warningFlashState = calcWarningFlash(cantRunWarning, (long) (0.7 * sampleRate / displayRefreshStepSkips));
+			lights[BPMSYNC_LIGHT + 0].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? 1.0f : 0.0f;
+			if (editingBpmMode < 0l)
+				lights[BPMSYNC_LIGHT + 1].value = 1.0f;
 			else
-				editingBpmMode++;
-		}
+				lights[BPMSYNC_LIGHT + 1].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
+			
+			// ratios synched lights
+			for (int i = 1; i < 4; i++) {
+				lights[CLK_LIGHTS + i].value = (syncRatios[i] && running) ? 1.0f: 0.0f;
+			}
+
+			// Incr/decr all counters related to step()
+			for (int i = 0; i < 4; i++) {
+				if (swingInfo[i] > 0)
+					swingInfo[i]--;
+				if (delayInfo[i] > 0)
+					delayInfo[i]--;
+			}
+			if (cantRunWarning > 0l)
+				cantRunWarning--;
+			if (editingBpmMode != 0l) {
+				if (editingBpmMode > 0l)
+					editingBpmMode--;
+				else
+					editingBpmMode++;
+			}
+		}// lightRefreshCounter
+		
 		scheduledReset = false;
-	}
+	}// step()
 };
 
 

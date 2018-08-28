@@ -1076,8 +1076,6 @@ struct PhraseSeq32 : Module {
 			displayState = DISP_NORMAL;
 			clockTrigger.reset();
 		}
-		else
-			resetLight -= (resetLight / lightLambda) * engineGetSampleTime();
 		
 		
 		//********** Outputs and lights **********
@@ -1271,7 +1269,8 @@ struct PhraseSeq32 : Module {
 			lights[ATTACH_LIGHT].value = (running && attached) ? 1.0f : 0.0f;
 			
 			// Reset light
-			lights[RESET_LIGHT].value =	resetLight;	
+			lights[RESET_LIGHT].value =	resetLight;
+			resetLight -= (resetLight / lightLambda) * engineGetSampleTime() * displayRefreshStepSkips;
 			
 			// Run light
 			lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;

@@ -90,6 +90,7 @@ struct BigButtonSeq : Module {
 	PulseGenerator outLightPulse;
 	PulseGenerator bigPulse;
 	PulseGenerator bigLightPulse;
+	int lightRefreshCounter;
 
 	
 	inline void toggleGate(int chan) {gates[chan][bank[chan]] ^= (((uint64_t)1) << (uint64_t)indexStep);}
@@ -121,6 +122,7 @@ struct BigButtonSeq : Module {
 		outLightPulse.reset();
 		bigPulse.reset();
 		bigLightPulse.reset();	
+		lightRefreshCounter = 0;
 		
 		onReset();
 	}
@@ -378,37 +380,49 @@ struct BigButtonSeq : Module {
 		//********** Outputs and lights **********
 		
 		bool bigPulseState = bigPulse.process((float)sampleTime);
-		bool bigLightPulseState = bigLightPulse.process((float)sampleTime);
 		bool outPulseState = outPulse.process((float)sampleTime);
-		bool outLightPulseState = outLightPulse.process((float)sampleTime);
 		
 		// Gate and light outputs
 		for (int i = 0; i < 6; i++) {
 			bool gate = getGate(i);
 			bool outSignal = (((gate || (i == chan && fillPressed)) && outPulseState) || (gate && bigPulseState && i == chan));
-			bool outLight  = (((gate || (i == chan && fillPressed)) && outLightPulseState) || (gate && bigLightPulseState && i == chan));
 			outputs[CHAN_OUTPUTS + i].value = outSignal ? 10.0f : 0.0f;
-			lights[(CHAN_LIGHTS + i) * 2 + 1].setBrightnessSmooth(outLight ? 1.0f : 0.0f);
-			lights[(CHAN_LIGHTS + i) * 2 + 0].setBrightnessSmooth(i == chan ? (1.0f - lights[(CHAN_LIGHTS + i) * 2 + 1].value) / 2.0f : 0.0f);
 		}
 		
-		// Big button lights
-		lights[BIG_LIGHT].value = bank[chan] == 1 ? 1.0f : 0.0f;
-		lights[BIGC_LIGHT].value = bigLight;
 		
-		// Metronome light
-		lights[METRONOME_LIGHT + 1].value =  metronomeLightStart;
-		lights[METRONOME_LIGHT + 0].value =  metronomeLightDiv;
+		lightRefreshCounter++;
+		if (lightRefreshCounter > displayRefreshStepSkips) {
+			lightRefreshCounter = 0;
+
+			bool bigLightPulseState = bigLightPulse.process((float)sampleTime * displayRefreshStepSkips);
+			bool outLightPulseState = outLightPulse.process((float)sampleTime * displayRefreshStepSkips);
+			
+			// Gate and light outputs
+			for (int i = 0; i < 6; i++) {
+				bool gate = getGate(i);
+				bool outLight  = (((gate || (i == chan && fillPressed)) && outLightPulseState) || (gate && bigLightPulseState && i == chan));
+				lights[(CHAN_LIGHTS + i) * 2 + 1].setBrightnessSmooth(outLight ? 1.0f : 0.0f);
+				lights[(CHAN_LIGHTS + i) * 2 + 0].setBrightnessSmooth(i == chan ? (1.0f - lights[(CHAN_LIGHTS + i) * 2 + 1].value) / 2.0f : 0.0f);
+			}
+
+			// Big button lights
+			lights[BIG_LIGHT].value = bank[chan] == 1 ? 1.0f : 0.0f;
+			lights[BIGC_LIGHT].value = bigLight;
+			
+			// Metronome light
+			lights[METRONOME_LIGHT + 1].value = metronomeLightStart;
+			lights[METRONOME_LIGHT + 0].value = metronomeLightDiv;
+		
+		
+			bigLight -= (bigLight / lightLambda) * (float)sampleTime * displayRefreshStepSkips;	
+			metronomeLightStart -= (metronomeLightStart / lightLambda) * (float)sampleTime * displayRefreshStepSkips;	
+			metronomeLightDiv -= (metronomeLightDiv / lightLambda) * (float)sampleTime * displayRefreshStepSkips;
+		}
+		
+		clockTime += sampleTime;
 		
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
-		
-		bigLight -= (bigLight / lightLambda) * (float)sampleTime;	
-		metronomeLightStart -= (metronomeLightStart / lightLambda) * (float)sampleTime;	
-		metronomeLightDiv -= (metronomeLightDiv / lightLambda) * (float)sampleTime;
-
-		clockTime += sampleTime;
-		
 		scheduledReset = false;		
 	}// step()
 	
