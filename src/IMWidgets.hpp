@@ -79,6 +79,14 @@ TDynamicPort* createDynamicPort(Vec pos, Port::PortType type, Module *module, in
 	dynPort->mode = mode;
 	return dynPort;
 }
+template <class TDynamicPort>
+TDynamicPort* createDynamicPortCentered(Vec pos, Port::PortType type, Module *module, int portId,
+                                               int* mode) {
+	TDynamicPort *dynPort = Port::create<TDynamicPort>(pos, type, module, portId);
+	dynPort->mode = mode;
+	dynPort->box.pos = dynPort->box.pos.minus(dynPort->box.size.div(2));// centering
+	return dynPort;
+}
 
 // Dynamic SVGPort (see SVGPort in app.hpp and SVGPort.cpp)
 struct DynamicSVGPort : SVGPort {
@@ -101,6 +109,14 @@ TDynamicParam* createDynamicParam(Vec pos, Module *module, int paramId, float mi
                                                int* mode) {
 	TDynamicParam *dynParam = ParamWidget::create<TDynamicParam>(pos, module, paramId, minValue, maxValue, defaultValue);
 	dynParam->mode = mode;
+	return dynParam;
+}
+template <class TDynamicParam>
+TDynamicParam* createDynamicParamCentered(Vec pos, Module *module, int paramId, float minValue, float maxValue, float defaultValue,
+                                               int* mode) {
+	TDynamicParam *dynParam = ParamWidget::create<TDynamicParam>(pos, module, paramId, minValue, maxValue, defaultValue);
+	dynParam->mode = mode;
+	dynParam->box.pos = dynParam->box.pos.minus(dynParam->box.size.div(2));// centering
 	return dynParam;
 }
 
