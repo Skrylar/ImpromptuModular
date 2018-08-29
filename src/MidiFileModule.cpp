@@ -14,6 +14,7 @@
 
 /* temporary notes
 https://www.midi.org/specifications-old/item/table-1-summary-of-midi-message
+https://www.midi.org/specifications-old/item/table-3-control-change-messages-data-bytes-2
 
 Dekstop (callback mechanism and file opening):
 https://github.com/dekstop/vcvrackplugins_dekstop/blob/master/src/Recorder.cpp
@@ -399,6 +400,7 @@ struct MidiFileModule : Module {
 				if (event >= midifile[track].size()) {
 					running = false;// TODO implement loop switch to optionally loop the song
 					event = 0;
+					time = 0.0;
 					break;
 				}
 				

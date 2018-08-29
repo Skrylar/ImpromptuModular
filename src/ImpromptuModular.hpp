@@ -125,6 +125,15 @@ struct IMBigPushButton : DynamicSVGSwitch, MomentarySwitch {
 	}
 };
 
+struct IMPushButton : DynamicSVGSwitch, MomentarySwitch {
+	IMPushButton() {
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/light/comp/TL1105_0.svg")));
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/light/comp/TL1105_1.svg")));
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/dark/comp/TL1105_0.svg")));
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/dark/comp/TL1105_1.svg")));	
+	}
+};
+
 struct LEDBezelBig : SVGSwitch, MomentarySwitch {
 	TransformWidget *tw;
 	LEDBezelBig();

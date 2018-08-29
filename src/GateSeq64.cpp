@@ -1152,11 +1152,11 @@ struct GateSeq64Widget : ModuleWidget {
 		for (int y = 0; y < 4; y++) {
 			int posX = colRulerSteps;
 			for (int x = 0; x < 16; x++) {
-				addParam(ParamWidget::create<LEDButton>(Vec(posX, rowRuler0 + 8 + y * spacingRows - 4.4f), module, GateSeq64::STEP_PARAMS + y * 16 + x, 0.0f, 1.0f, 0.0f));
-				addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(posX + 4.4f, rowRuler0 + 8 + y * spacingRows), module, GateSeq64::STEP_LIGHTS + (y * 16 + x) * 2));
+				addParam(createParam<LEDButton>(Vec(posX, rowRuler0 + 8 + y * spacingRows - 4.4f), module, GateSeq64::STEP_PARAMS + y * 16 + x, 0.0f, 1.0f, 0.0f));
+				addChild(createLight<MediumLight<GreenRedLight>>(Vec(posX + 4.4f, rowRuler0 + 8 + y * spacingRows), module, GateSeq64::STEP_LIGHTS + (y * 16 + x) * 2));
 				
 				if (y == 3 && ((x & 0x1) == 0)) {
-					addChild(ModuleLightWidget::create<SmallLight<GreenRedLight>>(Vec(posX + 3, 169), module, GateSeq64::GMODE_LIGHTS + x));	
+					addChild(createLight<SmallLight<GreenRedLight>>(Vec(posX + 3, 169), module, GateSeq64::GMODE_LIGHTS + x));	
 				}
 				
 				posX += spacingSteps;
@@ -1182,8 +1182,8 @@ struct GateSeq64Widget : ModuleWidget {
 		
 		
 		// GateMode buttons
-		addParam(ParamWidget::create<TL1105>(Vec(colRulerC0 - 10 , rowRulerC0 + offsetTL1105), module, GateSeq64::GMODELEFT_PARAM, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<TL1105>(Vec(colRulerC0 + 20, rowRulerC0 + offsetTL1105), module, GateSeq64::GMODERIGHT_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(createDynamicParam<IMPushButton>(Vec(colRulerC0 - 10 , rowRulerC0 + offsetTL1105), module, GateSeq64::GMODELEFT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMPushButton>(Vec(colRulerC0 + 20, rowRulerC0 + offsetTL1105), module, GateSeq64::GMODERIGHT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Clock input
 		addInput(createDynamicPort<IMPort>(Vec(colRulerC0, rowRulerC1), Port::INPUT, module, GateSeq64::CLOCK_INPUT, &module->panelTheme));
 		// Reset CV
@@ -1193,16 +1193,16 @@ struct GateSeq64Widget : ModuleWidget {
 		// Prob button
 		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerC1 + offsetCKD6b, rowRulerC0 + offsetCKD6b), module, GateSeq64::PROB_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Reset LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC1 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq64::RESET_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC1 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RESET_LIGHT));
+		addParam(createParam<LEDBezel>(Vec(colRulerC1 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq64::RESET_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MuteLight<GreenLight>>(Vec(colRulerC1 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RESET_LIGHT));
 		// Seq CV
 		addInput(createDynamicPort<IMPort>(Vec(colRulerC1, rowRulerC2), Port::INPUT, module, GateSeq64::SEQCV_INPUT, &module->panelTheme));
 		
 		// Sequence knob
 		addParam(createDynamicParam<IMBigKnobInf>(Vec(colRulerC2 + 1 + offsetIMBigKnob, rowRulerC0 + offsetIMBigKnob), module, GateSeq64::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
 		// Run LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerC2 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq64::RUN_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerC2 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RUN_LIGHT));
+		addParam(createParam<LEDBezel>(Vec(colRulerC2 + offsetLEDbezel, rowRulerC1 + offsetLEDbezel), module, GateSeq64::RUN_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MuteLight<GreenLight>>(Vec(colRulerC2 + offsetLEDbezel + offsetLEDbezelLight, rowRulerC1 + offsetLEDbezel + offsetLEDbezelLight), module, GateSeq64::RUN_LIGHT));
 		// Run CV
 		addInput(createDynamicPort<IMPort>(Vec(colRulerC2, rowRulerC2), Port::INPUT, module, GateSeq64::RUNCV_INPUT, &module->panelTheme));
 
@@ -1216,16 +1216,16 @@ struct GateSeq64Widget : ModuleWidget {
 		// Modes button
 		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerC3 + offsetCKD6b, rowRulerC1 + offsetCKD6b), module, GateSeq64::MODES_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Copy/paste buttons
-		addParam(ParamWidget::create<TL1105>(Vec(colRulerC3 - 10, rowRulerC2 + offsetTL1105), module, GateSeq64::COPY_PARAM, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<TL1105>(Vec(colRulerC3 + 20, rowRulerC2 + offsetTL1105), module, GateSeq64::PASTE_PARAM, 0.0f, 1.0f, 0.0f));
+		addParam(createDynamicParam<IMPushButton>(Vec(colRulerC3 - 10, rowRulerC2 + offsetTL1105), module, GateSeq64::COPY_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMPushButton>(Vec(colRulerC3 + 20, rowRulerC2 + offsetTL1105), module, GateSeq64::PASTE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		
 
 		// Seq/Song selector
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerC4 + 2 + hOffsetCKSS, rowRulerC0 + vOffsetCKSS), module, GateSeq64::EDIT_PARAM, 0.0f, 1.0f, GateSeq64::EDIT_PARAM_INIT_VALUE));
+		addParam(createParam<CKSS>(Vec(colRulerC4 + 2 + hOffsetCKSS, rowRulerC0 + vOffsetCKSS), module, GateSeq64::EDIT_PARAM, 0.0f, 1.0f, GateSeq64::EDIT_PARAM_INIT_VALUE));
 		// Config switch (3 position)
-		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC4 + 2 + hOffsetCKSS, rowRulerC1 - 2 + vOffsetCKSSThree), module, GateSeq64::CONFIG_PARAM, 0.0f, 2.0f, GateSeq64::CONFIG_PARAM_INIT_VALUE));// 0.0f is top position
+		addParam(createParam<CKSSThreeInv>(Vec(colRulerC4 + 2 + hOffsetCKSS, rowRulerC1 - 2 + vOffsetCKSSThree), module, GateSeq64::CONFIG_PARAM, 0.0f, 2.0f, GateSeq64::CONFIG_PARAM_INIT_VALUE));// 0.0f is top position
 		// Copy paste mode
-		addParam(ParamWidget::create<CKSSThreeInv>(Vec(colRulerC4 + 2 + hOffsetCKSS, rowRulerC2 + vOffsetCKSSThree), module, GateSeq64::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));
+		addParam(createParam<CKSSThreeInv>(Vec(colRulerC4 + 2 + hOffsetCKSS, rowRulerC2 + vOffsetCKSSThree), module, GateSeq64::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));
 
 		// Outputs
 		for (int iSides = 0; iSides < 4; iSides++)

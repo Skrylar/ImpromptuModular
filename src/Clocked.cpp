@@ -994,14 +994,14 @@ struct ClockedWidget : ModuleWidget {
 		
 		// Row 1
 		// Reset LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerL + offsetLEDbezel, rowRuler1 + offsetLEDbezel), module, Clocked::RESET_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerL + offsetLEDbezel + offsetLEDbezelLight, rowRuler1 + offsetLEDbezel + offsetLEDbezelLight), module, Clocked::RESET_LIGHT));
+		addParam(createParam<LEDBezel>(Vec(colRulerL + offsetLEDbezel, rowRuler1 + offsetLEDbezel), module, Clocked::RESET_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MuteLight<GreenLight>>(Vec(colRulerL + offsetLEDbezel + offsetLEDbezelLight, rowRuler1 + offsetLEDbezel + offsetLEDbezelLight), module, Clocked::RESET_LIGHT));
 		// Run LED bezel and light
-		addParam(ParamWidget::create<LEDBezel>(Vec(colRulerT1 + offsetLEDbezel, rowRuler1 + offsetLEDbezel), module, Clocked::RUN_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<MuteLight<GreenLight>>(Vec(colRulerT1 + offsetLEDbezel + offsetLEDbezelLight, rowRuler1 + offsetLEDbezel + offsetLEDbezelLight), module, Clocked::RUN_LIGHT));
+		addParam(createParam<LEDBezel>(Vec(colRulerT1 + offsetLEDbezel, rowRuler1 + offsetLEDbezel), module, Clocked::RUN_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MuteLight<GreenLight>>(Vec(colRulerT1 + offsetLEDbezel + offsetLEDbezelLight, rowRuler1 + offsetLEDbezel + offsetLEDbezelLight), module, Clocked::RUN_LIGHT));
 		// BPM mode and light
-		addParam(ParamWidget::create<TL1105>(Vec(colRulerT2 + offsetTL1105, rowRuler1 + offsetTL1105), module, Clocked::BPMMODE_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(ModuleLightWidget::create<SmallLight<GreenRedLight>>(Vec(colRulerM1 + 62, rowRuler1 + offsetMediumLight), module, Clocked::BPMSYNC_LIGHT));		
+		addParam(createDynamicParam<IMPushButton>(Vec(colRulerT2 + offsetTL1105, rowRuler1 + offsetTL1105), module, Clocked::BPMMODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(createLight<SmallLight<GreenRedLight>>(Vec(colRulerM1 + 62, rowRuler1 + offsetMediumLight), module, Clocked::BPMSYNC_LIGHT));		
 		// Swing master knob
 		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT3 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 0, -1.0f, 1.0f, 0.0f, &module->panelTheme));
 		// PW master knob
@@ -1022,7 +1022,7 @@ struct ClockedWidget : ModuleWidget {
 			displayRatios[i + 1]->knobIndex = i + 1;
 			addChild(displayRatios[i + 1]);
 			// Sync light
-			addChild(ModuleLightWidget::create<SmallLight<RedLight>>(Vec(colRulerM1 + 62, rowRuler2 + i * rowSpacingClks + 10), module, Clocked::CLK_LIGHTS + i + 1));		
+			addChild(createLight<SmallLight<RedLight>>(Vec(colRulerM1 + 62, rowRuler2 + i * rowSpacingClks + 10), module, Clocked::CLK_LIGHTS + i + 1));		
 			// Swing knobs
 			addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM2 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 1 + i, -1.0f, 1.0f, 0.0f, &module->panelTheme));
 			// PW knobs

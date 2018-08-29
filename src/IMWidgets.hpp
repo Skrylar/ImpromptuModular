@@ -107,14 +107,14 @@ struct DynamicSVGPort : SVGPort {
 template <class TDynamicParam>
 TDynamicParam* createDynamicParam(Vec pos, Module *module, int paramId, float minValue, float maxValue, float defaultValue,
                                                int* mode) {
-	TDynamicParam *dynParam = ParamWidget::create<TDynamicParam>(pos, module, paramId, minValue, maxValue, defaultValue);
+	TDynamicParam *dynParam = createParam<TDynamicParam>(pos, module, paramId, minValue, maxValue, defaultValue);
 	dynParam->mode = mode;
 	return dynParam;
 }
 template <class TDynamicParam>
 TDynamicParam* createDynamicParamCentered(Vec pos, Module *module, int paramId, float minValue, float maxValue, float defaultValue,
                                                int* mode) {
-	TDynamicParam *dynParam = ParamWidget::create<TDynamicParam>(pos, module, paramId, minValue, maxValue, defaultValue);
+	TDynamicParam *dynParam = createParam<TDynamicParam>(pos, module, paramId, minValue, maxValue, defaultValue);
 	dynParam->mode = mode;
 	dynParam->box.pos = dynParam->box.pos.minus(dynParam->box.size.div(2));// centering
 	return dynParam;
@@ -150,7 +150,7 @@ struct DynamicSVGKnob : SVGKnob {
 template <class TDynamicParam>
 TDynamicParam* createDynamicParam2(Vec pos, Module *module, int paramId, float minValue, float maxValue, float defaultValue,
                                                float* wider, float* paramReadRequest) {
-	TDynamicParam *dynParam = ParamWidget::create<TDynamicParam>(pos, module, paramId, minValue, maxValue, defaultValue);
+	TDynamicParam *dynParam = createParam<TDynamicParam>(pos, module, paramId, minValue, maxValue, defaultValue);
 	dynParam->wider = wider;
 	dynParam->paramReadRequest = paramReadRequest;
 	return dynParam;

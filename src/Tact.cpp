@@ -419,8 +419,8 @@ struct TactWidget : ModuleWidget {
 				
 		// Tactile lights
 		for (int i = 0 ; i < Tact::numLights; i++) {
-			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(colRulerLedL, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact::TACT_LIGHTS + i * 2));
-			addChild(ModuleLightWidget::create<MediumLight<GreenRedLight>>(Vec(colRulerLedR, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact::TACT_LIGHTS + (Tact::numLights + i) * 2));
+			addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerLedL, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact::TACT_LIGHTS + i * 2));
+			addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerLedR, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact::TACT_LIGHTS + (Tact::numLights + i) * 2));
 		}
 
 		
@@ -437,15 +437,15 @@ struct TactWidget : ModuleWidget {
 		static const int rowRuler1d = rowRuler2 - 54;
 		
 		// Slide switches
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerC3L + hOffsetCKSS, rowRuler1d + vOffsetCKSS), module, Tact::SLIDE_PARAMS + 0, 0.0f, 1.0f, 0.0f));		
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerC3R + hOffsetCKSS, rowRuler1d + vOffsetCKSS), module, Tact::SLIDE_PARAMS + 1, 0.0f, 1.0f, 0.0f));		
+		addParam(createParam<CKSS>(Vec(colRulerC3L + hOffsetCKSS, rowRuler1d + vOffsetCKSS), module, Tact::SLIDE_PARAMS + 0, 0.0f, 1.0f, 0.0f));		
+		addParam(createParam<CKSS>(Vec(colRulerC3R + hOffsetCKSS, rowRuler1d + vOffsetCKSS), module, Tact::SLIDE_PARAMS + 1, 0.0f, 1.0f, 0.0f));		
 
 
 		static const int rowRuler1c = rowRuler1d - 46;
 
 		// Store buttons
-		addParam(ParamWidget::create<TL1105>(Vec(colRulerC3L + offsetTL1105, rowRuler1c + offsetTL1105), module, Tact::STORE_PARAMS + 0, 0.0f, 1.0f, 0.0f));
-		addParam(ParamWidget::create<TL1105>(Vec(colRulerC3R + offsetTL1105, rowRuler1c + offsetTL1105), module, Tact::STORE_PARAMS + 1, 0.0f, 1.0f, 0.0f));
+		addParam(createDynamicParam<IMPushButton>(Vec(colRulerC3L + offsetTL1105, rowRuler1c + offsetTL1105), module, Tact::STORE_PARAMS + 0, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMPushButton>(Vec(colRulerC3R + offsetTL1105, rowRuler1c + offsetTL1105), module, Tact::STORE_PARAMS + 1, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		
 		
 		static const int rowRuler1b = rowRuler1c - 59;
@@ -468,7 +468,7 @@ struct TactWidget : ModuleWidget {
 		static const int colRulerC2R = colRulerCenter + 65 + 1; 
 
 		// Exp switch
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerCenter + hOffsetCKSS, rowRuler2 + vOffsetCKSS), module, Tact::EXP_PARAM, 0.0f, 1.0f, 0.0f));		
+		addParam(createParam<CKSS>(Vec(colRulerCenter + hOffsetCKSS, rowRuler2 + vOffsetCKSS), module, Tact::EXP_PARAM, 0.0f, 1.0f, 0.0f));		
 
 		// Top/bot CV Inputs
 		addInput(createDynamicPort<IMPort>(Vec(colRulerC2L, rowRuler2), Port::INPUT, module, Tact::TOP_INPUTS + 0, &module->panelTheme));		
@@ -480,7 +480,7 @@ struct TactWidget : ModuleWidget {
 		static const int rowRuler3 = rowRuler2 + 54;
 
 		// Link switch
-		addParam(ParamWidget::create<CKSS>(Vec(colRulerCenter + hOffsetCKSS, rowRuler3 + vOffsetCKSS), module, Tact::LINK_PARAM, 0.0f, 1.0f, 0.0f));		
+		addParam(createParam<CKSS>(Vec(colRulerCenter + hOffsetCKSS, rowRuler3 + vOffsetCKSS), module, Tact::LINK_PARAM, 0.0f, 1.0f, 0.0f));		
 
 		// Outputs
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerCenter - 49 - 1, rowRuler3), Port::OUTPUT, module, Tact::CV_OUTPUTS + 0, &module->panelTheme));
@@ -492,8 +492,8 @@ struct TactWidget : ModuleWidget {
 
 		
 		// Lights
-		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(colRulerCenter - 47 - 1 + offsetMediumLight, rowRuler2 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 0 * 2));		
-		addChild(ModuleLightWidget::create<SmallLight<GreenLight>>(Vec(colRulerCenter + 47 + 1 + offsetMediumLight, rowRuler2 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 1 * 2));		
+		addChild(createLight<SmallLight<GreenLight>>(Vec(colRulerCenter - 47 - 1 + offsetMediumLight, rowRuler2 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 0 * 2));		
+		addChild(createLight<SmallLight<GreenLight>>(Vec(colRulerCenter + 47 + 1 + offsetMediumLight, rowRuler2 - 24 + offsetMediumLight), module, Tact::CVIN_LIGHTS + 1 * 2));		
 
 	}
 };
