@@ -18,7 +18,7 @@ Impromptu Modular is not a single-person endeavor:
 * Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in Talking Rackheads [epsiode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg), as well as PhraseSeq32 and GateSeq64 in [episode 10](https://www.youtube.com/watch?v=bjqWwTKqERQ) and Clocked in [episode 12](https://www.youtube.com/watch?v=ymfOh1yCzU4). 
 * Thanks to **Xavier Belmont** for suggesting improvements to the modules, for testing/bug-reports, for the concept design of the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
 * Thanks to **Steve Baker** for many fruitful discussions regarding the BPM Detection method in Clocked, testing and improvements that were suggested for that module. 
-* Thanks to **Omri Cohen** for testing and suggesting improvements to the modules, and for the [PhraseSeq16/32 tutorial](https://www.youtube.com/watch?v=N8_rMNzsS7w).
+* Thanks to **Omri Cohen** for testing and suggesting improvements to the modules, and for the [PhraseSeq16/32 tutorial](https://www.youtube.com/watch?v=N8_rMNzsS7w) and the [advanceed gate mode tutorial](https://www.youtube.com/watch?v=B2w0_h5oN6M).
 * Thanks to **Latif Karoumi** for [testing](https://www.youtube.com/watch?v=5PZCXvWlFZM) and suggesting improvement to the modules, particularly the advanced gate modes in the GateSeq64 and PhraseSeq sequencers.
 * Thanks also to **Pyer (Pierre Collard)**, **Alfredo Santamaria**, **Nay Seven**, **Alberto Zamora**, **Clément Foulc**, **Espen Storo**, **Wouter Spekkink**, **John Melcher** for suggesting improvements to the modules, bug reports and testing.
 
@@ -194,6 +194,8 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 ### Advanced gate mode<a id="advanced-gate-mode-ps"></a>
 
+For a video introduction to the advanced gate mode, please see Omri Cohen's [advanceed gate mode tutorial](https://www.youtube.com/watch?v=B2w0_h5oN6M).
+
 Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than 1, which unlocks the advanced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In such cases, a mutliplied clock must be supplied in order to keep the same tempo in the sequencer. In advanced gate mode, the pulse width of the clock is not used and has no effect on the gates.
 
 In the advanced gate mode, the Gate1 and Gate2 lights will be a different color, and the onboard keyboard can be used not only to enter note values, but also to select one of the 12 types of gates for a given step. Advanced gates can only be set while in Seq mode and when the sequencer is stopped. Here are the different gate types and their minimum PPS requirements.
@@ -244,6 +246,8 @@ Although no **write** capabilities appear in the main part of the module, automa
 
 
 ### Advanced gate mode<a id="advanced-gate-mode-gs"></a>
+
+The advanced gate mode in GateSeq64 has some similarities to the one available in the PhraseSeq16/32 sequencers, and is covered in Omri Cohen's [advanceed gate mode tutorial](https://www.youtube.com/watch?v=B2w0_h5oN6M).
 
 Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than 1, which unlocks the advanced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In such cases, a mutliplied clock must be supplied in order to keep the same tempo in the sequencer. In advanced gate mode, the pulse width of the clock is not used and has no effect on the gates.
 
