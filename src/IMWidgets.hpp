@@ -20,7 +20,7 @@ using namespace rack;
 // General Dynamic Screw creation
 template <class TWidget>
 TWidget* createDynamicScrew(Vec pos, int* mode) {
-	TWidget *dynScrew = Widget::create<TWidget>(pos);
+	TWidget *dynScrew = createWidget<TWidget>(pos);
 	dynScrew->mode = mode;
 	return dynScrew;
 }
@@ -75,14 +75,16 @@ struct DynamicSVGPanel : FramebufferWidget { // like SVGPanel (in app.hpp and SV
 template <class TDynamicPort>
 TDynamicPort* createDynamicPort(Vec pos, Port::PortType type, Module *module, int portId,
                                                int* mode) {
-	TDynamicPort *dynPort = Port::create<TDynamicPort>(pos, type, module, portId);
+	TDynamicPort *dynPort = createInput<TDynamicPort>(pos, module, portId);
+	dynPort->type = type;
 	dynPort->mode = mode;
 	return dynPort;
 }
 template <class TDynamicPort>
 TDynamicPort* createDynamicPortCentered(Vec pos, Port::PortType type, Module *module, int portId,
                                                int* mode) {
-	TDynamicPort *dynPort = Port::create<TDynamicPort>(pos, type, module, portId);
+	TDynamicPort *dynPort = createInput<TDynamicPort>(pos, type, module, portId);
+	dynPort->type = type;
 	dynPort->mode = mode;
 	dynPort->box.pos = dynPort->box.pos.minus(dynPort->box.size.div(2));// centering
 	return dynPort;

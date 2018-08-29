@@ -76,7 +76,7 @@ struct MidiFileModule : Module {
 	enum PolyMode {ROTATE_MODE, REUSE_MODE, RESET_MODE, REASSIGN_MODE, UNISON_MODE, NUM_MODES};
 	
 	// Need to save, with reset
-	// none
+	int loop;// 0 for no loop, 1 for loop-ply (loop automatically after reach end)
 	
 	// Need to save, no reset
 	int panelTheme;
@@ -130,7 +130,7 @@ struct MidiFileModule : Module {
 	// onReset() is also called when right-click initialization of module
 	void onReset() override {
 		// Need to save, with reset
-		// none
+		loop = 1;
 		
 		// No need to save, with reset
 		running = false;
@@ -373,9 +373,7 @@ struct MidiFileModule : Module {
 	
 	//------------ END QuadMIDIToCVInterface.cpp ------------------
 	
-	
-
-	
+		
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		double sampleTime = engineGetSampleTime();
@@ -393,25 +391,29 @@ struct MidiFileModule : Module {
 		
 		//********** Clock and reset **********
 		
-		int track = 0;// midifile was flattened when loaded
+		// "Clock"
+		const int track = 0;// midifile was flattened when loaded
 		double readTime = 0.0;
 		if (running) {
-			for (int ii = 0; ii < 100; ii++) {// assumes max N events at the same time
+			for (int ii = 0; ii < 200; ii++) {// assumes max N events at the same time
 				if (event >= midifile[track].size()) {
-					running = false;// TODO implement loop switch to optionally loop the song
+					if (loop == 0)
+						running = false;
 					event = 0;
 					time = 0.0;
 					break;
 				}
 				
 				readTime = midifile[track][event].seconds;
-				if (readTime > time)
+				if (readTime > time) {
+					time += sampleTime;
 					break;
+				}
 
 				processMessage(&midifile[track][event]);
 				event++;
 			}	
-			time += sampleTime;
+			
 		}
 		
 		
@@ -422,6 +424,7 @@ struct MidiFileModule : Module {
 			resetLight = 1.0f;
 			time = 0.0;
 			event = 0;
+			// TODO : reset all the QuadMIDIToCVInterface data
 		}				
 		
 		
@@ -434,7 +437,7 @@ struct MidiFileModule : Module {
 			outputs[CV_OUTPUTS + i].value = (lastNote - 60) / 12.f;
 			outputs[GATE_OUTPUTS + i].value = (lastGate && running) ? 10.f : 0.f;
 			outputs[VELOCITY_OUTPUTS + i].value = rescale(noteData[lastNote].velocity, 0, 127, 0.f, 10.f);
-			outputs[AFTERTOUCH_OUTPUTS + i].value = rescale(noteData[lastNote].aftertouch, 0, 127, 0.f, 10.f);
+			//outputs[AFTERTOUCH_OUTPUTS + i].value = rescale(noteData[lastNote].aftertouch, 0, 127, 0.f, 10.f);
 		}		
 		
 		
@@ -444,7 +447,7 @@ struct MidiFileModule : Module {
 		
 		// Reset light
 		lights[RESET_LIGHT].value =	resetLight;	
-		resetLight -= (resetLight / lightLambda) * sampleTime;// * displayRefreshStepSkips;
+		resetLight -= (resetLight / lightLambda) * sampleTime;// * displayRefreshStepSkips;// TODO 
 
 		// Run light
 		lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
@@ -466,25 +469,25 @@ struct MidiFileModule : Module {
 				midifile.linkNotePairs();
 				midifile.joinTracks();
 				
-				int tracks = midifile.getTrackCount();
-				cout << "TPQ: " << midifile.getTicksPerQuarterNote() << endl;
-				if (tracks > 1) cout << "TRACKS: " << tracks << endl;
-				for (int track=0; track<tracks; track++) {
-					if (tracks > 1) cout << "\nTrack " << track << endl;
-					cout << "Tick\tSeconds\tDur\tMessage" << endl;
-					for (int eventIndex=0; eventIndex < midifile[track].size(); eventIndex++) {
-						cout << dec << midifile[track][eventIndex].tick;
-						cout << '\t' << dec << midifile[track][eventIndex].seconds;
-						cout << '\t';
-						if (midifile[track][eventIndex].isNoteOn())
-							cout << midifile[track][eventIndex].getDurationInSeconds();
-						cout << '\t' << hex;
-						for (unsigned int i=0; i<midifile[track][eventIndex].size(); i++)
-							cout << (int)midifile[track][eventIndex][i] << ' ';
-						cout << endl;
-					}
-				}
-				cout << "event count: " << dec << midifile[0].size() << endl;
+				// int tracks = midifile.getTrackCount();
+				// cout << "TPQ: " << midifile.getTicksPerQuarterNote() << endl;
+				// if (tracks > 1) cout << "TRACKS: " << tracks << endl;
+				// for (int track=0; track<tracks; track++) {
+					// if (tracks > 1) cout << "\nTrack " << track << endl;
+					// cout << "Tick\tSeconds\tDur\tMessage" << endl;
+					// for (int eventIndex=0; eventIndex < midifile[track].size(); eventIndex++) {
+						// cout << dec << midifile[track][eventIndex].tick;
+						// cout << '\t' << dec << midifile[track][eventIndex].seconds;
+						// cout << '\t';
+						// if (midifile[track][eventIndex].isNoteOn())
+							// cout << midifile[track][eventIndex].getDurationInSeconds();
+						// cout << '\t' << hex;
+						// for (unsigned int i=0; i<midifile[track][eventIndex].size(); i++)
+							// cout << (int)midifile[track][eventIndex][i] << ' ';
+						// cout << endl;
+					// }
+				// }
+				// cout << "event count: " << dec << midifile[0].size() << endl;
 			}
 			else
 				fileLoaded = false;
