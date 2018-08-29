@@ -1,7 +1,7 @@
 //***********************************************************************************************
 //MidiFile module for VCV Rack by Marc Boulé
 //
-//Based on code from the Fundamental and AudibleInstruments plugins by Andrew Belt 
+//Based on code from the Fundamental, Core and AudibleInstruments plugins by Andrew Belt 
 //and graphics from the Component Library by Wes Milholen 
 //Also based on Midifile, a C++ MIDI file parsing library by Craig Stuart Sapp
 //  https://github.com/craigsapp/midifile
@@ -28,6 +28,8 @@ https://github.com/IohannRabeson/VCVRack-Simple/commit/2d33e97d2e344d2926548a0b9
 #include "midifile/MidiFile.h"
 #include "osdialog.h"
 #include <iostream>
+#include <algorithm>
+
 
 using namespace std;
 using namespace smf;
@@ -53,6 +55,7 @@ struct MidiFileModule : Module {
 		ENUMS(CV_OUTPUTS, 4),
 		ENUMS(GATE_OUTPUTS, 4),
 		ENUMS(VELOCITY_OUTPUTS, 4),
+		ENUMS(AFTERTOUCH_OUTPUTS, 4),
 		NUM_OUTPUTS
 	};
 	enum LightIds {
@@ -62,19 +65,41 @@ struct MidiFileModule : Module {
 		NUM_LIGHTS
 	};
 	
+
+	struct NoteData {
+		uint8_t velocity = 0;
+		uint8_t aftertouch = 0;
+	};
+	
+	// Constants
+	enum PolyMode {ROTATE_MODE, REUSE_MODE, RESET_MODE, REASSIGN_MODE, UNISON_MODE, NUM_MODES};
 	
 	// Need to save, with reset
 	// none
 	
 	// Need to save, no reset
 	int panelTheme;
-	string lastPath;// TODO: save also the filename so that it can automatically be reloaded when Rack starts?
+	string lastPath;
+	PolyMode polyMode;// From QuadMIDIToCVInterface.cpp
 	
 	// No need to save, with reset
 	bool running;
 	double time;
 	long event;
-	PulseGenerator gateGens[4];
+	//
+	//--- START From QuadMIDIToCVInterface.cpp
+	NoteData noteData[128];
+	// cachedNotes : UNISON_MODE and REASSIGN_MODE cache all played notes. The other polyModes cache stolen notes (after the 4th one).
+	std::vector<uint8_t> cachedNotes;
+	uint8_t notes[4];
+	bool gates[4];
+	// gates set to TRUE by pedal and current gate. FALSE by pedal.
+	bool pedalgates[4];
+	bool pedal;
+	int rotateIndex;
+	int stealIndex;
+	//--- END From QuadMIDIToCVInterface.cpp
+	
 	
 	// No need to save, no reset
 	MidiFile midifile;
@@ -84,10 +109,11 @@ struct MidiFileModule : Module {
 	float resetLight;
 	
 	
-	MidiFileModule() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
+	MidiFileModule() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS), cachedNotes(128) {
 		// Need to save, no reset
 		panelTheme = 0;
 		lastPath = "";
+		polyMode = RESET_MODE;
 		
 		// No need to save, no reset
 		fileLoaded = false;
@@ -109,10 +135,17 @@ struct MidiFileModule : Module {
 		running = false;
 		time = 0.0;
 		event = 0;
-		for (int i = 0; i < 4; i++)
-			gateGens[i].reset();
+		//
+		cachedNotes.clear();
+		for (int i = 0; i < 4; i++) {
+			notes[i] = 60;
+			gates[i] = false;
+			pedalgates[i] = false;
+		}
+		pedal = false;
+		rotateIndex = -1;
+		stealIndex = 0;
 	}
-
 	
 	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
@@ -135,6 +168,211 @@ struct MidiFileModule : Module {
 		// No need to save, with reset
 		// none		
 	}
+	
+	
+	//------------ START QuadMIDIToCVInterface.cpp (with slight modifications) ------------------
+	
+	int getPolyIndex(int nowIndex) {
+		for (int i = 0; i < 4; i++) {
+			nowIndex++;
+			if (nowIndex > 3)
+				nowIndex = 0;
+			if (!(gates[nowIndex] || pedalgates[nowIndex])) {
+				stealIndex = nowIndex;
+				return nowIndex;
+			}
+		}
+		// All taken = steal (stealIndex always rotates)
+		stealIndex++;
+		if (stealIndex > 3)
+			stealIndex = 0;
+		if ((polyMode < REASSIGN_MODE) && (gates[stealIndex]))
+			cachedNotes.push_back(notes[stealIndex]);
+		return stealIndex;
+	}
+
+	void pressNote(uint8_t note) {
+		// Set notes and gates
+		switch (polyMode) {
+			case ROTATE_MODE: {
+				rotateIndex = getPolyIndex(rotateIndex);
+			} break;
+
+			case REUSE_MODE: {
+				bool reuse = false;
+				for (int i = 0; i < 4; i++) {
+					if (notes[i] == note) {
+						rotateIndex = i;
+						reuse = true;
+						break;
+					}
+				}
+				if (!reuse)
+					rotateIndex = getPolyIndex(rotateIndex);
+			} break;
+
+			case RESET_MODE: {
+				rotateIndex = getPolyIndex(-1);
+			} break;
+
+			case REASSIGN_MODE: {
+				cachedNotes.push_back(note);
+				rotateIndex = getPolyIndex(-1);
+			} break;
+
+			case UNISON_MODE: {
+				cachedNotes.push_back(note);
+				for (int i = 0; i < 4; i++) {
+					notes[i] = note;
+					gates[i] = true;
+					pedalgates[i] = pedal;
+					// reTrigger[i].trigger(1e-3);
+				}
+				return;
+			} break;
+
+			default: break;
+		}
+		// Set notes and gates
+		// if (gates[rotateIndex] || pedalgates[rotateIndex])
+		// 	reTrigger[rotateIndex].trigger(1e-3);
+		notes[rotateIndex] = note;
+		gates[rotateIndex] = true;
+		pedalgates[rotateIndex] = pedal;
+	}
+
+	void releaseNote(uint8_t note) {
+		// Remove the note
+		auto it = find(cachedNotes.begin(), cachedNotes.end(), note);
+		if (it != cachedNotes.end())
+			cachedNotes.erase(it);
+
+		switch (polyMode) {
+			case REASSIGN_MODE: {
+				for (int i = 0; i < 4; i++) {
+					if (i < (int) cachedNotes.size()) {
+						if (!pedalgates[i])
+							notes[i] = cachedNotes[i];
+						pedalgates[i] = pedal;
+					}
+					else {
+						gates[i] = false;
+					}
+				}
+			} break;
+
+			case UNISON_MODE: {
+				if (!cachedNotes.empty()) {
+					uint8_t backnote = cachedNotes.back();
+					for (int i = 0; i < 4; i++) {
+						notes[i] = backnote;
+						gates[i] = true;
+					}
+				}
+				else {
+					for (int i = 0; i < 4; i++) {
+						gates[i] = false;
+					}
+				}
+			} break;
+
+			// default ROTATE_MODE REUSE_MODE RESET_MODE
+			default: {
+				for (int i = 0; i < 4; i++) {
+					if (notes[i] == note) {
+						if (pedalgates[i]) {
+							gates[i] = false;
+						}
+						else if (!cachedNotes.empty()) {
+							notes[i] = cachedNotes.back();
+							cachedNotes.pop_back();
+						}
+						else {
+							gates[i] = false;
+						}
+					}
+				}
+			} break;
+		}
+	}
+
+	void pressPedal() {
+		pedal = true;
+		for (int i = 0; i < 4; i++) {
+			pedalgates[i] = gates[i];
+		}
+	}
+
+	void releasePedal() {
+		pedal = false;
+		// When pedal is off, recover notes for pressed keys (if any) after they were already being "cycled" out by pedal-sustained notes.
+		for (int i = 0; i < 4; i++) {
+			pedalgates[i] = false;
+			if (!cachedNotes.empty()) {
+				if (polyMode < REASSIGN_MODE) {
+					notes[i] = cachedNotes.back();
+					cachedNotes.pop_back();
+					gates[i] = true;
+				}
+			}
+		}
+		if (polyMode == REASSIGN_MODE) {
+			for (int i = 0; i < 4; i++) {
+				if (i < (int) cachedNotes.size()) {
+					notes[i] = cachedNotes[i];
+					gates[i] = true;
+				}
+				else {
+					gates[i] = false;
+				}
+			}
+		}
+	}	
+	
+	void processMessage(MidiMessage *msg) {
+		switch (msg->getCommandByte() >> 4) {//status()
+			// note off
+			case 0x8: {
+				releaseNote(msg->getKeyNumber());//note()
+			} break;
+			// note on
+			case 0x9: {
+				if (msg->getVelocity() > 0) {//value()
+					noteData[msg->getKeyNumber()].velocity = msg->getVelocity();//note(),  value()
+					pressNote(msg->getKeyNumber());//note()
+				}
+				else {
+					releaseNote(msg->getKeyNumber());//note()
+				}
+			} break;
+			// channel aftertouch
+			case 0xa: {
+				noteData[msg->getKeyNumber()].aftertouch = msg->getP2();//note(),  value()
+			} break;
+			// cc
+			case 0xb: {
+				processCC(msg);
+			} break;
+			default: break;
+		}
+	}
+
+	void processCC(MidiMessage *msg) {
+		switch (msg->getControllerNumber()) {//note()
+			// sustain
+			case 0x40: {
+				if (msg->getControllerValue() >= 64)//value()
+					pressPedal();
+				else
+					releasePedal();
+			} break;
+			default: break;
+		}
+	}
+	
+	//------------ END QuadMIDIToCVInterface.cpp ------------------
+	
+	
 
 	
 	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
@@ -159,7 +397,7 @@ struct MidiFileModule : Module {
 		if (running) {
 			for (int ii = 0; ii < 100; ii++) {// assumes max N events at the same time
 				if (event >= midifile[track].size()) {
-					running = false;
+					running = false;// TODO implement loop switch to optionally loop the song
 					event = 0;
 					break;
 				}
@@ -167,29 +405,11 @@ struct MidiFileModule : Module {
 				readTime = midifile[track][event].seconds;
 				if (readTime > time)
 					break;
-				info("*** POLL NOTE TYPE, event = %i", event);
-				if (midifile[track][event].isNoteOn()) {
-					int chan = midifile[track][event].getChannel();
-					info("*** NOTE ON chan %i", chan);
-					if (chan >= 0 && chan < 4) {
-						outputs[CV_OUTPUTS + chan].value = (float)midifile[track][event].getKeyNumber() * (10.0f / 127.0f);// TODO convert to correct CV level
-						gateGens[chan].trigger(midifile[track][event].getDurationInSeconds());
-						outputs[VELOCITY_OUTPUTS + chan].value = (float)midifile[track][event].getVelocity() * (10.0f / 127.0f);
-					}
-				}
-				else if (midifile[track][event].isNoteOff()) {
-					int chan = midifile[track][event].getChannel();
-					info("*** NOTE OFF chan %i", chan);
-					if (chan >= 0 && chan < 4) {
-						gateGens[chan].reset();
-					}
-				}
+
+				processMessage(&midifile[track][event]);
 				event++;
-			}
-		
+			}	
 			time += sampleTime;
-			
-			//info("*** time = %f, readTime = %f, event = %i", time, readTime, event);
 		}
 		
 		
@@ -200,16 +420,21 @@ struct MidiFileModule : Module {
 			resetLight = 1.0f;
 			time = 0.0;
 			event = 0;
-			for (int i = 0; i < 4; i++)
-				gateGens[i].reset();
 		}				
 		
 		
 		
 		//********** Outputs and lights **********
 		
-		for (int i = 0; i < 4; i++)
-			outputs[GATE_OUTPUTS + i].value = gateGens[i].process(sampleTime) ? 10.0f : 0.0f;
+		for (int i = 0; i < 4; i++) {
+			uint8_t lastNote = notes[i];
+			uint8_t lastGate = (gates[i] || pedalgates[i]);
+			outputs[CV_OUTPUTS + i].value = (lastNote - 60) / 12.f;
+			outputs[GATE_OUTPUTS + i].value = (lastGate && running) ? 10.f : 0.f;
+			outputs[VELOCITY_OUTPUTS + i].value = rescale(noteData[lastNote].velocity, 0, 127, 0.f, 10.f);
+			outputs[AFTERTOUCH_OUTPUTS + i].value = rescale(noteData[lastNote].aftertouch, 0, 127, 0.f, 10.f);
+		}		
+		
 		
 		// fileLoaded light
 		lights[LOADMIDI_LIGHT + 0].value = fileLoaded ? 1.0f : 0.0f;
@@ -265,8 +490,6 @@ struct MidiFileModule : Module {
 			running = false;
 			time = 0.0;
 			event = 0;
-			for (int i = 0; i < 4; i++)
-				gateGens[i].reset();
 		}	
 		osdialog_filters_free(filters);
 	}
