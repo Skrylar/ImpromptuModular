@@ -74,6 +74,7 @@ struct BigButtonSeq : Module {
 
 	// No need to save, no reset
 	bool scheduledReset;
+	int chan;
 	int len; 
 	long clockIgnoreOnReset;
 	double lastPeriod;//2.0 when not seen yet (init or stopped clock and went greater than 2s, which is max period supported for time-snap)
@@ -106,6 +107,7 @@ struct BigButtonSeq : Module {
 		writeFillsToMemory = false;
 		// No need to save, no reset		
 		scheduledReset = false;
+		chan = 0;
 		len = 0;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		lastPeriod = 2.0;
@@ -291,7 +293,7 @@ struct BigButtonSeq : Module {
 
 		// Chan
 		float chanInputValue = inputs[CHAN_INPUT].value / 10.0f * (6.0f - 1.0f);
-		int chan = (int) clamp(roundf(params[CHAN_PARAM].value + chanInputValue), 0.0f, (6.0f - 1.0f));		
+		chan = (int) clamp(roundf(params[CHAN_PARAM].value + chanInputValue), 0.0f, (6.0f - 1.0f));		
 		
 		// Big button
 		if (bigTrigger.process(params[BIG_PARAM].value + inputs[BIG_INPUT].value)) {
@@ -443,6 +445,30 @@ struct BigButtonSeq : Module {
 
 
 struct BigButtonSeqWidget : ModuleWidget {
+
+
+	struct ChanDisplayWidget : TransparentWidget {
+		int *chan;
+		std::shared_ptr<Font> font;
+		
+		ChanDisplayWidget() {
+			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
+		}
+
+		void draw(NVGcontext *vg) override {
+			NVGcolor textColor = prepareDisplay(vg, &box);
+			nvgFontFaceId(vg, font->handle);
+			//nvgTextLetterSpacing(vg, 2.5);
+
+			Vec textPos = Vec(6, 24);
+			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
+			nvgText(vg, textPos.x, textPos.y, "~", NULL);
+			nvgFillColor(vg, textColor);
+			char displayStr[2];
+			snprintf(displayStr, 2, "%1u", (unsigned) (*chan + 1) );
+			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
+		}
+	};
 
 	struct StepsDisplayWidget : TransparentWidget {
 		int *len;
@@ -619,6 +645,12 @@ struct BigButtonSeqWidget : ModuleWidget {
 		// Chan knob and jack
 		addParam(createDynamicParam<IMSixPosBigKnob>(Vec(colRulerCenter + offsetIMBigKnob, rowRuler1 + offsetIMBigKnob), module, BigButtonSeq::CHAN_PARAM, 0.0f, 6.0f - 1.0f, 0.0f, &module->panelTheme));		
 		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - knobCVjackOffsetX, rowRuler1), Port::INPUT, module, BigButtonSeq::CHAN_INPUT, &module->panelTheme));
+		// Chan display
+		ChanDisplayWidget *displayChan = new ChanDisplayWidget();
+		displayChan->box.pos = Vec(colRulerCenter + 43, rowRuler1 + vOffsetDisplay - 1);
+		displayChan->box.size = Vec(24, 30);// 1 character
+		displayChan->chan = &module->chan;
+		addChild(displayChan);	
 		// Length display
 		StepsDisplayWidget *displaySteps = new StepsDisplayWidget();
 		displaySteps->box.pos = Vec(colRulerT5 - 17, rowRuler1 + vOffsetDisplay - 1);
