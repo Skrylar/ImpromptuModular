@@ -710,6 +710,9 @@ Model *modelBigButtonSeq = Model::create<BigButtonSeq, BigButtonSeqWidget>("Impr
 
 /*CHANGE LOG
 
+0.6.11:
+add channel display
+
 0.6.10: 
 detect BPM and snap BigButton and Del to nearest beat (with timeout if beat slows down too much or stops).
 

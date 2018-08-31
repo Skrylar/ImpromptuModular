@@ -168,13 +168,14 @@ struct SemiModularSynth : Module {
 		
 		NUM_LIGHTS
 	};
-	
-	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_TRANSPOSE, DISP_ROTATE};
-	enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_GATE2 = 0x04, ATT_MSK_SLIDE = 0x08, ATT_MSK_TIED = 0x10};
 
 	
 	// SEQUENCER
 	
+	// Constants
+	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_TRANSPOSE, DISP_ROTATE};
+	enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_GATE2 = 0x04, ATT_MSK_SLIDE = 0x08, ATT_MSK_TIED = 0x10};
+
 	// Need to save
 	int panelTheme = 1;
 	int portTheme = 1;
@@ -225,10 +226,6 @@ struct SemiModularSynth : Module {
 	bool gate1RandomEnable;
 	int lightRefreshCounter;
 	
-	static constexpr float EDIT_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
-	bool editingSequence;
-	bool editingSequenceLast;
-
 	// VCO
 	// none
 	
@@ -318,8 +315,6 @@ struct SemiModularSynth : Module {
 		attached = true;
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
-		editingSequence = EDIT_PARAM_INIT_VALUE > 0.5f;
-		editingSequenceLast = editingSequence;
 		resetOnRun = false;
 		lightRefreshCounter = 0;
 		
@@ -357,9 +352,6 @@ struct SemiModularSynth : Module {
 			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun(true);
-		lengthCPbuffer = 16;
-		modeCPbuffer = MODE_FWD;
-		countCP = 16;
 		editingLength = 0ul;
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
@@ -368,8 +360,6 @@ struct SemiModularSynth : Module {
 		attached = true;
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
-		editingSequence = isEditingSequence();
-		editingSequenceLast = editingSequence;
 		resetOnRun = false;
 	}
 	
@@ -377,13 +367,13 @@ struct SemiModularSynth : Module {
 	void initRun(bool hard) {// run button activated or run edge in run input jack or edit mode toggled
 		if (hard) {
 			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
-			if (editingSequence)
+			if (isEditingSequence())
 				stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
 			else
 				stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
 		}
 		gate1RandomEnable = false;
-		if (editingSequence)
+		if (isEditingSequence())
 			gate1RandomEnable = calcGate1RandomEnable(getGate1P(sequence, stepIndexRun));
 		else
 			gate1RandomEnable = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun], stepIndexRun));
@@ -548,8 +538,6 @@ struct SemiModularSynth : Module {
 
 		// Initialize dependants after everything loaded
 		initRun(true);
-		editingSequence = isEditingSequence();
-		editingSequenceLast = editingSequence;
 	}
 
 
@@ -598,13 +586,7 @@ struct SemiModularSynth : Module {
 		// * Whenever cv[][] is modified or tied[] is activated for a step, call applyTiedStep(sequence,stepIndexEdit,steps)
 		
 		// Edit mode
-		editingSequence = isEditingSequence();// true = editing sequence, false = editing song
-		if (editingSequenceLast != editingSequence) {
-			if (running)
-				initRun(true);
-			displayState = DISP_NORMAL;
-			editingSequenceLast = editingSequence;
-		}
+		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		
 		// Seq CV input
 		if (inputs[SEQCV_INPUT].active) {
@@ -1351,13 +1333,13 @@ struct SemiModularSynthWidget : ModuleWidget {
 					snprintf(displayStr, 4, "PST");
 			}
 			else if (module->editingLength > 0ul) {
-				if (module->editingSequence)
+				if (module->isEditingSequence())
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
 				else
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
 			}
 			else if (module->displayState == SemiModularSynth::DISP_MODE) {
-				if (module->editingSequence)
+				if (module->isEditingSequence())
 					runModeToStr(module->runModeSeq[module->sequence]);
 				else
 					runModeToStr(module->runModeSong);
@@ -1373,7 +1355,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 					displayStr[0] = '(';
 			}
 			else {// DISP_NORMAL
-				snprintf(displayStr, 4, " %2u", (unsigned) (module->editingSequence ? 
+				snprintf(displayStr, 4, " %2u", (unsigned) (module->isEditingSequence() ? 
 					module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
 			}
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
@@ -1546,7 +1528,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static const int columnRulerMK2 = columnRulerT3;// Run mode column
 		
 		// Edit mode switch
-		addParam(createParam<CKSS>(Vec(columnRulerMK0 + hOffsetCKSS, rowRulerMK0 + vOffsetCKSS), module, SemiModularSynth::EDIT_PARAM, 0.0f, 1.0f, SemiModularSynth::EDIT_PARAM_INIT_VALUE));
+		addParam(createParam<CKSS>(Vec(columnRulerMK0 + hOffsetCKSS, rowRulerMK0 + vOffsetCKSS), module, SemiModularSynth::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
 		// Sequence display
 		SequenceDisplayWidget *displaySequence = new SequenceDisplayWidget();
 		displaySequence->box.pos = Vec(columnRulerMK1-15, rowRulerMK0 + 3 + vOffsetDisplay);

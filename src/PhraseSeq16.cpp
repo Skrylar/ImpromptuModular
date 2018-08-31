@@ -98,8 +98,8 @@ struct PhraseSeq16 : Module {
 		NUM_LIGHTS
 	};
 	
+	// Constants
 	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_TRANSPOSE, DISP_ROTATE};
-	
 
 	// Need to save
 	int panelTheme = 0;
@@ -156,10 +156,6 @@ struct PhraseSeq16 : Module {
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
 	int lightRefreshCounter;
-
-	static constexpr float EDIT_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
-	bool editingSequence;
-	bool editingSequenceLast;
 
 	
 	SchmittTrigger resetTrigger;
@@ -237,12 +233,7 @@ struct PhraseSeq16 : Module {
 		attached = true;
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
-		editingSequence = EDIT_PARAM_INIT_VALUE > 0.5f;
-		editingSequenceLast = editingSequence;
 		resetOnRun = false;
-		modeHoldDetect.reset();
-		gate1HoldDetect.reset();
-		gate2HoldDetect.reset();
 		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
 		lightRefreshCounter = 0;
@@ -272,9 +263,6 @@ struct PhraseSeq16 : Module {
 			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun(true);
-		lengthCPbuffer = 16;
-		modeCPbuffer = MODE_FWD;
-		countCP = 16;
 		editingLength = 0ul;
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
@@ -283,12 +271,7 @@ struct PhraseSeq16 : Module {
 		attached = true;
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
-		editingSequence = isEditingSequence();
-		editingSequenceLast = editingSequence;
 		resetOnRun = false;
-		modeHoldDetect.reset();
-		gate1HoldDetect.reset();
-		gate2HoldDetect.reset();
 		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
 	}
@@ -297,7 +280,7 @@ struct PhraseSeq16 : Module {
 	void initRun(bool hard) {// run button activated or run edge in run input jack or edit mode toggled
 		if (hard) 
 			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
-		int seq = (editingSequence ? sequence : phrase[phraseIndexRun]);
+		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
 		if (hard)	
 			stepIndexRun = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
 		ppqnCount = 0;
@@ -547,8 +530,6 @@ struct PhraseSeq16 : Module {
 
 		// Initialize dependants after everything loaded
 		initRun(true);
-		editingSequence = isEditingSequence();
-		editingSequenceLast = editingSequence;
 	}
 
 
@@ -596,13 +577,7 @@ struct PhraseSeq16 : Module {
 		// * Whenever cv[][] is modified or tied[] is activated for a step, call applyTiedStep(sequence,stepIndexEdit,steps)
 		
 		// Edit mode
-		editingSequence = isEditingSequence();// true = editing sequence, false = editing song
-		if (editingSequenceLast != editingSequence) {
-			if (running)
-				initRun(true);
-			displayState = DISP_NORMAL;
-			editingSequenceLast = editingSequence;
-		}
+		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		
 		// Seq CV input
 		if (inputs[SEQCV_INPUT].active) {
@@ -764,9 +739,7 @@ struct PhraseSeq16 : Module {
 				displayState = DISP_MODE;
 			else
 				displayState = DISP_NORMAL;
-			//if (!running) {
-				modeHoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
-			//}
+			modeHoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
 		}
 		if (transposeTrigger.process(params[TRAN_ROT_PARAM].value)) {
 			if (editingSequence) {
@@ -940,12 +913,10 @@ struct PhraseSeq16 : Module {
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingSequence) {
 				toggleGate1a(&attributes[sequence][stepIndexEdit]);
-				//if (!running) {
-					if (pulsesPerStep != 1) {
-						editingGateLength = getGate1(sequence,stepIndexEdit) ? ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
-						gate1HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
-					}
-				//}
+				if (pulsesPerStep != 1) {
+					editingGateLength = getGate1(sequence,stepIndexEdit) ? ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
+					gate1HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
+				}
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -961,12 +932,10 @@ struct PhraseSeq16 : Module {
 		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
 			if (editingSequence) {
 				toggleGate2a(&attributes[sequence][stepIndexEdit]);
-				//if (!running) {
-					if (pulsesPerStep != 1) {
-						editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
-						gate2HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
-					}
-				//}
+				if (pulsesPerStep != 1) {
+					editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
+					gate2HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
+				}
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -1021,8 +990,7 @@ struct PhraseSeq16 : Module {
 					// Slide
 					if (getSlide(newSeq, stepIndexRun)) {
 						// activate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
-						slideStepsRemain =   (unsigned long) (((float)clockPeriod * pulsesPerStep)   * params[SLIDE_KNOB_PARAM].value / 2.0f);// 0-T slide, where T is clock period (can be too long when user does clock gating)
-						//slideStepsRemain = (unsigned long)  (engineGetSampleRate() * params[SLIDE_KNOB_PARAM].value );// 0-2s slide
+						slideStepsRemain =   (unsigned long) (((float)clockPeriod * pulsesPerStep) * params[SLIDE_KNOB_PARAM].value / 2.0f);
 						float slideToCV = cv[newSeq][stepIndexRun];
 						slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
 					}
@@ -1041,8 +1009,6 @@ struct PhraseSeq16 : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			//stepIndexEdit = 0;
-			//sequence = 0;
 			initRun(true);// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
@@ -1320,7 +1286,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 					snprintf(displayStr, 4, "PST");
 			}
 			else if (module->editingLength > 0ul) {
-				if (module->editingSequence)
+				if (module->isEditingSequence())
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
 				else
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
@@ -1329,7 +1295,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 				snprintf(displayStr, 4, "x%2u", (unsigned) module->pulsesPerStep);
 			}
 			else if (module->displayState == PhraseSeq16::DISP_MODE) {
-				if (module->editingSequence)
+				if (module->isEditingSequence())
 					runModeToStr(module->runModeSeq[module->sequence]);
 				else
 					runModeToStr(module->runModeSong);
@@ -1345,7 +1311,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 					displayStr[0] = '(';
 			}
 			else {// DISP_NORMAL
-				snprintf(displayStr, 4, " %2u", (unsigned) (module->editingSequence ? 
+				snprintf(displayStr, 4, " %2u", (unsigned) (module->isEditingSequence() ? 
 					module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
 			}
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
@@ -1535,7 +1501,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static const int columnRulerMK2 = columnRulerT3;// Run mode column
 		
 		// Edit mode switch
-		addParam(createParam<CKSS>(Vec(columnRulerMK0 + hOffsetCKSS, rowRulerMK0 + vOffsetCKSS), module, PhraseSeq16::EDIT_PARAM, 0.0f, 1.0f, PhraseSeq16::EDIT_PARAM_INIT_VALUE));
+		addParam(createParam<CKSS>(Vec(columnRulerMK0 + hOffsetCKSS, rowRulerMK0 + vOffsetCKSS), module, PhraseSeq16::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
 		// Sequence display
 		SequenceDisplayWidget *displaySequence = new SequenceDisplayWidget();
 		displaySequence->box.pos = Vec(columnRulerMK1-15, rowRulerMK0 + 3 + vOffsetDisplay);
