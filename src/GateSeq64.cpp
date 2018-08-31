@@ -69,7 +69,8 @@ struct GateSeq64 : Module {
 	//										1/4		DUO			D2			TR1		TR2		TR3 		TR23	   TRI
 	const uint32_t advGateHitMaskGS[8] = {0x00003F, 0x03F03F, 0x03F000, 0x00000F, 0x000F00, 0x0F0000, 0x0F0F00, 0x0F0F0F};
 	static const int blinkNumInit = 15;
-	
+	static constexpr float CONFIG_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget initialization, since module created before widget
+
 	// Need to save
 	int panelTheme = 0;
 	int expansion = 0;
@@ -77,15 +78,11 @@ struct GateSeq64 : Module {
 	bool running;
 	int runModeSeq[16];
 	int runModeSong;
-	//
 	int sequence;
 	int lengths[16];// values are 1 to 16
-	//
 	int phrase[16];// This is the song (series of phases; a phrase is a patten number)
 	int phrases;//1 to 16
-	//	
 	int attributes[16][64];
-	//
 	bool resetOnRun;
 
 	// No need to save
@@ -102,24 +99,20 @@ struct GateSeq64 : Module {
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
 	int startCP;// step to start paste (in case CPMODE_PARAM changes between copy and paste)
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
-	float resetLight = 0.0f;
 	long clockIgnoreOnReset;
-	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 	long displayProbInfo;// downward step counter for displayProb feedback
-	int sequenceKnob = 0;
 	int gateCode[4];
 	long revertDisplay;
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
 	long blinkCount;// positive upward counter, reset to 0 when max reached
 	int blinkNum;// number of blink cycles to do, downward counter
-	int lightRefreshCounter;
-
-	
-	static constexpr float CONFIG_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget initialization, since module created before widget
 	int stepConfigLast;
 
 
+	int lightRefreshCounter = 0;
+	float resetLight = 0.0f;
+	int sequenceKnob = 0;
 	SchmittTrigger modesTrigger;
 	SchmittTrigger stepTriggers[64];
 	SchmittTrigger copyTrigger;
@@ -219,7 +212,6 @@ struct GateSeq64 : Module {
 		editingPpqn = 0l;
 		blinkCount = 0l;
 		blinkNum = blinkNumInit;
-		lightRefreshCounter = 0;
 	}
 
 	
@@ -241,14 +233,11 @@ struct GateSeq64 : Module {
 			phrase[i] = randomu32() % 16;
 			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
 		}
-		for (int i = 0; i < 64; i++)
-			attributesCPbuffer[i] = 50;
 		initRun(stepConfig, true);
 		displayState = DISP_GATE;
 		displayProbInfo = 0l;
 		infoCopyPaste = 0l;
 		revertDisplay = 0l;
-		resetOnRun = false;
 		editingPpqn = 0l;
 	}
 

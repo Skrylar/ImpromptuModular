@@ -108,21 +108,16 @@ struct PhraseSeq16 : Module {
 	bool running;
 	int runModeSeq[16]; 
 	int runModeSong;
-	//
 	int sequence;
 	int lengths[16];//1 to 16
-	//
 	int phrase[16];// This is the song (series of phases; a phrase is a patten number)
 	int phrases;//1 to 16
-	//
 	float cv[16][16];// [-3.0 : 3.917]. First index is patten number, 2nd index is step
 	int attributes[16][16];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
-	//
 	bool resetOnRun;
 	bool attached;
 
 	// No need to save
-	float resetLight = 0.0f;
 	int stepIndexEdit;
 	int stepIndexRun;
 	int phraseIndexEdit;
@@ -145,19 +140,19 @@ struct PhraseSeq16 : Module {
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
 	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
 	long clockIgnoreOnReset;
-	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
-	int sequenceKnob = 0;
 	int gate1Code;
 	int gate2Code;
 	long editingGateLength;// 0 when no info, positive downward step counter timer when gate1, negative upward when gate2
 	long editGateLengthTimeInitMult;// multiplier for extended setting of advanced gates
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
-	int lightRefreshCounter;
 
 	
+	int lightRefreshCounter = 0;
+	float resetLight = 0.0f;
+	int sequenceKnob = 0;
 	SchmittTrigger resetTrigger;
 	SchmittTrigger leftTrigger;
 	SchmittTrigger rightTrigger;
@@ -185,6 +180,7 @@ struct PhraseSeq16 : Module {
 
 	
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
+	
 	inline bool getGate1(int seq, int step) {return getGate1a(attributes[seq][step]);}
 	inline bool getGate1P(int seq, int step) {return getGate1Pa(attributes[seq][step]);}
 	inline bool getGate2(int seq, int step) {return getGate2a(attributes[seq][step]);}
@@ -236,7 +232,6 @@ struct PhraseSeq16 : Module {
 		resetOnRun = false;
 		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
-		lightRefreshCounter = 0;
 	}
 
 	
@@ -259,7 +254,6 @@ struct PhraseSeq16 : Module {
 			runModeSeq[i] = randomu32() % NUM_MODES;
 			phrase[i] = randomu32() % 16;
 			lengths[i] = 1 + (randomu32() % 16);
-			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun(true);
@@ -271,7 +265,6 @@ struct PhraseSeq16 : Module {
 		attached = true;
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
-		resetOnRun = false;
 		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
 	}

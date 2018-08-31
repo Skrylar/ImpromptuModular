@@ -77,9 +77,9 @@ struct WriteSeq32 : Module {
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq, destination channel in next msbits
 	long clockIgnoreOnReset;
-	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
-	int lightRefreshCounter;
-	
+
+
+	int lightRefreshCounter = 0;	
 	SchmittTrigger clockTrigger;
 	SchmittTrigger resetTrigger;
 	SchmittTrigger runningTrigger;
@@ -98,7 +98,7 @@ struct WriteSeq32 : Module {
 	}
 
 	void onReset() override {
-		running = true;
+		running = false;
 		indexStep = 0;
 		indexStepStage = 0;
 		indexChannel = 0;
@@ -114,11 +114,10 @@ struct WriteSeq32 : Module {
 		pendingPaste = 0;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		resetOnRun = false;
-		lightRefreshCounter = 0;
 	}
 
 	void onRandomize() override {
-		running = true;
+		running = false;
 		indexStep = 0;
 		indexStepStage = 0;
 		indexChannel = 0;

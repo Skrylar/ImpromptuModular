@@ -55,34 +55,27 @@ struct BigButtonSeq : Module {
 		NUM_LIGHTS
 	};
 	
-	
-	// Constants
-	static constexpr float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
-
-	// Need to save, with reset
+	// Need to save
+	int panelTheme = 0;
+	int metronomeDiv = 4;
+	bool writeFillsToMemory = false;
 	int indexStep;
 	int bank[6];
 	uint64_t gates[6][2];// chan , bank
-
-	// Need to save, no reset
-	int panelTheme;
-	int metronomeDiv;
-	bool writeFillsToMemory;
 	
-	// No need to save, with reset
-	// none
-
-	// No need to save, no reset
-	bool scheduledReset;
-	int chan;
-	int len; 
+	// No need to save
 	long clockIgnoreOnReset;
 	double lastPeriod;//2.0 when not seen yet (init or stopped clock and went greater than 2s, which is max period supported for time-snap)
 	double clockTime;//clock time counter (time since last clock)
 	int pendingOp;// 0 means nothing pending, +1 means pending big button push, -1 means pending del
-	float bigLight;
-	float metronomeLightStart;
-	float metronomeLightDiv;
+
+
+	int lightRefreshCounter = 0;	
+	float bigLight = 0.0f;
+	float metronomeLightStart = 0.0f;
+	float metronomeLightDiv = 0.0f;
+	int chan = 0;
+	int len = 0; 
 	SchmittTrigger clockTrigger;
 	SchmittTrigger resetTrigger;
 	SchmittTrigger bankTrigger;
@@ -91,7 +84,6 @@ struct BigButtonSeq : Module {
 	PulseGenerator outLightPulse;
 	PulseGenerator bigPulse;
 	PulseGenerator bigLightPulse;
-	int lightRefreshCounter;
 
 	
 	inline void toggleGate(int chan) {gates[chan][bank[chan]] ^= (((uint64_t)1) << (uint64_t)indexStep);}
@@ -100,32 +92,7 @@ struct BigButtonSeq : Module {
 	inline bool getGate(int chan) {return !((gates[chan][bank[chan]] & (((uint64_t)1) << (uint64_t)indexStep)) == 0);}
 
 	
-	BigButtonSeq() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		// Need to save, no reset
-		panelTheme = 0;
-		metronomeDiv = 4;
-		writeFillsToMemory = false;
-		// No need to save, no reset		
-		scheduledReset = false;
-		chan = 0;
-		len = 0;
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		lastPeriod = 2.0;
-		clockTime = 0.0;
-		pendingOp = 0;
-		bigLight = 0.0f;
-		metronomeLightStart = 0.0f;
-		metronomeLightDiv = 0.0f;
-		clockTrigger.reset();
-		resetTrigger.reset();
-		bankTrigger.reset();
-		bigTrigger.reset();
-		outPulse.reset();
-		outLightPulse.reset();
-		bigPulse.reset();
-		bigLightPulse.reset();	
-		lightRefreshCounter = 0;
-		
+	BigButtonSeq() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {		
 		onReset();
 	}
 
@@ -136,41 +103,38 @@ struct BigButtonSeq : Module {
 	// called from the main thread if by constructor, called by engine thread if right-click initialization
 	//   when called by constructor, module is created before the first step() is called
 	void onReset() override {
-		// Need to save, with reset
 		indexStep = 0;
 		for (int c = 0; c < 6; c++) {
 			bank[c] = 0;
 			gates[c][0] = 0;
 			gates[c][1] = 0;
 		}
-		// No need to save, with reset
-		// none
-
-		scheduledReset = true;
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		lastPeriod = 2.0;
+		clockTime = 0.0;
+		pendingOp = 0;
 	}
 
 
 	// widgets randomized before onRandomize() is called
 	// called by engine thread if right-click randomize
 	void onRandomize() override {
-		// Need to save, with reset
 		indexStep = randomu32() % 32;
 		for (int c = 0; c < 6; c++) {
 			bank[c] = randomu32() % 2;
 			gates[c][0] = randomu64();
 			gates[c][1] = randomu64();
 		}
-		// No need to save, with reset
-		// none
-
-		scheduledReset = true;
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		lastPeriod = 2.0;
+		clockTime = 0.0;
+		pendingOp = 0;
 	}
 
 	
 	// called by main thread
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
-		// Need to save (reset or not)
 
 		// indexStep
 		json_object_set_new(rootJ, "indexStep", json_integer(indexStep));
@@ -207,8 +171,6 @@ struct BigButtonSeq : Module {
 	// widgets have their fromJson() called before this fromJson() is called
 	// called by main thread
 	void fromJson(json_t *rootJ) override {
-		// Need to save (reset or not)
-
 		// indexStep
 		json_t *indexStepJ = json_object_get(rootJ, "indexStep");
 		if (indexStepJ)
@@ -254,11 +216,6 @@ struct BigButtonSeq : Module {
 		json_t *writeFillsToMemoryJ = json_object_get(rootJ, "writeFillsToMemory");
 		if (writeFillsToMemoryJ)
 			writeFillsToMemory = json_is_true(writeFillsToMemoryJ);
-
-		// No need to save, with reset
-		// none
-		
-		scheduledReset = true;
 	}
 
 	
@@ -267,24 +224,6 @@ struct BigButtonSeq : Module {
 		double sampleTime = 1.0 / engineGetSampleRate();
 		static const float lightTime = 0.1f;
 		
-		// Scheduled reset (just the parts that do not have a place below in rest of function)
-		if (scheduledReset) {
-			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-			lastPeriod = 2.0;
-			clockTime = 0.0;
-			pendingOp = 0;
-			bigLight = 0.0f;
-			metronomeLightStart = 0.0f;
-			metronomeLightDiv = 0.0f;
-			clockTrigger.reset();
-			resetTrigger.reset();
-			bankTrigger.reset();
-			bigTrigger.reset();
-			outPulse.reset();
-			outLightPulse.reset();
-			bigPulse.reset();
-			bigLightPulse.reset();	
-		}	
 		
 		//********** Buttons, knobs, switches and inputs **********
 		
@@ -424,7 +363,6 @@ struct BigButtonSeq : Module {
 		
 		if (clockIgnoreOnReset > 0l)
 			clockIgnoreOnReset--;
-		scheduledReset = false;		
 	}// step()
 	
 	

@@ -75,15 +75,14 @@ struct WriteSeq64 : Module {
 	float gateCPbuffer[64];// copy paste buffer for gates
 	int stepsCPbuffer;
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
-	float resetLight = 0.0f;
 	int pendingPaste;// 0 = nothing to paste, 1 = paste on clk, 2 = paste on seq, destination channel in next msbits
 	long clockIgnoreOnReset;
-	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
+
+
+	int lightRefreshCounter = 0;	
 	int stepKnob = 0;
 	int stepsKnob = 0;
-	int lightRefreshCounter;
-
-	
+	float resetLight = 0.0f;
 	SchmittTrigger clock12Trigger;
 	SchmittTrigger clock34Trigger;
 	SchmittTrigger resetTrigger;
@@ -102,7 +101,7 @@ struct WriteSeq64 : Module {
 	}
 
 	void onReset() override {
-		running = true;
+		running = false;
 		indexChannel = 0;
 		for (int c = 0; c < 5; c++) {
 			indexStep[c] = 0;
@@ -121,11 +120,10 @@ struct WriteSeq64 : Module {
 		pendingPaste = 0;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		resetOnRun = false;
-		lightRefreshCounter = 0;
 	}
 
 	void onRandomize() override {
-		running = true;
+		running = false;
 		indexChannel = 0;
 		for (int c = 0; c < 5; c++) {
 			indexStep[c] = 0;

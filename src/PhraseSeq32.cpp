@@ -89,7 +89,8 @@ struct PhraseSeq32 : Module {
 	
 	// Constants
 	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_LENGTH, DISP_TRANSPOSE, DISP_ROTATE};
-	
+	static constexpr float CONFIG_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
+
 	// Need to save
 	int panelTheme = 0;
 	int expansion = 0;
@@ -97,21 +98,16 @@ struct PhraseSeq32 : Module {
 	bool running;
 	int runModeSeq[32];
 	int runModeSong;
-	//
 	int sequence;
 	int lengths[32];//1 to 32
-	//
 	int phrase[32];// This is the song (series of phases; a phrase is a patten number)
 	int phrases;//1 to 32
-	//
 	float cv[32][32];// [-3.0 : 3.917]. First index is patten number, 2nd index is step
 	int attributes[32][32];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
-	//
 	bool resetOnRun;
 	bool attached;
 
 	// No need to save
-	float resetLight = 0.0f;
 	int stepIndexEdit;
 	int stepIndexRun;
 	int phraseIndexEdit;
@@ -134,10 +130,8 @@ struct PhraseSeq32 : Module {
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
 	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
 	long clockIgnoreOnReset;
-	const float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
-	int sequenceKnob = 0;
 	int gate1Code[2];
 	int gate2Code[2];
 	bool attachedChanB;
@@ -146,12 +140,12 @@ struct PhraseSeq32 : Module {
 	long editGateLengthTimeInitMult;// multiplier for extended setting of advanced gates
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
-	int lightRefreshCounter;
-	
-	static constexpr float CONFIG_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
 	int stepConfigLast;
 	
 
+	int lightRefreshCounter = 0;
+	float resetLight = 0.0f;
+	int sequenceKnob = 0;
 	SchmittTrigger resetTrigger;
 	SchmittTrigger leftTrigger;
 	SchmittTrigger rightTrigger;
@@ -183,7 +177,6 @@ struct PhraseSeq32 : Module {
 		return (paramValue > 0.5f) ? 1 : 2;
 	}
 
-	
 	inline bool getGate1(int seq, int step) {return getGate1a(attributes[seq][step]);}
 	inline bool getGate1P(int seq, int step) {return getGate1Pa(attributes[seq][step]);}
 	inline bool getGate2(int seq, int step) {return getGate2a(attributes[seq][step]);}
@@ -241,7 +234,6 @@ struct PhraseSeq32 : Module {
 		resetOnRun = false;
 		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
-		lightRefreshCounter = 0;
 	}
 	
 	
@@ -267,7 +259,6 @@ struct PhraseSeq32 : Module {
 			runModeSeq[i] = randomu32() % NUM_MODES;
 			phrase[i] = randomu32() % 32;
 			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
-			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun(stepConfig, true);
@@ -281,7 +272,6 @@ struct PhraseSeq32 : Module {
 		tiedWarning = 0ul;
 		attachedChanB = false;
 		revertDisplay = 0l;
-		resetOnRun = false;
 		editGateLengthTimeInitMult = 1l;
 		editingPpqn = 0l;
 	}
