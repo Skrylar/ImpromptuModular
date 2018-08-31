@@ -550,7 +550,6 @@ struct PhraseSeq16 : Module {
 	}
 	
 
-	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		float sampleRate = engineGetSampleRate();
 		static const float gateTime = 0.4f;// seconds
@@ -1005,7 +1004,6 @@ struct PhraseSeq16 : Module {
 			initRun(true);// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
-			clockTrigger.reset();
 		}
 		
 		

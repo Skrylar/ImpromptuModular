@@ -259,7 +259,6 @@ struct WriteSeq64 : Module {
 	}
 	
 	
-	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		
@@ -414,9 +413,6 @@ struct WriteSeq64 : Module {
 				indexStep[t] = 0;
 			resetLight = 1.0f;
 			pendingPaste = 0;
-			//indexChannel = 0;
-			clock12Trigger.reset();
-			clock34Trigger.reset();
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 		

@@ -301,7 +301,12 @@ struct HoldDetect {
 	}
 };
 
+inline bool calcWarningFlash(long count, long countInit) {
+	if ( (count > (countInit * 2l / 4l) && count < (countInit * 3l / 4l)) || (count < (countInit * 1l / 4l)) )
+		return false;
+	return true;
+}	
+
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box);
-bool calcWarningFlash(long count, long countInit);
 
 #endif

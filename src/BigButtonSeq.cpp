@@ -97,11 +97,6 @@ struct BigButtonSeq : Module {
 	}
 
 	
-	// widgets are not yet created when module is created 
-	// even if widgets not created yet, can use params[] and should handle 0.0f value since step may call 
-	//   this before widget creation anyways
-	// called from the main thread if by constructor, called by engine thread if right-click initialization
-	//   when called by constructor, module is created before the first step() is called
 	void onReset() override {
 		indexStep = 0;
 		for (int c = 0; c < 6; c++) {
@@ -116,8 +111,6 @@ struct BigButtonSeq : Module {
 	}
 
 
-	// widgets randomized before onRandomize() is called
-	// called by engine thread if right-click randomize
 	void onRandomize() override {
 		indexStep = randomu32() % 32;
 		for (int c = 0; c < 6; c++) {
@@ -132,7 +125,6 @@ struct BigButtonSeq : Module {
 	}
 
 	
-	// called by main thread
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
@@ -168,8 +160,6 @@ struct BigButtonSeq : Module {
 	}
 
 
-	// widgets have their fromJson() called before this fromJson() is called
-	// called by main thread
 	void fromJson(json_t *rootJ) override {
 		// indexStep
 		json_t *indexStepJ = json_object_get(rootJ, "indexStep");
@@ -219,7 +209,6 @@ struct BigButtonSeq : Module {
 	}
 
 	
-	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		double sampleTime = 1.0 / engineGetSampleRate();
 		static const float lightTime = 0.1f;
@@ -312,7 +301,6 @@ struct BigButtonSeq : Module {
 			outLightPulse.trigger(0.02f);
 			metronomeLightStart = 1.0f;
 			metronomeLightDiv = 0.0f;
-			clockTrigger.reset();
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}		
 		

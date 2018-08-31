@@ -43,95 +43,53 @@ struct Tact : Module {
 		ENUMS(CVIN_LIGHTS, 2 * 2),// GreenRed
 		NUM_LIGHTS
 	};
-	
-	
-	// Constants
-	static constexpr float storeInfoTime = 0.5f;// seconds	
-	
-	// Need to save, with reset
+		
+	// Need to save
+	int panelTheme = 0;
 	double cv[2];// actual Tact CV since Tactknob can be different than these when transitioning
 	float storeCV[2];
 
-	// Need to save, no reset
-	int panelTheme;
-	
-	// No need to save, with reset
-	// none
-	
-	// No need to save, no reset
-	bool scheduledReset;
+	// No need to save
 	long infoStore;// 0 when no info, positive downward step counter when store left channel, negative upward for right
-	float infoCVinLight[2];
+	
+	
+	float infoCVinLight[2] = {0.0f, 0.0f};
+	float paramReadRequest[2] = {-10.0f, -10.0f}; 
+	int lightRefreshCounter = 0;
 	SchmittTrigger topTriggers[2];
 	SchmittTrigger botTriggers[2];
 	SchmittTrigger storeTriggers[2];
 	SchmittTrigger recallTriggers[2];
 	PulseGenerator eocPulses[2];
-	float paramReadRequest[2]; 
-	int lightRefreshCounter;
+	
 	
 	inline bool isLinked(void) {return params[LINK_PARAM].value > 0.5f;}
 	inline bool isExpSliding(void) {return params[EXP_PARAM].value > 0.5f;}
 
 	
 	Tact() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		// Need to save, no reset
-		panelTheme = 0;
-		// No need to save, no reset		
-		scheduledReset = false;
-		infoStore = 0l;
-		for (int i = 0; i < 2; i++) {
-			infoCVinLight[i] = 0.0f;
-			topTriggers[i].reset();
-			botTriggers[i].reset();
-			storeTriggers[i].reset();
-			recallTriggers[i].reset();
-			eocPulses[i].reset();
-			paramReadRequest[i] = -10.0f;// -10.0f when no request being made, value to read otherwize
-		}
-		lightRefreshCounter = 0;
-		
 		onReset();
 	}
 
 	
-	// widgets are not yet created when module is created 
-	// even if widgets not created yet, can use params[] and should handle 0.0f value since step may call 
-	//   this before widget creation anyways
-	// called from the main thread if by constructor, called by engine thread if right-click initialization
-	//   when called by constructor, module is created before the first step() is called
 	void onReset() override {
-		// Need to save, with reset
 		for (int i = 0; i < 2; i++) {
 			cv[i] = 0.0f;
 			storeCV[i] = 0.0f;
 		}
-		// No need to save, with reset
-		// none
-		
-		scheduledReset = true;
+		infoStore = 0l;
 	}
 
 	
-	// widgets randomized before onRandomize() is called
-	// called by engine thread if right-click randomize
 	void onRandomize() override {
-		// Need to save, with reset
 		for (int i = 0; i < 2; i++) {
 			cv[i] = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
-			storeCV[i] = 0.0f;
 		}
-		// No need to save, with reset
-		// none
-	
-		scheduledReset = true;
 	}
 
 	
-	// called by main thread
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
-		// Need to save (reset or not)
 
 		// cv
 		json_object_set_new(rootJ, "cv0", json_real(cv[0]));
@@ -148,10 +106,7 @@ struct Tact : Module {
 	}
 
 	
-	// widgets have their fromJson() called before this fromJson() is called
-	// called by main thread
 	void fromJson(json_t *rootJ) override {
-		// Need to save (reset or not)
 
 		// cv
 		json_t *cv0J = json_object_get(rootJ, "cv0");
@@ -173,33 +128,14 @@ struct Tact : Module {
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
 			panelTheme = json_integer_value(panelThemeJ);
-
-		// No need to save, with reset
-		// none
-		
-		scheduledReset = true;
 	}
 
 	
-	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
 		float sampleRate = engineGetSampleRate();
 		float sampleTime = engineGetSampleTime();
-		
-		// Scheduled reset (just the parts that do not have a place below in rest of function)
-		if (scheduledReset) {
-			infoStore = 0l;
-			for (int i = 0; i < 2; i++) {
-				infoCVinLight[i] = 0.0f;
-				topTriggers[i].reset();
-				botTriggers[i].reset();
-				storeTriggers[i].reset();
-				recallTriggers[i].reset();
-				eocPulses[i].reset();
-				paramReadRequest[i] = -10.0f;// -10.0f when no request being made, value to read otherwize
-			}		
-		}
-		
+		static const float storeInfoTime = 0.5f;// seconds	
+	
 		// store buttons
 		for (int i = 0; i < 2; i++) {
 			if (storeTriggers[i].process(params[STORE_PARAMS + i].value)) {
@@ -317,8 +253,6 @@ struct Tact : Module {
 		if (isLinked()) {
 			cv[1] = clamp(params[TACT_PARAMS + 1].value, 0.0f, 10.0f);
 		}
-		
-		scheduledReset = false;
 	}
 	
 	void setTLights(int chan) {
@@ -332,6 +266,7 @@ struct Tact : Module {
 			lights[TACT_LIGHTS + (chan * numLights * 2) + (numLights - 1 - i) * 2 + 1].value = 0.0f;
 		}
 	}
+	
 	void setTLightsStore(int chan, long infoCount, long initInfoStore) {
 		for (int i = 0; i < numLights; i++) {
 			float level = (i == (int) round((float(infoCount)) / ((float)initInfoStore) * (float)(numLights - 1)) ? 1.0f : 0.0f);

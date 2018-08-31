@@ -131,12 +131,4 @@ NVGcolor prepareDisplay(NVGcontext *vg, Rect *box) {
 	return textColor;
 }
 
-bool calcWarningFlash(long count, long countInit) {
-	bool warningFlashState = true;
-	if (count > (countInit * 2l / 4l) && count < (countInit * 3l / 4l))
-		warningFlashState = false;
-	else if (count < (countInit * 1l / 4l))
-		warningFlashState = false;
-	return warningFlashState;
-}	
 

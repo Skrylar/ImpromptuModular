@@ -177,8 +177,6 @@ struct GateSeq64 : Module {
 	}
 
 	
-	// widgets are not yet created when module is created (and when onReset() is called by constructor)
-	// onReset() is also called when right-click initialization of module
 	void onReset() override {
 		int stepConfig = getStepConfig(CONFIG_PARAM_INIT_VALUE);
 		stepConfigLast = stepConfig;
@@ -215,7 +213,6 @@ struct GateSeq64 : Module {
 	}
 
 	
-	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
 		int stepConfig = getStepConfig(params[CONFIG_PARAM].value);
 		stepConfigLast = stepConfig;
@@ -312,7 +309,6 @@ struct GateSeq64 : Module {
 	}
 
 	
-	// widgets loaded before this fromJson() is called
 	void fromJson(json_t *rootJ) override {
 		// panelTheme
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
@@ -404,7 +400,6 @@ struct GateSeq64 : Module {
 	}
 
 	
-	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float displayProbInfoTime = 3.0f;// seconds
@@ -744,12 +739,9 @@ struct GateSeq64 : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			//stepIndexEdit = 0;
-			//sequence = 0;
 			initRun(stepConfig, true);// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_GATE;
-			clockTrigger.reset();
 		}
 	
 		

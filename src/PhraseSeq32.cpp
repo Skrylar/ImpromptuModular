@@ -237,7 +237,6 @@ struct PhraseSeq32 : Module {
 	}
 	
 	
-	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
 		int stepConfig = getStepConfig(params[CONFIG_PARAM].value);
 		stepConfigLast = stepConfig;			
@@ -361,7 +360,6 @@ struct PhraseSeq32 : Module {
 	}
 
 	
-	// widgets loaded before this fromJson() is called
 	void fromJson(json_t *rootJ) override {
 		// panelTheme
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
@@ -492,7 +490,7 @@ struct PhraseSeq32 : Module {
 		attributes[seqNum][iRot] = rotAttributes;
 	}
 	
-	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
+
 	void step() override {
 		float sampleRate = engineGetSampleRate();
 		static const float gateTime = 0.4f;// seconds
@@ -1021,7 +1019,6 @@ struct PhraseSeq32 : Module {
 			initRun(stepConfig, true);// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
-			clockTrigger.reset();
 		}
 		
 		

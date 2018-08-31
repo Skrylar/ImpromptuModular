@@ -49,12 +49,12 @@ struct TwelveKey : Module {
 	bool stateInternal;// false when pass through CV and Gate, true when CV and gate from this module
 	
 	// No need to save
-	//float gateLight = 0.0f;
 	unsigned long noteLightCounter;// 0 when no key to light, downward step counter timer when key lit
 	int lastKeyPressed;// 0 to 11
-	int lightRefreshCounter;
 
 	
+	int lightRefreshCounter = 0;
+	//float gateLight = 0.0f;
 	SchmittTrigger keyTriggers[12];
 	SchmittTrigger gateInputTrigger;
 	SchmittTrigger octIncTrigger;
@@ -71,7 +71,6 @@ struct TwelveKey : Module {
 		stateInternal = inputs[GATE_INPUT].active ? false : true;
 		noteLightCounter = 0ul;
 		lastKeyPressed = 0;
-		lightRefreshCounter = 0;
 	}
 
 	void onRandomize() override {
@@ -123,10 +122,8 @@ struct TwelveKey : Module {
 	}
 
 	
-	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {		
 		static const float noteLightTime = 0.5f;// seconds
-
 		
 		//********** Buttons, knobs, switches and inputs **********
 		

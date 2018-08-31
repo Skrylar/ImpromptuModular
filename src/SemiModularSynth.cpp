@@ -557,7 +557,6 @@ struct SemiModularSynth : Module {
 	}
 	
 
-	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
 	void step() override {
 		float sampleRate = engineGetSampleRate();
 	
@@ -966,12 +965,9 @@ struct SemiModularSynth : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			//stepIndexEdit = 0;
-			//sequence = 0;
 			initRun(true);// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
-			clockTrigger.reset();
 		}
 		
 		

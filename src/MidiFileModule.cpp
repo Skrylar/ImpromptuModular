@@ -118,8 +118,6 @@ struct MidiFileModule : Module {
 		
 		// No need to save, no reset
 		fileLoaded = false;
-		runningTrigger.reset();
-		resetTrigger.reset();
 		resetLight = 0.0f;
 		
 		onReset();
@@ -419,8 +417,6 @@ struct MidiFileModule : Module {
 		
 		// Reset
 		if (resetTrigger.process(params[RESET_PARAM].value + inputs[RESET_INPUT].value)) {
-			//clockTrigger.reset();
-			//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 			resetLight = 1.0f;
 			time = 0.0;
 			event = 0;

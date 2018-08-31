@@ -30,6 +30,57 @@ class Clock {
 	
 	public:
 	
+	Clock() {
+		reset();
+	}
+	
+	inline void reset() {
+		step = -1.0;
+	}
+	inline bool isReset() {
+		return step == -1.0;
+	}
+	inline double getStep() {
+		return step;
+	}
+	void setSync(Clock* clkGiven) {
+		syncSrc = clkGiven;
+	}
+	inline void start() {
+		step = 0.0;
+	}
+	
+	inline void setup(double lengthGiven, int iterationsGiven, double sampleTimeGiven) {
+		length = lengthGiven;
+		iterations = iterationsGiven;
+		sampleTime = sampleTimeGiven;
+	}
+
+	void stepClock() {// here the clock was output on step "step", this function is called at end of module::step()
+		if (step >= 0.0) {// if active clock
+			step += sampleTime;
+			if ( (syncSrc != nullptr) && (iterations == 1) && (step > (length - guard)) ) {// if in sync region
+				if (syncSrc->isReset()) {
+					reset();
+				}// else nothing needs to be done, just wait and step stays the same
+			}
+			else {
+				if (step >= length) {// reached end iteration
+					iterations--;
+					step -= length;
+					if (iterations <= 0) 
+						reset();// frame done
+				}
+			}
+		}
+	}
+	
+	void applyNewLength(double lengthStretchFactor) {
+		if (step != -1.0)
+			step *= lengthStretchFactor;
+		length *= lengthStretchFactor;
+	}
+	
 	int isHigh(float swing, float pulseWidth) {
 		// last 0.5ms (guard time) must be low so that sync mechanism will work properly (i.e. no missed pulses)
 		//   this will automatically be the case, since code below disallows any pulses or inter-pulse times less than 1ms
@@ -58,56 +109,7 @@ class Clock {
 				high = 2;
 		}
 		return high;
-	}
-	
-	void setSync(Clock* clkGiven) {
-		syncSrc = clkGiven;
-	}
-	
-	inline void reset() {
-		step = -1.0;
-	}
-	inline bool isReset() {
-		return step == -1.0;
-	}
-	inline double getStep() {
-		return step;
-	}
-	
-	inline void setup(double lengthGiven, int iterationsGiven, double sampleTimeGiven) {
-		length = lengthGiven;
-		iterations = iterationsGiven;
-		sampleTime = sampleTimeGiven;
-	}
-	
-	inline void start() {
-		step = 0.0;
-	}
-	
-	void stepClock() {// here the clock was output on step "step", this function is called at end of module::step()
-		if (step >= 0.0) {// if active clock
-			step += sampleTime;
-			if ( (syncSrc != nullptr) && (iterations == 1) && (step > (length - guard)) ) {// if in sync region
-				if (syncSrc->isReset()) {
-					reset();
-				}// else nothing needs to be done, just wait and step stays the same
-			}
-			else {
-				if (step >= length) {// reached end iteration
-					iterations--;
-					step -= length;
-					if (iterations <= 0) 
-						reset();// frame done
-				}
-			}
-		}
-	}
-	
-	void applyNewLength(double lengthStretchFactor) {
-		if (step != -1.0)
-			step *= lengthStretchFactor;
-		length *= lengthStretchFactor;
-	}
+	}	
 };
 
 
@@ -124,6 +126,10 @@ class ClockDelay {
 	long stepFall2;
 	
 	public:
+	
+	ClockDelay() {
+		reset();
+	}
 	
 	void reset() {
 		stepCounter = 0l;
@@ -222,21 +228,16 @@ struct Clocked : Module {
 	static constexpr float delayInfoTime = 3.0f;// seconds
 	static constexpr float swingInfoTime = 2.0f;// seconds
 	
-	// Need to save, with reset
+	// Need to save
+	int panelTheme = 0;
+	int expansion = 0;
+	bool displayDelayNoteMode = true;
+	bool bpmDetectionMode = false;
+	bool emitResetOnStopRun = false;
+	int ppqn = 4;
 	bool running;
 	
-	// Need to save, no reset
-	int panelTheme;
-	int expansion;
-	bool displayDelayNoteMode;
-	bool bpmDetectionMode;
-	bool emitResetOnStopRun;
-	int ppqn;
-	
-	// No need to save, with reset
-	// none
-	
-	// No need to save, no reset
+	// No need to save
 	bool scheduledReset;
 	float swingVal[4];
 	long swingInfo[4];// downward step counter when swing to be displayed, 0 when normal display
@@ -247,33 +248,25 @@ struct Clocked : Module {
 	Clock clk[4];
 	ClockDelay delay[4];
 	float masterLength;// a length is a double period
-	float resetLight;
-	SchmittTrigger resetTrigger;
-	SchmittTrigger runTrigger;
-	PulseGenerator resetPulse;
-	PulseGenerator runPulse;
-	SchmittTrigger bpmDetectTrigger;
 	int extPulseNumber;// 0 to ppqn - 1
 	double extIntervalTime;
 	double timeoutTime;
-	long cantRunWarning;// 0 when no warning, positive downward step counter timer when warning
 	long editingBpmMode;// 0 when no edit bpmMode, downward step counter timer when edit, negative upward when show can't edit ("--") 
-	int lightRefreshCounter;
-	
+
+
+	long cantRunWarning = 0l;// 0 when no warning, positive downward step counter timer when warning
+	int lightRefreshCounter = 0;
+	float resetLight = 0.0f;
+	SchmittTrigger resetTrigger;
+	SchmittTrigger runTrigger;
+	SchmittTrigger bpmDetectTrigger;
 	SchmittTrigger bpmModeTrigger;
+	PulseGenerator resetPulse;
+	PulseGenerator runPulse;
 
 	
 	// called from the main thread (step() can not be called until all modules created)
 	Clocked() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		// Need to save, no reset
-		panelTheme = 0;
-		expansion = 0;
-		displayDelayNoteMode = true;
-		bpmDetectionMode = false;
-		emitResetOnStopRun = false;
-		ppqn = 4;
-		// No need to save, no reset
-		scheduledReset = false;
 		for (int i = 0; i < 4; i++) {
 			clk[i].setSync(i == 0 ? nullptr : &clk[0]);
 			swingVal[i] = 0.0f;
@@ -282,58 +275,32 @@ struct Clocked : Module {
 			delayInfo[i] = 0l;
 			ratiosDoubled[i] = 0;
 			newRatiosDoubled[i] = 0;
-			clk[i].reset();
-			delay[i].reset();
 		}		
 		masterLength = 1.0f;// 120 BPM
-		resetLight = 0.0f;
-		resetTrigger.reset();
-		runTrigger.reset();
-		resetPulse.reset();
-		runPulse.reset();
-		bpmDetectTrigger.reset();
 		extPulseNumber = -1;
 		extIntervalTime = 0.0;
 		timeoutTime = 2.0 / ppqn + 0.1;
-		cantRunWarning = 0ul;
-		bpmModeTrigger.reset();
-		lightRefreshCounter = 0;
 		
 		onReset();
 	}
 	
 
-	// widgets are not yet created when module is created 
-	// even if widgets not created yet, can use params[] and should handle 0.0f value since step may call 
-	//   this before widget creation anyways
-	// called from the main thread if by constructor, called by engine thread if right-click initialization
-	//   when called by constructor, module is created before the first step() is called
 	void onReset() override {
-		// Need to save, with reset
 		running = false;
-		// No need to save, with reset
-		// none
 		
 		scheduledReset = true;
 	}
 	
 	
-	// widgets randomized before onRandomize() is called
-	// called by engine thread if right-click randomize
 	void onRandomize() override {
-		// Need to save, with reset
 		running = false;
-		// No need to save, with reset
-		// none
 		
 		scheduledReset = true;
 	}
 
 	
-	// called by main thread
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
-		// Need to save (reset or not)
 		
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
@@ -360,10 +327,7 @@ struct Clocked : Module {
 	}
 
 
-	// widgets have their fromJson() called before this fromJson() is called
-	// called by main thread
 	void fromJson(json_t *rootJ) override {
-		// Need to save (reset or not)
 		// running
 		json_t *runningJ = json_object_get(rootJ, "running");
 		if (runningJ)
@@ -399,9 +363,6 @@ struct Clocked : Module {
 		if (ppqnJ)
 			ppqn = clamp(json_integer_value(ppqnJ), 4, 24);
 
-		// No need to save, with reset
-		// none
-		
 		scheduledReset = true;
 	}
 
@@ -438,13 +399,12 @@ struct Clocked : Module {
 		timeoutTime = 2.0 / ppqn + 0.1;
 	}		
 	
-	// called by engine thread
+
 	void onSampleRateChange() override {
 		resetClocked();
 	}		
 	
-	// Advances the module by 1 audio frame with duration 1.0 / engineGetSampleRate()
-	// called by engine thread
+
 	void step() override {		
 		double sampleRate = (double)engineGetSampleRate();
 		double sampleTime = 1.0 / sampleRate;// do this here since engineGetSampleRate() returns float
@@ -452,13 +412,6 @@ struct Clocked : Module {
 		// Scheduled reset (just the parts that do not have a place below in rest of function)
 		if (scheduledReset) {
 			resetClocked();		
-			resetLight = 0.0f;
-			resetTrigger.reset();
-			runTrigger.reset();
-			resetPulse.reset();
-			runPulse.reset();
-			bpmDetectTrigger.reset();
-			cantRunWarning = 0l;
 			editingBpmMode = 0l;
 		}
 		
@@ -469,7 +422,6 @@ struct Clocked : Module {
 				runPulse.trigger(0.001f);
 				resetClocked();// reset on any change of run state (will not re-launch if not running, thus clock railed low)
 				if (!running && emitResetOnStopRun) {
-					//resetLight = 1.0f;
 					resetPulse.trigger(0.001f);
 				}
 			}
@@ -550,7 +502,6 @@ struct Clocked : Module {
 						runPulse.trigger(0.001f);
 						resetClocked();
 						if (emitResetOnStopRun) {
-							//resetLight = 1.0f;
 							resetPulse.trigger(0.001f);
 						}
 					}
