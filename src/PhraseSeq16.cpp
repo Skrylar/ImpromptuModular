@@ -664,15 +664,6 @@ struct PhraseSeq16 : Module {
 		if (writeTrig) {
 			if (editingSequence) {
 				cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
-				// Extra CVs from expansion panel:
-				if (inputs[TIEDCV_INPUT].active)
-					setTiedA(&attributes[sequence][stepIndexEdit], inputs[TIEDCV_INPUT].value > 1.0f);
-				if (inputs[GATE1CV_INPUT].active)
-					setGate1a(&attributes[sequence][stepIndexEdit], inputs[GATE1CV_INPUT].value > 1.0f);
-				if (inputs[GATE2CV_INPUT].active)
-					setGate2a(&attributes[sequence][stepIndexEdit], inputs[GATE2CV_INPUT].value > 1.0f);
-				if (inputs[SLIDECV_INPUT].active)
-					setSlideA(&attributes[sequence][stepIndexEdit], inputs[SLIDECV_INPUT].value > 1.0f);			
 				applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 				editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 				editingGateCV = cv[sequence][stepIndexEdit];
@@ -902,7 +893,7 @@ struct PhraseSeq16 : Module {
 		}
 				
 		// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
-		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
+		if (gate1Trigger.process(params[GATE1_PARAM].value + inputs[GATE1CV_INPUT].value)) {
 			if (editingSequence) {
 				toggleGate1a(&attributes[sequence][stepIndexEdit]);
 				if (pulsesPerStep != 1) {
@@ -921,7 +912,7 @@ struct PhraseSeq16 : Module {
 			}
 			displayState = DISP_NORMAL;
 		}		
-		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
+		if (gate2Trigger.process(params[GATE2_PARAM].value + inputs[GATE2CV_INPUT].value)) {
 			if (editingSequence) {
 				toggleGate2a(&attributes[sequence][stepIndexEdit]);
 				if (pulsesPerStep != 1) {
@@ -931,7 +922,7 @@ struct PhraseSeq16 : Module {
 			}
 			displayState = DISP_NORMAL;
 		}		
-		if (slideTrigger.process(params[SLIDE_BTN_PARAM].value)) {
+		if (slideTrigger.process(params[SLIDE_BTN_PARAM].value + inputs[SLIDECV_INPUT].value)) {
 			if (editingSequence) {
 				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
@@ -940,7 +931,7 @@ struct PhraseSeq16 : Module {
 			}
 			displayState = DISP_NORMAL;
 		}		
-		if (tiedTrigger.process(params[TIE_PARAM].value)) {
+		if (tiedTrigger.process(params[TIE_PARAM].value + inputs[TIEDCV_INPUT].value)) {
 			if (editingSequence) {
 				toggleTiedA(&attributes[sequence][stepIndexEdit]);
 				if (getTied(sequence,stepIndexEdit)) {
@@ -1137,21 +1128,32 @@ struct PhraseSeq16 : Module {
 			}			
 			
 			// Gate1, Gate1Prob, Gate2, Slide and Tied lights
-			int attributesVal = attributes[sequence][stepIndexEdit];
-			if (!editingSequence)
-				attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
-			//
-			setGateLight(getGate1a(attributesVal), GATE1_LIGHT);
-			setGateLight(getGate2a(attributesVal), GATE2_LIGHT);
-			lights[GATE1_PROB_LIGHT].value = getGate1Pa(attributesVal) ? 1.0f : 0.0f;
-			lights[SLIDE_LIGHT].value = getSlideA(attributesVal) ? 1.0f : 0.0f;
-			if (tiedWarning > 0l) {
-				bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
-				lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
+			if (!editingSequence && (!attached || !running)) {// no oct lights when song mode and either (detached [1] or stopped [2])
+											// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
+											// [2] CV is set to 0V when not running and in song mode, so cv[][] makes no sense to display
+				setGateLight(false, GATE1_LIGHT);
+				setGateLight(false, GATE2_LIGHT);
+				lights[GATE1_PROB_LIGHT].value = 0.0f;
+				lights[SLIDE_LIGHT].value = 0.0f;
+				lights[TIE_LIGHT].value = 0.0f;
 			}
-			else
-				lights[TIE_LIGHT].value = getTiedA(attributesVal) ? 1.0f : 0.0f;
-
+			else {
+				int attributesVal = attributes[sequence][stepIndexEdit];
+				if (!editingSequence)
+					attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
+				//
+				setGateLight(getGate1a(attributesVal), GATE1_LIGHT);
+				setGateLight(getGate2a(attributesVal), GATE2_LIGHT);
+				lights[GATE1_PROB_LIGHT].value = getGate1Pa(attributesVal) ? 1.0f : 0.0f;
+				lights[SLIDE_LIGHT].value = getSlideA(attributesVal) ? 1.0f : 0.0f;
+				if (tiedWarning > 0l) {
+					bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+					lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
+				}
+				else
+					lights[TIE_LIGHT].value = getTiedA(attributesVal) ? 1.0f : 0.0f;
+			}
+			
 			// Attach light
 			lights[ATTACH_LIGHT].value = (running && attached) ? 1.0f : 0.0f;
 			
