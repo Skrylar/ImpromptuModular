@@ -239,21 +239,21 @@ struct Clocked : Module {
 	
 	// No need to save
 	bool scheduledReset;
-	float swingVal[4];
-	long swingInfo[4];// downward step counter when swing to be displayed, 0 when normal display
-	int delayKnobIndexes[4];
-	long delayInfo[4];// downward step counter when delay to be displayed, 0 when normal display
-	int ratiosDoubled[4];
-	int newRatiosDoubled[4];
+	
+	
+	float swingVal[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	long swingInfo[4] = {0l, 0l, 0l, 0l};// downward step counter when swing to be displayed, 0 when normal display
+	int delayKnobIndexes[4] = {0, 0, 0, 0};
+	long delayInfo[4] = {0l, 0l, 0l, 0l};// downward step counter when delay to be displayed, 0 when normal display
+	int ratiosDoubled[4] = {0, 0, 0, 0};
+	int newRatiosDoubled[4] = {0, 0, 0, 0};
 	Clock clk[4];
 	ClockDelay delay[4];
-	float masterLength;// a length is a double period
-	int extPulseNumber;// 0 to ppqn - 1
-	double extIntervalTime;
-	double timeoutTime;
-	long editingBpmMode;// 0 when no edit bpmMode, downward step counter timer when edit, negative upward when show can't edit ("--") 
-
-
+	long editingBpmMode = 0l;// 0 when no edit bpmMode, downward step counter timer when edit, negative upward when show can't edit ("--") 
+	float masterLength = 1.0f;// 120 BPM; a length is a double period
+	int extPulseNumber = -1;// 0 to ppqn - 1
+	double extIntervalTime = 0.0;
+	double timeoutTime = 2.0 / ppqn + 0.1;
 	long cantRunWarning = 0l;// 0 when no warning, positive downward step counter timer when warning
 	int lightRefreshCounter = 0;
 	float resetLight = 0.0f;
@@ -267,19 +267,8 @@ struct Clocked : Module {
 	
 	// called from the main thread (step() can not be called until all modules created)
 	Clocked() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		for (int i = 0; i < 4; i++) {
-			clk[i].setSync(i == 0 ? nullptr : &clk[0]);
-			swingVal[i] = 0.0f;
-			swingInfo[i] = 0l;
-			delayKnobIndexes[i] = 0;
-			delayInfo[i] = 0l;
-			ratiosDoubled[i] = 0;
-			newRatiosDoubled[i] = 0;
-		}		
-		masterLength = 1.0f;// 120 BPM
-		extPulseNumber = -1;
-		extIntervalTime = 0.0;
-		timeoutTime = 2.0 / ppqn + 0.1;
+		for (int i = 1; i < 4; i++)
+			clk[i].setSync(&clk[0]);	
 		
 		onReset();
 	}

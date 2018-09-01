@@ -44,6 +44,7 @@ struct MidiFileModule : Module {
 		LOADMIDI_PARAM,
 		RESET_PARAM,
 		RUN_PARAM,
+		LOOP_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -76,7 +77,7 @@ struct MidiFileModule : Module {
 	enum PolyMode {ROTATE_MODE, REUSE_MODE, RESET_MODE, REASSIGN_MODE, UNISON_MODE, NUM_MODES};
 	
 	// Need to save, with reset
-	int loop;// 0 for no loop, 1 for loop-ply (loop automatically after reach end)
+	// none
 	
 	// Need to save, no reset
 	int panelTheme;
@@ -128,7 +129,7 @@ struct MidiFileModule : Module {
 	// onReset() is also called when right-click initialization of module
 	void onReset() override {
 		// Need to save, with reset
-		loop = 1;
+		// none
 		
 		// No need to save, with reset
 		running = false;
@@ -395,7 +396,7 @@ struct MidiFileModule : Module {
 		if (running) {
 			for (int ii = 0; ii < 200; ii++) {// assumes max N events at the same time
 				if (event >= midifile[track].size()) {
-					if (loop == 0)
+					if (params[LOOP_PARAM].value < 0.5f)
 						running = false;
 					event = 0;
 					time = 0.0;
@@ -530,6 +531,7 @@ struct MidiFileWidget : ModuleWidget {
 		static const int colRulerMSpacing = 60;
 		static const int colRulerM1 = colRulerM0 + colRulerMSpacing;
 		static const int colRulerM2 = colRulerM1 + colRulerMSpacing;
+		static const int colRulerM3 = colRulerM2 + colRulerMSpacing;
 		static const int rowRulerM0 = 180;
 		
 		
@@ -549,6 +551,8 @@ struct MidiFileWidget : ModuleWidget {
 		addParam(createParamCentered<LEDBezel>(Vec(colRulerM2, rowRulerM0), module, MidiFileModule::RUN_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(createLightCentered<MuteLight<GreenLight>>(Vec(colRulerM2, rowRulerM0), module, MidiFileModule::RUN_LIGHT));
 		
+		// Loop
+		addParam(createParamCentered<CKSS>(Vec(colRulerM3, rowRulerM0), module, MidiFileModule::LOOP_PARAM, 0.0f, 1.0f, 1.0f));		
 		
 		
 		// channel outputs (CV, GATE, VELOCITY)
