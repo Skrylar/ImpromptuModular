@@ -281,7 +281,7 @@ struct PhraseSeq32 : Module {
 			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
 		if (hard)
-				stepIndexRun = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
+			stepIndexRun = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
 		ppqnCount = 0;
 		for (int i = 0; i < 2; i += stepConfig) {
 			gate1Code[i] = calcGate1Code(attributes[seq][(i * 16) + stepIndexRun], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
@@ -1230,11 +1230,15 @@ struct PhraseSeq32 : Module {
 				if (infoCopyPaste < 0l)
 					infoCopyPaste ++;
 			}
-			if (editingGateLength != 0l) {
-				if (editingGateLength > 0l)
-					editingGateLength --;
+			if (editingGateLength > 0l) {// needs thread safe version (that's why it appears not optimized)
+				editingGateLength --;
 				if (editingGateLength < 0l)
-					editingGateLength ++;
+					editingGateLength = 0l;
+			}
+			if (editingGateLength < 0l) {// goes with previous if()
+				editingGateLength ++;
+				if (editingGateLength > 0l)
+					editingGateLength = 0l;
 			}
 			if (editingPpqn > 0l)
 				editingPpqn--;

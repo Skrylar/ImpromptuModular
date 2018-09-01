@@ -1190,11 +1190,15 @@ struct PhraseSeq16 : Module {
 			}
 			if (editingPpqn > 0l)
 				editingPpqn--;
-			if (editingGateLength != 0l) {
-				if (editingGateLength > 0l)
-					editingGateLength --;
+			if (editingGateLength > 0l) {// needs thread safe version (that's why it appears not optimized)
+				editingGateLength --;
 				if (editingGateLength < 0l)
-					editingGateLength ++;
+					editingGateLength = 0l;
+			}
+			if (editingGateLength < 0l) {// goes with previous if()
+				editingGateLength ++;
+				if (editingGateLength > 0l)
+					editingGateLength = 0l;
 			}
 		}// lightRefreshCounter
 		
@@ -1613,7 +1617,7 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 
 0.6.11:
 step optimization of lights refresh
-
+change behavior of extra CV inputs (Gate1, Gate2, Tied, Slide), such that they act when triggered and not when write 
 
 0.6.10:
 add advanced gate mode

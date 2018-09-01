@@ -689,7 +689,7 @@ struct Clocked : Module {
 			}
 			if (cantRunWarning > 0l)
 				cantRunWarning--;
-			if (editingBpmMode != 0l) {
+			if (editingBpmMode != 0l) {// with schedulesReset method, this block is not thread-unsafe and is ok as it is
 				if (editingBpmMode > 0l)
 					editingBpmMode--;
 				else
