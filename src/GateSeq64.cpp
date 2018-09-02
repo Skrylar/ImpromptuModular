@@ -80,8 +80,8 @@ struct GateSeq64 : Module {
 	int runModeSong;
 	int sequence;
 	int lengths[16];// values are 1 to 16
-	int phrase[16];// This is the song (series of phases; a phrase is a patten number)
-	int phrases;//1 to 16
+	int phrase[64];// This is the song (series of phases; a phrase is a patten number)
+	int phrases;//1 to 64
 	int attributes[16][64];
 	bool resetOnRun;
 
@@ -108,6 +108,7 @@ struct GateSeq64 : Module {
 	long blinkCount;// positive upward counter, reset to 0 when max reached
 	int blinkNum;// number of blink cycles to do, downward counter
 	int stepConfigLast;
+	long editingPhraseSongRunning;// downward step counter
 
 
 	int lightRefreshCounter = 0;
@@ -192,11 +193,12 @@ struct GateSeq64 : Module {
 				attributes[i][s] = 50;
 			}
 			runModeSeq[i] = MODE_FWD;
-			phrase[i] = 0;
 			lengths[i] = 16 * stepConfig;
 		}
-		for (int i = 0; i < 64; i++)
+		for (int i = 0; i < 64; i++) {
+			phrase[i] = 0;
 			attributesCPbuffer[i] = 50;
+		}
 		initRun(stepConfig, true);
 		lengthCPbuffer = 64;
 		modeCPbuffer = MODE_FWD;
@@ -210,6 +212,7 @@ struct GateSeq64 : Module {
 		editingPpqn = 0l;
 		blinkCount = 0l;
 		blinkNum = blinkNumInit;
+		editingPhraseSongRunning = 0l;
 	}
 
 	
@@ -221,21 +224,23 @@ struct GateSeq64 : Module {
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
 		sequence = randomu32() % 16;
-		phrases = 1 + (randomu32() % 16);
+		phrases = 1 + (randomu32() % 64);
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 64; s++) {
 				attributes[i][s] = (randomu32() % 101) | (randomu32() & (ATT_MSK_GATEP | ATT_MSK_GATE | ATT_MSK_GATEMODE));
 			}
 			runModeSeq[i] = randomu32() % NUM_MODES;
-			phrase[i] = randomu32() % 16;
 			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
 		}
+		for (int i = 0; i < 64; i++)
+			phrase[i] = randomu32() % 16;
 		initRun(stepConfig, true);
 		displayState = DISP_GATE;
 		displayProbInfo = 0l;
 		infoCopyPaste = 0l;
 		revertDisplay = 0l;
 		editingPpqn = 0l;
+		editingPhraseSongRunning = 0l;
 	}
 
 	
@@ -287,9 +292,9 @@ struct GateSeq64 : Module {
 	
 		// phrase 
 		json_t *phraseJ = json_array();
-		for (int i = 0; i < 16; i++)
+		for (int i = 0; i < 64; i++)
 			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
-		json_object_set_new(rootJ, "phrase", phraseJ);
+		json_object_set_new(rootJ, "phrase2", phraseJ);// "2" appended so no break patches
 
 		// phrases
 		json_object_set_new(rootJ, "phrases", json_integer(phrases));
@@ -363,14 +368,28 @@ struct GateSeq64 : Module {
 		}
 		
 		// phrase
-		json_t *phraseJ = json_object_get(rootJ, "phrase");
-		if (phraseJ)
-			for (int i = 0; i < 16; i++)
+		json_t *phraseJ = json_object_get(rootJ, "phrase2");// "2" appended so no break patches
+		if (phraseJ) {
+			for (int i = 0; i < 64; i++)
 			{
 				json_t *phraseArrayJ = json_array_get(phraseJ, i);
 				if (phraseArrayJ)
 					phrase[i] = json_integer_value(phraseArrayJ);
 			}
+		}
+		else {// legacy
+			phraseJ = json_object_get(rootJ, "phrase");
+			if (phraseJ) {
+				for (int i = 0; i < 16; i++)
+				{
+					json_t *phraseArrayJ = json_array_get(phraseJ, i);
+					if (phraseArrayJ)
+						phrase[i] = json_integer_value(phraseArrayJ);
+				}
+				for (int i = 16; i < 64; i++)
+					phrase[i] = 0;
+			}
+		}
 		
 		// phrases
 		json_t *phrasesJ = json_object_get(rootJ, "phrases");
@@ -403,8 +422,9 @@ struct GateSeq64 : Module {
 	void step() override {
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float displayProbInfoTime = 3.0f;// seconds
-		static const float revertDisplayTime = 0.7f;// seconds
+		static const float revertDisplayTime = 0.5f;// seconds
 		static const float holdDetectTime = 2.0f;// seconds
+		static const float editingPhraseSongRunningTime = 4.0f;// seconds
 		float sampleRate = engineGetSampleRate();
 		
 
@@ -440,11 +460,11 @@ struct GateSeq64 : Module {
 			displayState = DISP_GATE;
 		}
 		
-		// No attach button here, so in in song mode assume attached whe running and in sequence mode show both stepIndexEdit (flashing cursor) and stepIndexRun (pale diff led)
-		if (running) {// && attached) {
-			if (!editingSequence)
-				phraseIndexEdit = phraseIndexRun;
-		}
+		// No attach button here, so in in song mode assume detached when running and in sequence mode show both stepIndexEdit (flashing cursor) and stepIndexRun (pale diff led)
+		// if (running) {// && attached) {
+			// if (!editingSequence)
+				// phraseIndexEdit = phraseIndexRun;
+		// }
 
 		// Copy button
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
@@ -564,22 +584,18 @@ struct GateSeq64 : Module {
 				blinkNum = blinkNumInit;
 			}
 			else {// editing song
-				row = stepPressed / 16;
-				if (row == 3) {
-					col = stepPressed % 16;
-					if (displayState == DISP_LENGTH) {
-						phrases = col + 1;
-						if (phrases > 16) phrases = 16;
-						if (phrases < 1 ) phrases = 1;
-						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
-					}
-					else if (displayState == DISP_MODES) {
-						if (col >= 11 && col <= 15)
-							runModeSong = col - 11;
-					}
-					else {
-						phraseIndexEdit = stepPressed - 48;
-					}
+				if (displayState == DISP_LENGTH) {
+					phrases = stepPressed + 1;
+					if (phrases > 64) phrases = 64;
+					if (phrases < 1 ) phrases = 1;
+					revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
+				}
+				else if (displayState == DISP_MODES) {
+				}
+				else {
+					phraseIndexEdit = stepPressed;
+					if (running)
+						editingPhraseSongRunning = (long) (editingPhraseSongRunningTime * sampleRate / displayRefreshStepSkips);
 				}
 			}
 		}
@@ -680,7 +696,7 @@ struct GateSeq64 : Module {
 					}
 					else {
 						phrases += deltaKnob;
-						if (phrases > 16) phrases = 16;
+						if (phrases > 64) phrases = 64;
 						if (phrases < 1 ) phrases = 1;
 					}
 				}
@@ -694,9 +710,18 @@ struct GateSeq64 : Module {
 						}
 					}
 					else {
-						phrase[phraseIndexEdit] += deltaKnob;
-						if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
-						if (phrase[phraseIndexEdit] >= 16) phrase[phraseIndexEdit] = (16 - 1);
+						if (editingPhraseSongRunning > 0l || !running) {
+							phrase[phraseIndexEdit] += deltaKnob;
+							if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
+							if (phrase[phraseIndexEdit] >= 16) phrase[phraseIndexEdit] = (16 - 1);
+							if (running)
+								editingPhraseSongRunning = (long) (editingPhraseSongRunningTime * sampleRate / displayRefreshStepSkips);
+						}
+						// else {
+							// phrase[phraseIndexRun] += deltaKnob;
+							// if (phrase[phraseIndexRun] < 0) phrase[phraseIndexRun] = 0;
+							// if (phrase[phraseIndexRun] >= 16) phrase[phraseIndexRun] = (16 - 1);
+						// }
 					}	
 				}					
 			}
@@ -813,23 +838,19 @@ struct GateSeq64 : Module {
 					}
 					else {// editing Song
 						if (displayState == DISP_LENGTH) {
-							row = i >> 4;//i / 16;// optimized
 							col = i & 0xF;//i % 16;// optimized
-							if (row == 3 && col < (phrases - 1))
+							if (i < (phrases - 1))
 								setGreenRed(STEP_LIGHTS + i * 2, 0.1f, 0.0f);
-							else if (row == 3 && col == (phrases - 1))
+							else if (i == (phrases - 1))
 								setGreenRed(STEP_LIGHTS + i * 2, 1.0f, 0.0f);
 							else 
 								setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
 						}
 						else {
-							float green;
-							if (running) 
-								green = (i == (phraseIndexRun + 48)) ? 1.0f : 0.0f;
-							else
-								green = (i == (phraseIndexEdit + 48)) ? 1.0f : 0.0f;
-							green += ((running && (col == stepIndexRun) && i != (phraseIndexEdit + 48)) ? 0.1f : 0.0f);
-							setGreenRed(STEP_LIGHTS + i * 2, clamp(green, 0.0f, 1.0f), 0.0f);
+							float green = (i == (phraseIndexRun) && running) ? 1.0f : 0.0f;
+							float red = (i == (phraseIndexEdit) && ((editingPhraseSongRunning > 0l) || !running)) ? 1.0f : 0.0f;
+							green += ((running && (col == stepIndexRun) && i != (phraseIndexEdit)) ? 0.1f : 0.0f);
+							setGreenRed(STEP_LIGHTS + i * 2, clamp(green, 0.0f, 1.0f), red);
 						}				
 					}
 				}
@@ -875,6 +896,8 @@ struct GateSeq64 : Module {
 			}
 			if (editingPpqn > 0l)
 				editingPpqn--;
+			if (editingPhraseSongRunning > 0l)
+				editingPhraseSongRunning--;
 			if (revertDisplay > 0l) {
 				if (revertDisplay == 1)
 					displayState = DISP_GATE;
@@ -967,15 +990,19 @@ struct GateSeq64Widget : ModuleWidget {
 			}
 			else {
 				int dispVal = 0;
+				char specialCode = ' ';
 				if (module->isEditingSequence())
 					dispVal = module->sequence;
 				else {
-					if (module->running)
-						dispVal = module->phrase[module->phraseIndexRun];
-					else 
+					if (module->editingPhraseSongRunning > 0l || !module->running) {
 						dispVal = module->phrase[module->phraseIndexEdit];
+						if (module->editingPhraseSongRunning > 0l)
+							specialCode = '*';
+					}
+					else
+						dispVal = module->phrase[module->phraseIndexRun];
 				}
-				snprintf(displayStr, 4, " %2u", (unsigned)(dispVal) + 1 );
+				snprintf(displayStr, 4, "%c%2u", specialCode, (unsigned)(dispVal) + 1 );
 			}
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
