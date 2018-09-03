@@ -698,6 +698,8 @@ struct PhraseSeq32 : Module {
 					}
 					else {
 						phraseIndexEdit = stepPressed;
+						if (!running)
+							phraseIndexRun = stepPressed;
 					}
 				}
 				else {// attached and running

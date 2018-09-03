@@ -710,8 +710,11 @@ struct PhraseSeq16 : Module {
 							}
 						}
 					}
-					else
+					else {
 						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, 16);
+						if (!running)
+							phraseIndexRun = phraseIndexEdit;
+					}
 				}
 			}
 		}

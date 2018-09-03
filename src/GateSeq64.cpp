@@ -596,6 +596,8 @@ struct GateSeq64 : Module {
 					phraseIndexEdit = stepPressed;
 					if (running)
 						editingPhraseSongRunning = (long) (editingPhraseSongRunningTime * sampleRate / displayRefreshStepSkips);
+					else
+						phraseIndexRun = stepPressed;
 				}
 			}
 		}
