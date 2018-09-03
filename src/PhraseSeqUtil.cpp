@@ -81,6 +81,7 @@ bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {
 		break;
 		
 		case MODE_RND :// random; history base is 4000
+		case MODE_RN2 :
 			if ( (*history) < 4000 || ((*history) > (4000 + numSteps)) ) 
 				(*history) = 4000 + numSteps;
 			(*index) = (randomu32() % numSteps) ;

@@ -88,7 +88,7 @@ struct GateSeq64 : Module {
 	// No need to save
 	int displayState;
 	int stepIndexEdit;
-	int stepIndexRun;
+	int stepIndexRun[4];
 	int phraseIndexEdit;	
 	int phraseIndexRun;
 	int stepIndexRunHistory;// no need to initialize
@@ -243,16 +243,30 @@ struct GateSeq64 : Module {
 		editingPhraseSongRunning = 0l;
 	}
 
+	void fillStepIndexRunVector(int runMode, int len) {
+		if (runMode != MODE_RN2) {
+			stepIndexRun[1] = stepIndexRun[0];
+			stepIndexRun[2] = stepIndexRun[0];
+			stepIndexRun[3] = stepIndexRun[0];
+		}
+		else {
+			stepIndexRun[1] = randomu32() % len;
+			stepIndexRun[2] = randomu32() % len;
+			stepIndexRun[3] = randomu32() % len;
+		}
+	}
 	
 	void initRun(int stepConfig, bool hard) {// run button activated or run edge in run input jack
 		if (hard)	
 			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
-		if (hard)	
-			stepIndexRun = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
+		if (hard) {	
+			stepIndexRun[0] = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
+			fillStepIndexRunVector(runModeSeq[seq], lengths[seq]);
+		}
 		ppqnCount = 0;
 		for (int i = 0; i < 4; i += stepConfig)
-			gateCode[i] = calcGateCode(attributes[seq][(i * 16) + stepIndexRun], 0, pulsesPerStep);
+			gateCode[i] = calcGateCode(attributes[seq][(i * 16) + stepIndexRun[i]], 0, pulsesPerStep);
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 	
@@ -460,12 +474,6 @@ struct GateSeq64 : Module {
 			displayState = DISP_GATE;
 		}
 		
-		// No attach button here, so in in song mode assume detached when running and in sequence mode show both stepIndexEdit (flashing cursor) and stepIndexRun (pale diff led)
-		// if (running) {// && attached) {
-			// if (!editingSequence)
-				// phraseIndexEdit = phraseIndexRun;
-		// }
-
 		// Copy button
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
 			if (editingSequence) {
@@ -743,15 +751,16 @@ struct GateSeq64 : Module {
 				int newSeq = sequence;// good value when editingSequence, overwrite if not editingSequence
 				if (ppqnCount == 0) {
 					if (editingSequence) {
-						moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
+						moveIndexRunMode(&stepIndexRun[0], lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
 					}
 					else {
-						if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory)) {
+						if (moveIndexRunMode(&stepIndexRun[0], lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory)) {
 							moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
-							stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
+							stepIndexRun[0] = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
 						}
 						newSeq = phrase[phraseIndexRun];
 					}
+					fillStepIndexRunVector(runModeSeq[newSeq], lengths[newSeq]);
 				}
 				else {
 					if (!editingSequence)
@@ -759,7 +768,7 @@ struct GateSeq64 : Module {
 				}
 				for (int i = 0; i < 4; i += stepConfig) { 
 					if (gateCode[i] != -1 || ppqnCount == 0)
-						gateCode[i] = calcGateCode(attributes[newSeq][(i * 16) + stepIndexRun], ppqnCount, pulsesPerStep);
+						gateCode[i] = calcGateCode(attributes[newSeq][(i * 16) + stepIndexRun[i]], ppqnCount, pulsesPerStep);
 				}
 			}
 		}	
@@ -813,7 +822,7 @@ struct GateSeq64 : Module {
 								setGreenRed(STEP_LIGHTS + i * 2, 0.0f, 0.0f);
 						}
 						else {
-							float stepHereOffset = ((stepIndexRun == col) && running) ? 0.5f : 1.0f;
+							float stepHereOffset = ((stepIndexRun[row] == col) && running) ? 0.5f : 1.0f;
 							long blinkCountMarker = (long) (0.67f * sampleRate / displayRefreshStepSkips);							
 							if (getGate(sequence, i)) {
 								bool blinkEnableOn = (displayState != DISP_MODES) && (blinkCount < blinkCountMarker);
@@ -834,7 +843,7 @@ struct GateSeq64 : Module {
 								if (i == stepIndexEdit && blinkCount > blinkCountMarker && displayState != DISP_MODES)
 									setGreenRed(STEP_LIGHTS + i * 2, 0.05f, 0.0f);
 								else
-									setGreenRed(STEP_LIGHTS + i * 2, ((stepIndexRun == col) && running) ? 0.1f : 0.0f, 0.0f);
+									setGreenRed(STEP_LIGHTS + i * 2, ((stepIndexRun[row] == col) && running) ? 0.1f : 0.0f, 0.0f);
 							}
 						}
 					}
@@ -851,7 +860,7 @@ struct GateSeq64 : Module {
 						else {
 							float green = (i == (phraseIndexRun) && running) ? 1.0f : 0.0f;
 							float red = (i == (phraseIndexEdit) && ((editingPhraseSongRunning > 0l) || !running)) ? 1.0f : 0.0f;
-							green += ((running && (col == stepIndexRun) && i != (phraseIndexEdit)) ? 0.1f : 0.0f);
+							green += ((running && (col == stepIndexRun[row]) && i != (phraseIndexEdit)) ? 0.1f : 0.0f);
 							setGreenRed(STEP_LIGHTS + i * 2, clamp(green, 0.0f, 1.0f), red);
 						}				
 					}
