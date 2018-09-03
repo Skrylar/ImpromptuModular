@@ -723,10 +723,11 @@ struct SemiModularSynth : Module {
 							}
 						}
 					}
-					else
+					else {
 						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, 16);//phrases);// Commented for full edit capabilities
 						if (!running)
 							phraseIndexRun = phraseIndexEdit;
+					}
 				}
 			}
 		}

@@ -503,7 +503,10 @@ struct Clocked : Module {
 			}
 		}
 		else {
-			newMasterLength = 120.0f / params[RATIO_PARAMS + 0].value;// already integer BPM since using snap knob
+			float knobBPM = params[RATIO_PARAMS + 0].value;
+			if (knobBPM < 1.0f)// safety in case module step() starts before widget defaults take effect.
+				knobBPM = 0.0f;
+			newMasterLength = 120.0f / knobBPM;// already integer BPM since using snap knob
 		}
 		newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
 		if (scheduledReset)

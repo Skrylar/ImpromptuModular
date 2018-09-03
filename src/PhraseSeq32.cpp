@@ -89,7 +89,7 @@ struct PhraseSeq32 : Module {
 	
 	// Constants
 	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_LENGTH, DISP_TRANSPOSE, DISP_ROTATE};
-	static constexpr float CONFIG_PARAM_INIT_VALUE = 1.0f;// so that module constructor is coherent with widget initialization, since module created before widget
+	static constexpr float CONFIG_PARAM_INIT_VALUE = 0.0f;// so that module constructor is coherent with widget initialization, since module created before widget
 
 	// Need to save
 	int panelTheme = 0;
