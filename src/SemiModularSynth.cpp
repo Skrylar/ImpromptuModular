@@ -988,7 +988,7 @@ struct SemiModularSynth : Module {
 											((attributes[seq][step] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
 		}
 		else {// not running 
-			outputs[CV_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
+			outputs[CV_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : (editingSequence ? cv[seq][step] : 0.0f);
 			outputs[GATE1_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 			outputs[GATE2_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 		}

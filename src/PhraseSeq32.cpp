@@ -109,7 +109,7 @@ struct PhraseSeq32 : Module {
 
 	// No need to save
 	int stepIndexEdit;
-	int stepIndexRun;
+	int stepIndexRun[2];
 	int phraseIndexEdit;
 	int phraseIndexRun;
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
@@ -275,17 +275,25 @@ struct PhraseSeq32 : Module {
 		editingPpqn = 0l;
 	}
 	
-	
+	inline void fillStepIndexRunVector(int runMode, int len) {
+		if (runMode != MODE_RN2) 
+			stepIndexRun[1] = stepIndexRun[0];
+		else
+			stepIndexRun[1] = randomu32() % len;
+	}
+
 	void initRun(int stepConfig, bool hard) {// run button activated or run edge in run input jack or edit mode toggled
 		if (hard)
 			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
-		if (hard)
-			stepIndexRun = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
+		if (hard) {
+			stepIndexRun[0] = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
+			fillStepIndexRunVector(runModeSeq[seq], lengths[seq]);
+		}
 		ppqnCount = 0;
 		for (int i = 0; i < 2; i += stepConfig) {
-			gate1Code[i] = calcGate1Code(attributes[seq][(i * 16) + stepIndexRun], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
-			gate2Code[i] = calcGate2Code(attributes[seq][(i * 16) + stepIndexRun], 0, pulsesPerStep);
+			gate1Code[i] = calcGate1Code(attributes[seq][(i * 16) + stepIndexRun[i]], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
+			gate2Code[i] = calcGate2Code(attributes[seq][(i * 16) + stepIndexRun[i]], 0, pulsesPerStep);
 		}
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		editingGateLength = 0l;
@@ -551,8 +559,12 @@ struct PhraseSeq32 : Module {
 			displayState = DISP_NORMAL;			
 		}
 		if (running && attached) {
-			if (editingSequence)
-				stepIndexEdit = stepIndexRun + ((attachedChanB && stepConfig == 1) ? 16 : 0);
+			if (editingSequence) {
+				if (attachedChanB && stepConfig == 1)
+					stepIndexEdit = stepIndexRun[1] + 16;
+				else
+					stepIndexEdit = stepIndexRun[0] + 0;
+			}
 			else
 				phraseIndexEdit = phraseIndexRun;
 		}
@@ -970,25 +982,26 @@ struct PhraseSeq32 : Module {
 					float slideFromCV[2] = {0.0f, 0.0f};
 					if (editingSequence) {
 						for (int i = 0; i < 2; i += stepConfig)
-							slideFromCV[i] = cv[sequence][(i * 16) + stepIndexRun];
-						moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
+							slideFromCV[i] = cv[sequence][(i * 16) + stepIndexRun[i]];
+						moveIndexRunMode(&stepIndexRun[0], lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
 					}
 					else {
 						for (int i = 0; i < 2; i += stepConfig)
-							slideFromCV[i] = cv[phrase[phraseIndexRun]][(i * 16) + stepIndexRun];
-						if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory)) {
+							slideFromCV[i] = cv[phrase[phraseIndexRun]][(i * 16) + stepIndexRun[i]];
+						if (moveIndexRunMode(&stepIndexRun[0], lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory)) {
 							moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
-							stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
+							stepIndexRun[0] = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
 						}
 						newSeq = phrase[phraseIndexRun];
 					}
-					
+					fillStepIndexRunVector(runModeSeq[newSeq], lengths[newSeq]);
+
 					// Slide
 					for (int i = 0; i < 2; i += stepConfig) {
-						if (getSlide(newSeq, (i * 16) + stepIndexRun)) {
+						if (getSlide(newSeq, (i * 16) + stepIndexRun[i])) {
 							// activate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
 							slideStepsRemain[i] =   (unsigned long) (((float)clockPeriod  * pulsesPerStep) * params[SLIDE_KNOB_PARAM].value / 2.0f);
-							float slideToCV = cv[newSeq][(i * 16) + stepIndexRun];
+							float slideToCV = cv[newSeq][(i * 16) + stepIndexRun[i]];
 							slideCVdelta[i] = (slideToCV - slideFromCV[i])/(float)slideStepsRemain[i];
 						}
 					}
@@ -999,8 +1012,8 @@ struct PhraseSeq32 : Module {
 				}
 				for (int i = 0; i < 2; i += stepConfig) {
 					if (gate1Code[i] != -1 || ppqnCount == 0)
-						gate1Code[i] = calcGate1Code(attributes[newSeq][(i * 16) + stepIndexRun], ppqnCount, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
-					gate2Code[i] = calcGate2Code(attributes[newSeq][(i * 16) + stepIndexRun], ppqnCount, pulsesPerStep);	
+						gate1Code[i] = calcGate1Code(attributes[newSeq][(i * 16) + stepIndexRun[i]], ppqnCount, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
+					gate2Code[i] = calcGate2Code(attributes[newSeq][(i * 16) + stepIndexRun[i]], ppqnCount, pulsesPerStep);	
 				}
 			}
 			clockPeriod = 0ul;
@@ -1019,16 +1032,17 @@ struct PhraseSeq32 : Module {
 				
 		// CV and gates outputs
 		int seq = editingSequence ? (sequence) : (running ? phrase[phraseIndexRun] : phrase[phraseIndexEdit]);
-		int step = editingSequence ? (running ? stepIndexRun : stepIndexEdit) : (stepIndexRun);
+		int step0 = editingSequence ? (running ? stepIndexRun[0] : stepIndexEdit) : (stepIndexRun[0]);
 		if (running) {
 			float slideOffset[2];
 			for (int i = 0; i < 2; i += stepConfig)
 				slideOffset[i] = (slideStepsRemain[i] > 0ul ? (slideCVdelta[i] * (float)slideStepsRemain[i]) : 0.0f);
-			outputs[CVA_OUTPUT].value = cv[seq][step] - slideOffset[0];
+			outputs[CVA_OUTPUT].value = cv[seq][step0] - slideOffset[0];
 			outputs[GATE1A_OUTPUT].value = calcGate(gate1Code[0], clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
 			outputs[GATE2A_OUTPUT].value = calcGate(gate2Code[0], clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
 			if (stepConfig == 1) {
-				outputs[CVB_OUTPUT].value = cv[seq][16 + step] - slideOffset[1];
+				int step1 = editingSequence ? (running ? stepIndexRun[1] : stepIndexEdit) : (stepIndexRun[1]);
+				outputs[CVB_OUTPUT].value = cv[seq][16 + step1] - slideOffset[1];
 				outputs[GATE1B_OUTPUT].value = calcGate(gate1Code[1], clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
 				outputs[GATE2B_OUTPUT].value = calcGate(gate2Code[1], clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
 			} 
@@ -1040,7 +1054,7 @@ struct PhraseSeq32 : Module {
 		}
 		else {// not running 
 			if (editingChannel == 0) {
-				outputs[CVA_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
+				outputs[CVA_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : (editingSequence ? cv[seq][step0] : 0.0f);
 				outputs[GATE1A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 				outputs[GATE2A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 				outputs[CVB_OUTPUT].value = 0.0f;
@@ -1051,7 +1065,7 @@ struct PhraseSeq32 : Module {
 				outputs[CVA_OUTPUT].value = 0.0f;
 				outputs[GATE1A_OUTPUT].value = 0.0f;
 				outputs[GATE2A_OUTPUT].value = 0.0f;
-				outputs[CVB_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
+				outputs[CVB_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : (editingSequence ? cv[seq][step0] : 0.0f);
 				outputs[GATE1B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 				outputs[GATE2B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 			}
@@ -1097,13 +1111,13 @@ struct PhraseSeq32 : Module {
 					else {// normal led display (i.e. not length)
 						float red = 0.0f;
 						float green = 0.0f;
-						
+						int row = i >> (3 + stepConfig);//i / (16 * stepConfig);// optimized (not equivalent code, but in this case has same effect)
 						// Run cursor (green)
 						if (editingSequence)
-							green = ((running && (col == stepIndexRun)) ? 1.0f : 0.0f);
+							green = ((running && (col == stepIndexRun[row])) ? 1.0f : 0.0f);
 						else {
 							green = ((running && (i == phraseIndexRun)) ? 1.0f : 0.0f);
-							green += ((running && (col == stepIndexRun) && i != phraseIndexEdit) ? 0.1f : 0.0f);
+							green += ((running && (col == stepIndexRun[row]) && i != phraseIndexEdit) ? 0.1f : 0.0f);
 							green = clamp(green, 0.0f, 1.0f);
 						}
 						// Edit cursor (red)
@@ -1122,7 +1136,7 @@ struct PhraseSeq32 : Module {
 			if (editingSequence)
 				octCV = cv[sequence][stepIndexEdit];
 			else
-				octCV = cv[phrase[phraseIndexEdit]][stepIndexRun];
+				octCV = cv[phrase[phraseIndexEdit]][stepIndexRun[0]];
 			int octLightIndex = (int) floor(octCV + 3.0f);
 			for (int i = 0; i < 7; i++) {
 				if (!editingSequence && (!attached || !running || (stepConfig == 1)))// no oct lights when song mode and either (detached [1] or stopped [2] or 2x16config [3])
@@ -1145,7 +1159,7 @@ struct PhraseSeq32 : Module {
 			if (editingSequence) 
 				cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
 			else	
-				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
+				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun[0]] + 10.0f;//to properly handle negative note voltages
 			int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
 			if (editingGateLength != 0 && editingSequence) {
 				int modeLightIndex = gateModeToKeyLightIndex(attributes[sequence][stepIndexEdit], editingGateLength > 0l);
@@ -1200,7 +1214,7 @@ struct PhraseSeq32 : Module {
 			else {
 				int attributesVal = attributes[sequence][stepIndexEdit];
 				if (!editingSequence)
-					attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
+					attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun[0]];
 				//
 				setGateLight(getGate1a(attributesVal), GATE1_LIGHT);
 				setGateLight(getGate2a(attributesVal), GATE2_LIGHT);
@@ -1694,6 +1708,7 @@ Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromp
 0.6.11:
 step optimization of lights refresh
 change behavior of extra CV inputs (Gate1, Gate2, Tied, Slide), such that they act when triggered and not when write 
+add RN2 run mode
 
 0.6.10:
 add advanced gate mode

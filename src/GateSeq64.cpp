@@ -243,7 +243,7 @@ struct GateSeq64 : Module {
 		editingPhraseSongRunning = 0l;
 	}
 
-	void fillStepIndexRunVector(int runMode, int len) {
+	inline void fillStepIndexRunVector(int runMode, int len) {
 		if (runMode != MODE_RN2) {
 			stepIndexRun[1] = stepIndexRun[0];
 			stepIndexRun[2] = stepIndexRun[0];
@@ -1236,6 +1236,7 @@ Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Mod
 
 0.6.11:
 step optimization of lights refresh
+add RN2 run mode
 
 0.6.10:
 add advanced gate mode
