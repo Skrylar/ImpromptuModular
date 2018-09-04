@@ -45,6 +45,8 @@ struct GateSeq64 : Module {
 		PROB_INPUT,
 		WRITE1_INPUT,
 		WRITE0_INPUT,
+		// -- 0.6.10 ^^
+		STEPL_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -124,6 +126,7 @@ struct GateSeq64 : Module {
 	SchmittTrigger writeTrigger;
 	SchmittTrigger write0Trigger;
 	SchmittTrigger write1Trigger;
+	SchmittTrigger stepLTrigger;
 	SchmittTrigger gModeLTrigger;
 	SchmittTrigger gModeRTrigger;
 	SchmittTrigger probTrigger;
@@ -524,7 +527,7 @@ struct GateSeq64 : Module {
 			displayState = DISP_GATE;
 		}
 		
-		// Write inputs 
+		// Write CV inputs 
 		bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 		bool write0Trig = write0Trigger.process(inputs[WRITE0_INPUT].value);
 		bool write1Trig = write1Trigger.process(inputs[WRITE1_INPUT].value);
@@ -548,7 +551,15 @@ struct GateSeq64 : Module {
 				// Autostep (after grab all active inputs)
 				stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 64);					
 			}
-		}	
+		}
+
+		// Step left CV input
+		if (stepLTrigger.process(inputs[STEPL_INPUT].value)) {
+			if (editingSequence) {
+				blinkNum = blinkNumInit;
+				stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit - 1, 64);					
+			}
+		}
 
 		// Step LED button presses
 		int row = -1;
@@ -941,7 +952,7 @@ struct GateSeq64Widget : ModuleWidget {
 	DynamicSVGPanel *panel;
 	int oldExpansion;
 	int expWidth = 60;
-	IMPort* expPorts[5];
+	IMPort* expPorts[6];
 		
 	struct SequenceDisplayWidget : TransparentWidget {
 		GateSeq64 *module;
@@ -1092,7 +1103,7 @@ struct GateSeq64Widget : ModuleWidget {
 	void step() override {
 		if(module->expansion != oldExpansion) {
 			if (oldExpansion!= -1 && module->expansion == 0) {// if just removed expansion panel, disconnect wires to those jacks
-				for (int i = 0; i < 5; i++)
+				for (int i = 0; i < 6; i++)
 					gRackWidget->wireContainer->removeAllWires(expPorts[i]);
 			}
 			oldExpansion = module->expansion;		
@@ -1217,14 +1228,15 @@ struct GateSeq64Widget : ModuleWidget {
 			addOutput(createDynamicPort<IMPort>(Vec(311, rowRulerC0 + iSides * 40), Port::OUTPUT, module, GateSeq64::GATE_OUTPUTS + iSides, &module->panelTheme));
 		
 		// Expansion module
-		static const int rowRulerExpTop = 65;
-		static const int rowSpacingExp = 60;
+		static const int rowRulerExpTop = 60;
+		static const int rowSpacingExp = 50;
 		static const int colRulerExp = 497 - 30 - 90;// GS64 is (2+6)HP less than PS32
 		addInput(expPorts[0] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, GateSeq64::WRITE_INPUT, &module->panelTheme));
 		addInput(expPorts[1] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, GateSeq64::GATE_INPUT, &module->panelTheme));
 		addInput(expPorts[2] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, GateSeq64::PROB_INPUT, &module->panelTheme));
 		addInput(expPorts[3] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, GateSeq64::WRITE0_INPUT, &module->panelTheme));
 		addInput(expPorts[4] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 4), Port::INPUT, module, GateSeq64::WRITE1_INPUT, &module->panelTheme));
+		addInput(expPorts[5] = createDynamicPort<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 5), Port::INPUT, module, GateSeq64::STEPL_INPUT, &module->panelTheme));
 
 	}
 };
@@ -1237,6 +1249,7 @@ Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Mod
 0.6.11:
 step optimization of lights refresh
 add RN2 run mode
+add step-left CV input in expansion panel
 
 0.6.10:
 add advanced gate mode
