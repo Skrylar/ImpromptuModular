@@ -282,7 +282,7 @@ struct PhraseSeq32 : Module {
 			stepIndexRun[1] = randomu32() % len;
 	}
 
-	void initRun(int stepConfig, bool hard) {// run button activated or run edge in run input jack or edit mode toggled
+	void initRun(int stepConfig, bool hard) {// run button activated or run edge in run input jack
 		if (hard)
 			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
