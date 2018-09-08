@@ -241,10 +241,8 @@ struct Clocked : Module {
 	bool scheduledReset;
 	
 	
-	float swingVal[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-	long swingInfo[4] = {0l, 0l, 0l, 0l};// downward step counter when swing to be displayed, 0 when normal display
-	int delayKnobIndexes[4] = {0, 0, 0, 0};
-	long delayInfo[4] = {0l, 0l, 0l, 0l};// downward step counter when delay to be displayed, 0 when normal display
+	int notifyingSource[4] = {-1, -1, -1, -1};
+	long notifyInfo[4] = {0l, 0l, 0l, 0l};// downward step counter when swing to be displayed, 0 when normal display
 	int ratiosDoubled[4] = {0, 0, 0, 0};
 	int newRatiosDoubled[4] = {0, 0, 0, 0};
 	Clock clk[4];
@@ -402,6 +400,7 @@ struct Clocked : Module {
 		if (scheduledReset) {
 			resetClocked();		
 			editingBpmMode = 0l;
+			scheduledReset = false;
 		}
 		
 		// Run button
@@ -529,32 +528,6 @@ struct Clocked : Module {
 				syncRatios[i] = true;// 0 index not used, but loop must start at i = 0
 			}
 		}
-		
-		// Swing and delay changed (for swing and delay info), ignore CV inputs for the info process
-		for (int i = 0; i < 4; i++) {
-			float newSwingVal = params[SWING_PARAMS + i].value;
-			if (scheduledReset) {
-				swingInfo[i] = 0l;
-				swingVal[i] = newSwingVal; 
-			}
-			if (newSwingVal != swingVal[i]) {
-				swingVal[i] = newSwingVal;
-				swingInfo[i] = (long) (swingInfoTime * (float)sampleRate / displayRefreshStepSkips);// trigger swing info on channel i
-				delayInfo[i] = 0l;// cancel delayed being displayed (if so)
-			}
-			if (i > 0) {
-				int newDelayKnobIndex = clamp((int) round( params[DELAY_PARAMS + i].value ), 0, 8 - 1);
-				if (scheduledReset) {
-					delayInfo[i] = 0l;
-					delayKnobIndexes[i] = newDelayKnobIndex;
-				}
-				if (newDelayKnobIndex != delayKnobIndexes[i]) {
-					delayKnobIndexes[i] = newDelayKnobIndex;
-					delayInfo[i] = (long) (delayInfoTime * (float)sampleRate / displayRefreshStepSkips);// trigger delay info on channel i
-					swingInfo[i] = 0l;// cancel swing being displayed (if so)
-				}
-			}
-		}			
 
 		
 		
@@ -599,32 +572,26 @@ struct Clocked : Module {
 					clk[i].start();
 				}
 			}
-
 			
-			// Write clk outputs into delay buffer
 			for (int i = 0; i < 4; i++) {
+				// Write generated clk signals into delay buffers
 				float pulseWidth = params[PW_PARAMS + i].value;
 				if (i < 3 && inputs[PW_INPUTS + i].active) {
 					pulseWidth += (inputs[PW_INPUTS + i].value / 10.0f) - 0.5f;
 					pulseWidth = clamp(pulseWidth, 0.0f, 1.0f);
 				}
-				float swingAmount = swingVal[i];
+				float swingAmount = params[SWING_PARAMS + i].value;//swingVal[i];
 				if (i < 3 && inputs[SWING_INPUTS + i].active) {
 					swingAmount += (inputs[SWING_INPUTS + i].value / 5.0f) - 1.0f;
 					swingAmount = clamp(swingAmount, -1.0f, 1.0f);
 				}
 				delay[i].write(clk[i].isHigh(swingAmount, pulseWidth));
-			}
-		
-		
-		
-		//********** Outputs and lights **********
-		
-			// Clock outputs
-			for (int i = 0; i < 4; i++) {
+
+				// Read delay buffers and set clock output ports
 				long delaySamples = 0l;
 				if (i > 0) {
-					float delayFraction = delayValues[delayKnobIndexes[i]];
+					int delayKnobIndex = (int)(params[DELAY_PARAMS + i].value + 0.5f);
+					float delayFraction = delayValues[delayKnobIndex];//delayValues[delayKnobIndexes[i]];
 					float ratioValue = ((float)ratiosDoubled[i]) / 2.0f;
 					if (ratioValue < 0)
 						ratioValue = 1.0f / (-1.0f * ratioValue);
@@ -672,12 +639,11 @@ struct Clocked : Module {
 				lights[CLK_LIGHTS + i].value = (syncRatios[i] && running) ? 1.0f: 0.0f;
 			}
 
-			// Incr/decr all counters related to step()
+			// info notification counters
 			for (int i = 0; i < 4; i++) {
-				if (swingInfo[i] > 0)
-					swingInfo[i]--;
-				if (delayInfo[i] > 0)
-					delayInfo[i]--;
+				notifyInfo[i]--;
+				if (notifyInfo[i] < 0l)
+					notifyInfo[i] = 0l;
 			}
 			if (cantRunWarning > 0l)
 				cantRunWarning--;
@@ -688,8 +654,6 @@ struct Clocked : Module {
 					editingBpmMode++;
 			}
 		}// lightRefreshCounter
-		
-		scheduledReset = false;
 	}// step()
 };
 
@@ -724,23 +688,26 @@ struct ClockedWidget : ModuleWidget {
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
-			if (module->swingInfo[knobIndex] > 0)
+			if (module->notifyInfo[knobIndex] > 0l)
 			{
-				float swValue = module->swingVal[knobIndex];
-				int swInt = (int)round(swValue * 99.0f);
-				snprintf(displayStr, 4, " %2u", (unsigned) abs(swInt));
-				if (swInt < 0)
-					displayStr[0] = '-';
-				if (swInt > 0)
-					displayStr[0] = '+';
-			}
-			else if (module->delayInfo[knobIndex] > 0)
-			{
-				int delayKnobIndex = module->delayKnobIndexes[knobIndex];
-				if (module->displayDelayNoteMode)
-					snprintf(displayStr, 4, "%s", (delayLabelsNote[delayKnobIndex]).c_str());
-				else
-					snprintf(displayStr, 4, "%s", (delayLabelsClock[delayKnobIndex]).c_str());				
+				int srcParam = module->notifyingSource[knobIndex];
+				if ( (srcParam >= Clocked::SWING_PARAMS + 0) && (srcParam <= Clocked::SWING_PARAMS + 3) ) {
+					float swValue = module->params[Clocked::SWING_PARAMS + knobIndex].value;//swingVal[knobIndex];
+					int swInt = (int)round(swValue * 99.0f);
+					snprintf(displayStr, 4, " %2u", (unsigned) abs(swInt));
+					if (swInt < 0)
+						displayStr[0] = '-';
+					if (swInt > 0)
+						displayStr[0] = '+';
+				}
+				else if ( (srcParam >= Clocked::DELAY_PARAMS + 1) && (srcParam <= Clocked::DELAY_PARAMS + 3) ) {				
+					//int delayKnobIndex = module->delayKnobIndexes[knobIndex];
+					int delayKnobIndex = (int)(module->params[Clocked::DELAY_PARAMS + knobIndex].value + 0.5f);
+					if (module->displayDelayNoteMode)
+						snprintf(displayStr, 4, "%s", (delayLabelsNote[delayKnobIndex]).c_str());
+					else
+						snprintf(displayStr, 4, "%s", (delayLabelsClock[delayKnobIndex]).c_str());
+				}					
 			}
 			else {
 				if (knobIndex > 0) {// ratio to display
@@ -870,6 +837,26 @@ struct ClockedWidget : ModuleWidget {
 		Widget::step();
 	}
 	
+	struct IMSmallKnobNotify : IMSmallKnob {
+		IMSmallKnobNotify() {};
+		void onDragMove(EventDragMove &e) override {
+			int dispIndex = 0;
+			if ( (paramId >= Clocked::SWING_PARAMS + 0) && (paramId <= Clocked::SWING_PARAMS + 3) )
+				dispIndex = paramId - Clocked::SWING_PARAMS;
+			else if ( (paramId >= Clocked::DELAY_PARAMS + 1) && (paramId <= Clocked::DELAY_PARAMS + 3) )
+				dispIndex = paramId - Clocked::DELAY_PARAMS;
+			((Clocked*)(module))->notifyingSource[dispIndex] = paramId;
+			((Clocked*)(module))->notifyInfo[dispIndex] = (long) (Clocked::delayInfoTime * (float)engineGetSampleRate() / displayRefreshStepSkips);
+			Knob::onDragMove(e);
+		}
+	};
+	struct IMSmallSnapKnobNotify : IMSmallKnobNotify {
+		IMSmallSnapKnobNotify() {
+			snap = true;
+			smooth = false;
+		}
+	};
+	
 	ClockedWidget(Clocked *module) : ModuleWidget(module) {
  		this->module = module;
 		oldExpansion = -1;
@@ -946,7 +933,7 @@ struct ClockedWidget : ModuleWidget {
 		addParam(createDynamicParam<IMPushButton>(Vec(colRulerT2 + offsetTL1105, rowRuler1 + offsetTL1105), module, Clocked::BPMMODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		addChild(createLight<SmallLight<GreenRedLight>>(Vec(colRulerM1 + 62, rowRuler1 + offsetMediumLight), module, Clocked::BPMSYNC_LIGHT));		
 		// Swing master knob
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT3 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 0, -1.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnobNotify>(Vec(colRulerT3 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 0, -1.0f, 1.0f, 0.0f, &module->panelTheme));
 		// PW master knob
 		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT4 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::PW_PARAMS + 0, 0.0f, 1.0f, 0.5f, &module->panelTheme));
 		// Clock master out
@@ -967,11 +954,11 @@ struct ClockedWidget : ModuleWidget {
 			// Sync light
 			addChild(createLight<SmallLight<RedLight>>(Vec(colRulerM1 + 62, rowRuler2 + i * rowSpacingClks + 10), module, Clocked::CLK_LIGHTS + i + 1));		
 			// Swing knobs
-			addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM2 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 1 + i, -1.0f, 1.0f, 0.0f, &module->panelTheme));
+			addParam(createDynamicParam<IMSmallKnobNotify>(Vec(colRulerM2 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 1 + i, -1.0f, 1.0f, 0.0f, &module->panelTheme));
 			// PW knobs
 			addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM3 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::PW_PARAMS + 1 + i, 0.0f, 1.0f, 0.5f, &module->panelTheme));
 			// Delay knobs
-			addParam(createDynamicParam<IMSmallSnapKnob>(Vec(colRulerM4 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::DELAY_PARAMS + 1 + i , 0.0f, 8.0f - 1.0f, 0.0f, &module->panelTheme));
+			addParam(createDynamicParam<IMSmallSnapKnobNotify>(Vec(colRulerM4 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::DELAY_PARAMS + 1 + i , 0.0f, 8.0f - 1.0f, 0.0f, &module->panelTheme));
 		}
 
 		// Last row
