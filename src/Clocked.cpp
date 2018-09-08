@@ -239,12 +239,11 @@ struct Clocked : Module {
 	
 	// No need to save
 	bool scheduledReset;
-	
+	bool syncRatios[4];// 0 index unused
+	int ratiosDoubled[4];
 	
 	int notifyingSource[4] = {-1, -1, -1, -1};
 	long notifyInfo[4] = {0l, 0l, 0l, 0l};// downward step counter when swing to be displayed, 0 when normal display
-	int ratiosDoubled[4] = {0, 0, 0, 0};
-	int newRatiosDoubled[4] = {0, 0, 0, 0};
 	Clock clk[4];
 	ClockDelay delay[4];
 	long editingBpmMode = 0l;// 0 when no edit bpmMode, downward step counter timer when edit, negative upward when show can't edit ("--") 
@@ -380,6 +379,8 @@ struct Clocked : Module {
 		for (int i = 0; i < 4; i++) {
 			clk[i].reset();
 			delay[i].reset();
+			syncRatios[i] = false;
+			ratiosDoubled[i] = getRatioDoubled(i);
 		}
 		extPulseNumber = -1;
 		extIntervalTime = 0.0;
@@ -517,23 +518,9 @@ struct Clocked : Module {
 			}
 			masterLength = newMasterLength;
 		}
-
-		// Ratio knobs changed (setup a sync)
-		bool syncRatios[4] = {false, false, false, false};// 0 index unused
-		for (int i = 1; i < 4; i++) {
-			newRatiosDoubled[i] = getRatioDoubled(i);
-			if (scheduledReset)
-				ratiosDoubled[i] = newRatiosDoubled[i];
-			if (newRatiosDoubled[i] != ratiosDoubled[i]) {
-				syncRatios[i] = true;// 0 index not used, but loop must start at i = 0
-			}
-		}
-
 		
 		
-		//********** Clocks and Delays **********
-		
-		// Clocks
+		// main clock engine
 		if (running) {
 			// See if clocks finished their prescribed number of iteratios of double periods (and syncWait for sub) or 
 			//    were forced reset and if so, recalc and restart them
@@ -544,7 +531,7 @@ struct Clocked : Module {
 				for (int i = 1; i < 4; i++) {
 					if (syncRatios[i]) {// always false for master
 						clk[i].reset();// force reset (thus refresh) of that sub-clock
-						ratiosDoubled[i] = newRatiosDoubled[i];
+						ratiosDoubled[i] = getRatioDoubled(i);//newRatiosDoubled[i];
 						syncRatios[i] = false;
 					}
 				}
@@ -580,7 +567,7 @@ struct Clocked : Module {
 					pulseWidth += (inputs[PW_INPUTS + i].value / 10.0f) - 0.5f;
 					pulseWidth = clamp(pulseWidth, 0.0f, 1.0f);
 				}
-				float swingAmount = params[SWING_PARAMS + i].value;//swingVal[i];
+				float swingAmount = params[SWING_PARAMS + i].value;
 				if (i < 3 && inputs[SWING_INPUTS + i].active) {
 					swingAmount += (inputs[SWING_INPUTS + i].value / 5.0f) - 1.0f;
 					swingAmount = clamp(swingAmount, -1.0f, 1.0f);
@@ -591,7 +578,7 @@ struct Clocked : Module {
 				long delaySamples = 0l;
 				if (i > 0) {
 					int delayKnobIndex = (int)(params[DELAY_PARAMS + i].value + 0.5f);
-					float delayFraction = delayValues[delayKnobIndex];//delayValues[delayKnobIndexes[i]];
+					float delayFraction = delayValues[delayKnobIndex];
 					float ratioValue = ((float)ratiosDoubled[i]) / 2.0f;
 					if (ratioValue < 0)
 						ratioValue = 1.0f / (-1.0f * ratioValue);
@@ -692,7 +679,7 @@ struct ClockedWidget : ModuleWidget {
 			{
 				int srcParam = module->notifyingSource[knobIndex];
 				if ( (srcParam >= Clocked::SWING_PARAMS + 0) && (srcParam <= Clocked::SWING_PARAMS + 3) ) {
-					float swValue = module->params[Clocked::SWING_PARAMS + knobIndex].value;//swingVal[knobIndex];
+					float swValue = module->params[Clocked::SWING_PARAMS + knobIndex].value;
 					int swInt = (int)round(swValue * 99.0f);
 					snprintf(displayStr, 4, " %2u", (unsigned) abs(swInt));
 					if (swInt < 0)
@@ -701,7 +688,6 @@ struct ClockedWidget : ModuleWidget {
 						displayStr[0] = '+';
 				}
 				else if ( (srcParam >= Clocked::DELAY_PARAMS + 1) && (srcParam <= Clocked::DELAY_PARAMS + 3) ) {				
-					//int delayKnobIndex = module->delayKnobIndexes[knobIndex];
 					int delayKnobIndex = (int)(module->params[Clocked::DELAY_PARAMS + knobIndex].value + 0.5f);
 					if (module->displayDelayNoteMode)
 						snprintf(displayStr, 4, "%s", (delayLabelsNote[delayKnobIndex]).c_str());
@@ -712,7 +698,7 @@ struct ClockedWidget : ModuleWidget {
 			else {
 				if (knobIndex > 0) {// ratio to display
 					bool isDivision = false;
-					int ratioDoubled = module->newRatiosDoubled[knobIndex];
+					int ratioDoubled = module->getRatioDoubled(knobIndex);
 					if (ratioDoubled < 0) {
 						ratioDoubled = -1 * ratioDoubled;
 						isDivision = true;
@@ -856,6 +842,17 @@ struct ClockedWidget : ModuleWidget {
 			smooth = false;
 		}
 	};
+	struct IMBigSnapKnobNotify : IMBigSnapKnob {
+		IMBigSnapKnobNotify() {};
+		void onDragMove(EventDragMove &e) override {
+			int dispIndex = 0;
+			if ( (paramId >= Clocked::RATIO_PARAMS + 1) && (paramId <= Clocked::RATIO_PARAMS + 3) )
+				dispIndex = paramId - Clocked::RATIO_PARAMS;
+			((Clocked*)(module))->syncRatios[dispIndex] = true;
+			Knob::onDragMove(e);
+		}
+	};
+
 	
 	ClockedWidget(Clocked *module) : ModuleWidget(module) {
  		this->module = module;
@@ -943,7 +940,7 @@ struct ClockedWidget : ModuleWidget {
 		// Row 2-4 (sub clocks)		
 		for (int i = 0; i < 3; i++) {
 			// Ratio1 knob
-			addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerM0 + offsetIMBigKnob, rowRuler2 + i * rowSpacingClks + offsetIMBigKnob), module, Clocked::RATIO_PARAMS + 1 + i, (34.0f - 1.0f)*-1.0f, 34.0f - 1.0f, 0.0f, &module->panelTheme));		
+			addParam(createDynamicParam<IMBigSnapKnobNotify>(Vec(colRulerM0 + offsetIMBigKnob, rowRuler2 + i * rowSpacingClks + offsetIMBigKnob), module, Clocked::RATIO_PARAMS + 1 + i, (34.0f - 1.0f)*-1.0f, 34.0f - 1.0f, 0.0f, &module->panelTheme));		
 			// Ratio display
 			displayRatios[i + 1] = new RatioDisplayWidget();
 			displayRatios[i + 1]->box.pos = Vec(colRulerM1, rowRuler2 + i * rowSpacingClks + vOffsetDisplay);
