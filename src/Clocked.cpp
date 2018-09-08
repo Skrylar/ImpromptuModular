@@ -241,11 +241,11 @@ struct Clocked : Module {
 	bool scheduledReset;
 	bool syncRatios[4];// 0 index unused
 	int ratiosDoubled[4];
+	Clock clk[4];
+	ClockDelay delay[4];
 	
 	int notifyingSource[4] = {-1, -1, -1, -1};
 	long notifyInfo[4] = {0l, 0l, 0l, 0l};// downward step counter when swing to be displayed, 0 when normal display
-	Clock clk[4];
-	ClockDelay delay[4];
 	long editingBpmMode = 0l;// 0 when no edit bpmMode, downward step counter timer when edit, negative upward when show can't edit ("--") 
 	float masterLength = 1.0f;// 120 BPM; a length is a double period
 	int extPulseNumber = -1;// 0 to ppqn - 1
@@ -622,9 +622,8 @@ struct Clocked : Module {
 				lights[BPMSYNC_LIGHT + 1].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
 			
 			// ratios synched lights
-			for (int i = 1; i < 4; i++) {
+			for (int i = 1; i < 4; i++)
 				lights[CLK_LIGHTS + i].value = (syncRatios[i] && running) ? 1.0f: 0.0f;
-			}
 
 			// info notification counters
 			for (int i = 0; i < 4; i++) {
@@ -693,6 +692,11 @@ struct ClockedWidget : ModuleWidget {
 						snprintf(displayStr, 4, "%s", (delayLabelsNote[delayKnobIndex]).c_str());
 					else
 						snprintf(displayStr, 4, "%s", (delayLabelsClock[delayKnobIndex]).c_str());
+				}					
+				else if ( (srcParam >= Clocked::PW_PARAMS + 0) && (srcParam <= Clocked::PW_PARAMS + 3) ) {				
+					float pwValue = module->params[Clocked::PW_PARAMS + knobIndex].value;
+					int pwInt = ((int)round(pwValue * 98.0f)) + 1;
+					snprintf(displayStr, 4, "_%2u", (unsigned) abs(pwInt));
 				}					
 			}
 			else {
@@ -831,6 +835,8 @@ struct ClockedWidget : ModuleWidget {
 				dispIndex = paramId - Clocked::SWING_PARAMS;
 			else if ( (paramId >= Clocked::DELAY_PARAMS + 1) && (paramId <= Clocked::DELAY_PARAMS + 3) )
 				dispIndex = paramId - Clocked::DELAY_PARAMS;
+			else if ( (paramId >= Clocked::PW_PARAMS + 0) && (paramId <= Clocked::PW_PARAMS + 3) )
+				dispIndex = paramId - Clocked::PW_PARAMS;
 			((Clocked*)(module))->notifyingSource[dispIndex] = paramId;
 			((Clocked*)(module))->notifyInfo[dispIndex] = (long) (Clocked::delayInfoTime * (float)engineGetSampleRate() / displayRefreshStepSkips);
 			Knob::onDragMove(e);
@@ -932,7 +938,7 @@ struct ClockedWidget : ModuleWidget {
 		// Swing master knob
 		addParam(createDynamicParam<IMSmallKnobNotify>(Vec(colRulerT3 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 0, -1.0f, 1.0f, 0.0f, &module->panelTheme));
 		// PW master knob
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerT4 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::PW_PARAMS + 0, 0.0f, 1.0f, 0.5f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnobNotify>(Vec(colRulerT4 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, Clocked::PW_PARAMS + 0, 0.0f, 1.0f, 0.5f, &module->panelTheme));
 		// Clock master out
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerT5, rowRuler1), Port::OUTPUT, module, Clocked::CLK_OUTPUTS + 0, &module->panelTheme));
 		
@@ -953,7 +959,7 @@ struct ClockedWidget : ModuleWidget {
 			// Swing knobs
 			addParam(createDynamicParam<IMSmallKnobNotify>(Vec(colRulerM2 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::SWING_PARAMS + 1 + i, -1.0f, 1.0f, 0.0f, &module->panelTheme));
 			// PW knobs
-			addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerM3 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::PW_PARAMS + 1 + i, 0.0f, 1.0f, 0.5f, &module->panelTheme));
+			addParam(createDynamicParam<IMSmallKnobNotify>(Vec(colRulerM3 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::PW_PARAMS + 1 + i, 0.0f, 1.0f, 0.5f, &module->panelTheme));
 			// Delay knobs
 			addParam(createDynamicParam<IMSmallSnapKnobNotify>(Vec(colRulerM4 + offsetIMSmallKnob, rowRuler2 + i * rowSpacingClks + offsetIMSmallKnob), module, Clocked::DELAY_PARAMS + 1 + i , 0.0f, 8.0f - 1.0f, 0.0f, &module->panelTheme));
 		}
