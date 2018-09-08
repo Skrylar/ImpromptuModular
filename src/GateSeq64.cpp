@@ -562,8 +562,6 @@ struct GateSeq64 : Module {
 		}
 
 		// Step LED button presses
-		int row = -1;
-		int col = -1;
 		int stepPressed = -1;
 		for (int i = 0; i < 64; i++) {
 			if (stepTriggers[i].process(params[STEP_PARAMS + i].value))
@@ -572,8 +570,7 @@ struct GateSeq64 : Module {
 		if (stepPressed != -1) {
 			if (editingSequence) {
 				if (displayState == DISP_LENGTH) {
-					col = stepPressed % (16 * stepConfig);
-					lengths[sequence] = col + 1;
+					lengths[sequence] = stepPressed % (16 * stepConfig) + 1;
 					revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 				}
 				else if (displayState == DISP_MODES) {
@@ -818,6 +815,8 @@ struct GateSeq64 : Module {
 				}
 			}
 			else {
+				int row = -1;
+				int col = -1;
 				for (int i = 0; i < 64; i++) {
 					row = i >> (3 + stepConfig);//i / (16 * stepConfig);// optimized (not equivalent code, but in this case has same effect)
 					if (stepConfig == 2 && row == 1) 
