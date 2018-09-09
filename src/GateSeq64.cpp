@@ -99,7 +99,7 @@ struct GateSeq64 : Module {
 	int lengthCPbuffer;
 	int modeCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
-	int startCP;// step to start paste (in case CPMODE_PARAM changes between copy and paste)
+	int startCP;
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	long clockIgnoreOnReset;
 	long displayProbInfo;// downward step counter for displayProb feedback
@@ -475,18 +475,14 @@ struct GateSeq64 : Module {
 		
 		// Copy button
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
-			blinkNum = blinkNumInit;
 			startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
-			if (params[CPMODE_PARAM].value > 1.5f) {// all
-				startCP = 0;
-				countCP = 64;
-			}				
-			else if (params[CPMODE_PARAM].value < 0.5f) {// 4
+			countCP = 64;
+			if (params[CPMODE_PARAM].value > 1.5f)// ALL
+				startCP = 0;			
+			else if (params[CPMODE_PARAM].value < 0.5f)// 4
 				countCP = min(4, 64 - startCP);
-			}
-			else {// 8
+			else// 8
 				countCP = min(8, 64 - startCP);
-			}
 			if (editingSequence) {	
 				for (int i = 0, s = startCP; i < countCP; i++, s++)
 					attribOrPhraseCPbuffer[i] = attributes[sequence][s];
@@ -500,15 +496,16 @@ struct GateSeq64 : Module {
 			}
 			infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_GATE;
+			blinkNum = blinkNumInit;
 		}
 		// Paste button
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
-			blinkNum = blinkNumInit;
+			startCP = 0;
 			if (countCP <= 8) {
 				startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
 				countCP = min(countCP, 64 - startCP);
 			}
-			// else nothing to do for 64
+			// else nothing to do for ALL
 				
 			if (editingSequence) {
 				for (int i = 0, s = startCP; i < countCP; i++, s++)
@@ -527,6 +524,7 @@ struct GateSeq64 : Module {
 			}
 			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_GATE;
+			blinkNum = blinkNumInit;
 		}
 		
 		// Write CV inputs 

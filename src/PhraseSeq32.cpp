@@ -123,10 +123,11 @@ struct PhraseSeq32 : Module {
 	unsigned long slideStepsRemain[2];// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta[2];// no need to initialize, this is a companion to slideStepsRemain
 	float cvCPbuffer[32];// copy paste buffer for CVs
-	int attributesCPbuffer[32];// copy paste buffer for attributes
+	int attribOrPhraseCPbuffer[32];
 	int lengthCPbuffer;
 	int modeCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
+	int startCP;
 	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
 	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
 	long clockIgnoreOnReset;
@@ -221,12 +222,13 @@ struct PhraseSeq32 : Module {
 			phrase[i] = 0;
 			lengths[i] = 16 * stepConfig;
 			cvCPbuffer[i] = 0.0f;
-			attributesCPbuffer[i] = ATT_MSK_GATE1;
+			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun(true);
 		lengthCPbuffer = 32;
 		modeCPbuffer = MODE_FWD;
 		countCP = 32;
+		startCP = 0;
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
@@ -263,7 +265,7 @@ struct PhraseSeq32 : Module {
 			runModeSeq[i] = randomu32() % NUM_MODES;
 			phrase[i] = randomu32() % 32;
 			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
-			attributesCPbuffer[i] = ATT_MSK_GATE1;
+			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun(true);
 		// editingGate = 0ul;
@@ -567,52 +569,56 @@ struct PhraseSeq32 : Module {
 		
 		// Copy button
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
+			startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
+			countCP = 32;
+			if (params[CPMODE_PARAM].value > 1.5f)// all
+				startCP = 0;
+			else if (params[CPMODE_PARAM].value < 0.5f)// 4
+				countCP = min(4, 32 - startCP);
+			else// 8
+				countCP = min(8, 32 - startCP);
 			if (editingSequence) {
-				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
-				int sStart = stepIndexEdit;
-				int sCount = 32;
-				if (params[CPMODE_PARAM].value > 1.5f)// all
-					sStart = 0;
-				else if (params[CPMODE_PARAM].value < 0.5f)// 4
-					sCount = 4;
-				else// 8
-					sCount = 8;
-				countCP = sCount;
-				for (int i = 0, s = sStart; i < countCP; i++, s++) {
-					if (s >= 32) s = 0;
+				for (int i = 0, s = startCP; i < countCP; i++, s++) {
 					cvCPbuffer[i] = cv[sequence][s];
-					attributesCPbuffer[i] = attributes[sequence][s];
-					if ((--sCount) <= 0)
-						break;
+					attribOrPhraseCPbuffer[i] = attributes[sequence][s];
 				}
 				lengthCPbuffer = lengths[sequence];
 				modeCPbuffer = runModeSeq[sequence];
 			}
+			else {
+				for (int i = 0, p = startCP; i < countCP; i++, p++)
+					attribOrPhraseCPbuffer[i] = phrase[p];
+			}
+			infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_NORMAL;
 		}
 		// Paste button
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
+			startCP = 0;
+			if (countCP <= 8) {
+				startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
+				countCP = min(countCP, 32 - startCP);
+			}
+			// else nothing to do for ALL
+
 			if (editingSequence) {
-				infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
-				int sStart = ((countCP == 32) ? 0 : stepIndexEdit);
-				int sCount = countCP;
-				for (int i = 0, s = sStart; i < countCP; i++, s++) {
-					if (s >= 32) break;
+				for (int i = 0, s = startCP; i < countCP; i++, s++) {
 					cv[sequence][s] = cvCPbuffer[i];
-					attributes[sequence][s] = attributesCPbuffer[i];
-					if ((--sCount) <= 0)
-						break;
-				}	
+					attributes[sequence][s] = attribOrPhraseCPbuffer[i];
+				}
 				if (params[CPMODE_PARAM].value > 1.5f) {// all
 					lengths[sequence] = lengthCPbuffer;
-					if (lengths[sequence] > 16 * stepConfig)
-						lengths[sequence] = 16 * stepConfig;
 					runModeSeq[sequence] = modeCPbuffer;
 				}
 			}
+			else {
+				for (int i = 0, p = startCP; i < countCP; i++, p++)
+					phrase[p] = attribOrPhraseCPbuffer[i];
+			}
+			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_NORMAL;
 		}
-
+		
 		// Write input (must be before Left and Right in case route gate simultaneously to Right and Write for example)
 		//  (write must be to correct step)
 		bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
@@ -1078,7 +1084,7 @@ struct PhraseSeq32 : Module {
 			// Step/phrase lights
 			if (infoCopyPaste != 0l) {
 				for (int i = 0; i < 32; i++) {
-					if ( (i >= stepIndexEdit && i < (stepIndexEdit + countCP)) || (countCP == 32) )
+					if (i >= startCP && i < (startCP + countCP))
 						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.5f;// Green when copy interval
 					else
 						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.0f; // Green (nothing)
