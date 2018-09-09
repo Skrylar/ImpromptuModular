@@ -1477,8 +1477,8 @@ struct PhraseSeq32Widget : ModuleWidget {
 	struct CKSSNotify : CKSS {
 		CKSSNotify() {};
 		void onDragStart(EventDragStart &e) override {
-			((PhraseSeq32*)(module))->stepConfigSync = true;
 			ToggleSwitch::onDragStart(e);
+			((PhraseSeq32*)(module))->stepConfigSync = true;
 		}	
 	};
 	

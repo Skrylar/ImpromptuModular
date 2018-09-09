@@ -95,7 +95,7 @@ struct GateSeq64 : Module {
 	int phraseIndexRun;
 	int stepIndexRunHistory;// no need to initialize
 	int phraseIndexRunHistory;// no need to initialize
-	int attributesCPbuffer[64];
+	int attribOrPhraseCPbuffer[64];
 	int lengthCPbuffer;
 	int modeCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
@@ -212,7 +212,7 @@ struct GateSeq64 : Module {
 		}
 		for (int i = 0; i < 64; i++) {
 			phrase[i] = 0;
-			attributesCPbuffer[i] = 50;
+			attribOrPhraseCPbuffer[i] = 50;
 		}
 		initRun(true);
 		lengthCPbuffer = 64;
@@ -475,51 +475,57 @@ struct GateSeq64 : Module {
 		
 		// Copy button
 		if (copyTrigger.process(params[COPY_PARAM].value)) {
-			if (editingSequence) {
-				blinkNum = blinkNumInit;
-				if (params[CPMODE_PARAM].value > 1.5f) {// all
-					startCP = 0;
-					countCP = 64;
-				}				
-				else if (params[CPMODE_PARAM].value < 0.5f) {// 4
-					startCP = stepIndexEdit;
-					countCP = min(4, 16 - (startCP & 0xF));
-				}
-				else {// row
-					startCP = stepIndexEdit & 0x30;
-					countCP = 16;
-				}
+			blinkNum = blinkNumInit;
+			startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
+			if (params[CPMODE_PARAM].value > 1.5f) {// all
+				startCP = 0;
+				countCP = 64;
+			}				
+			else if (params[CPMODE_PARAM].value < 0.5f) {// 4
+				countCP = min(4, 64 - startCP);
+			}
+			else {// 8
+				countCP = min(8, 64 - startCP);
+			}
+			if (editingSequence) {	
 				for (int i = 0, s = startCP; i < countCP; i++, s++)
-					attributesCPbuffer[i] = attributes[sequence][s];
+					attribOrPhraseCPbuffer[i] = attributes[sequence][s];
 				lengthCPbuffer = lengths[sequence];
 				modeCPbuffer = runModeSeq[sequence];
-				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
+				
 			}
+			else {
+				for (int i = 0, p = startCP; i < countCP; i++, p++)
+					attribOrPhraseCPbuffer[i] = phrase[p];
+			}
+			infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_GATE;
 		}
 		// Paste button
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
+			blinkNum = blinkNumInit;
+			if (countCP <= 8) {
+				startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
+				countCP = min(countCP, 64 - startCP);
+			}
+			// else nothing to do for 64
+				
 			if (editingSequence) {
-				blinkNum = blinkNumInit;
-				if (countCP <= 4) {
-					startCP = stepIndexEdit;
-					countCP = min(countCP, 16 - (startCP & 0xF));
-				}
-				else if (countCP == 16) {
-					startCP = stepIndexEdit & 0x30;
-				}
-				// else nothing to do for 64
-
 				for (int i = 0, s = startCP; i < countCP; i++, s++)
-					attributes[sequence][s] = attributesCPbuffer[i];
+					attributes[sequence][s] = attribOrPhraseCPbuffer[i];
 				if (params[CPMODE_PARAM].value > 1.5f) {// all
 					lengths[sequence] = lengthCPbuffer;
 					if (lengths[sequence] > 16 * stepConfig)
 						lengths[sequence] = 16 * stepConfig;
 					runModeSeq[sequence] = modeCPbuffer;
 				}
-				infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			}
+			else {
+				for (int i = 0, p = startCP; i < countCP; i++, p++)
+					phrase[p] = attribOrPhraseCPbuffer[i] & 0xF;
+				
+			}
+			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_GATE;
 		}
 		
@@ -1110,8 +1116,8 @@ struct GateSeq64Widget : ModuleWidget {
 	struct CKSSThreeInvNotify : CKSSThreeInv {
 		CKSSThreeInvNotify() {};
 		void onDragStart(EventDragStart &e) override {
-			((GateSeq64*)(module))->stepConfigSync = true;
 			ToggleSwitch::onDragStart(e);
+			((GateSeq64*)(module))->stepConfigSync = true;
 		}	
 	};
 
