@@ -133,6 +133,17 @@ struct MidiFileModule : Module {
 		
 		// No need to save, with reset
 		running = false;
+		resetPlayer();
+	}
+
+	
+	// widgets randomized before onRandomize() is called
+	void onRandomize() override {
+
+	}
+
+	
+	void resetPlayer() {
 		time = 0.0;
 		event = 0;
 		//
@@ -144,15 +155,9 @@ struct MidiFileModule : Module {
 		}
 		pedal = false;
 		rotateIndex = -1;
-		stealIndex = 0;
+		stealIndex = 0;		
 	}
 	
-	// widgets randomized before onRandomize() is called
-	void onRandomize() override {
-
-	}
-
-
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 		// TODO // Need to save (reset or not)
@@ -398,8 +403,7 @@ struct MidiFileModule : Module {
 				if (event >= midifile[track].size()) {
 					if (params[LOOP_PARAM].value < 0.5f)
 						running = false;
-					event = 0;
-					time = 0.0;
+					resetPlayer();
 					break;
 				}
 				
@@ -419,9 +423,7 @@ struct MidiFileModule : Module {
 		// Reset
 		if (resetTrigger.process(params[RESET_PARAM].value + inputs[RESET_INPUT].value)) {
 			resetLight = 1.0f;
-			time = 0.0;
-			event = 0;
-			// TODO : reset all the QuadMIDIToCVInterface data
+			resetPlayer();
 		}				
 		
 		
