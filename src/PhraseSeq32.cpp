@@ -140,9 +140,10 @@ struct PhraseSeq32 : Module {
 	long editGateLengthTimeInitMult;// multiplier for extended setting of advanced gates
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
-	int stepConfigLast;
+	int stepConfig;
 	
 
+	bool stepConfigSync = false;
 	int lightRefreshCounter = 0;
 	float resetLight = 0.0f;
 	int sequenceKnob = 0;
@@ -187,6 +188,12 @@ struct PhraseSeq32 : Module {
 	
 	inline void setGate1Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE1MODE; attributes[seq][step] |= (gateMode << gate1ModeShift);}
 	inline void setGate2Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE2MODE; attributes[seq][step] |= (gateMode << gate2ModeShift);}
+	inline void fillStepIndexRunVector(int runMode, int len) {
+		if (runMode != MODE_RN2) 
+			stepIndexRun[1] = stepIndexRun[0];
+		else
+			stepIndexRun[1] = randomu32() % len;
+	}
 	
 		
 	PhraseSeq32() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -197,8 +204,7 @@ struct PhraseSeq32 : Module {
 	// widgets are not yet created when module is created (and when onReset() is called by constructor)
 	// onReset() is also called when right-click initialization of module
 	void onReset() override {
-		int stepConfig = getStepConfig(CONFIG_PARAM_INIT_VALUE);
-		stepConfigLast = stepConfig;
+		stepConfig = getStepConfig(CONFIG_PARAM_INIT_VALUE);
 		pulsesPerStep = 1;
 		running = false;
 		runModeSong = MODE_FWD;
@@ -217,7 +223,7 @@ struct PhraseSeq32 : Module {
 			cvCPbuffer[i] = 0.0f;
 			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
-		initRun(stepConfig, true);
+		initRun(true);
 		lengthCPbuffer = 32;
 		modeCPbuffer = MODE_FWD;
 		countCP = 32;
@@ -238,8 +244,7 @@ struct PhraseSeq32 : Module {
 	
 	
 	void onRandomize() override {
-		int stepConfig = getStepConfig(params[CONFIG_PARAM].value);
-		stepConfigLast = stepConfig;			
+		stepConfig = getStepConfig(params[CONFIG_PARAM].value);
 		//running = false;
 		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
@@ -260,7 +265,7 @@ struct PhraseSeq32 : Module {
 			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
 			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
-		initRun(stepConfig, true);
+		initRun(true);
 		// editingGate = 0ul;
 		// infoCopyPaste = 0l;
 		// displayState = DISP_NORMAL;
@@ -275,14 +280,8 @@ struct PhraseSeq32 : Module {
 		// editingPpqn = 0l;
 	}
 	
-	inline void fillStepIndexRunVector(int runMode, int len) {
-		if (runMode != MODE_RN2) 
-			stepIndexRun[1] = stepIndexRun[0];
-		else
-			stepIndexRun[1] = randomu32() % len;
-	}
-
-	void initRun(int stepConfig, bool hard) {// run button activated or run edge in run input jack
+	
+	void initRun(bool hard) {// run button activated or run edge in run input jack
 		if (hard)
 			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
@@ -297,8 +296,8 @@ struct PhraseSeq32 : Module {
 		}
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		editingGateLength = 0l;
-	}
-	
+	}	
+
 	
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
@@ -467,10 +466,7 @@ struct PhraseSeq32 : Module {
 		if (resetOnRunJ)
 			resetOnRun = json_is_true(resetOnRunJ);
 
-		// Initialize dependants after everything loaded (widgets already loaded when reach here)
-		int stepConfig = getStepConfig(params[CONFIG_PARAM].value);
-		stepConfigLast = stepConfig;			
-		initRun(stepConfig, true);
+		stepConfigSync = true;
 	}
 
 	void rotateSeq(int seqNum, bool directionRight, int seqLength, bool chanB_16) {
@@ -519,15 +515,15 @@ struct PhraseSeq32 : Module {
 		
 
 		// Config switch
-		int stepConfig = getStepConfig(params[CONFIG_PARAM].value);
-		// Config: set lengths to their new max when move switch
-		if (stepConfigLast != stepConfig) {
+		if (stepConfigSync) {
+			stepConfig = getStepConfig(params[CONFIG_PARAM].value);
+			initRun(true);			
 			for (int i = 0; i < 32; i++)
-				lengths[i] = 16 * stepConfig;
+				lengths[i] = 16 * stepConfig;// set lengths to their new max when move switch
 			attachedChanB = false;
-			stepConfigLast = stepConfig;
+			stepConfigSync = false;
 		}
-
+		
 		// Edit mode
 		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		
@@ -545,7 +541,7 @@ struct PhraseSeq32 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			if (running)
-				initRun(stepConfig, resetOnRun);
+				initRun(resetOnRun);
 			displayState = DISP_NORMAL;
 		}
 
@@ -1022,7 +1018,7 @@ struct PhraseSeq32 : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			initRun(stepConfig, true);// must be after sequence reset
+			initRun(true);// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
 		}
@@ -1478,6 +1474,14 @@ struct PhraseSeq32Widget : ModuleWidget {
 		Widget::step();
 	}
 	
+	struct CKSSNotify : CKSS {
+		CKSSNotify() {};
+		void onDragStart(EventDragStart &e) override {
+			((PhraseSeq32*)(module))->stepConfigSync = true;
+			ToggleSwitch::onDragStart(e);
+		}	
+	};
+	
 	PhraseSeq32Widget(PhraseSeq32 *module) : ModuleWidget(module) {
 		this->module = module;
 		oldExpansion = -1;
@@ -1529,7 +1533,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 		addParam(createDynamicParam<IMPushButton>(Vec(columnRulerT3 - 4, rowRulerT0 - 6 + 2 + offsetTL1105), module, PhraseSeq32::ATTACH_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerT3 + 12 + offsetMediumLight, rowRulerT0 - 6 + offsetMediumLight), module, PhraseSeq32::ATTACH_LIGHT));		
 		// Config switch
-		addParam(createParam<CKSS>(Vec(columnRulerT4 + hOffsetCKSS + 1, rowRulerT0 - 6 + vOffsetCKSS), module, PhraseSeq32::CONFIG_PARAM, 0.0f, 1.0f, PhraseSeq32::CONFIG_PARAM_INIT_VALUE));
+		addParam(createParam<CKSSNotify>(Vec(columnRulerT4 + hOffsetCKSS + 1, rowRulerT0 - 6 + vOffsetCKSS), module, PhraseSeq32::CONFIG_PARAM, 0.0f, 1.0f, PhraseSeq32::CONFIG_PARAM_INIT_VALUE));
 
 		
 		

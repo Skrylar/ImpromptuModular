@@ -109,10 +109,11 @@ struct GateSeq64 : Module {
 	int ppqnCount;
 	long blinkCount;// positive upward counter, reset to 0 when max reached
 	int blinkNum;// number of blink cycles to do, downward counter
-	int stepConfigLast;
+	int stepConfig;
 	long editingPhraseSongRunning;// downward step counter
 
 
+	bool stepConfigSync = false;
 	int lightRefreshCounter = 0;
 	float resetLight = 0.0f;
 	int sequenceKnob = 0;
@@ -174,7 +175,19 @@ struct GateSeq64 : Module {
 			return gateCode == 1;
 		return clockTrigger.isHigh();
 	}		
-	
+	inline void fillStepIndexRunVector(int runMode, int len) {
+		if (runMode != MODE_RN2) {
+			stepIndexRun[1] = stepIndexRun[0];
+			stepIndexRun[2] = stepIndexRun[0];
+			stepIndexRun[3] = stepIndexRun[0];
+		}
+		else {
+			stepIndexRun[1] = randomu32() % len;
+			stepIndexRun[2] = randomu32() % len;
+			stepIndexRun[3] = randomu32() % len;
+		}
+	}
+		
 		
 	GateSeq64() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
@@ -182,8 +195,7 @@ struct GateSeq64 : Module {
 
 	
 	void onReset() override {
-		int stepConfig = getStepConfig(CONFIG_PARAM_INIT_VALUE);
-		stepConfigLast = stepConfig;
+		stepConfig = getStepConfig(CONFIG_PARAM_INIT_VALUE);
 		pulsesPerStep = 1;
 		running = false;
 		runModeSong = MODE_FWD;
@@ -202,7 +214,7 @@ struct GateSeq64 : Module {
 			phrase[i] = 0;
 			attributesCPbuffer[i] = 50;
 		}
-		initRun(stepConfig, true);
+		initRun(true);
 		lengthCPbuffer = 64;
 		modeCPbuffer = MODE_FWD;
 		countCP = 64;
@@ -220,8 +232,7 @@ struct GateSeq64 : Module {
 
 	
 	void onRandomize() override {
-		int stepConfig = getStepConfig(params[CONFIG_PARAM].value);
-		stepConfigLast = stepConfig;
+		stepConfig = getStepConfig(params[CONFIG_PARAM].value);
 		//running = (randomUniform() > 0.5f);
 		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
@@ -237,7 +248,7 @@ struct GateSeq64 : Module {
 		}
 		for (int i = 0; i < 64; i++)
 			phrase[i] = randomu32() % 16;
-		initRun(stepConfig, true);
+		initRun(true);
 		//displayState = DISP_GATE;
 		// displayProbInfo = 0l;
 		// infoCopyPaste = 0l;
@@ -246,20 +257,8 @@ struct GateSeq64 : Module {
 		// editingPhraseSongRunning = 0l;
 	}
 
-	inline void fillStepIndexRunVector(int runMode, int len) {
-		if (runMode != MODE_RN2) {
-			stepIndexRun[1] = stepIndexRun[0];
-			stepIndexRun[2] = stepIndexRun[0];
-			stepIndexRun[3] = stepIndexRun[0];
-		}
-		else {
-			stepIndexRun[1] = randomu32() % len;
-			stepIndexRun[2] = randomu32() % len;
-			stepIndexRun[3] = randomu32() % len;
-		}
-	}
-	
-	void initRun(int stepConfig, bool hard) {// run button activated or run edge in run input jack
+
+	void initRun(bool hard) {// run button activated or run edge in run input jack
 		if (hard)	
 			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
@@ -429,10 +428,7 @@ struct GateSeq64 : Module {
 		if (resetOnRunJ)
 			resetOnRun = json_is_true(resetOnRunJ);
 
-		// Initialize dependants after everything loaded (widgets already loaded when reach here)
-		int stepConfig = getStepConfig(params[CONFIG_PARAM].value);
-		stepConfigLast = stepConfig;
-		initRun(stepConfig, true);
+		stepConfigSync = true;
 	}
 
 	
@@ -447,16 +443,16 @@ struct GateSeq64 : Module {
 
 		
 		//********** Buttons, knobs, switches and inputs **********
-		
+
 		// Config switch
-		int stepConfig = getStepConfig(params[CONFIG_PARAM].value);
-		// Config: set lengths to their new max when move switch
-		if (stepConfigLast != stepConfig) {
+		if (stepConfigSync) {
+			stepConfig = getStepConfig(params[CONFIG_PARAM].value);
+			initRun(true);			
 			for (int i = 0; i < 16; i++)
 				lengths[i] = 16 * stepConfig;
-			stepConfigLast = stepConfig;
+			stepConfigSync = false;
 		}
-				
+		
 		// Edit mode		
 		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		if (editingSequenceTrigger.process(editingSequence))
@@ -471,7 +467,7 @@ struct GateSeq64 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
 			running = !running;
 			if (running)
-				initRun(stepConfig, resetOnRun);
+				initRun(resetOnRun);
 			else
 				blinkNum = blinkNumInit;
 			displayState = DISP_GATE;
@@ -783,7 +779,7 @@ struct GateSeq64 : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			initRun(stepConfig, true);// must be after sequence reset
+			initRun(true);// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_GATE;
 		}
@@ -1111,6 +1107,14 @@ struct GateSeq64Widget : ModuleWidget {
 		Widget::step();
 	}
 
+	struct CKSSThreeInvNotify : CKSSThreeInv {
+		CKSSThreeInvNotify() {};
+		void onDragStart(EventDragStart &e) override {
+			((GateSeq64*)(module))->stepConfigSync = true;
+			ToggleSwitch::onDragStart(e);
+		}	
+	};
+
 	GateSeq64Widget(GateSeq64 *module) : ModuleWidget(module) {		
 		this->module = module;
 		oldExpansion = -1;
@@ -1218,7 +1222,7 @@ struct GateSeq64Widget : ModuleWidget {
 		// Seq/Song selector
 		addParam(createParam<CKSS>(Vec(colRulerC4 + 2 + hOffsetCKSS, rowRulerC0 + vOffsetCKSS), module, GateSeq64::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
 		// Config switch (3 position)
-		addParam(createParam<CKSSThreeInv>(Vec(colRulerC4 + 2 + hOffsetCKSS, rowRulerC1 - 2 + vOffsetCKSSThree), module, GateSeq64::CONFIG_PARAM, 0.0f, 2.0f, GateSeq64::CONFIG_PARAM_INIT_VALUE));// 0.0f is top position
+		addParam(createParam<CKSSThreeInvNotify>(Vec(colRulerC4 + 2 + hOffsetCKSS, rowRulerC1 - 2 + vOffsetCKSSThree), module, GateSeq64::CONFIG_PARAM, 0.0f, 2.0f, GateSeq64::CONFIG_PARAM_INIT_VALUE));// 0.0f is top position
 		// Copy paste mode
 		addParam(createParam<CKSSThreeInv>(Vec(colRulerC4 + 2 + hOffsetCKSS, rowRulerC2 + vOffsetCKSSThree), module, GateSeq64::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));
 
