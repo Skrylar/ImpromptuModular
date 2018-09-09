@@ -93,9 +93,15 @@ struct WriteSeq32 : Module {
 	SchmittTrigger windowTriggers[4];
 
 	
+	inline float quantize(float cv, bool enable) {
+		return enable ? (roundf(cv * 12.0f) / 12.0f) : cv;
+	}
+	
+	
 	WriteSeq32() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
 	}
+	
 
 	void onReset() override {
 		running = false;
@@ -116,8 +122,9 @@ struct WriteSeq32 : Module {
 		resetOnRun = false;
 	}
 
+	
 	void onRandomize() override {
-		running = false;
+		//running = false;
 		indexStep = 0;
 		indexStepStage = 0;
 		indexChannel = 0;
@@ -129,12 +136,13 @@ struct WriteSeq32 : Module {
 			cvCPbuffer[s] = 0.0f;
 			gateCPbuffer[s] = true;
 		}
-		infoCopyPaste = 0l;
+		//infoCopyPaste = 0l;
 		pendingPaste = 0;
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		resetOnRun = false;
+		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		//resetOnRun = false;
 	}
 
+	
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
@@ -229,11 +237,6 @@ struct WriteSeq32 : Module {
 			resetOnRun = json_is_true(resetOnRunJ);
 	}
 
-	
-	inline float quantize(float cv, bool enable) {
-		return enable ? (roundf(cv * 12.0f) / 12.0f) : cv;
-	}
-	
 	
 	void step() override {
 		static const float copyPasteInfoTime = 0.5f;// seconds

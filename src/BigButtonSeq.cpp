@@ -118,10 +118,10 @@ struct BigButtonSeq : Module {
 			gates[c][0] = randomu64();
 			gates[c][1] = randomu64();
 		}
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		lastPeriod = 2.0;
-		clockTime = 0.0;
-		pendingOp = 0;
+		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		//lastPeriod = 2.0;
+		//clockTime = 0.0;
+		//pendingOp = 0;
 	}
 
 	

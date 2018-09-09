@@ -240,7 +240,7 @@ struct PhraseSeq32 : Module {
 	void onRandomize() override {
 		int stepConfig = getStepConfig(params[CONFIG_PARAM].value);
 		stepConfigLast = stepConfig;			
-		running = false;
+		//running = false;
 		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
@@ -261,18 +261,18 @@ struct PhraseSeq32 : Module {
 			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun(stepConfig, true);
-		editingGate = 0ul;
-		infoCopyPaste = 0l;
-		displayState = DISP_NORMAL;
-		slideStepsRemain[0] = 0ul;
-		slideStepsRemain[1] = 0ul;
-		attached = true;
-		clockPeriod = 0ul;
-		tiedWarning = 0ul;
-		attachedChanB = false;
-		revertDisplay = 0l;
-		editGateLengthTimeInitMult = 1l;
-		editingPpqn = 0l;
+		// editingGate = 0ul;
+		// infoCopyPaste = 0l;
+		// displayState = DISP_NORMAL;
+		// slideStepsRemain[0] = 0ul;
+		// slideStepsRemain[1] = 0ul;
+		// attached = true;
+		// clockPeriod = 0ul;
+		// tiedWarning = 0ul;
+		// attachedChanB = false;
+		// revertDisplay = 0l;
+		// editGateLengthTimeInitMult = 1l;
+		// editingPpqn = 0l;
 	}
 	
 	inline void fillStepIndexRunVector(int runMode, int len) {

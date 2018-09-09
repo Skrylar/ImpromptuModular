@@ -96,10 +96,16 @@ struct WriteSeq64 : Module {
 	SchmittTrigger gateTrigger;
 
 	
+	inline float quantize(float cv, bool enable) {
+		return enable ? (roundf(cv * 12.0f) / 12.0f) : cv;
+	}
+
+
 	WriteSeq64() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
 	}
 
+	
 	void onReset() override {
 		running = false;
 		indexChannel = 0;
@@ -122,8 +128,9 @@ struct WriteSeq64 : Module {
 		resetOnRun = false;
 	}
 
+	
 	void onRandomize() override {
-		running = false;
+		//running = false;
 		indexChannel = 0;
 		for (int c = 0; c < 5; c++) {
 			indexStep[c] = 0;
@@ -138,12 +145,13 @@ struct WriteSeq64 : Module {
 			gateCPbuffer[s] = true;
 		}
 		stepsCPbuffer = 64;
-		infoCopyPaste = 0l;
+		//infoCopyPaste = 0l;
 		pendingPaste = 0;
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		resetOnRun = false;
+		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		//resetOnRun = false;
 	}
 
+	
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
@@ -190,6 +198,7 @@ struct WriteSeq64 : Module {
 		return rootJ;
 	}
 
+	
 	void fromJson(json_t *rootJ) override {
 		// panelTheme
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
@@ -252,10 +261,6 @@ struct WriteSeq64 : Module {
 		json_t *resetOnRunJ = json_object_get(rootJ, "resetOnRun");
 		if (resetOnRunJ)
 			resetOnRun = json_is_true(resetOnRunJ);
-	}
-
-	inline float quantize(float cv, bool enable) {
-		return enable ? (roundf(cv * 12.0f) / 12.0f) : cv;
 	}
 	
 	

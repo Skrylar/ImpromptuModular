@@ -238,19 +238,20 @@ struct Clocked : Module {
 	bool running;
 	
 	// No need to save
-	bool scheduledReset;
-	bool syncRatios[4];// 0 index unused
-	int ratiosDoubled[4];
 	Clock clk[4];
 	ClockDelay delay[4];
+	bool syncRatios[4];// 0 index unused
+	int ratiosDoubled[4];
+	int extPulseNumber;// 0 to ppqn - 1
+	double extIntervalTime;
+	double timeoutTime;
+	float newMasterLength;
+	float masterLength;
+	long editingBpmMode;// 0 when no edit bpmMode, downward step counter timer when edit, negative upward when show can't edit ("--") 
 	
+	bool scheduledReset = false;
 	int notifyingSource[4] = {-1, -1, -1, -1};
 	long notifyInfo[4] = {0l, 0l, 0l, 0l};// downward step counter when swing to be displayed, 0 when normal display
-	long editingBpmMode = 0l;// 0 when no edit bpmMode, downward step counter timer when edit, negative upward when show can't edit ("--") 
-	float masterLength = 1.0f;// 120 BPM; a length is a double period
-	int extPulseNumber = -1;// 0 to ppqn - 1
-	double extIntervalTime = 0.0;
-	double timeoutTime = 2.0 / ppqn + 0.1;
 	long cantRunWarning = 0l;// 0 when no warning, positive downward step counter timer when warning
 	int lightRefreshCounter = 0;
 	float resetLight = 0.0f;
@@ -262,28 +263,76 @@ struct Clocked : Module {
 	PulseGenerator runPulse;
 
 	
+	inline float getBpmKnob() {
+		float knobBPM = params[RATIO_PARAMS + 0].value;// already integer BPM since using snap knob
+		if (knobBPM < (float)bpmMin)// safety in case module step() starts before widget defaults take effect.
+			return (float)bpmMin;	
+		return knobBPM;
+	}
+	int getRatioDoubled(int ratioKnobIndex) {
+		// ratioKnobIndex is 0 for master BPM's ratio (1 is implicitly returned), and 1 to 3 for other ratio knobs
+		// returns a positive ratio for mult, negative ratio for div (0 never returned)
+		if (ratioKnobIndex < 1) 
+			return 1;
+		bool isDivision = false;
+		int i = (int) round( params[RATIO_PARAMS + ratioKnobIndex].value );// [ -(numRatios-1) ; (numRatios-1) ]
+		if (i < 0) {
+			i *= -1;
+			isDivision = true;
+		}
+		if (i >= 34) {
+			i = 34 - 1;
+		}
+		int ret = (int) (ratioValues[i] * 2.0f + 0.5f);
+		if (isDivision) 
+			return -1l * ret;
+		return ret;
+	}
+	
+	
 	// called from the main thread (step() can not be called until all modules created)
 	Clocked() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		for (int i = 1; i < 4; i++)
-			clk[i].setSync(&clk[0]);	
-		
+			clk[i].setSync(&clk[0]);		
 		onReset();
 	}
 	
 
 	void onReset() override {
 		running = false;
-		
-		scheduledReset = true;
+		resetClocked();		
 	}
 	
 	
 	void onRandomize() override {
-		running = false;
-		
-		scheduledReset = true;
+		//running = false;
+		resetClocked();
 	}
 
+	
+	void resetClocked() {
+		for (int i = 0; i < 4; i++) {
+			clk[i].reset();
+			delay[i].reset();
+			syncRatios[i] = false;
+			ratiosDoubled[i] = getRatioDoubled(i);
+		}
+		extPulseNumber = -1;
+		extIntervalTime = 0.0;
+		timeoutTime = 2.0 / ppqn + 0.1;
+		if (inputs[BPM_INPUT].active) {
+			if (bpmDetectionMode)
+				newMasterLength = 1.0f;// 120 BPM
+			else
+				newMasterLength = 1.0f / powf(2.0f, inputs[BPM_INPUT].value);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
+		}
+		else
+			newMasterLength = 120.0f / getBpmKnob();
+		newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
+		masterLength = newMasterLength;
+		editingBpmMode = 0l;
+	}	
+	
 	
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
@@ -353,41 +402,6 @@ struct Clocked : Module {
 	}
 
 	
-	int getRatioDoubled(int ratioKnobIndex) {
-		// ratioKnobIndex is 0 for master BPM's ratio (1 is implicitly returned), and 1 to 3 for other ratio knobs
-		// returns a positive ratio for mult, negative ratio for div (0 never returned)
-		int ret = 1;
-		if (ratioKnobIndex > 0) {
-			bool isDivision = false;
-			int i = (int) round( params[RATIO_PARAMS + ratioKnobIndex].value );// [ -(numRatios-1) ; (numRatios-1) ]
-			if (i < 0) {
-				i *= -1;
-				isDivision = true;
-			}
-			if (i >= 34) {
-				i = 34 - 1;
-			}
-			ret = (int) (ratioValues[i] * 2.0f + 0.5f);
-			if (isDivision) 
-				ret = -1l * ret;
-		}
-		return ret;
-	}
-	
-	
-	void resetClocked() {
-		for (int i = 0; i < 4; i++) {
-			clk[i].reset();
-			delay[i].reset();
-			syncRatios[i] = false;
-			ratiosDoubled[i] = getRatioDoubled(i);
-		}
-		extPulseNumber = -1;
-		extIntervalTime = 0.0;
-		timeoutTime = 2.0 / ppqn + 0.1;
-	}		
-	
-
 	void onSampleRateChange() override {
 		resetClocked();
 	}		
@@ -397,10 +411,9 @@ struct Clocked : Module {
 		double sampleRate = (double)engineGetSampleRate();
 		double sampleTime = 1.0 / sampleRate;// do this here since engineGetSampleRate() returns float
 
-		// Scheduled reset (just the parts that do not have a place below in rest of function)
+		// Scheduled reset
 		if (scheduledReset) {
 			resetClocked();		
-			editingBpmMode = 0l;
 			scheduledReset = false;
 		}
 		
@@ -451,15 +464,12 @@ struct Clocked : Module {
 		}
 		
 		// BPM input and knob
-		float newMasterLength = masterLength;
+		newMasterLength = masterLength;
 		if (inputs[BPM_INPUT].active) { 
-			float bpmInValue = inputs[BPM_INPUT].value;
-			bool trigBpmInValue = bpmDetectTrigger.process(bpmInValue);
+			bool trigBpmInValue = bpmDetectTrigger.process(inputs[BPM_INPUT].value);
 			
 			// BPM Detection method
 			if (bpmDetectionMode) {
-				if (scheduledReset)
-					newMasterLength = 1.0f;// 120 BPM
 				// rising edge detect
 				if (trigBpmInValue) {
 					if (!running) {
@@ -498,19 +508,14 @@ struct Clocked : Module {
 			}
 			// BPM CV method
 			else {
-				newMasterLength = 1.0f / powf(2.0f, bpmInValue);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
+				newMasterLength = 1.0f / powf(2.0f, inputs[BPM_INPUT].value);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
 				// no need to round since this clocked's master's BPM knob is a snap knob thus already rounded, and with passthru approach, no cumul error
 			}
 		}
 		else {
-			float knobBPM = params[RATIO_PARAMS + 0].value;
-			if (knobBPM < (float)bpmMin)// safety in case module step() starts before widget defaults take effect.
-				knobBPM = (float)bpmMin;
-			newMasterLength = 120.0f / knobBPM;// already integer BPM since using snap knob
+			newMasterLength = 120.0f / getBpmKnob();
 		}
 		newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
-		if (scheduledReset)
-			masterLength = newMasterLength;
 		if (newMasterLength != masterLength) {
 			double lengthStretchFactor = ((double)newMasterLength) / ((double)masterLength);
 			for (int i = 0; i < 4; i++) {
@@ -523,7 +528,7 @@ struct Clocked : Module {
 		// main clock engine
 		if (running) {
 			// See if clocks finished their prescribed number of iteratios of double periods (and syncWait for sub) or 
-			//    were forced reset and if so, recalc and restart them
+			//    if they were forced reset and if so, recalc and restart them
 			
 			// Master clock
 			if (clk[0].isReset()) {
@@ -657,8 +662,8 @@ struct ClockedWidget : ModuleWidget {
 		int knobIndex;
 		std::shared_ptr<Font> font;
 		char displayStr[4];
-		const std::string delayLabelsClock[8] = {"  0", "/16",   "1/8",  "1/4", "1/3",     "1/2", "2/3",     "3/4"};
-		const std::string delayLabelsNote[8]  = {"  0", "/64",   "/32",  "/16", "/8t",     "1/8", "/4t",     "/8d"};
+		const std::string delayLabelsClock[8] = {"D 0", "/16",   "1/8",  "1/4", "1/3",     "1/2", "2/3",     "3/4"};
+		const std::string delayLabelsNote[8]  = {"D 0", "/64",   "/32",  "/16", "/8t",     "1/8", "/4t",     "/8d"};
 
 		
 		RatioDisplayWidget() {
@@ -683,7 +688,7 @@ struct ClockedWidget : ModuleWidget {
 					snprintf(displayStr, 4, " %2u", (unsigned) abs(swInt));
 					if (swInt < 0)
 						displayStr[0] = '-';
-					if (swInt > 0)
+					if (swInt >= 0)
 						displayStr[0] = '+';
 				}
 				else if ( (srcParam >= Clocked::DELAY_PARAMS + 1) && (srcParam <= Clocked::DELAY_PARAMS + 3) ) {				
@@ -992,6 +997,9 @@ struct ClockedWidget : ModuleWidget {
 Model *modelClocked = Model::create<Clocked, ClockedWidget>("Impromptu Modular", "Clocked", "CLK - Clocked", CLOCK_TAG);
 
 /*CHANGE LOG
+
+0.6.11:
+display PW when knob changes (1 to 99, indicative of knob position only, actual PW determined by clock engine)
 
 0.6.10:
 add ppqn setting of 12

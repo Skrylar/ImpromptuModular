@@ -222,7 +222,7 @@ struct GateSeq64 : Module {
 	void onRandomize() override {
 		int stepConfig = getStepConfig(params[CONFIG_PARAM].value);
 		stepConfigLast = stepConfig;
-		running = (randomUniform() > 0.5f);
+		//running = (randomUniform() > 0.5f);
 		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
@@ -238,12 +238,12 @@ struct GateSeq64 : Module {
 		for (int i = 0; i < 64; i++)
 			phrase[i] = randomu32() % 16;
 		initRun(stepConfig, true);
-		displayState = DISP_GATE;
-		displayProbInfo = 0l;
-		infoCopyPaste = 0l;
-		revertDisplay = 0l;
-		editingPpqn = 0l;
-		editingPhraseSongRunning = 0l;
+		//displayState = DISP_GATE;
+		// displayProbInfo = 0l;
+		// infoCopyPaste = 0l;
+		// revertDisplay = 0l;
+		// editingPpqn = 0l;
+		// editingPhraseSongRunning = 0l;
 	}
 
 	inline void fillStepIndexRunVector(int runMode, int len) {

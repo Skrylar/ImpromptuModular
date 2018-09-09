@@ -236,7 +236,7 @@ struct PhraseSeq16 : Module {
 
 	
 	void onRandomize() override {
-		running = false;
+		//running = false;
 		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
@@ -257,16 +257,16 @@ struct PhraseSeq16 : Module {
 			attributesCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun(true);
-		editingLength = 0ul;
-		editingGate = 0ul;
-		infoCopyPaste = 0l;
-		displayState = DISP_NORMAL;
-		slideStepsRemain = 0ul;
-		attached = true;
-		clockPeriod = 0ul;
-		tiedWarning = 0ul;
-		editGateLengthTimeInitMult = 1l;
-		editingPpqn = 0l;
+		// editingLength = 0ul;
+		// editingGate = 0ul;
+		// infoCopyPaste = 0l;
+		// displayState = DISP_NORMAL;
+		// slideStepsRemain = 0ul;
+		// attached = true;
+		// clockPeriod = 0ul;
+		// tiedWarning = 0ul;
+		// editGateLengthTimeInitMult = 1l;
+		// editingPpqn = 0l;
 	}
 	
 	
