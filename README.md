@@ -50,7 +50,7 @@ Details about each module are given below. Feedback and bug reports (and [donati
 
 
 ## Known issues <a id="known-issues"></a>
-For sequencers and clock modules, it is advisable to have a core audio module added to your patch and assigned to a sound card in order for the timing and response delays in the user interface to be of the proper duration. This is a [known artifact](https://github.com/VCVRack/Rack/issues/919) in VCV Rack.
+For sequencers and clock modules, it is advisable to have a core audio module added to your patch and assigned to a sound device in order for the timing and response delays in the user interface to be of the proper duration. This is a [known artifact](https://github.com/VCVRack/Rack/issues/919) in VCV Rack.
 
 
 
@@ -194,7 +194,7 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 ### Advanced gate mode<a id="advanced-gate-mode-ps"></a>
 
-For a video introduction to the advanced gate mode, please see Omri Cohen's [advanceed gate mode tutorial](https://www.youtube.com/watch?v=B2w0_h5oN6M).
+For a video introduction to the advanced gate mode, please see Omri Cohen's [advanced gate mode tutorial](https://www.youtube.com/watch?v=B2w0_h5oN6M).
 
 Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than 1, which unlocks the advanced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In such cases, a mutliplied clock must be supplied in order to keep the same tempo in the sequencer. In advanced gate mode, the pulse width of the clock is not used and has no effect on the gates.
 
