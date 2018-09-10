@@ -489,8 +489,7 @@ struct GateSeq64 : Module {
 				for (int i = 0, s = startCP; i < countCP; i++, s++)
 					attribOrPhraseCPbuffer[i] = attributes[sequence][s];
 				lengthCPbuffer = lengths[sequence];
-				modeCPbuffer = runModeSeq[sequence];
-				
+				modeCPbuffer = runModeSeq[sequence];		
 			}
 			else {
 				for (int i = 0, p = startCP; i < countCP; i++, p++)
@@ -537,6 +536,8 @@ struct GateSeq64 : Module {
 							setGatePVal(sequence, s, randomu32() % 101);
 						}
 					}
+					startCP = 0;
+					countCP = 64;
 				}
 			}
 			else {// song
@@ -545,8 +546,20 @@ struct GateSeq64 : Module {
 						phrase[p] = attribOrPhraseCPbuffer[i] & 0xF;
 				}
 				else {// crossed paste to song (seq vs song)
-					for (int i = 0, p = startCP; i < countCP; i++, p++)
-						phrase[p] = 0;
+					if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init phrases)
+						for (int p = 0; p < 64; p++)
+							phrase[p] = 0;
+					}
+					else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (phrases increase from 1 to 64)
+						for (int p = 0; p < 64; p++)
+							phrase[p] = p;						
+					}
+					else {// 8 (randomize phrases)
+						for (int p = 0; p < 64; p++)
+							phrase[p] = randomu32() % 64;
+					}
+					startCP = 0;
+					countCP = 64;
 				}
 			}
 			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
@@ -1285,6 +1298,7 @@ step optimization of lights refresh
 add RN2 run mode
 add step-left CV input in expansion panel
 implement copy-paste in song mode and change 4/ROW/ALL to 4/8/ALL
+implement cross paste trick for init and randomize seq/song
 
 0.6.10:
 add advanced gate mode

@@ -182,6 +182,7 @@ struct PhraseSeq16 : Module {
 	
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
 	
+	inline void initAttrib(int seq, int step) {attributes[seq][step] = ATT_MSK_GATE1;}
 	inline bool getGate1(int seq, int step) {return getGate1a(attributes[seq][step]);}
 	inline bool getGate1P(int seq, int step) {return getGate1Pa(attributes[seq][step]);}
 	inline bool getGate2(int seq, int step) {return getGate2a(attributes[seq][step]);}
@@ -192,7 +193,8 @@ struct PhraseSeq16 : Module {
 	
 	inline void setGate1Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE1MODE; attributes[seq][step] |= (gateMode << gate1ModeShift);}
 	inline void setGate2Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE2MODE; attributes[seq][step] |= (gateMode << gate2ModeShift);}
-
+	inline void setGate1P(int seq, int step, bool gate1Pstate) {setGate1Pa(&attributes[seq][step], gate1Pstate);}
+	inline void toggleGate1(int seq, int step) {toggleGate1a(&attributes[seq][step]);}
 	
 	PhraseSeq16() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
@@ -210,7 +212,7 @@ struct PhraseSeq16 : Module {
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 16; s++) {
 				cv[i][s] = 0.0f;
-				attributes[i][s] = ATT_MSK_GATE1;
+				initAttrib(i, s);
 			}
 			runModeSeq[i] = MODE_FWD;
 			phrase[i] = 0;
@@ -625,6 +627,7 @@ struct PhraseSeq16 : Module {
 			else {
 				for (int i = 0, p = startCP; i < countCP; i++, p++)
 					attribOrPhraseCPbuffer[i] = phrase[p];
+				lengthCPbuffer = -1;// so that a cross paste can be detected
 			}
 			infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_NORMAL;
@@ -639,18 +642,57 @@ struct PhraseSeq16 : Module {
 			// else nothing to do for ALL
 
 			if (editingSequence) {
-				for (int i = 0, s = startCP; i < countCP; i++, s++) {
-					cv[sequence][s] = cvCPbuffer[i];
-					attributes[sequence][s] = attribOrPhraseCPbuffer[i];
+				if (lengthCPbuffer >= 0) {// non-crossed paste (seq vs song)
+					for (int i = 0, s = startCP; i < countCP; i++, s++) {
+						cv[sequence][s] = cvCPbuffer[i];
+						attributes[sequence][s] = attribOrPhraseCPbuffer[i];
+					}
+					if (params[CPMODE_PARAM].value > 1.5f) {// all
+						lengths[sequence] = lengthCPbuffer;
+						runModeSeq[sequence] = modeCPbuffer;
+					}
 				}
-				if (params[CPMODE_PARAM].value > 1.5f) {// all
-					lengths[sequence] = lengthCPbuffer;
-					runModeSeq[sequence] = modeCPbuffer;
+				else {// crossed paste to seq (seq vs song)
+					if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init steps)
+						for (int s = 0; s < 16; s++) {
+							cv[sequence][s] = 0.0f;
+							initAttrib(sequence, s);
+						}
+					}
+					else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (randomize CVs)
+						for (int s = 0; s < 16; s++)
+							cv[sequence][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
+					}
+					else {// 8 (randomize gate 1)
+						for (int s = 0; s < 16; s++)
+							if ( (randomu32() & 0x1) != 0)
+								toggleGate1(sequence, s);
+					}
+					startCP = 0;
+					countCP = 16;
 				}
 			}
 			else {
-				for (int i = 0, p = startCP; i < countCP; i++, p++)
-					phrase[p] = attribOrPhraseCPbuffer[i];
+				if (lengthCPbuffer < 0) {// non-crossed paste (seq vs song)
+					for (int i = 0, p = startCP; i < countCP; i++, p++)
+						phrase[p] = attribOrPhraseCPbuffer[i];
+				}
+				else {// crossed paste to song (seq vs song)
+					if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init phrases)
+						for (int p = 0; p < 16; p++)
+							phrase[p] = 0;
+					}
+					else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (phrases increase from 1 to 16)
+						for (int p = 0; p < 16; p++)
+							phrase[p] = p;						
+					}
+					else {// 8 (randomize phrases)
+						for (int p = 0; p < 16; p++)
+							phrase[p] = randomu32() % 16;
+					}
+					startCP = 0;
+					countCP = 16;
+				}					
 			}
 			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_NORMAL;
@@ -1628,6 +1670,8 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 0.6.11:
 step optimization of lights refresh
 change behavior of extra CV inputs (Gate1, Gate2, Tied, Slide), such that they act when triggered and not when write 
+implement copy-paste in song mode
+implement cross paste trick for init and randomize seq/song
 
 0.6.10:
 add advanced gate mode
