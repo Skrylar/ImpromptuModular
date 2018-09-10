@@ -142,6 +142,7 @@ struct GateSeq64 : Module {
 		return 4;
 	}
 	
+	inline void initAttrib(int seq, int step) {attributes[seq][step] = 50;}
 	inline bool getGateA(int attribute) {return (attribute & ATT_MSK_GATE) != 0;}
 	inline bool getGate(int seq, int step) {return getGateA(attributes[seq][step]);}
 	inline bool getGatePa(int attribute) {return (attribute & ATT_MSK_GATEP) != 0;}
@@ -155,7 +156,8 @@ struct GateSeq64 : Module {
 	inline void setGateP(int seq, int step, bool gatePState) {attributes[seq][step] &= ~ATT_MSK_GATEP; if (gatePState) attributes[seq][step] |= ATT_MSK_GATEP;}
 	inline void setGatePVal(int seq, int step, int pVal) {attributes[seq][step] &= ~ATT_MSK_PROB; attributes[seq][step] |= (pVal & ATT_MSK_PROB);}
 	inline void setGateMode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATEMODE; attributes[seq][step] |= (gateMode << gateModeShift);}
-	
+	inline void toggleGate(int seq, int step) {attributes[seq][step] ^= ATT_MSK_GATE;}
+
 	inline int getAdvGateGS(int ppqnCount, int pulsesPerStep, int gateMode) { 
 		uint32_t shiftAmt = ppqnCount * (24 / pulsesPerStep);
 		return (int)((advGateHitMaskGS[gateMode] >> shiftAmt) & (uint32_t)0x1);
@@ -205,7 +207,7 @@ struct GateSeq64 : Module {
 		phrases = 4;
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 64; s++) {
-				attributes[i][s] = 50;
+				initAttrib(i, s);
 			}
 			runModeSeq[i] = MODE_FWD;
 			lengths[i] = 16 * stepConfig;
@@ -493,6 +495,7 @@ struct GateSeq64 : Module {
 			else {
 				for (int i = 0, p = startCP; i < countCP; i++, p++)
 					attribOrPhraseCPbuffer[i] = phrase[p];
+				lengthCPbuffer = -1;// so that a cross paste can be detected
 			}
 			infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_GATE;
@@ -508,19 +511,43 @@ struct GateSeq64 : Module {
 			// else nothing to do for ALL
 				
 			if (editingSequence) {
-				for (int i = 0, s = startCP; i < countCP; i++, s++)
-					attributes[sequence][s] = attribOrPhraseCPbuffer[i];
-				if (params[CPMODE_PARAM].value > 1.5f) {// all
-					lengths[sequence] = lengthCPbuffer;
-					if (lengths[sequence] > 16 * stepConfig)
-						lengths[sequence] = 16 * stepConfig;
-					runModeSeq[sequence] = modeCPbuffer;
+				if (lengthCPbuffer >= 0) {// non-crossed paste (seq vs song)
+					for (int i = 0, s = startCP; i < countCP; i++, s++)
+						attributes[sequence][s] = attribOrPhraseCPbuffer[i];
+					if (params[CPMODE_PARAM].value > 1.5f) {// all
+						lengths[sequence] = lengthCPbuffer;
+						if (lengths[sequence] > 16 * stepConfig)
+							lengths[sequence] = 16 * stepConfig;
+						runModeSeq[sequence] = modeCPbuffer;
+					}
+				}
+				else {// crossed paste to seq (seq vs song)
+					if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init steps)
+						for (int s = 0; s < 64; s++)
+							initAttrib(sequence, s);
+					}
+					else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (randomize gates)
+						for (int s = 0; s < 64; s++)
+							if ( (randomu32() & 0x1) != 0)
+								toggleGate(sequence, s);
+					}
+					else {// 8 (randomize probs)
+						for (int s = 0; s < 64; s++) {
+							setGateP(sequence, s, (randomu32() & 0x1) != 0);
+							setGatePVal(sequence, s, randomu32() % 101);
+						}
+					}
 				}
 			}
-			else {
-				for (int i = 0, p = startCP; i < countCP; i++, p++)
-					phrase[p] = attribOrPhraseCPbuffer[i] & 0xF;
-				
+			else {// song
+				if (lengthCPbuffer < 0) {// non-crossed paste (seq vs song)
+					for (int i = 0, p = startCP; i < countCP; i++, p++)
+						phrase[p] = attribOrPhraseCPbuffer[i] & 0xF;
+				}
+				else {// crossed paste to song (seq vs song)
+					for (int i = 0, p = startCP; i < countCP; i++, p++)
+						phrase[p] = 0;
+				}
 			}
 			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_GATE;
@@ -1257,6 +1284,7 @@ Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Mod
 step optimization of lights refresh
 add RN2 run mode
 add step-left CV input in expansion panel
+implement copy-paste in song mode and change 4/ROW/ALL to 4/8/ALL
 
 0.6.10:
 add advanced gate mode
