@@ -1792,6 +1792,7 @@ Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthW
 step optimization of lights refresh
 implement copy-paste in song mode
 implement cross paste trick for init and randomize seq/song
+remove length and arrow buttons and make steps with LED buttons (TODO)
 
 0.6.10:
 unlock gates when tied (turn off when press tied, but allow to be turned back on)

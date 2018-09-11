@@ -725,8 +725,11 @@ struct PhraseSeq32 : Module {
 							}
 						}
 					}
-					else
+					else {
 						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, 32);
+						if (!running)
+							phraseIndexRun = phraseIndexEdit;	
+					}						
 				}
 			}
 		}
