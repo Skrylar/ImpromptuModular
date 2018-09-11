@@ -502,6 +502,7 @@ struct GateSeq64 : Module {
 		}
 		// Paste button
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
+			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			startCP = 0;
 			if (countCP <= 8) {
 				startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
@@ -538,6 +539,7 @@ struct GateSeq64 : Module {
 					}
 					startCP = 0;
 					countCP = 64;
+					infoCopyPaste *= 2l;
 				}
 			}
 			else {// song
@@ -560,9 +562,9 @@ struct GateSeq64 : Module {
 					}
 					startCP = 0;
 					countCP = 64;
+					infoCopyPaste *= 2l;
 				}
 			}
-			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_GATE;
 			blinkNum = blinkNumInit;
 		}
@@ -997,7 +999,6 @@ struct GateSeq64Widget : ModuleWidget {
 		GateSeq64 *module;
 		std::shared_ptr<Font> font;
 		char displayStr[4];
-		//std::string modeLabels[5]={"FWD","REV","PPG","BRN","RND"};
 		
 		SequenceDisplayWidget() {
 			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
@@ -1011,18 +1012,36 @@ struct GateSeq64Widget : ModuleWidget {
 		void draw(NVGcontext *vg) override {
 			NVGcolor textColor = prepareDisplay(vg, &box);
 			nvgFontFaceId(vg, font->handle);
-			//nvgTextLetterSpacing(vg, 2.5);
+			bool editingSequence = module->isEditingSequence();
 
 			Vec textPos = Vec(6, 24);
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);				
 			if (module->infoCopyPaste != 0l) {
-				if (module->infoCopyPaste > 0l) {// if copy display "CPY"
+				if (module->infoCopyPaste > 0l)// if copy display "CPY"
 					snprintf(displayStr, 4, "CPY");
-				}
-				else {// if paste display "PST"
-					snprintf(displayStr, 4, "PST");
+				else {
+					int lenCP = module->lengthCPbuffer;
+					float cpMode = module->params[GateSeq64::CPMODE_PARAM].value;
+					if (editingSequence && lenCP == -1) {// cross paste to seq
+						if (cpMode > 1.5f)// All = init
+							snprintf(displayStr, 4, "CLR");
+						else if (cpMode < 0.5f)// 4 = random gate
+							snprintf(displayStr, 4, "RGT");
+						else// 8 = random probs
+							snprintf(displayStr, 4, "RPR");
+					}
+					else if (!editingSequence && lenCP != -1) {// cross paste to song
+						if (cpMode > 1.5f)// All = init
+							snprintf(displayStr, 4, "CLR");
+						else if (cpMode < 0.5f)// 4 = increase by 1
+							snprintf(displayStr, 4, "INC");
+						else// 8 = random phrases
+							snprintf(displayStr, 4, "RPH");
+					}
+					else
+						snprintf(displayStr, 4, "PST");
 				}
 			}
 			else if (module->displayProbInfo != 0l) {
@@ -1038,13 +1057,13 @@ struct GateSeq64Widget : ModuleWidget {
 				snprintf(displayStr, 4, "x%2u", (unsigned) module->pulsesPerStep);
 			}
 			else if (module->displayState == GateSeq64::DISP_LENGTH) {
-				if (module->isEditingSequence())
+				if (editingSequence)
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
 				else
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
 			}
 			else if (module->displayState == GateSeq64::DISP_MODES) {
-				if (module->isEditingSequence())
+				if (editingSequence)
 					runModeToStr(module->runModeSeq[module->sequence]);
 				else
 					runModeToStr(module->runModeSong);
@@ -1052,7 +1071,7 @@ struct GateSeq64Widget : ModuleWidget {
 			else {
 				int dispVal = 0;
 				char specialCode = ' ';
-				if (module->isEditingSequence())
+				if (editingSequence)
 					dispVal = module->sequence;
 				else {
 					if (module->editingPhraseSongRunning > 0l || !module->running) {

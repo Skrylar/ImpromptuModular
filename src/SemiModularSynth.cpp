@@ -344,7 +344,7 @@ struct SemiModularSynth : Module {
 					applyTiedStep(i, s, lengths[i]);
 				}
 			}
-			runModeSeq[i] = randomu32() % NUM_MODES;
+			runModeSeq[i] = randomu32() % (NUM_MODES - 1);
 			phrase[i] = randomu32() % 16;
 			lengths[i] = 1 + (randomu32() % 16);
 			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
@@ -640,6 +640,7 @@ struct SemiModularSynth : Module {
 		}
 		// Paste button
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
+			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			startCP = 0;
 			if (countCP <= 8) {
 				startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
@@ -676,6 +677,7 @@ struct SemiModularSynth : Module {
 					}
 					startCP = 0;
 					countCP = 16;
+					infoCopyPaste *= 2l;
 				}
 			}
 			else {
@@ -698,9 +700,9 @@ struct SemiModularSynth : Module {
 					}
 					startCP = 0;
 					countCP = 16;
+					infoCopyPaste *= 2l;
 				}					
 			}
-			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_NORMAL;
 		}
 		
@@ -828,7 +830,7 @@ struct SemiModularSynth : Module {
 					if (editingSequence) {
 						runModeSeq[sequence] += deltaKnob;
 						if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
-						if (runModeSeq[sequence] >= NUM_MODES) runModeSeq[sequence] = NUM_MODES - 1;
+						if (runModeSeq[sequence] >= (NUM_MODES - 1)) runModeSeq[sequence] = (NUM_MODES - 1 - 1);
 					}
 					else {
 						runModeSong += deltaKnob;
@@ -1346,21 +1348,20 @@ struct SemiModularSynthWidget : ModuleWidget {
 		SemiModularSynth *module;
 		std::shared_ptr<Font> font;
 		char displayStr[4];
-		//std::string modeLabels[5]={"FWD","REV","PPG","BRN","RND"};
 		
 		SequenceDisplayWidget() {
 			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
 		}
 		
 		void runModeToStr(int num) {
-			if (num >= 0 && num < NUM_MODES)
+			if (num >= 0 && num < (NUM_MODES - 1))
 				snprintf(displayStr, 4, "%s", modeLabels[num].c_str());
 		}
 
 		void draw(NVGcontext *vg) override {
 			NVGcolor textColor = prepareDisplay(vg, &box);
 			nvgFontFaceId(vg, font->handle);
-			//nvgTextLetterSpacing(vg, 2.5);
+			bool editingSequence = module->isEditingSequence();
 
 			Vec textPos = Vec(6, 24);
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
@@ -1369,17 +1370,37 @@ struct SemiModularSynthWidget : ModuleWidget {
 			if (module->infoCopyPaste != 0l) {
 				if (module->infoCopyPaste > 0l)
 					snprintf(displayStr, 4, "CPY");
-				else
-					snprintf(displayStr, 4, "PST");
+				else {
+					int lenCP = module->lengthCPbuffer;
+					float cpMode = module->params[SemiModularSynth::CPMODE_PARAM].value;
+					if (editingSequence && lenCP == -1) {// cross paste to seq
+						if (cpMode > 1.5f)// All = init
+							snprintf(displayStr, 4, "CLR");
+						else if (cpMode < 0.5f)// 4 = random CV
+							snprintf(displayStr, 4, "RCV");
+						else// 8 = random gate 1
+							snprintf(displayStr, 4, "RG1");
+					}
+					else if (!editingSequence && lenCP != -1) {// cross paste to song
+						if (cpMode > 1.5f)// All = init
+							snprintf(displayStr, 4, "CLR");
+						else if (cpMode < 0.5f)// 4 = increase by 1
+							snprintf(displayStr, 4, "INC");
+						else// 8 = random phrases
+							snprintf(displayStr, 4, "RPH");
+					}
+					else
+						snprintf(displayStr, 4, "PST");
+				}
 			}
 			else if (module->editingLength > 0ul) {
-				if (module->isEditingSequence())
+				if (editingSequence)
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
 				else
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
 			}
 			else if (module->displayState == SemiModularSynth::DISP_MODE) {
-				if (module->isEditingSequence())
+				if (editingSequence)
 					runModeToStr(module->runModeSeq[module->sequence]);
 				else
 					runModeToStr(module->runModeSong);
@@ -1395,7 +1416,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 					displayStr[0] = '(';
 			}
 			else {// DISP_NORMAL
-				snprintf(displayStr, 4, " %2u", (unsigned) (module->isEditingSequence() ? 
+				snprintf(displayStr, 4, " %2u", (unsigned) (editingSequence ? 
 					module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
 			}
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);

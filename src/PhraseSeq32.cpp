@@ -599,6 +599,7 @@ struct PhraseSeq32 : Module {
 		}
 		// Paste button
 		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
+			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			startCP = 0;
 			if (countCP <= 8) {
 				startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
@@ -635,6 +636,7 @@ struct PhraseSeq32 : Module {
 					}
 					startCP = 0;
 					countCP = 32;
+					infoCopyPaste *= 2l;
 				}
 			}
 			else {
@@ -657,9 +659,9 @@ struct PhraseSeq32 : Module {
 					}
 					startCP = 0;
 					countCP = 32;
+					infoCopyPaste *= 2l;
 				}					
 			}
-			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 			displayState = DISP_NORMAL;
 		}
 		
@@ -1397,7 +1399,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 		void draw(NVGcontext *vg) override {
 			NVGcolor textColor = prepareDisplay(vg, &box);
 			nvgFontFaceId(vg, font->handle);
-			//nvgTextLetterSpacing(vg, 2.5);
+			bool editingSequence = module->isEditingSequence();
 
 			Vec textPos = Vec(6, 24);
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
@@ -1406,20 +1408,40 @@ struct PhraseSeq32Widget : ModuleWidget {
 			if (module->infoCopyPaste != 0l) {
 				if (module->infoCopyPaste > 0l)
 					snprintf(displayStr, 4, "CPY");
-				else
-					snprintf(displayStr, 4, "PST");
+				else {
+					int lenCP = module->lengthCPbuffer;
+					float cpMode = module->params[PhraseSeq32::CPMODE_PARAM].value;
+					if (editingSequence && lenCP == -1) {// cross paste to seq
+						if (cpMode > 1.5f)// All = init
+							snprintf(displayStr, 4, "CLR");
+						else if (cpMode < 0.5f)// 4 = random CV
+							snprintf(displayStr, 4, "RCV");
+						else// 8 = random gate 1
+							snprintf(displayStr, 4, "RG1");
+					}
+					else if (!editingSequence && lenCP != -1) {// cross paste to song
+						if (cpMode > 1.5f)// All = init
+							snprintf(displayStr, 4, "CLR");
+						else if (cpMode < 0.5f)// 4 = increase by 1
+							snprintf(displayStr, 4, "INC");
+						else// 8 = random phrases
+							snprintf(displayStr, 4, "RPH");
+					}
+					else
+						snprintf(displayStr, 4, "PST");
+				}
 			}
 			else if (module->editingPpqn != 0ul) {
 				snprintf(displayStr, 4, "x%2u", (unsigned) module->pulsesPerStep);
 			}
 			else if (module->displayState == PhraseSeq32::DISP_MODE) {
-				if (module->isEditingSequence())
+				if (editingSequence)
 					runModeToStr(module->runModeSeq[module->sequence]);
 				else
 					runModeToStr(module->runModeSong);
 			}
 			else if (module->displayState == PhraseSeq32::DISP_LENGTH) {
-				if (module->isEditingSequence())
+				if (editingSequence)
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
 				else
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
@@ -1435,7 +1457,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 					displayStr[0] = '(';
 			}
 			else {// DISP_NORMAL
-				snprintf(displayStr, 4, " %2u", (unsigned) (module->isEditingSequence() ? 
+				snprintf(displayStr, 4, " %2u", (unsigned) (editingSequence ? 
 					module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
 			}
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);

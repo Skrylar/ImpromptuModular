@@ -11,7 +11,7 @@ using namespace rack;
 
 static constexpr float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_BRN, MODE_RND, MODE_FW2, MODE_FW3, MODE_FW4, MODE_RN2, NUM_MODES};
-static const std::string modeLabels[NUM_MODES]={"FWD","REV","PPG","BRN","RND","FW2","FW3","FW4","RN2"};
+static const std::string modeLabels[NUM_MODES]={"FWD","REV","PPG","BRN","RND","FW2","FW3","FW4","RN2"};// PS16 and SMS16 use NUM_MODES - 1 since no RN2!!!
 
 static const int NUM_GATES = 12;												
 static const uint32_t advGateHitMask[NUM_GATES] = 
