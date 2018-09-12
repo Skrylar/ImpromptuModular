@@ -812,7 +812,7 @@ struct PhraseSeq16 : Module {
 		// Transpose/Rotate button
 		if (transposeTrigger.process(params[TRAN_ROT_PARAM].value)) {
 			if (editingSequence) {
-				if (displayState == DISP_NORMAL || displayState == DISP_MODE) {
+				if (displayState == DISP_NORMAL || displayState == DISP_MODE || displayState == DISP_LENGTH) {
 					displayState = DISP_TRANSPOSE;
 					transposeOffset = 0;
 				}
@@ -1132,7 +1132,8 @@ struct PhraseSeq16 : Module {
 								setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.1f, 0.0f);
 							else
 								setGreenRed(STEP_PHRASE_LIGHTS + i * 2, (i == phrases - 1) ? 1.0f : 0.0f, 0.0f);
-						}					}
+						}					
+					}
 					else {// normal led display (i.e. not length)
 						float red = 0.0f;
 						float green = 0.0f;
@@ -1547,7 +1548,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		// ****** Top row ******
 		
 		static const int rowRulerT0 = 48;
-		static const int columnRulerT0 = 18;// Length button
+		static const int columnRulerT0 = 18;// Step LED buttons
 		static const int columnRulerT3 = 400;// Attach (also used to align rest of right side of module)
 
 		// Step/Phrase LED buttons
@@ -1564,8 +1565,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 				posX += spacingSteps4;
 		}
 		// Attach button and light
-		addParam(createDynamicParam<IMPushButton>(Vec(columnRulerT3 - 4, rowRulerT0 + 2 + offsetTL1105), module, PhraseSeq16::ATTACH_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerT3 + 12 + offsetMediumLight, rowRulerT0 + offsetMediumLight), module, PhraseSeq16::ATTACH_LIGHT));		
+		addParam(createDynamicParam<IMPushButton>(Vec(columnRulerT3 - 4, rowRulerT0 - 6 + 2 + offsetTL1105), module, PhraseSeq16::ATTACH_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerT3 + 12 + offsetMediumLight, rowRulerT0 - 6 + offsetMediumLight), module, PhraseSeq16::ATTACH_LIGHT));		
 
 		
 		
