@@ -111,18 +111,18 @@ struct Tact : Module {
 		// cv
 		json_t *cv0J = json_object_get(rootJ, "cv0");
 		if (cv0J)
-			cv[0] = json_real_value(cv0J);
+			cv[0] = json_number_value(cv0J);
 		json_t *cv1J = json_object_get(rootJ, "cv1");
 		if (cv1J)
-			cv[1] = json_real_value(cv1J);
+			cv[1] = json_number_value(cv1J);
 
 		// storeCV[0]
 		json_t *storeCV0J = json_object_get(rootJ, "storeCV0");
 		if (storeCV0J)
-			storeCV[0] = json_real_value(storeCV0J);
+			storeCV[0] = json_number_value(storeCV0J);
 		json_t *storeCV1J = json_object_get(rootJ, "storeCV1");
 		if (storeCV1J)
-			storeCV[1] = json_real_value(storeCV1J);
+			storeCV[1] = json_number_value(storeCV1J);
 
 		// panelTheme
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");

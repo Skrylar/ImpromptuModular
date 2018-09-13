@@ -108,7 +108,7 @@ struct TwelveKey : Module {
 		// cv
 		json_t *cvJ = json_object_get(rootJ, "cv");
 		if (cvJ)
-			cv = json_real_value(cvJ);
+			cv = json_number_value(cvJ);
 		
 		// octave
 		json_t *octaveJ = json_object_get(rootJ, "octave");

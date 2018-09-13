@@ -216,7 +216,7 @@ struct WriteSeq32 : Module {
 				for (int s = 0; s < 32; s++) {
 					json_t *cvArrayJ = json_array_get(cvJ, s + (c<<5));
 					if (cvArrayJ)
-						cv[c][s] = json_real_value(cvArrayJ);
+						cv[c][s] = json_number_value(cvArrayJ);
 				}
 		}
 		

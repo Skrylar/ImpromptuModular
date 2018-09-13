@@ -447,7 +447,7 @@ struct PhraseSeq32 : Module {
 				for (int s = 0; s < 32; s++) {
 					json_t *cvArrayJ = json_array_get(cvJ, s + (i * 32));
 					if (cvArrayJ)
-						cv[i][s] = json_real_value(cvArrayJ);
+						cv[i][s] = json_number_value(cvArrayJ);
 				}
 		}
 		
