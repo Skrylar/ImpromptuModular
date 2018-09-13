@@ -27,6 +27,8 @@ static const int gate2ModeShift = 9;
 							
 				
 // Inline methods
+inline int calcNewGateMode(int currentGateMode, int deltaKnob) {return clamp(currentGateMode + deltaKnob, 0, NUM_GATES - 1);}
+
 inline bool getGate1a(int attribute) {return (attribute & ATT_MSK_GATE1) != 0;}
 inline bool getGate1Pa(int attribute) {return (attribute & ATT_MSK_GATE1P) != 0;}
 inline bool getGate2a(int attribute) {return (attribute & ATT_MSK_GATE2) != 0;}

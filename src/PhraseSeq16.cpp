@@ -198,6 +198,7 @@ struct PhraseSeq16 : Module {
 	inline void setGate1P(int seq, int step, bool gate1Pstate) {setGate1Pa(&attributes[seq][step], gate1Pstate);}
 	inline void toggleGate1(int seq, int step) {toggleGate1a(&attributes[seq][step]);}
 	
+	
 	PhraseSeq16() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
 	}
@@ -800,6 +801,8 @@ struct PhraseSeq16 : Module {
 
 		// Mode/Length button
 		if (modeTrigger.process(params[RUNMODE_PARAM].value)) {
+			if (editingPpqn != 0l)
+				editingPpqn = 0l;			
 			if (displayState == DISP_NORMAL || displayState == DISP_TRANSPOSE || displayState == DISP_ROTATE)
 				displayState = DISP_LENGTH;
 			else if (displayState == DISP_LENGTH)
@@ -1325,10 +1328,6 @@ struct PhraseSeq16 : Module {
 		// Affect downstream CVs of subsequent tied note chain (can be 0 length if next note is not tied)
 		for (int i = indexTied + 1; i < seqLength && getTied(seqNum,i); i++) 
 			cv[seqNum][i] = cv[seqNum][indexTied];
-	}
-	
-	int calcNewGateMode(int currentGateMode, int deltaKnob) {
-		return clamp(currentGateMode + deltaKnob, 0, NUM_GATES - 1); 
 	}
 	
 	inline void setGateLight(bool gateOn, int lightIndex) {

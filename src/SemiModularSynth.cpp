@@ -160,8 +160,8 @@ struct SemiModularSynth : Module {
 		ENUMS(KEY_LIGHTS, 12 * 2),// room for GreenRed
 		RUN_LIGHT,
 		RESET_LIGHT,
-		GATE1_LIGHT,
-		GATE2_LIGHT,
+		ENUMS(GATE1_LIGHT, 2),// room for GreenRed
+		ENUMS(GATE2_LIGHT, 2),// room for GreenRed
 		SLIDE_LIGHT,
 		ATTACH_LIGHT,
 		GATE1_PROB_LIGHT,
@@ -178,11 +178,11 @@ struct SemiModularSynth : Module {
 	
 	// Constants
 	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_LENGTH, DISP_TRANSPOSE, DISP_ROTATE};
-	enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_GATE2 = 0x04, ATT_MSK_SLIDE = 0x08, ATT_MSK_TIED = 0x10};
 
 	// Need to save
 	int panelTheme = 1;
 	int portTheme = 1;
+	int pulsesPerStep;// 1 means normal gate mode, alt choices are 4, 6, 12, 24 PPS (Pulses per step)
 	bool running;
 	int runModeSeq[16]; 
 	int runModeSong; 
@@ -220,9 +220,13 @@ struct SemiModularSynth : Module {
 	long clockIgnoreOnReset;
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
+	int gate1Code;
+	int gate2Code;
 	long revertDisplay;
 	long editingGateLength;// 0 when no info, positive downward step counter timer when gate1, negative upward when gate2
-	bool gate1RandomEnable;
+	long editGateLengthTimeInitMult;// multiplier for extended setting of advanced gates
+	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
+	int ppqnCount;
 	
 	// VCO
 	// none
@@ -265,17 +269,26 @@ struct SemiModularSynth : Module {
 	SchmittTrigger transposeTrigger;
 	SchmittTrigger tiedTrigger;
 	SchmittTrigger stepTriggers[16];
+	HoldDetect modeHoldDetect;
+	HoldDetect gate1HoldDetect;
+	HoldDetect gate2HoldDetect;
+	
+	
+	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
 	
 	inline void initAttrib(int seq, int step) {attributes[seq][step] = ATT_MSK_GATE1;}
-	inline bool getGate1(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE1) != 0;}
-	inline bool getGate2(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE2) != 0;}
-	inline bool getGate1P(int seq, int step) {return (attributes[seq][step] & ATT_MSK_GATE1P) != 0;}
-	inline bool getTied(int seq, int step) {return (attributes[seq][step] & ATT_MSK_TIED) != 0;}
-	inline void setGate1P(int seq, int step, bool gate1Pstate) {setGate1Pa(&attributes[seq][step], gate1Pstate);}
-	inline void toggleGate1(int seq, int step) {toggleGate1a(&attributes[seq][step]);}
-	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
-	inline bool calcGate1RandomEnable(bool gate1P) {return (randomUniform() < (params[GATE1_KNOB_PARAM].value)) || !gate1P;}// randomUniform is [0.0, 1.0), see include/util/common.hpp
+	inline bool getGate1(int seq, int step) {return getGate1a(attributes[seq][step]);}
+	inline bool getGate1P(int seq, int step) {return getGate1Pa(attributes[seq][step]);}
+	inline bool getGate2(int seq, int step) {return getGate2a(attributes[seq][step]);}
+	inline bool getSlide(int seq, int step) {return getSlideA(attributes[seq][step]);}
+	inline bool getTied(int seq, int step) {return getTiedA(attributes[seq][step]);}
+	inline int getGate1Mode(int seq, int step) {return getGate1aMode(attributes[seq][step]);}
+	inline int getGate2Mode(int seq, int step) {return getGate2aMode(attributes[seq][step]);}
 	
+	inline void setGate1Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE1MODE; attributes[seq][step] |= (gateMode << gate1ModeShift);}
+	inline void setGate2Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE2MODE; attributes[seq][step] |= (gateMode << gate2ModeShift);}
+	inline void setGate1P(int seq, int step, bool gate1Pstate) {setGate1Pa(&attributes[seq][step], gate1Pstate);}
+	inline void toggleGate1(int seq, int step) {toggleGate1a(&attributes[seq][step]);}	
 	
 	LowFrequencyOscillator oscillatorClk;
 	LowFrequencyOscillator oscillatorLfo;
@@ -289,6 +302,7 @@ struct SemiModularSynth : Module {
 
 	void onReset() override {
 		// SEQUENCER
+		pulsesPerStep = 1;
 		running = false;
 		runModeSong = MODE_FWD;
 		stepIndexEdit = 0;
@@ -320,6 +334,8 @@ struct SemiModularSynth : Module {
 		tiedWarning = 0ul;
 		revertDisplay = 0l;
 		resetOnRun = false;
+		editGateLengthTimeInitMult = 1l;
+		editingPpqn = 0l;
 		
 		// VCO
 		// none
@@ -342,7 +358,7 @@ struct SemiModularSynth : Module {
 		for (int i = 0; i < 16; i++) {
 			for (int s = 0; s < 16; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
-				attributes[i][s] = randomu32() % 32;// 32 because 5 attributes
+				attributes[i][s] = randomu32() & 0x1FFF;// 5 bit for normal attributes + 2 * 4 bits for advanced gate modes
 				if (getTied(i,s)) {
 					attributes[i][s] = ATT_MSK_TIED;// clear other attributes if tied
 					applyTiedStep(i, s, lengths[i]);
@@ -354,31 +370,30 @@ struct SemiModularSynth : Module {
 			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun(true);
-		//editingGate = 0ul;
-		//infoCopyPaste = 0l;
-		//displayState = DISP_NORMAL;
-		//slideStepsRemain = 0ul;
-		//attached = true;
-		//clockPeriod = 0ul;
-		//tiedWarning = 0ul;
-		//revertDisplay = 0l;
+		// editingGate = 0ul;
+		// infoCopyPaste = 0l;
+		// displayState = DISP_NORMAL;
+		// slideStepsRemain = 0ul;
+		// attached = true;
+		// clockPeriod = 0ul;
+		// tiedWarning = 0ul;
+		// revertDisplay = 0l;
+		// editGateLengthTimeInitMult = 1l;
+		// editingPpqn = 0l;
 	}
 	
 	
 	void initRun(bool hard) {// run button activated or run edge in run input jack
-		if (hard) {
+		if (hard) 
 			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
-			if (isEditingSequence())
-				stepIndexRun = (runModeSeq[sequence] == MODE_REV ? lengths[sequence] - 1 : 0);
-			else
-				stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);
-		}
-		gate1RandomEnable = false;
-		if (isEditingSequence())
-			gate1RandomEnable = calcGate1RandomEnable(getGate1P(sequence, stepIndexRun));
-		else
-			gate1RandomEnable = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun], stepIndexRun));
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());	
+		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
+		if (hard)	
+			stepIndexRun = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
+		ppqnCount = 0;
+		gate1Code = calcGate1Code(attributes[seq][stepIndexRun], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
+		gate2Code = calcGate2Code(attributes[seq][stepIndexRun], 0, pulsesPerStep);
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		editingGateLength = 0l;
 	}
 	
 	
@@ -388,6 +403,9 @@ struct SemiModularSynth : Module {
 		// panelTheme and portTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
 		json_object_set_new(rootJ, "portTheme", json_integer(portTheme));
+
+		// pulsesPerStep
+		json_object_set_new(rootJ, "pulsesPerStep", json_integer(pulsesPerStep));
 
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
@@ -452,6 +470,11 @@ struct SemiModularSynth : Module {
 		json_t *portThemeJ = json_object_get(rootJ, "portTheme");
 		if (portThemeJ)
 			portTheme = json_integer_value(portThemeJ);
+
+		// pulsesPerStep
+		json_t *pulsesPerStepJ = json_object_get(rootJ, "pulsesPerStep");
+		if (pulsesPerStepJ)
+			pulsesPerStep = json_integer_value(pulsesPerStepJ);
 
 		// running
 		json_t *runningJ = json_object_get(rootJ, "running");
@@ -575,14 +598,16 @@ struct SemiModularSynth : Module {
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float revertDisplayTime = 0.7f;// seconds
 		static const float tiedWarningTime = 0.7f;// seconds
+		static const float holdDetectTime = 2.0f;// seconds
+		static const float editGateLengthTime = 4.0f;// seconds
 		
 		
 		//********** Buttons, knobs, switches and inputs **********
 		
 		// Notes: 
 		// * a tied step's attributes can not be modified by any of the following: 
-		//   write input, oct and keyboard buttons, gate1, gate1Prob, gate2 and slide buttons
-		//   however, paste, transpose, rotate obviously can.
+		//   write input, oct and keyboard buttons, gate1Prob and slide buttons
+		//   however, paste, transpose, rotate obviously can, and gate1/2 can be turned back on if desired.
 		// * Whenever cv[][] is modified or tied[] is activated for a step, call applyTiedStep(sequence,stepIndexEdit,steps)
 		
 		// Edit mode
@@ -591,8 +616,6 @@ struct SemiModularSynth : Module {
 		// Seq CV input
 		if (inputs[SEQCV_INPUT].active) {
 			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (16.0f - 1.0f) / 10.0f), 0.0f, (16.0f - 1.0f) );
-			//if (stepIndexEdit >= lengths[sequence])// Commented for full edit capabilities
-				//stepIndexEdit = lengths[sequence] - 1;// Commented for full edit capabilities
 		}
 		
 		// Run button
@@ -715,18 +738,14 @@ struct SemiModularSynth : Module {
 		bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 		if (writeTrig) {
 			if (editingSequence) {
-				if (getTied(sequence,stepIndexEdit))
-					tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
-				else {			
-					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
-					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
-					editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
-					editingGateCV = cv[sequence][stepIndexEdit];
-					editingGateKeyLight = -1;
-					// Autostep (after grab all active inputs)
-					if (params[AUTOSTEP_PARAM].value > 0.5f)
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);//lengths[sequence]);// Commented for full edit capabilities
-				}
+				cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
+				applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+				editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+				editingGateCV = cv[sequence][stepIndexEdit];
+				editingGateKeyLight = -1;
+				// Autostep (after grab all active inputs)
+				if (params[AUTOSTEP_PARAM].value > 0.5f)
+					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -758,7 +777,7 @@ struct SemiModularSynth : Module {
 			else {
 				if (!running || !attached) {// don't move heads when attach and running
 					if (editingSequence) {
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, 16);//lengths[sequence]);// Commented for full edit capabilities
+						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, 16);
 						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 							if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
 								editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
@@ -768,7 +787,7 @@ struct SemiModularSynth : Module {
 						}
 					}
 					else {
-						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, 16);//phrases);// Commented for full edit capabilities
+						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, 16);
 						if (!running)
 							phraseIndexRun = phraseIndexEdit;
 					}
@@ -812,12 +831,15 @@ struct SemiModularSynth : Module {
 		
 		// Mode/Length button
 		if (modeTrigger.process(params[RUNMODE_PARAM].value)) {
+			if (editingPpqn != 0l)
+				editingPpqn = 0l;			
 			if (displayState == DISP_NORMAL || displayState == DISP_TRANSPOSE || displayState == DISP_ROTATE)
 				displayState = DISP_LENGTH;
 			else if (displayState == DISP_LENGTH)
 				displayState = DISP_MODE;
 			else
 				displayState = DISP_NORMAL;
+			modeHoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
 		}
 		
 		// Transpose/Rotate button
@@ -844,7 +866,11 @@ struct SemiModularSynth : Module {
 		int deltaKnob = newSequenceKnob - sequenceKnob;
 		if (deltaKnob != 0) {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
-				if (displayState == DISP_MODE) {
+				if (editingPpqn != 0) {
+					pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
+					editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+				}
+				else if (displayState == DISP_MODE) {
 					if (editingSequence) {
 						runModeSeq[sequence] += deltaKnob;
 						if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
@@ -943,7 +969,24 @@ struct SemiModularSynth : Module {
 		for (int i = 0; i < 12; i++) {
 			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 				if (editingSequence) {
-					if (getTied(sequence,stepIndexEdit)) {
+					if (editingGateLength != 0l) {
+						int newMode = keyIndexToGateMode(i, pulsesPerStep);
+						if (editingGateLength > 0l) {
+							if (newMode != -1)
+								setGate1Mode(sequence, stepIndexEdit, newMode);
+							else
+								editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+							editingGateLength = ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
+						}
+						else {
+							if (newMode != -1)
+								setGate2Mode(sequence, stepIndexEdit, newMode);
+							else
+								editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+							editingGateLength = -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
+						}
+					}
+					else if (getTied(sequence,stepIndexEdit)) {
 						if (params[KEY_PARAMS + i].value > 1.5f)
 							stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
 						else
@@ -964,11 +1007,15 @@ struct SemiModularSynth : Module {
 				displayState = DISP_NORMAL;
 			}
 		}
-				
+		
 		// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingSequence) {
-				attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1;
+				toggleGate1a(&attributes[sequence][stepIndexEdit]);
+				if (pulsesPerStep != 1) {
+					editingGateLength = getGate1(sequence,stepIndexEdit) ? ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
+					gate1HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
+				}
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -977,13 +1024,17 @@ struct SemiModularSynth : Module {
 				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 				else
-					attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE1P;
+					toggleGate1Pa(&attributes[sequence][stepIndexEdit]);
 			}
 			displayState = DISP_NORMAL;
 		}		
 		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
 			if (editingSequence) {
-				attributes[sequence][stepIndexEdit] ^= ATT_MSK_GATE2;
+				toggleGate2a(&attributes[sequence][stepIndexEdit]);
+				if (pulsesPerStep != 1) {
+					editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
+					gate2HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
+				}
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -992,19 +1043,19 @@ struct SemiModularSynth : Module {
 				if (getTied(sequence,stepIndexEdit))
 					tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 				else
-					attributes[sequence][stepIndexEdit] ^= ATT_MSK_SLIDE;
+					toggleSlideA(&attributes[sequence][stepIndexEdit]);
 			}
 			displayState = DISP_NORMAL;
 		}		
 		if (tiedTrigger.process(params[TIE_PARAM].value)) {
 			if (editingSequence) {
-				attributes[sequence][stepIndexEdit] ^= ATT_MSK_TIED;
+				toggleTiedA(&attributes[sequence][stepIndexEdit]);
 				if (getTied(sequence,stepIndexEdit)) {
-					attributes[sequence][stepIndexEdit] = ATT_MSK_TIED;// clear other attributes if tied
+					setGate1a(&attributes[sequence][stepIndexEdit], false);
+					setGate2a(&attributes[sequence][stepIndexEdit], false);
+					setSlideA(&attributes[sequence][stepIndexEdit], false);
 					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 				}
-				else
-					attributes[sequence][stepIndexEdit] |= (ATT_MSK_GATE1 | ATT_MSK_GATE2);
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -1016,32 +1067,41 @@ struct SemiModularSynth : Module {
 		float clockInput = inputs[CLOCK_INPUT].active ? inputs[CLOCK_INPUT].value : clkValue;// Pre-patching
 		if (clockTrigger.process(clockInput)) {
 			if (running && clockIgnoreOnReset == 0l) {
-				float slideFromCV = 0.0f;
-				float slideToCV = 0.0f;
-				if (editingSequence) {
-					slideFromCV = cv[sequence][stepIndexRun];
-					moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
-					slideToCV = cv[sequence][stepIndexRun];
-					gate1RandomEnable = calcGate1RandomEnable(getGate1P(sequence,stepIndexRun));// must be calculated on clock edge only
+				ppqnCount++;
+				if (ppqnCount >= pulsesPerStep)
+					ppqnCount = 0;
+
+				int newSeq = sequence;// good value when editingSequence, overwrite if not editingSequence
+				if (ppqnCount == 0) {
+					float slideFromCV = 0.0f;
+					if (editingSequence) {
+						slideFromCV = cv[sequence][stepIndexRun];
+						moveIndexRunMode(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
+					}
+					else {
+						slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
+						if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory)) {
+							moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
+							stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
+						}
+						newSeq = phrase[phraseIndexRun];
+					}
+					
+					// Slide
+					if (getSlide(newSeq, stepIndexRun)) {
+						// activate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
+						slideStepsRemain =   (unsigned long) (((float)clockPeriod * pulsesPerStep) * params[SLIDE_KNOB_PARAM].value / 2.0f);
+						float slideToCV = cv[newSeq][stepIndexRun];
+						slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
+					}
 				}
 				else {
-					slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
-					if (moveIndexRunMode(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory)) {
-						moveIndexRunMode(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
-						stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
-					}
-					slideToCV = cv[phrase[phraseIndexRun]][stepIndexRun];
-					gate1RandomEnable = calcGate1RandomEnable(getGate1P(phrase[phraseIndexRun],stepIndexRun));// must be calculated on clock edge only
+					if (!editingSequence)
+						newSeq = phrase[phraseIndexRun];
 				}
-				
-				// Slide
-				if ( (editingSequence && ((attributes[sequence][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) || 
-				    (!editingSequence && ((attributes[phrase[phraseIndexRun]][stepIndexRun] & ATT_MSK_SLIDE) != 0) ) ) {
-					// avtivate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
-					slideStepsRemain =   (unsigned long) (((float)clockPeriod)   * params[SLIDE_KNOB_PARAM].value / 2.0f);// 0-T slide, where T is clock period (can be too long when user does clock gating)
-					//slideStepsRemain = (unsigned long)  (engineGetSampleRate() * params[SLIDE_KNOB_PARAM].value );// 0-2s slide
-					slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
-				}
+				if (gate1Code != -1 || ppqnCount == 0)
+					gate1Code = calcGate1Code(attributes[newSeq][stepIndexRun], ppqnCount, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
+				gate2Code = calcGate2Code(attributes[newSeq][stepIndexRun], ppqnCount, pulsesPerStep);						 
 			}
 			clockPeriod = 0ul;
 		}	
@@ -1063,10 +1123,8 @@ struct SemiModularSynth : Module {
 		if (running) {
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
 			outputs[CV_OUTPUT].value = cv[seq][step] - slideOffset;
-			outputs[GATE1_OUTPUT].value = (clockTrigger.isHigh() && gate1RandomEnable && 
-											((attributes[seq][step] & ATT_MSK_GATE1) != 0)) ? 10.0f : 0.0f;
-			outputs[GATE2_OUTPUT].value = (clockTrigger.isHigh() && 
-											((attributes[seq][step] & ATT_MSK_GATE2) != 0)) ? 10.0f : 0.0f;
+			outputs[GATE1_OUTPUT].value = calcGate(gate1Code, clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
+			outputs[GATE2_OUTPUT].value = calcGate(gate2Code, clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
 		}
 		else {// not running 
 			outputs[CV_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : (editingSequence ? cv[seq][step] : 0.0f);
@@ -1198,20 +1256,31 @@ struct SemiModularSynth : Module {
 			}	
 			
 			// Gate1, Gate1Prob, Gate2, Slide and Tied lights
-			int attributesVal = attributes[sequence][stepIndexEdit];
-			if (!editingSequence)
-				attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
-			//
-			lights[GATE1_LIGHT].value = ((attributesVal & ATT_MSK_GATE1) != 0) ? 1.0f : 0.0f;
-			lights[GATE1_PROB_LIGHT].value = ((attributesVal & ATT_MSK_GATE1P) != 0) ? 1.0f : 0.0f;
-			lights[GATE2_LIGHT].value = ((attributesVal & ATT_MSK_GATE2) != 0) ? 1.0f : 0.0f;
-			lights[SLIDE_LIGHT].value = ((attributesVal & ATT_MSK_SLIDE) != 0) ? 1.0f : 0.0f;
-			if (tiedWarning > 0l) {
-				bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
-				lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
+			if (!editingSequence && (!attached || !running)) {// no oct lights when song mode and either (detached [1] or stopped [2])
+											// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
+											// [2] CV is set to 0V when not running and in song mode, so cv[][] makes no sense to display
+				setGateLight(false, GATE1_LIGHT);
+				setGateLight(false, GATE2_LIGHT);
+				lights[GATE1_PROB_LIGHT].value = 0.0f;
+				lights[SLIDE_LIGHT].value = 0.0f;
+				lights[TIE_LIGHT].value = 0.0f;
 			}
-			else
-				lights[TIE_LIGHT].value = ((attributesVal & ATT_MSK_TIED) != 0) ? 1.0f : 0.0f;
+			else {
+				int attributesVal = attributes[sequence][stepIndexEdit];
+				if (!editingSequence)
+					attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
+				//
+				setGateLight(getGate1a(attributesVal), GATE1_LIGHT);
+				setGateLight(getGate2a(attributesVal), GATE2_LIGHT);
+				lights[GATE1_PROB_LIGHT].value = getGate1Pa(attributesVal) ? 1.0f : 0.0f;
+				lights[SLIDE_LIGHT].value = getSlideA(attributesVal) ? 1.0f : 0.0f;
+				if (tiedWarning > 0l) {
+					bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+					lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
+				}
+				else
+					lights[TIE_LIGHT].value = getTiedA(attributesVal) ? 1.0f : 0.0f;
+			}
 
 			// Attach light
 			lights[ATTACH_LIGHT].value = (running && attached) ? 1.0f : 0.0f;
@@ -1221,7 +1290,7 @@ struct SemiModularSynth : Module {
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime() * displayRefreshStepSkips;
 			
 			// Run light
-			lights[RUN_LIGHT].value = lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
+			lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
 			
 			if (editingGate > 0ul)
 				editingGate--;
@@ -1241,8 +1310,22 @@ struct SemiModularSynth : Module {
 				if (editingGateLength > 0l)
 					editingGateLength = 0l;
 			}
+			if (editingPpqn > 0l)
+				editingPpqn--;
 			if (tiedWarning > 0l)
 				tiedWarning--;
+			if (modeHoldDetect.process(params[RUNMODE_PARAM].value)) {
+				displayState = DISP_NORMAL;
+				editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+			}
+			if (gate1HoldDetect.process(params[GATE1_PARAM].value)) {
+				toggleGate1a(&attributes[sequence][stepIndexEdit]);
+				editGateLengthTimeInitMult = 1;
+			}
+			if (gate2HoldDetect.process(params[GATE2_PARAM].value)) {
+				toggleGate2a(&attributes[sequence][stepIndexEdit]);
+				editGateLengthTimeInitMult = 100;
+			}
 			if (revertDisplay > 0l) {
 				if (revertDisplay == 1)
 					displayState = DISP_NORMAL;
@@ -1278,7 +1361,7 @@ struct SemiModularSynth : Module {
 			
 			
 		// CLK
-		oscillatorClk.setPitch(params[CLK_FREQ_PARAM].value);
+		oscillatorClk.setPitch(params[CLK_FREQ_PARAM].value + log2f(pulsesPerStep));
 		oscillatorClk.setPulseWidth(params[CLK_PW_PARAM].value);
 		oscillatorClk.offset = true;//(params[OFFSET_PARAM].value > 0.0f);
 		oscillatorClk.invert = false;//(params[INVERT_PARAM].value <= 0.0f);
@@ -1414,6 +1497,22 @@ struct SemiModularSynth : Module {
 		for (int i = indexTied + 1; i < seqLength && getTied(seqNum,i); i++) 
 			cv[seqNum][i] = cv[seqNum][indexTied];
 	}
+
+	inline void setGateLight(bool gateOn, int lightIndex) {
+		if (!gateOn) {
+			lights[lightIndex + 0].value = 0.0f;
+			lights[lightIndex + 1].value = 0.0f;
+		}
+		else if (pulsesPerStep == 1) {
+			lights[lightIndex + 0].value = 0.0f;
+			lights[lightIndex + 1].value = 1.0f;
+		}
+		else {
+			lights[lightIndex + 0].value = lightIndex == GATE1_LIGHT ? 1.0f : 0.2f;
+			lights[lightIndex + 1].value = lightIndex == GATE1_LIGHT ? 0.2f : 1.0f;
+		}
+	}
+
 };
 
 
@@ -1470,6 +1569,9 @@ struct SemiModularSynthWidget : ModuleWidget {
 					else
 						snprintf(displayStr, 4, "PST");
 				}
+			}
+			else if (module->editingPpqn != 0ul) {
+				snprintf(displayStr, 4, "x%2u", (unsigned) module->pulsesPerStep);
 			}
 			else if (module->displayState == SemiModularSynth::DISP_MODE) {
 				if (editingSequence)
@@ -1658,6 +1760,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		addChild(createLight<MediumLight<GreenRedLight>>(Vec(220+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 11 * 2));		
 		
 		
+		
 		// ****** Right side control area ******
 
 		static const int rowRulerMK0 = 105;// Edit mode row
@@ -1699,7 +1802,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		
 		// ****** Gate and slide section ******
 		
-		static const int rowRulerMB0 = 218;
+		static const int rowRulerMB0 = 214 + 4;
 		static const int columnRulerMBspacing = 70;
 		static const int columnRulerMB2 = 134;// Gate2
 		static const int columnRulerMB1 = columnRulerMB2 - columnRulerMBspacing;// Gate1 
@@ -1707,10 +1810,10 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static const int posLEDvsButton = + 25;
 		
 		// Gate 1 light and button
-		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerMB1 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, SemiModularSynth::GATE1_LIGHT));		
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(columnRulerMB1 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, SemiModularSynth::GATE1_LIGHT));		
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB1 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, SemiModularSynth::GATE1_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Gate 2 light and button
-		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerMB2 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, SemiModularSynth::GATE2_LIGHT));		
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(columnRulerMB2 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, SemiModularSynth::GATE2_LIGHT));		
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB2 + offsetCKD6b, rowRulerMB0 + 4 + offsetCKD6b), module, SemiModularSynth::GATE2_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Tie light and button
 		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerMB3 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + 4 + offsetMediumLight), module, SemiModularSynth::TIE_LIGHT));		
@@ -1808,7 +1911,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static const int rowRulerClk1 = rowRulerClk0 + 45;// exact value from svg
 		static const int rowRulerClk2 = rowRulerClk1 + 38;
 		static const int colRulerClk0 = colRulerVCO1 + 55;// exact value from svg
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk0 + offsetIMSmallKnob), module, SemiModularSynth::CLK_FREQ_PARAM, -4.0f, 6.0f, 1.0f, &module->portTheme));// 120 BMP when default value
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk0 + offsetIMSmallKnob), module, SemiModularSynth::CLK_FREQ_PARAM, -2.0f, 4.0f, 1.0f, &module->portTheme));// 120 BMP when default value
 		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk1 + offsetIMSmallKnob), module, SemiModularSynth::CLK_PW_PARAM, 0.0f, 1.0f, 0.5f, &module->portTheme));
 		addOutput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerClk2), Port::OUTPUT, module, SemiModularSynth::CLK_OUT_OUTPUT, &module->portTheme));
 		

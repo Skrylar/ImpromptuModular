@@ -663,6 +663,8 @@ struct GateSeq64 : Module {
 		// Mode/Length button
 		if (modesTrigger.process(params[MODES_PARAM].value)) {
 			blinkNum = blinkNumInit;
+			if (editingPpqn != 0l)
+				editingPpqn = 0l;			
 			if (displayState == DISP_GATE)
 				displayState = DISP_LENGTH;
 			else if (displayState == DISP_LENGTH)
