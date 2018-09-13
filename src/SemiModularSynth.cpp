@@ -157,7 +157,7 @@ struct SemiModularSynth : Module {
 		// SEQUENCER
 		ENUMS(STEP_PHRASE_LIGHTS, 16 * 2),// room for GreenRed
 		ENUMS(OCTAVE_LIGHTS, 7),// octaves 1 to 7
-		ENUMS(KEY_LIGHTS, 12),
+		ENUMS(KEY_LIGHTS, 12 * 2),// room for GreenRed
 		RUN_LIGHT,
 		RESET_LIGHT,
 		GATE1_LIGHT,
@@ -221,6 +221,7 @@ struct SemiModularSynth : Module {
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
 	long revertDisplay;
+	long editingGateLength;// 0 when no info, positive downward step counter timer when gate1, negative upward when gate2
 	bool gate1RandomEnable;
 	
 	// VCO
@@ -1158,24 +1159,43 @@ struct SemiModularSynth : Module {
 			else	
 				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
 			int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
-			for (int i = 0; i < 12; i++) {
-				if (!editingSequence && (!attached || !running))// no keyboard lights when song mode and either (detached [1] or stopped [2])
-												// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
-												// [2] CV is set to 0V when not running and in song mode, so cv[][] makes no sense to display
-					lights[KEY_LIGHTS + i].value = 0.0f;
-				else {
-					if (tiedWarning > 0l) {
-						bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
-						lights[KEY_LIGHTS + i].value = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
+			if (editingGateLength != 0 && editingSequence) {
+				int modeLightIndex = gateModeToKeyLightIndex(attributes[sequence][stepIndexEdit], editingGateLength > 0l);
+				for (int i = 0; i < 12; i++) {
+					if (i == modeLightIndex) {
+						lights[KEY_LIGHTS + i * 2 + 0].value = editingGateLength > 0l ? 1.0f : 0.2f;
+						lights[KEY_LIGHTS + i * 2 + 1].value = editingGateLength > 0l ? 0.2f : 1.0f;
 					}
-					else {
-						if (editingGate > 0ul && editingGateKeyLight != -1)
-							lights[KEY_LIGHTS + i].value = (i == editingGateKeyLight ? ((float) editingGate / (float)(gateTime * sampleRate / displayRefreshStepSkips)) : 0.0f);
-						else
-							lights[KEY_LIGHTS + i].value = (i == keyLightIndex ? 1.0f : 0.0f);
+					else { 
+						lights[KEY_LIGHTS + i * 2 + 0].value = 0.0f;
+						if (i == keyLightIndex) 
+							lights[KEY_LIGHTS + i * 2 + 1].value = 0.1f;	
+						else 
+							lights[KEY_LIGHTS + i * 2 + 1].value = 0.0f;
 					}
 				}
-			}			
+			}
+			else {
+				for (int i = 0; i < 12; i++) {
+					lights[KEY_LIGHTS + i * 2 + 0].value = 0.0f;
+					if (!editingSequence && (!attached || !running))// no keyboard lights when song mode and either (detached [1] or stopped [2])
+													// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
+													// [2] CV is set to 0V when not running and in song mode, so cv[][] makes no sense to display
+						lights[KEY_LIGHTS + i * 2 + 1].value = 0.0f;
+					else {
+						if (tiedWarning > 0l) {
+							bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+							lights[KEY_LIGHTS + i * 2 + 1].value = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
+						}
+						else {
+							if (editingGate > 0ul && editingGateKeyLight != -1)
+								lights[KEY_LIGHTS + i * 2 + 1].value = (i == editingGateKeyLight ? ((float) editingGate / (float)(gateTime * sampleRate / displayRefreshStepSkips)) : 0.0f);
+							else
+								lights[KEY_LIGHTS + i * 2 + 1].value = (i == keyLightIndex ? 1.0f : 0.0f);
+						}
+					}
+				}	
+			}	
 			
 			// Gate1, Gate1Prob, Gate2, Slide and Tied lights
 			int attributesVal = attributes[sequence][stepIndexEdit];
@@ -1210,6 +1230,16 @@ struct SemiModularSynth : Module {
 					infoCopyPaste --;
 				if (infoCopyPaste < 0l)
 					infoCopyPaste ++;
+			}
+			if (editingGateLength > 0l) {// needs thread safe version (that's why it appears not optimized)
+				editingGateLength --;
+				if (editingGateLength < 0l)
+					editingGateLength = 0l;
+			}
+			if (editingGateLength < 0l) {// goes with previous if()
+				editingGateLength ++;
+				if (editingGateLength > 0l)
+					editingGateLength = 0l;
 			}
 			if (tiedWarning > 0l)
 				tiedWarning--;
@@ -1563,7 +1593,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		
 		// ****** Top row ******
 		
-		static const int rowRulerT0 = 52;
+		static const int rowRulerT0 = 54;
 		static const int columnRulerT0 = 22;// Step LED buttons
 		static const int columnRulerT3 = 404;// Attach (also used to align rest of right side of module)
 
@@ -1595,37 +1625,37 @@ struct SemiModularSynthWidget : ModuleWidget {
 			addChild(createLight<MediumLight<RedLight>>(Vec(19 + 3 + 4.4f, 86 + 24 + i * octLightsIntY), module, SemiModularSynth::OCTAVE_LIGHTS + i));
 		}
 		// Keys and Key lights
-		static const int keyNudgeX = 7;
-		static const int keyNudgeY = 2;
+		static const int keyNudgeX = 7 + 4;
+		static const int KeyBlackY = 103 + 4;
+		static const int KeyWhiteY = 141 + 4;
 		static const int offsetKeyLEDx = 6;
-		static const int offsetKeyLEDy = 28;
+		static const int offsetKeyLEDy = 16;
 		// Black keys and lights
-		addParam(createParam<InvisibleKeySmall>(			Vec(69+keyNudgeX, 93+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<RedLight>>(Vec(69+keyNudgeX+offsetKeyLEDx, 93+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 1));
-		addParam(createParam<InvisibleKeySmall>(			Vec(97+keyNudgeX, 93+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<RedLight>>(Vec(97+keyNudgeX+offsetKeyLEDx, 93+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 3));
-		addParam(createParam<InvisibleKeySmall>(			Vec(154+keyNudgeX, 93+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<RedLight>>(Vec(154+keyNudgeX+offsetKeyLEDx, 93+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 6));
-		addParam(createParam<InvisibleKeySmall>(			Vec(182+keyNudgeX, 93+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<RedLight>>(Vec(182+keyNudgeX+offsetKeyLEDx, 93+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 8));
-		addParam(createParam<InvisibleKeySmall>(			Vec(210+keyNudgeX, 93+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<RedLight>>(Vec(210+keyNudgeX+offsetKeyLEDx, 93+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 10));
+		addParam(createParam<InvisibleKeySmall>(			Vec(65+keyNudgeX, KeyBlackY), module, SemiModularSynth::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(65+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 1 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(93+keyNudgeX, KeyBlackY), module, SemiModularSynth::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(93+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 3 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(150+keyNudgeX, KeyBlackY), module, SemiModularSynth::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(150+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 6 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(178+keyNudgeX, KeyBlackY), module, SemiModularSynth::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(178+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 8 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(206+keyNudgeX, KeyBlackY), module, SemiModularSynth::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(206+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 10 * 2));
 		// White keys and lights
-		addParam(createParam<InvisibleKeySmall>(			Vec(55+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<RedLight>>(Vec(55+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 0));
-		addParam(createParam<InvisibleKeySmall>(			Vec(83+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<RedLight>>(Vec(83+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 2));
-		addParam(createParam<InvisibleKeySmall>(			Vec(111+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<RedLight>>(Vec(111+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 4));
-		addParam(createParam<InvisibleKeySmall>(			Vec(140+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<RedLight>>(Vec(140+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 5));
-		addParam(createParam<InvisibleKeySmall>(			Vec(168+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<RedLight>>(Vec(168+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 7));
-		addParam(createParam<InvisibleKeySmall>(			Vec(196+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<RedLight>>(Vec(196+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 9));
-		addParam(createParam<InvisibleKeySmall>(			Vec(224+keyNudgeX, 143+keyNudgeY), module, SemiModularSynth::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<RedLight>>(Vec(224+keyNudgeX+offsetKeyLEDx, 143+keyNudgeY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 11));
-		
+		addParam(createParam<InvisibleKeySmall>(			Vec(51+keyNudgeX, KeyWhiteY), module, SemiModularSynth::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(51+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 0 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(79+keyNudgeX, KeyWhiteY), module, SemiModularSynth::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(79+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 2 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(107+keyNudgeX, KeyWhiteY), module, SemiModularSynth::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(107+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 4 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(136+keyNudgeX, KeyWhiteY), module, SemiModularSynth::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(136+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 5 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(164+keyNudgeX, KeyWhiteY), module, SemiModularSynth::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(164+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 7 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(192+keyNudgeX, KeyWhiteY), module, SemiModularSynth::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(192+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 9 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(220+keyNudgeX, KeyWhiteY), module, SemiModularSynth::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(220+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, SemiModularSynth::KEY_LIGHTS + 11 * 2));		
 		
 		
 		// ****** Right side control area ******
