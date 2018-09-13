@@ -53,7 +53,7 @@ struct TwelveKey : Module {
 	int lastKeyPressed;// 0 to 11
 
 	
-	int lightRefreshCounter = 0;
+	unsigned int lightRefreshCounter = 0;
 	//float gateLight = 0.0f;
 	SchmittTrigger keyTriggers[12];
 	SchmittTrigger gateInputTrigger;

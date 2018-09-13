@@ -253,7 +253,7 @@ struct Clocked : Module {
 	int notifyingSource[4] = {-1, -1, -1, -1};
 	long notifyInfo[4] = {0l, 0l, 0l, 0l};// downward step counter when swing to be displayed, 0 when normal display
 	long cantRunWarning = 0l;// 0 when no warning, positive downward step counter timer when warning
-	int lightRefreshCounter = 0;
+	unsigned int lightRefreshCounter = 0;
 	float resetLight = 0.0f;
 	SchmittTrigger resetTrigger;
 	SchmittTrigger runTrigger;

@@ -79,7 +79,7 @@ struct WriteSeq32 : Module {
 	long clockIgnoreOnReset;
 
 
-	int lightRefreshCounter = 0;	
+	unsigned int lightRefreshCounter = 0;	
 	SchmittTrigger clockTrigger;
 	SchmittTrigger resetTrigger;
 	SchmittTrigger runningTrigger;

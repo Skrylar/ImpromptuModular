@@ -114,7 +114,7 @@ struct GateSeq64 : Module {
 
 
 	bool stepConfigSync = false;
-	int lightRefreshCounter = 0;
+	unsigned int lightRefreshCounter = 0;
 	float resetLight = 0.0f;
 	int sequenceKnob = 0;
 	SchmittTrigger modesTrigger;

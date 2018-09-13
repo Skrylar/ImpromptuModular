@@ -79,7 +79,7 @@ struct WriteSeq64 : Module {
 	long clockIgnoreOnReset;
 
 
-	int lightRefreshCounter = 0;	
+	unsigned int lightRefreshCounter = 0;	
 	int stepKnob = 0;
 	int stepsKnob = 0;
 	float resetLight = 0.0f;

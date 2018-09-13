@@ -245,7 +245,7 @@ struct SemiModularSynth : Module {
 	LadderFilter filter;
 	
 
-	int lightRefreshCounter = 0;
+	unsigned int lightRefreshCounter = 0;
 	float resetLight = 0.0f;
 	int sequenceKnob = 0;
 	SchmittTrigger resetTrigger;
@@ -1975,7 +1975,7 @@ step optimization of lights refresh
 implement copy-paste in song mode
 implement cross paste trick for init and randomize seq/song
 remove length and arrow buttons and make steps with LED buttons
-add advanced gate mode (TODO!!!!!)
+add advanced gate mode
 
 0.6.10:
 unlock gates when tied (turn off when press tied, but allow to be turned back on)

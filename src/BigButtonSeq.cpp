@@ -70,7 +70,7 @@ struct BigButtonSeq : Module {
 	int pendingOp;// 0 means nothing pending, +1 means pending big button push, -1 means pending del
 
 
-	int lightRefreshCounter = 0;	
+	unsigned int lightRefreshCounter = 0;	
 	float bigLight = 0.0f;
 	float metronomeLightStart = 0.0f;
 	float metronomeLightDiv = 0.0f;

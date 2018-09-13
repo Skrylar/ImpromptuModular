@@ -55,7 +55,7 @@ struct Tact : Module {
 	
 	float infoCVinLight[2] = {0.0f, 0.0f};
 	float paramReadRequest[2] = {-10.0f, -10.0f}; 
-	int lightRefreshCounter = 0;
+	unsigned int lightRefreshCounter = 0;
 	SchmittTrigger topTriggers[2];
 	SchmittTrigger botTriggers[2];
 	SchmittTrigger storeTriggers[2];
