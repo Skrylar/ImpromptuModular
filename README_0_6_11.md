@@ -167,21 +167,19 @@ The following block diagram shows how sequences and phrases relate to each other
 
 Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers. For an in depth review of the sequencer's capabilities, please see Nigel Sixsmith's [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg) or Omri Cohen's [PhraseSeq tutorial](https://www.youtube.com/watch?v=N8_rMNzsS7w).
 
-* **SEQ/SONG**: This is the main switch that controls the two major modes of the sequencer. Seq mode allows the currently selected sequence to be played/edited. In this mode, all controls are available (run mode, transpose, rotate, copy-paste, gates, slide, octave, notes) and the content of a sequence can be modified even when the sequencer is running. Song mode allows the creation of a series of sequence numbers (called phrases). In this mode, only the run mode and length of the song and the sequence index numbers themselves can be modified (whether the sequence is running or not); the other aforementioned controls are unavailable and the actual contents of the sequences cannot be modified.
+* **SEQ/SONG**: This is the main switch that controls the two major modes of the sequencer. Seq mode allows the currently selected sequence to be played/edited. In this mode, all controls are available (run mode, transpose, rotate, copy-paste, gates, slide, octave, notes) and the content of a sequence can be modified even when the sequencer is running. Song mode allows the creation of a series of sequence numbers (called phrases). In this mode, the run mode and length of the song and the sequence index numbers themselves can be modified (whether the sequence is running or not); some of the other aforementioned controls are unavailable and the actual contents of the sequences cannot be modified.
 
-* **LENGTH**: When in Seq mode, this button allows the arrow buttons to select the length of sequences (number of steps), the default is 16. The sequences can have different lengths. When in Song mode, this button allows the arrow buttons to select the number of phrases in the song (the default is 4).
+* **SEQ STEP / SONG PHRASE**: Step/phrase selection is done by directly clicking the 16 steps at the top. When the **Reset on run** option is not active (in the right-click menu), and song mode is selected, after stopping the sequencer it will restart playing the song where it left off when it was stopped, provided no steps were clicked. When stopped, clicking a step will position the run head at that point and the song will restart at that point when turned on again. 
 
-* **<, >**: These arrow buttons step the sequencer one step left or right. They have no effect when Attach is activated.
+* **LEN/MODE**: Sequence lengths can be set by clicking the button once, and then either turning the main knob below the main display or clicking the desired length directly in the steps (the second method is the recommended way since the display will automatically return to its default state afterwards). The sequences can have different lengths. When in Song mode, the length setting can be used to set the number of phrases in the song (the default is 4). The run modes can be set by clicking the LEN/MODE button twice starting from its initial state. Mode controls the run mode of both the sequences and the song (one setting for each sequence and one for the song). The modes are: FWD (forward), REV (reverse), PPG (ping-pong, also called forward-reverse), BRN (Brownian random), RND (random), FW2 (forward, play twice), FW3 (play three times) and FW4 (four times). For example, setting the run mode to FWD for sequences and to RND for the song will play the phrases that are part of a song randomly, and the probability of a given phrase playing is proportional to the number of times it appears in the song. For sequences, the FW2, FW3 and FW4 modes can be used to repeat sequences more easily without consuming additional phrases in the song. These last three modes are not available for the song's run mode however. Holding the MODE button for **two seconds** allows the selection of the clock resolution, and is the mechanism used to enable the [advanced gate mode](#advanced-gate-mode-ps).
 
-* **SEQ#**: In Seq mode, this number determines which sequence is being edited/played. In Song mode, this number determines the sequence index for the currently selected phrase; the selected phrase is shown in the 16 LEDs at the top of the module). When one of the Mode, Transpose, Rotate buttons is pressed, the display instead shows the current run mode (see Mode below), the amount of semi-tones to transpose, and the number of steps to rotate respectively. The SEQ# control voltage can be used to select the active sequence (Seq mode only), whereby a 0 to 10V input is proportionally mapped to the 1 to 16 sequence numbers. This can be used to externally control the playing order of the sequences.
+* **SEQ#**: In Seq mode, the main display and knob determine which sequence is being edited/played. In Song mode, they detemine the sequence number for the currently selected phrase in the 16 LEDs at the top of the module. The SEQ# CV input can be used to select the active sequence (Seq mode only), whereby a 0 to 10V input is proportionally mapped to the 1 to 16 sequence numbers. This can be used to externally control the playing order of the sequences.
 
-* **ATTACH**: Allows the edit head to follow the run head (Attach on). The position of the edit head is shown with a red LED, and the position of the run head is shown with a green LED. When in Seq mode, the actual content of the step corresponding to the edit head position (i.e. note, oct, gates, slide) can be modified in real time whether the sequencer is running or not. The edit head automatically follows the run head when Attach is on, or can manually positioned by using the < and > buttons when Attach is off.
-
-* **MODE**: This controls the run mode of the sequences and the song (one setting for each sequence and one for the song). The modes are: FWD (forward), REV (reverse), PPG (ping-pong, also called forward-reverse), BRN (Brownian random), RND (random), FW2 (forward, play twice), FW3 (play three times) and FW4 (four times). For example, setting the run mode to FWD for sequences and to RND for the song will play the phrases that are part of a song randomly, and the probability of a given phrase playing is proportional to the number of times it appears in the song. For sequences, the FW2, FW3 and FW4 modes can be used to repeat sequences more easily without consuming additional phrases in the song. These last three modes are not available for the song's run mode however. Holding the MODE button for **two seconds** allows the selection of the clock resolution, and is the mechanism used to enable the [advanced gate mode](#advanced-gate-mode-ps).
+* **ATTACH**: Allows the edit head to follow the run head (Attach on). The position of the edit head is shown with a red LED, and the position of the run head is shown with a green LED. When in Seq mode, the actual content of the step corresponding to the edit head position (i.e. note, oct, gates, slide) can be modified in real time, whether the sequencer is running or not. The edit head automatically follows the run head when Attach is on, or can manually positioned by clicking the steps when Attach is off.
 
 * **TRAN/ROT**: Transpose/Rotate the currently selected sequence up-down/left-right by a given number of semi-tones/steps. The main knob is used to set the transposition/rotation amount. Only available in Seq mode.
 
-* **COPY-PASTE**: Copy and paste the CVs, gates, slide and tied attributes of a part or all of a sequence into another sequence. When ALL is selected, run mode and length are also copied. Only available in Seq mode.
+* **COPY-PASTE**: Copy and paste sequences or parts of sequences in Seq mode, or parts of the song when in Song mode. When ALL is selected, the run mode and length are also copied for a sequence. More advanced copy-paste shortcuts are also available when clicking copy in Seq mode and then paste in Song mode (and vice versa); see [Cross paste](#cross-paste-ps) below.
 
 * **OCT and keyboard**: When in Seq mode, the octave LED buttons and the keyboard can be used to set the notes of a sequence. The octave and keyboard LEDs are used for display purposes only in Song mode with attach on.
 
@@ -208,6 +206,27 @@ The gate type for a given step can be selected during a short time interval afte
 
 Since the editing time for the advanced gate mode is kept rather short (4s), holding the Gate2 button for 2s will set that default time interval to 400s. Holding Gate1 for 2s will revert to the default time of 4s. The extended time feature is useful when the gate modes for multiple steps of a sequence are to be editied or reviewed in a single pass, for example.
 
+
+### Cross paste<a id="cross-paste-ps"></a>
+
+Pressing the copy button in one mode (Seq or Song), and then the paste button in the opposite mode would normally result in a an invalid operation. In these cases, depending on the state of the copy-paste switch (4/8/ALL), called *type* below, the following shortcuts are performed: 
+
+```
+Cross paste from Song to Seq  
+Type   Display   Result
+4      RCV       Randomizes the CVs (pitches) of the current sequence
+8      RG1       Randomizes all gates #1 of the current sequence
+ALL    CLR       Clears (initializes) the steps of the current sequence
+
+Cross paste from Seq to Song
+Type   Display   Result
+4      INC       Sets the song phrases to the sequences 1, 2, ..., 16
+8      RPH       Sets the song phrases to random sequences
+ALL    CLR       Clears (initializes) the song (all 1s)
+```
+
+In cross paste operation, the copied content is actually irrelevant and unused.
+
 ([Back to module list](#modules))
 
 
@@ -216,13 +235,15 @@ Since the editing time for the advanced gate mode is kept rather short (4s), hol
 
 ![IM](res/img/PhraseSeq32.jpg)
 
-A 32 phrase sequencer module, where each phrase is an index into a set of 32 sequences of 32 steps (maximum). This sequencer is very similar to [PhraseSeq16](#phrase-seq-16), but with an added configuration switch allowing the sequencer to output dual 16 step sequences (**2x16**) instead of single 32 step sequences (**1x32**).
+A 32 phrase sequencer module, where each phrase is an index into a set of 32 sequences of 32 steps (maximum). This sequencer is very similar to [PhraseSeq16](#phrase-seq-16), but with an added configuration switch allowing the sequencer to output dual 16 step sequences (**2x16**) instead of single 32 step sequences (**1x32**). When the 1x32 configuration is selected, only the top channel outputs are used (labeled A), and when the 2x16 configuration is selected, the top row is sent to the top outputs (CV and gates A), whereas the bottom row of steps is sent to the bottom outputs (CV and gates B). 
 
-Step/phrase selection is done by directly clicking the 32 steps at the top, instead of cursor buttons as used in PhraseSeq16. When running in the 2x16 configuration and in Seq mode, with **ATTACH** activated, simply click any step in a given row to attach the edit head to that row. 
+When running in the 2x16 configuration and in Seq mode, thw following details become relevant:
 
-Sequence lengths can be set clicking the **LEN/MODE** button once, and then either turning the main knob below the main display or clicking the desired length directly in the steps (the second method is the recommended way since the display will automatically return to its default state one second after the click of the step). The run modes can be set by clicking the LEN/MODE button twice starting from its initial state. The **TRAN/ROT** button can be used to transpose or rotate a sequence in Seq mode. When the 2x16 configuration is selected, only the row corresponding to the edit head's position is transposed or rotated.
+1. When **ATTACH** is activated, clicking any step in a given row will attach the edit head to that row. 
+1. Only the row corresponding to the edit head's position will be transposed or rotated when the **TRAN/ROT** button is used.
+1. One extra run mode is also available for sequences, called **RN2**. This run mode allows the two sequences to play randomly but separately, as opposed to RND which plays them randomly but together.
 
-When the 1x32 configuration is selected, only the top channel outputs are used (labeled A), and when the 2x16 configuration is selected, the top row is sent to the top outputs (CV and gates A), whereas the bottom row of steps is sent to the bottom outputs (CV and gates B). Other than these characteristics, the rest of PhraseSeq32's functionality is identical to that of PhraseSeq16.
+Other than these characteristics, the rest of PhraseSeq32's functionality is identical to that of PhraseSeq16.
 
 ([Back to module list](#modules))
 
@@ -234,15 +255,17 @@ When the 1x32 configuration is selected, only the top channel outputs are used (
 
 A 64 step gate sequencer with the ability to define **probabilities** for each step. A configuration switch allows the sequencer to output quad 16 step sequences, dual 32 step sequences or single 64 step sequences. To see the sequencer in action and for a tutorial on how it works, please see [this segment](https://www.youtube.com/watch?v=bjqWwTKqERQ&t=6111s) of Nigel Sixsmith's Talking Rackheads episode 10.
 
-When activating a given step by clicking it once, it will turn green showing that the step is on. Clicking the _"p"_ button turns it yellow, and the main display shows the probability associated with this step. While the probability remains shown, the probability can be adjusted with the main knob, in 0.02 increments, between 0 and 1. When a yellow step is selected, clicking the _"p"_ button again will turn it off.
+When running in the 4x16 configuration, each of the four rows is sent to the four **GATE** output jacks (jacks 1 to 4, with jack 1 being the top-most jack). In the 2x32 configuration, jacks 1 and 3 are used, and in the 1x64 configuration, only jack 1 is used (top-most jack). When activating a given step by clicking it once, it will turn green showing that the step is on. Clicking the _"p"_ button turns it yellow, and the main display shows the probability associated with this step. While the probability remains shown, the probability can be adjusted with the main knob, in 0.02 increments, between 0 and 1. When a yellow step is selected, clicking the _"p"_ button again will turn it off.
 
-This sequencer also features the song mode found in [PhraseSeq16](#phrase-seq-16); 16 phrases can be defined, where a phrase is an index into a set of 16 sequences. In GateSeq64, the song steps are shown using the fourth row of steps, overlapped with the actual sequence progression in lighter shades in the lights. 
+This sequencer also features the song mode found in [PhraseSeq16](#phrase-seq-16); 64 phrases can be defined, where a phrase is an index into a set of 16 sequences. In GateSeq64, the song steps are shown using the entire grid of steps, overlapped with the actual sequence progression in lighter shades in the lights. The actual content of the sequencees is not visible in Song mode. Here are a few more points regarding Song mode:
 
-The **SEQ** CV input and run **MODES** are identical to those found in PhraseSeq16, and selecting sequence lengths is done in the same manner as described in [PhraseSeq32](#phrase-seq-32). Copy-pasting ALL also copies the run mode and length of a given sequence, along with gate states and probabilities, whereas only gates and probabilities are copied when 4 or ROW are selected.
+1. When not running, the phrase cursor position is shown with a red light. 
+1. When running, the current phrase being played is shown with a full green light and the position in the sequence is shown with a pale green light.
+1. When running, clicking a phrase turns it red (the currently playing one in green is still visible), and the knob can be used to change the sequence mapped to that phrase for live song editing. After 4 seconds of inactivity, the editing disappears.
 
-When running in the 4x16 configuration, each of the four rows is sent to the four **GATE** output jacks (jacks 1 to 4, with jack 1 being the top-most jack). In the 2x32 configuration, jacks 1 and 3 are used, and in the 1x64 configuration, only jack 1 is used (top-most jack). The pulse width of the gates emitted corresponds to the pulse width of the clock.
+Copy-pasting ALL also copies the run mode and length of a given sequence, along with gate states and probabilities, whereas only gates and probabilities are copied when 4 or ROW are selected. More advanced copy-paste shortcuts are also available when clicking copy in Seq mode and then paste in Song mode (and vice versa); see [Cross paste](#cross-paste-gs) below.
 
-Although no **write** capabilities appear in the main part of the module, automatically storing patterns into the sequencer can be performed using the CV inputs in the **expansion panel**. The cursor is stepped forward on each write, and can be repositioned at the first step by pressing the reset button, or at an arbitrary step by simply clicking that given step. When the cursor is not flashing, clicking any step will make it appear.
+The **SEQ** CV input, sequence length selection and run **MODES** are all identical to those found in PhraseSeq16. Although no **write** capabilities appear in the main part of the module, automatically storing patterns into the sequencer can be performed using the CV inputs in the **expansion panel**. The cursor is stepped forward on each write, and can be repositioned at the first step by pressing the reset button, or at an arbitrary step by simply clicking that given step. When the cursor is not flashing, clicking any step will make it appear.
 
 
 ### Advanced gate mode<a id="advanced-gate-mode-gs"></a>
@@ -252,6 +275,27 @@ The advanced gate mode in GateSeq64 has some similarities to the one available i
 Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than 1, which unlocks the advanced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In such cases, a mutliplied clock must be supplied in order to keep the same tempo in the sequencer. In advanced gate mode, the pulse width of the clock is not used and has no effect on the gates.
 
 The PPS be a multiple of 4 for the first three gate types, while the PPS be a multiple of 6 for the last five gate types. A chosen gate type not meeting its required pulse rate will have a red LED beside it to indicate this (normally it is green). When a gate type is red, the sequencer will still emit a (possibly empty) gate pattern for that step, but with no guarantee that it will match the type that was selected. All gate types can be used when selecting a PPS value of 12 or 24.
+
+
+### Cross paste<a id="cross-paste-gs"></a>
+
+Pressing the copy button in one mode (Seq or Song), and then the paste button in the opposite mode would normally result in a an invalid operation. In these cases, depending on the state of the copy-paste switch (4/8/ALL), called *type* below, the following shortcuts are performed: 
+
+```
+Cross paste from Song to Seq  
+Type   Display   Result
+4      RGT       Randomizes the gate states of the current sequence
+8      RPR       Randomizes the probability states and values of the current sequence
+ALL    CLR       Clears (initializes) the current sequence
+
+Cross paste from Seq to Song
+Type   Display   Result
+4      INC       Sets the song phrases to the sequences 1, 2, ..., 64
+8      RPH       Sets the song phrases to random sequences
+ALL    CLR       Clears (initializes) the song (all 1s)
+```
+
+In cross paste operation, the copied content is actually irrelevant and unused.
 
 ([Back to module list](#modules))
 
