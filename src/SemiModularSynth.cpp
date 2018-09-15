@@ -628,8 +628,7 @@ struct SemiModularSynth : Module {
 
 		// Attach button
 		if (attachedTrigger.process(params[ATTACH_PARAM].value)) {
-			if (running)
-				attached = !attached;	
+			attached = !attached;	
 			displayState = DISP_NORMAL;			
 		}
 		if (running && attached) {
@@ -1127,7 +1126,7 @@ struct SemiModularSynth : Module {
 			outputs[GATE2_OUTPUT].value = calcGate(gate2Code, clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
 		}
 		else {// not running 
-			outputs[CV_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : (editingSequence ? cv[seq][step] : 0.0f);
+			outputs[CV_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
 			outputs[GATE1_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 			outputs[GATE2_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 		}
@@ -1283,7 +1282,7 @@ struct SemiModularSynth : Module {
 			}
 
 			// Attach light
-			lights[ATTACH_LIGHT].value = (running && attached) ? 1.0f : 0.0f;
+			lights[ATTACH_LIGHT].value = (attached ? 1.0f : 0.0f);
 			
 			// Reset light
 			lights[RESET_LIGHT].value =	resetLight;	

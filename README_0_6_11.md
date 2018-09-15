@@ -138,7 +138,8 @@ For a tutorial on Clocked regarding chaining, clock multiplications and division
 
 In place of a detailed explanation of these three main controls, it is recommended to connect the outputs to a scope or a logic analyzer, such as the Fundamental Scope (pictured above) or the SubmarineFree LA-108, to observe the effects of the different controls.
 
-The PW and Swing **CV inputs** (some are available in the expansion panel) are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default position. When this is the case, no-swing and normal-pulse-width correspond to 5V on the CV inputs.
+PW and Swing CV inputs are aso avaialable in the **expansion panel** (see right-click menu). These inputs are 0-10V signals, and when using these inputs, the corresponding knobs should be in their default position. When this is the case, no-swing and normal-pulse-width correspond to 5V on the CV inputs.
+
 
 ### External synchronization <a id="clocked-sync"></a>
 
@@ -175,11 +176,11 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 * **SEQ#**: In Seq mode, the main display and knob determine which sequence is being edited/played. In Song mode, they detemine the sequence number for the currently selected phrase in the 16 LEDs at the top of the module. The SEQ# CV input can be used to select the active sequence (Seq mode only), whereby a 0 to 10V input is proportionally mapped to the 1 to 16 sequence numbers. This can be used to externally control the playing order of the sequences.
 
-* **ATTACH**: Allows the edit head to follow the run head (Attach on). The position of the edit head is shown with a red LED, and the position of the run head is shown with a green LED. When in Seq mode, the actual content of the step corresponding to the edit head position (i.e. note, oct, gates, slide) can be modified in real time, whether the sequencer is running or not. The edit head automatically follows the run head when Attach is on, or can manually positioned by clicking the steps when Attach is off.
+* **ATTACH**: Allows the edit head to follow the run head (Attach on). The position of the edit head is shown with a red LED, and when running, the position of the run head is shown with a green LED. When in Seq mode, the actual content of the step corresponding to the edit head position (i.e. note, oct, gates, slide) can be modified in real time, whether the sequencer is running or not. The edit head automatically follows the run head when Attach is on, or can manually positioned by clicking the steps when Attach is off.
 
 * **TRAN/ROT**: Transpose/Rotate the currently selected sequence up-down/left-right by a given number of semi-tones/steps. The main knob is used to set the transposition/rotation amount. Only available in Seq mode.
 
-* **COPY-PASTE**: Copy and paste sequences or parts of sequences in Seq mode, or parts of the song when in Song mode. When ALL is selected, the run mode and length are also copied for a sequence. More advanced copy-paste shortcuts are also available when clicking copy in Seq mode and then paste in Song mode (and vice versa); see [Cross paste](#cross-paste-ps) below.
+* **COPY-PASTE**: Copy and paste sequences or parts of sequences in Seq mode, or parts of the song when in Song mode. When ALL is selected, the run mode and length are also copied for a sequence. More advanced copy-paste shortcuts are also available when clicking copy in Seq mode and then paste in Song mode (and vice versa); see [cross paste](#cross-paste-ps) below.
 
 * **OCT and keyboard**: When in Seq mode, the octave LED buttons and the keyboard can be used to set the notes of a sequence. The octave and keyboard LEDs are used for display purposes only in Song mode with attach on.
 
@@ -188,6 +189,8 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 * **SLIDE**: Portamento between CVs of successive steps. Slide can be activated for a given step using the slide button. The slide duration can be set using the slide knob. The slide duration can range from 0 to T seconds, where T is the duration of a clock period (the default is 10% of T). This knob's setting is not memorized for each step and applies to the sequencer as a whole.
 
 * **TIED STEP**: When CVs are intended to be held across subsequent steps, this button can be used to tie the CV of the previous step to the current step. When tied is turned on for a step, the gates of that step are automatically turned off, but can be manually turned back on if desired. When tied, if the CV of the head note changes, all consecutive tied notes are updated automatically.
+
+Extra CV inputs are aso avaialable in the **expansion panel** (see right-click menu). Only the bottom-most input is level sensitive, the other four are trigger inputs. The expansion CV inputs can only be used in Seq mode.
 
 
 ### Advanced gate mode<a id="advanced-gate-mode-ps"></a>
@@ -263,9 +266,9 @@ This sequencer also features the song mode found in [PhraseSeq16](#phrase-seq-16
 1. When running, the current phrase being played is shown with a full green light and the position in the sequence is shown with a pale green light.
 1. When running, clicking a phrase turns it red (the currently playing one in green is still visible), and the knob can be used to change the sequence mapped to that phrase for live song editing. After 4 seconds of inactivity, the editing disappears.
 
-Copy-pasting ALL also copies the run mode and length of a given sequence, along with gate states and probabilities, whereas only gates and probabilities are copied when 4 or ROW are selected. More advanced copy-paste shortcuts are also available when clicking copy in Seq mode and then paste in Song mode (and vice versa); see [Cross paste](#cross-paste-gs) below.
+Copy-pasting ALL also copies the run mode and length of a given sequence, along with gate states and probabilities, whereas only gates and probabilities are copied when 4 or ROW are selected. More advanced copy-paste shortcuts are also available when clicking copy in Seq mode and then paste in Song mode (and vice versa); see [cross paste](#cross-paste-gs) below.
 
-The **SEQ** CV input, sequence length selection and run **MODES** are all identical to those found in PhraseSeq16. Although no **write** capabilities appear in the main part of the module, automatically storing patterns into the sequencer can be performed using the CV inputs in the **expansion panel**. The cursor is stepped forward on each write, and can be repositioned at the first step by pressing the reset button, or at an arbitrary step by simply clicking that given step. When the cursor is not flashing, clicking any step will make it appear.
+The **SEQ** CV input, sequence length selection and run **MODES** are all identical to those found in PhraseSeq16. Although no **write** capabilities appear in the main part of the module, automatically storing patterns into the sequencer can be performed using the CV inputs in the **expansion panel** (see right-click menu). The cursor is stepped forward on each write, and can be repositioned at the first step by pressing the reset button, or at an arbitrary step by simply clicking that given step. When the cursor is not flashing, clicking any step will make it appear. When using only the Write hit and Write empty inputs (2nd and 3rd from the bottom), the Write input at the top can be used to move the cursor to the right (Gate In and Prob In must be unconnected). The bottom-most input is used to move the cursor to the left. The extra CV inputs only have an effect in Seq mode.
 
 
 ### Advanced gate mode<a id="advanced-gate-mode-gs"></a>
@@ -347,6 +350,8 @@ This module can be used for quickly exploring ideas for sequences, and is also u
 
 Extra controls were also added to the LFO (Low Frequency Oscillator), namely **GAIN** and **OFFSET**, to be able to easily modulate any other on-board parameter. With maximum gain, the LFO produces a 10V peak-to-peak signal (i.e. 5V amplitude). The offset knob is automatically scaled such that with maximum (minimum) offset, the signal's maximum (minimum) voltage is +10V (-10V). That is, with the gain set to 0, the offset value spans -10V to +10V, and with the gain set to maximum, the offset value spans -5V to +5V. Also note that the clock LFO is automatically reset on every reset event in the sequencer.
 
+The SMS16 also features the advanced gate mode of the PhraseSeq16. When changing the clock resolution in the SMS16, the onboard clock will automatically be scaled accordingly and no multiplied clock needs to be supplied to the module.
+
 ([Back to module list](#modules))
 
 
@@ -385,7 +390,7 @@ WriteSeq64 is a four-channel 64-step writable sequencer module. This sequencer i
 
 WriteSeq64 has dual clock inputs, where each controls a pair of channels. When no wire is connected to **CLOCK 3,4**, the **CLOCK 1,2** signal is used internally as the clock for channels 3 and 4. 
 
-Ideas: The first part of the famous [Piano Phase](https://en.wikipedia.org/wiki/Piano_Phase) piece by Steve Reich can be easily programmed into the sequencer by entering the twelve notes into channel 1 with a keyboard, setting STEPS to 12, copy-pasting channel 1 into channel 3, and then driving each clock input with two LFOs that have ever so slightly different frequencies. Exercise left to the reader!
+Ideas: The first part of the famous [Piano Phase](https://en.wikipedia.org/wiki/Piano_Phase) piece by Steve Reich can be easily programmed into the sequencer by entering the twelve notes into channel 1 with a keyboard, setting STEPS to 12, copy-pasting channel 1 into channel 3, and then driving each clock input with two LFOs that have slightly different frequencies. Exercise left to the reader!
 
 ([Back to module list](#modules))
 

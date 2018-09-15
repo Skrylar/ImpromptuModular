@@ -553,11 +553,9 @@ struct PhraseSeq32 : Module {
 
 		// Attach button
 		if (attachedTrigger.process(params[ATTACH_PARAM].value)) {
-			if (running) {
-				attached = !attached;
-				if (attached && editingSequence && stepConfig == 1 ) 
-					attachedChanB = stepIndexEdit >= 16;
-			}
+			attached = !attached;
+			if (running && attached && editingSequence && stepConfig == 1 ) 
+				attachedChanB = stepIndexEdit >= 16;
 			displayState = DISP_NORMAL;			
 		}
 		if (running && attached) {
@@ -1107,7 +1105,7 @@ struct PhraseSeq32 : Module {
 		}
 		else {// not running 
 			if (editingChannel == 0) {
-				outputs[CVA_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : (editingSequence ? cv[seq][step0] : 0.0f);
+				outputs[CVA_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step0];
 				outputs[GATE1A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 				outputs[GATE2A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 				outputs[CVB_OUTPUT].value = 0.0f;
@@ -1118,7 +1116,7 @@ struct PhraseSeq32 : Module {
 				outputs[CVA_OUTPUT].value = 0.0f;
 				outputs[GATE1A_OUTPUT].value = 0.0f;
 				outputs[GATE2A_OUTPUT].value = 0.0f;
-				outputs[CVB_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : (editingSequence ? cv[seq][step0] : 0.0f);
+				outputs[CVB_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step0];
 				outputs[GATE1B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 				outputs[GATE2B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 			}
@@ -1282,7 +1280,7 @@ struct PhraseSeq32 : Module {
 			}
 			
 			// Attach light
-			lights[ATTACH_LIGHT].value = (running && attached) ? 1.0f : 0.0f;
+			lights[ATTACH_LIGHT].value = (attached ? 1.0f : 0.0f);
 			
 			// Reset light
 			lights[RESET_LIGHT].value =	resetLight;
