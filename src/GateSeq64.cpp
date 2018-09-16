@@ -114,7 +114,7 @@ struct GateSeq64 : Module {
 	long editingPhraseSongRunning;// downward step counter
 
 
-	bool stepConfigSync = false;
+	int stepConfigSync = 0;// 0 means no sync requested, 1 means soft sync (no reset lengths), 2 means hard (reset lengths)
 	unsigned int lightRefreshCounter = 0;
 	float resetLight = 0.0f;
 	int sequenceKnob = 0;
@@ -440,7 +440,7 @@ struct GateSeq64 : Module {
 		if (resetOnRunJ)
 			resetOnRun = json_is_true(resetOnRunJ);
 
-		stepConfigSync = true;
+		stepConfigSync = 1;// soft only, since lengths are implicitly ok because it's a load, not a real config switch change
 	}
 
 	
@@ -457,12 +457,14 @@ struct GateSeq64 : Module {
 		//********** Buttons, knobs, switches and inputs **********
 
 		// Config switch
-		if (stepConfigSync) {
+		if (stepConfigSync != 0) {
 			stepConfig = getStepConfig(params[CONFIG_PARAM].value);
-			initRun(true);			
-			for (int i = 0; i < 16; i++)
-				lengths[i] = 16 * stepConfig;
-			stepConfigSync = false;
+			initRun(true);	
+			if (stepConfigSync == 2) {// if hard sync, init lengths since souce was a real mouse drag event on the switch itself.
+				for (int i = 0; i < 16; i++)
+					lengths[i] = 16 * stepConfig;
+			}
+			stepConfigSync = 0;
 		}
 		
 		// Edit mode		
@@ -1198,7 +1200,7 @@ struct GateSeq64Widget : ModuleWidget {
 		CKSSThreeInvNotify() {};
 		void onDragStart(EventDragStart &e) override {
 			ToggleSwitch::onDragStart(e);
-			((GateSeq64*)(module))->stepConfigSync = true;
+			((GateSeq64*)(module))->stepConfigSync = 2;// request hard sync (reset lengths)
 		}	
 	};
 

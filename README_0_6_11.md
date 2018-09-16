@@ -66,7 +66,9 @@ Such sequencers have two main inputs that allow the capturing of (pitch) CVs, as
 
 When **AUTOSTEP** is activated, the sequencer automatically advances one step right on each write. For example, to automatically capture the notes played on a keyboard, send the midi keyboard's CV into the sequencer's CV IN, and send the keyboard's gate signal into the sequencer's Write input. With Autostep activated, each key-press will be automatically entered in sequence. An alternative way of automatically stepping the sequencer each time a note is entered is to send the gate signal of the keyboard to both the write and ">" inputs. 
 
-When Run is activated, the sequencer automatically starts playing in the current step position, provided **RESET on RUN** is not checked in the right-click menu; sequencers will start at the first step when this option is checked. All edge sensitive inputs have a threshold of 1V. In all sequencers, the duration of the gates normally corresponds to the pulse width (high time) of the clock signal. When sequencers offer an **Advanced gate mode** and this mode is activated, the pulse width of the clock signal has no effect on the sequencer.
+A concept related to AutoStep, which is called "**AutoSeq** when writing via CV inputs", can be used to automatically change to the next sequence when a write operation reaches the end of the current sequence. Without this, the writing operations loop back over to the start of the current sequence (default behavior). This can be used to turn the sequencers into very long stepped CV recorders (1024 steps in the case of PhraseSeq32 and GateSeq64).
+
+When Run is activated, the sequencer automatically starts playing in the current step position, provided **Reset on Run** is not checked in the right-click menu; sequencers will start at the first step when this option is checked. All edge sensitive inputs have a threshold of 1V. In all sequencers, the duration of the gates normally corresponds to the pulse width (high time) of the clock signal. When sequencers offer an **Advanced gate mode** and this mode is activated, the pulse width of the clock signal has no effect on the sequencer.
 
 Many modules feature an **Expansion panel** to provide additional CV inputs for the module (available in the right-click menu of the module). An extra 4 HP is added on the right side of the module, thus it is advisable to first make room in your Rack for this.
 
@@ -190,7 +192,11 @@ Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operati
 
 * **TIED STEP**: When CVs are intended to be held across subsequent steps, this button can be used to tie the CV of the previous step to the current step. When tied is turned on for a step, the gates of that step are automatically turned off, but can be manually turned back on if desired. When tied, if the CV of the head note changes, all consecutive tied notes are updated automatically.
 
-Extra CV inputs are aso avaialable in the **expansion panel** (see right-click menu). Only the bottom-most input is level sensitive, the other four are trigger inputs. The expansion CV inputs can only be used in Seq mode.
+* **WRITE**, **CV IN**, **AUTOSTEP**: For information on these inputs/switches, please see [general concepts](general-concepts) above.
+
+* **Reset on Run**, **AutoSeq**: For information on these settings in the right-click menu, please see [general concepts](general-concepts) above.
+
+Extra CV inputs are aso avaialable in the **expansion panel** (can be activald in the right-click menu). Only the bottom-most input is level sensitive, the other four are trigger inputs. The expansion CV inputs can only be used in Seq mode.
 
 
 ### Advanced gate mode<a id="advanced-gate-mode-ps"></a>
@@ -266,9 +272,9 @@ This sequencer also features the song mode found in [PhraseSeq16](#phrase-seq-16
 1. When running, the current phrase being played is shown with a full green light and the position in the sequence is shown with a pale green light.
 1. When running, clicking a phrase turns it red (the currently playing one in green is still visible), and the knob can be used to change the sequence mapped to that phrase for live song editing. After 4 seconds of inactivity, the editing disappears.
 
-Copy-pasting ALL also copies the run mode and length of a given sequence, along with gate states and probabilities, whereas only gates and probabilities are copied when 4 or ROW are selected. More advanced copy-paste shortcuts are also available when clicking copy in Seq mode and then paste in Song mode (and vice versa); see [cross paste](#cross-paste-gs) below.
+Copy-pasting ALL also copies the run mode and length of a given sequence, along with gate states and probabilities, whereas only gates and probabilities are copied when 4 or ROW are selected. More advanced copy-paste shortcuts are also available when clicking copy in Seq mode and then paste in Song mode (and vice versa); see [cross paste](#cross-paste-gs) below. The **SEQ** CV input, sequence length selection, run **MODES**, **Reset on Run** and **AutoSeq** features are all identical to those found in PhraseSeq16.
 
-The **SEQ** CV input, sequence length selection and run **MODES** are all identical to those found in PhraseSeq16. Although no **write** capabilities appear in the main part of the module, automatically storing patterns into the sequencer can be performed using the CV inputs in the **expansion panel** (see right-click menu). The cursor is stepped forward on each write, and can be repositioned at the first step by pressing the reset button, or at an arbitrary step by simply clicking that given step. When the cursor is not flashing, clicking any step will make it appear. When using only the Write hit and Write empty inputs (2nd and 3rd from the bottom), the Write input at the top can be used to move the cursor to the right (Gate In and Prob In must be unconnected). The bottom-most input is used to move the cursor to the left. The extra CV inputs only have an effect in Seq mode.
+Although no **Write** capabilities appear in the main part of the module, automatically storing patterns into the sequencer can be performed using the CV inputs in the **expansion panel** (see right-click menu). The cursor is stepped forward on each write, and can be repositioned at the first step by pressing the reset button, or at an arbitrary step by simply clicking that given step. When the cursor is not flashing, clicking any step will make it appear. When using only the Write hit and Write empty inputs (2nd and 3rd from the bottom), the Write input at the top can be used to move the cursor to the right (Gate In and Prob In must be unconnected). The bottom-most input is used to move the cursor to the left. The extra CV inputs only have an effect in Seq mode.
 
 
 ### Advanced gate mode<a id="advanced-gate-mode-gs"></a>
