@@ -182,7 +182,7 @@ struct SemiModularSynth : Module {
 	// Need to save
 	int panelTheme = 1;
 	int portTheme = 1;
-	bool autoseq = false;
+	bool autoseq;
 	int pulsesPerStep;// 1 means normal gate mode, alt choices are 4, 6, 12, 24 PPS (Pulses per step)
 	bool running;
 	int runModeSeq[16]; 
@@ -303,6 +303,7 @@ struct SemiModularSynth : Module {
 
 	void onReset() override {
 		// SEQUENCER
+		autoseq = false;
 		pulsesPerStep = 1;
 		running = false;
 		runModeSong = MODE_FWD;

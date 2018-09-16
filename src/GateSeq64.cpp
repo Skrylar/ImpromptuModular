@@ -76,7 +76,7 @@ struct GateSeq64 : Module {
 	// Need to save
 	int panelTheme = 0;
 	int expansion = 0;
-	bool autoseq = false;
+	bool autoseq;
 	int pulsesPerStep;// 1 means normal gate mode, alt choices are 4, 6, 12, 24 PPS (Pulses per step)
 	bool running;
 	int runModeSeq[16];
@@ -199,6 +199,7 @@ struct GateSeq64 : Module {
 	
 	void onReset() override {
 		stepConfig = getStepConfig(CONFIG_PARAM_INIT_VALUE);
+		autoseq = false;
 		pulsesPerStep = 1;
 		running = false;
 		runModeSong = MODE_FWD;
