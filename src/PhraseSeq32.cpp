@@ -94,6 +94,7 @@ struct PhraseSeq32 : Module {
 	// Need to save
 	int panelTheme = 0;
 	int expansion = 0;
+	bool autoseq = false;
 	int pulsesPerStep;// 1 means normal gate mode, alt choices are 4, 6, 12, 24 PPS (Pulses per step)
 	bool running;
 	int runModeSeq[32];
@@ -314,6 +315,9 @@ struct PhraseSeq32 : Module {
 		// expansion
 		json_object_set_new(rootJ, "expansion", json_integer(expansion));
 
+		// autoseq
+		json_object_set_new(rootJ, "autoseq", json_boolean(autoseq));
+		
 		// pulsesPerStep
 		json_object_set_new(rootJ, "pulsesPerStep", json_integer(pulsesPerStep));
 
@@ -383,6 +387,11 @@ struct PhraseSeq32 : Module {
 		json_t *expansionJ = json_object_get(rootJ, "expansion");
 		if (expansionJ)
 			expansion = json_integer_value(expansionJ);
+
+		// autoseq
+		json_t *autoseqJ = json_object_get(rootJ, "autoseq");
+		if (autoseqJ)
+			autoseq = json_is_true(autoseqJ);
 
 		// pulsesPerStep
 		json_t *pulsesPerStepJ = json_object_get(rootJ, "pulsesPerStep");
@@ -675,8 +684,11 @@ struct PhraseSeq32 : Module {
 				editingGateKeyLight = -1;
 				editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 				// Autostep (after grab all active inputs)
-				if (params[AUTOSTEP_PARAM].value > 0.5f)
+				if (params[AUTOSTEP_PARAM].value > 0.5f) {
 					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 32);
+					if (stepIndexEdit == 0 && autoseq)
+						sequence = moveIndex(sequence, sequence + 1, 32);
+				}
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -1485,6 +1497,12 @@ struct PhraseSeq32Widget : ModuleWidget {
 			module->resetOnRun = !module->resetOnRun;
 		}
 	};
+	struct AutoseqItem : MenuItem {
+		PhraseSeq32 *module;
+		void onAction(EventAction &e) override {
+			module->autoseq = !module->autoseq;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -1519,6 +1537,10 @@ struct PhraseSeq32Widget : ModuleWidget {
 		ResetOnRunItem *rorItem = MenuItem::create<ResetOnRunItem>("Reset on Run", CHECKMARK(module->resetOnRun));
 		rorItem->module = module;
 		menu->addChild(rorItem);
+
+		AutoseqItem *aseqItem = MenuItem::create<AutoseqItem>("AutoSeq when writing via CV inputs", CHECKMARK(module->autoseq));
+		aseqItem->module = module;
+		menu->addChild(aseqItem);
 
 		menu->addChild(new MenuLabel());// empty line
 		
@@ -1786,6 +1808,7 @@ change behavior of extra CV inputs (Gate1, Gate2, Tied, Slide), such that they a
 add RN2 run mode
 implement copy-paste in song mode
 implement cross paste trick for init and randomize seq/song
+add AutoSeq option when writing via CV inputs 
 
 0.6.10:
 add advanced gate mode

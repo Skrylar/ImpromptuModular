@@ -182,6 +182,7 @@ struct SemiModularSynth : Module {
 	// Need to save
 	int panelTheme = 1;
 	int portTheme = 1;
+	bool autoseq = false;
 	int pulsesPerStep;// 1 means normal gate mode, alt choices are 4, 6, 12, 24 PPS (Pulses per step)
 	bool running;
 	int runModeSeq[16]; 
@@ -404,6 +405,9 @@ struct SemiModularSynth : Module {
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
 		json_object_set_new(rootJ, "portTheme", json_integer(portTheme));
 
+		// autoseq
+		json_object_set_new(rootJ, "autoseq", json_boolean(autoseq));
+		
 		// pulsesPerStep
 		json_object_set_new(rootJ, "pulsesPerStep", json_integer(pulsesPerStep));
 
@@ -470,6 +474,11 @@ struct SemiModularSynth : Module {
 		json_t *portThemeJ = json_object_get(rootJ, "portTheme");
 		if (portThemeJ)
 			portTheme = json_integer_value(portThemeJ);
+
+		// autoseq
+		json_t *autoseqJ = json_object_get(rootJ, "autoseq");
+		if (autoseqJ)
+			autoseq = json_is_true(autoseqJ);
 
 		// pulsesPerStep
 		json_t *pulsesPerStepJ = json_object_get(rootJ, "pulsesPerStep");
@@ -743,8 +752,11 @@ struct SemiModularSynth : Module {
 				editingGateCV = cv[sequence][stepIndexEdit];
 				editingGateKeyLight = -1;
 				// Autostep (after grab all active inputs)
-				if (params[AUTOSTEP_PARAM].value > 0.5f)
+				if (params[AUTOSTEP_PARAM].value > 0.5f) {
 					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
+					if (stepIndexEdit == 0 && autoseq)
+						sequence = moveIndex(sequence, sequence + 1, 16);
+				}
 			}
 			displayState = DISP_NORMAL;
 		}
@@ -1620,6 +1632,12 @@ struct SemiModularSynthWidget : ModuleWidget {
 			module->resetOnRun = !module->resetOnRun;
 		}
 	};
+	struct AutoseqItem : MenuItem {
+		SemiModularSynth *module;
+		void onAction(EventAction &e) override {
+			module->autoseq = !module->autoseq;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -1664,6 +1682,10 @@ struct SemiModularSynthWidget : ModuleWidget {
 		rorItem->module = module;
 		menu->addChild(rorItem);
 		
+		AutoseqItem *aseqItem = MenuItem::create<AutoseqItem>("AutoSeq when writing via CV inputs", CHECKMARK(module->autoseq));
+		aseqItem->module = module;
+		menu->addChild(aseqItem);
+
 		return menu;
 	}	
 	
@@ -1975,6 +1997,7 @@ implement copy-paste in song mode
 implement cross paste trick for init and randomize seq/song
 remove length and arrow buttons and make steps with LED buttons
 add advanced gate mode
+add AutoSeq option when writing via CV inputs 
 
 0.6.10:
 unlock gates when tied (turn off when press tied, but allow to be turned back on)

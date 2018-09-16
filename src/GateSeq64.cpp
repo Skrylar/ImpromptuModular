@@ -76,6 +76,7 @@ struct GateSeq64 : Module {
 	// Need to save
 	int panelTheme = 0;
 	int expansion = 0;
+	bool autoseq = false;
 	int pulsesPerStep;// 1 means normal gate mode, alt choices are 4, 6, 12, 24 PPS (Pulses per step)
 	bool running;
 	int runModeSeq[16];
@@ -284,6 +285,9 @@ struct GateSeq64 : Module {
 		// expansion
 		json_object_set_new(rootJ, "expansion", json_integer(expansion));
 
+		// autoseq
+		json_object_set_new(rootJ, "autoseq", json_boolean(autoseq));
+		
 		// pulsesPerStep
 		json_object_set_new(rootJ, "pulsesPerStep", json_integer(pulsesPerStep));
 
@@ -342,6 +346,11 @@ struct GateSeq64 : Module {
 		json_t *expansionJ = json_object_get(rootJ, "expansion");
 		if (expansionJ)
 			expansion = json_integer_value(expansionJ);
+
+		// autoseq
+		json_t *autoseqJ = json_object_get(rootJ, "autoseq");
+		if (autoseqJ)
+			autoseq = json_is_true(autoseqJ);
 
 		// pulsesPerStep
 		json_t *pulsesPerStepJ = json_object_get(rootJ, "pulsesPerStep");
@@ -591,7 +600,9 @@ struct GateSeq64 : Module {
 					setGate(sequence, stepIndexEdit, write1Trig);
 				}
 				// Autostep (after grab all active inputs)
-				stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 64);					
+				stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 64);
+				if (stepIndexEdit == 0 && autoseq)
+					sequence = moveIndex(sequence, sequence + 1, 16);			
 			}
 		}
 
@@ -1112,6 +1123,12 @@ struct GateSeq64Widget : ModuleWidget {
 			module->resetOnRun = !module->resetOnRun;
 		}
 	};
+	struct AutoseqItem : MenuItem {
+		GateSeq64 *module;
+		void onAction(EventAction &e) override {
+			module->autoseq = !module->autoseq;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -1147,6 +1164,10 @@ struct GateSeq64Widget : ModuleWidget {
 		rorItem->module = module;
 		menu->addChild(rorItem);
 		
+		AutoseqItem *aseqItem = MenuItem::create<AutoseqItem>("AutoSeq when writing via CV inputs", CHECKMARK(module->autoseq));
+		aseqItem->module = module;
+		menu->addChild(aseqItem);
+
 		menu->addChild(new MenuLabel());// empty line
 		
 		MenuLabel *expansionLabel = new MenuLabel();
@@ -1320,6 +1341,7 @@ add RN2 run mode
 add step-left CV input in expansion panel
 implement copy-paste in song mode and change 4/ROW/ALL to 4/8/ALL
 implement cross paste trick for init and randomize seq/song
+add AutoSeq option when writing via CV inputs 
 
 0.6.10:
 add advanced gate mode
