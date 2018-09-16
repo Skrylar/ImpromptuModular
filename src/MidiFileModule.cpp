@@ -512,6 +512,12 @@ struct MidiFileWidget : ModuleWidget {
 			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
 		}
 		
+		string removeExtension(const string& filename) {
+			size_t lastdot = filename.find_last_of(".");
+			if (lastdot == string::npos) return filename;
+			return filename.substr(0, lastdot); 
+		}
+
 		void draw(NVGcontext *vg) override {
 			NVGcolor textColor = prepareDisplay(vg, &box, 12);
 			nvgFontFaceId(vg, font->handle);
@@ -524,7 +530,7 @@ struct MidiFileWidget : ModuleWidget {
 			nvgFillColor(vg, textColor);
 			for (int i = 0; i <= displaySize; i++)
 				text[i] = ' ';
-			snprintf(text, displaySize + 1, "%s", module->lastFilename.c_str());
+			snprintf(text, displaySize + 1, "%s", (removeExtension(module->lastFilename)).c_str());
 			nvgText(vg, textPos.x, textPos.y, text, NULL);
 		}
 	};
