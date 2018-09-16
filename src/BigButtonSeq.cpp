@@ -382,7 +382,7 @@ struct BigButtonSeqWidget : ModuleWidget {
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor textColor = prepareDisplay(vg, &box);
+			NVGcolor textColor = prepareDisplay(vg, &box, 18);
 			nvgFontFaceId(vg, font->handle);
 			//nvgTextLetterSpacing(vg, 2.5);
 
@@ -405,7 +405,7 @@ struct BigButtonSeqWidget : ModuleWidget {
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor textColor = prepareDisplay(vg, &box);
+			NVGcolor textColor = prepareDisplay(vg, &box, 18);
 			nvgFontFaceId(vg, font->handle);
 			//nvgTextLetterSpacing(vg, 2.5);
 

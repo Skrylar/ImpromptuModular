@@ -307,6 +307,6 @@ inline bool calcWarningFlash(long count, long countInit) {
 	return true;
 }	
 
-NVGcolor prepareDisplay(NVGcontext *vg, Rect *box);
+NVGcolor prepareDisplay(NVGcontext *vg, Rect *box, int fontSize);
 
 #endif

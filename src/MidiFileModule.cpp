@@ -12,19 +12,6 @@
 //***********************************************************************************************
 
 
-/* temporary notes
-https://www.midi.org/specifications-old/item/table-1-summary-of-midi-message
-https://www.midi.org/specifications-old/item/table-3-control-change-messages-data-bytes-2
-
-Dekstop (callback mechanism and file opening):
-https://github.com/dekstop/vcvrackplugins_dekstop/blob/master/src/Recorder.cpp
-
-VCVRack-Simple (file opening):
-https://github.com/IohannRabeson/VCVRack-Simple/commit/2d33e97d2e344d2926548a0b9f11f1c15ee4ca3c
-
-*/
-
-
 #include "ImpromptuModular.hpp"
 #include "midifile/MidiFile.h"
 #include "osdialog.h"
@@ -45,6 +32,7 @@ struct MidiFileModule : Module {
 		RESET_PARAM,
 		RUN_PARAM,
 		LOOP_PARAM,
+		CHANNEL_PARAM,// 0 means all channels, 1 to 16 for filter channel
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -76,15 +64,14 @@ struct MidiFileModule : Module {
 	// Constants
 	enum PolyMode {ROTATE_MODE, REUSE_MODE, RESET_MODE, REASSIGN_MODE, UNISON_MODE, NUM_MODES};
 	
-	// Need to save, with reset
-	// none
+	// Need to save
+	int panelTheme = 0;
+	PolyMode polyMode = RESET_MODE;// From QuadMIDIToCVInterface.cpp
+	string lastPath = "";
+	string lastFilename = "--";
 	
-	// Need to save, no reset
-	int panelTheme;
-	string lastPath;
-	PolyMode polyMode;// From QuadMIDIToCVInterface.cpp
 	
-	// No need to save, with reset
+	// No need to save
 	bool running;
 	double time;
 	long event;
@@ -103,41 +90,28 @@ struct MidiFileModule : Module {
 	//--- END From QuadMIDIToCVInterface.cpp
 	
 	
-	// No need to save, no reset
+	unsigned int lightRefreshCounter = 0;	
+	float resetLight = 0.0f;
+	bool fileLoaded = false;
 	MidiFile midifile;
-	bool fileLoaded;
 	SchmittTrigger runningTrigger;
 	SchmittTrigger resetTrigger;
-	float resetLight;
+	
+	
+	inline int getChannelKnob() {return (int)(params[CHANNEL_PARAM].value + 0.5f);}
 	
 	
 	MidiFileModule() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS), cachedNotes(128) {
-		// Need to save, no reset
-		panelTheme = 0;
-		lastPath = "";
-		polyMode = RESET_MODE;
-		
-		// No need to save, no reset
-		fileLoaded = false;
-		resetLight = 0.0f;
-		
 		onReset();
 	}
 
 	
-	// widgets are not yet created when module is created (and when onReset() is called by constructor)
-	// onReset() is also called when right-click initialization of module
 	void onReset() override {
-		// Need to save, with reset
-		// none
-		
-		// No need to save, with reset
 		running = false;
 		resetPlayer();
 	}
 
 	
-	// widgets randomized before onRandomize() is called
 	void onRandomize() override {
 
 	}
@@ -158,20 +132,38 @@ struct MidiFileModule : Module {
 		stealIndex = 0;		
 	}
 	
+	
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
-		// TODO // Need to save (reset or not)
+
+		// panelTheme
+		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
+		
+		// polyMode
+		json_object_set_new(rootJ, "polyMode", json_integer(polyMode));
+
+		// lastPath
+		json_object_set_new(rootJ, "lastPath", json_string(lastPath.c_str()));
+		
 		return rootJ;
 	}
 
 	
-	// widgets loaded before this fromJson() is called
 	void fromJson(json_t *rootJ) override {
-		// TODO // Need to save (reset or not)
+		// panelTheme
+		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
+		if (panelThemeJ)
+			panelTheme = json_integer_value(panelThemeJ);
 
-		
-		// No need to save, with reset
-		// none		
+		// polyMode
+		json_t *polyModeJ = json_object_get(rootJ, "polyMode");
+		if (polyModeJ)
+			polyMode = (PolyMode) json_integer_value(polyModeJ);
+	
+		// lastPath
+		json_t *lastPathJ = json_object_get(rootJ, "lastPath");
+		if (lastPathJ)
+			lastPath = json_string_value(lastPathJ);
 	}
 	
 	
@@ -413,7 +405,9 @@ struct MidiFileModule : Module {
 					break;
 				}
 
-				processMessage(&midifile[track][event]);
+				int channel = getChannelKnob() - 1;// getChannelKnob is 1 indexed
+				if (channel < 0 || channel == midifile[track][event].getChannelNibble())
+					processMessage(&midifile[track][event]);
 				event++;
 			}	
 			
@@ -440,16 +434,21 @@ struct MidiFileModule : Module {
 		}		
 		
 		
-		// fileLoaded light
-		lights[LOADMIDI_LIGHT + 0].value = fileLoaded ? 1.0f : 0.0f;
-		lights[LOADMIDI_LIGHT + 1].value = !fileLoaded ? 1.0f : 0.0f;
-		
-		// Reset light
-		lights[RESET_LIGHT].value =	resetLight;	
-		resetLight -= (resetLight / lightLambda) * sampleTime;// * displayRefreshStepSkips;// TODO 
+		lightRefreshCounter++;
+		if (lightRefreshCounter > displayRefreshStepSkips) {
+			lightRefreshCounter = 0;
+			
+			// fileLoaded light
+			lights[LOADMIDI_LIGHT + 0].value = fileLoaded ? 1.0f : 0.0f;
+			lights[LOADMIDI_LIGHT + 1].value = !fileLoaded ? 1.0f : 0.0f;
+			
+			// Reset light
+			lights[RESET_LIGHT].value =	resetLight;	
+			resetLight -= (resetLight / lightLambda) * sampleTime * displayRefreshStepSkips;
 
-		// Run light
-		lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
+			// Run light
+			lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
+		}// lightRefreshCounter
 
 	}// step()	
 	
@@ -461,7 +460,7 @@ struct MidiFileModule : Module {
 		char *path = osdialog_file(OSDIALOG_OPEN, dir.c_str(), NULL, filters);
 		if (path) {
 			lastPath = path;
-			//lastFilename = stringFilename(path);
+			lastFilename = stringFilename(path);
 			if (midifile.read(path)) {
 				fileLoaded = true;
 				midifile.doTimeAnalysis();
@@ -502,6 +501,34 @@ struct MidiFileModule : Module {
 
 struct MidiFileWidget : ModuleWidget {
 	
+
+	struct MainDisplayWidget : TransparentWidget {
+		MidiFileModule *module;
+		std::shared_ptr<Font> font;
+		static const int displaySize = 12;
+		char text[displaySize + 1];
+
+		MainDisplayWidget() {
+			font = Font::load(assetPlugin(plugin, "res/fonts/Segment14.ttf"));
+		}
+		
+		void draw(NVGcontext *vg) override {
+			NVGcolor textColor = prepareDisplay(vg, &box, 12);
+			nvgFontFaceId(vg, font->handle);
+			nvgTextLetterSpacing(vg, -0.5);
+
+			Vec textPos = Vec(5, 18);
+			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
+			string empty = std::string(displaySize, '~');
+			nvgText(vg, textPos.x, textPos.y, empty.c_str(), NULL);
+			nvgFillColor(vg, textColor);
+			for (int i = 0; i <= displaySize; i++)
+				text[i] = ' ';
+			snprintf(text, displaySize + 1, "%s", module->lastFilename.c_str());
+			nvgText(vg, textPos.x, textPos.y, text, NULL);
+		}
+	};
+
 	struct LoadMidiPushButton : IMBigPushButton {
 		MidiFileModule *moduleL = nullptr;
 		void onChange(EventChange &e) override {
@@ -534,15 +561,26 @@ struct MidiFileWidget : ModuleWidget {
 		static const int colRulerM1 = colRulerM0 + colRulerMSpacing;
 		static const int colRulerM2 = colRulerM1 + colRulerMSpacing;
 		static const int colRulerM3 = colRulerM2 + colRulerMSpacing;
+		static const int rowRulerT5 = 100;
 		static const int rowRulerM0 = 180;
 		
 		
+		// Main display
+		MainDisplayWidget *displayMain = new MainDisplayWidget();
+		displayMain->box.pos = Vec(12, 46);
+		displayMain->box.size = Vec(137, 23.5f);// x characters
+		displayMain->module = module;
+		addChild(displayMain);
 		
-		// main load button
+		// Channel knobs
+		addParam(createDynamicParamCentered<IMBigSnapKnob>(Vec(colRulerM2+offsetIMBigKnob, rowRulerT5+offsetIMBigKnob), module, MidiFileModule::CHANNEL_PARAM, 0.0f, 16.0f, 0.0f, &module->panelTheme));		
+		
+		
+		// Main load button
 		LoadMidiPushButton* midiButton = createDynamicParamCentered<LoadMidiPushButton>(Vec(colRulerM0, rowRulerM0), module, MidiFileModule::LOADMIDI_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme);
 		midiButton->moduleL = module;
 		addParam(midiButton);
-		// load light
+		// Load light
 		addChild(createLightCentered<SmallLight<GreenRedLight>>(Vec(colRulerM0 + 20, rowRulerM0), module, MidiFileModule::LOADMIDI_LIGHT + 0));
 		
 		// Reset LED bezel and light

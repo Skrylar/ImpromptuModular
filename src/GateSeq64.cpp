@@ -1012,7 +1012,7 @@ struct GateSeq64Widget : ModuleWidget {
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor textColor = prepareDisplay(vg, &box);
+			NVGcolor textColor = prepareDisplay(vg, &box, 18);
 			nvgFontFaceId(vg, font->handle);
 			bool editingSequence = module->isEditingSequence();
 

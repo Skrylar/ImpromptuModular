@@ -543,7 +543,7 @@ struct WriteSeq64Widget : ModuleWidget {
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor textColor = prepareDisplay(vg, &box);
+			NVGcolor textColor = prepareDisplay(vg, &box, 18);
 			nvgFontFaceId(vg, font->handle);
 			nvgTextLetterSpacing(vg, -1.5);
 
@@ -566,7 +566,7 @@ struct WriteSeq64Widget : ModuleWidget {
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor textColor = prepareDisplay(vg, &box);
+			NVGcolor textColor = prepareDisplay(vg, &box, 18);
 			nvgFontFaceId(vg, font->handle);
 			//nvgTextLetterSpacing(vg, 2.5);
 
@@ -590,7 +590,7 @@ struct WriteSeq64Widget : ModuleWidget {
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor textColor = prepareDisplay(vg, &box);
+			NVGcolor textColor = prepareDisplay(vg, &box, 18);
 			nvgFontFaceId(vg, font->handle);
 			//nvgTextLetterSpacing(vg, 2.5);
 
@@ -614,7 +614,7 @@ struct WriteSeq64Widget : ModuleWidget {
 		}
 
 		void draw(NVGcontext *vg) override {
-			NVGcolor textColor = prepareDisplay(vg, &box);
+			NVGcolor textColor = prepareDisplay(vg, &box, 18);
 			nvgFontFaceId(vg, font->handle);
 			//nvgTextLetterSpacing(vg, 2.5);
 

@@ -116,7 +116,7 @@ void ScrewHole::draw(NVGcontext *vg) {
 }
 
 
-NVGcolor prepareDisplay(NVGcontext *vg, Rect *box) {
+NVGcolor prepareDisplay(NVGcontext *vg, Rect *box, int fontSize) {
 	NVGcolor backgroundColor = nvgRGB(0x38, 0x38, 0x38); 
 	NVGcolor borderColor = nvgRGB(0x10, 0x10, 0x10);
 	nvgBeginPath(vg);
@@ -126,7 +126,7 @@ NVGcolor prepareDisplay(NVGcontext *vg, Rect *box) {
 	nvgStrokeWidth(vg, 1.0);
 	nvgStrokeColor(vg, borderColor);
 	nvgStroke(vg);
-	nvgFontSize(vg, 18);
+	nvgFontSize(vg, fontSize);
 	NVGcolor textColor = nvgRGB(0xaf, 0xd2, 0x2c);
 	return textColor;
 }
