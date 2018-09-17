@@ -21,13 +21,14 @@ void init(rack::Plugin *p) {
 	p->addModel(modelTact);
 	p->addModel(modelTwelveKey);
 	p->addModel(modelClocked);
-	p->addModel(modelMidiFile);
+	//p->addModel(modelMidiFile);
 	p->addModel(modelPhraseSeq16);
 	p->addModel(modelPhraseSeq32);
 	p->addModel(modelGateSeq64);
 	p->addModel(modelWriteSeq32);
 	p->addModel(modelWriteSeq64);
 	p->addModel(modelBigButtonSeq);
+	p->addModel(modelBigButtonTest);
 	p->addModel(modelSemiModularSynth);
 	p->addModel(modelBlankPanel);
 }
