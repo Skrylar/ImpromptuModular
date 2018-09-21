@@ -32,7 +32,7 @@ extern Model *modelSemiModularSynth;
 extern Model *modelWriteSeq32;
 extern Model *modelWriteSeq64;
 extern Model *modelBigButtonSeq;
-extern Model *modelBigButtonTest;
+extern Model *modelBigButtonSeq2;
 extern Model *modelBlankPanel;
 
 

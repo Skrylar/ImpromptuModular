@@ -1,5 +1,5 @@
 //***********************************************************************************************
-//Six channel 64-step sequencer module for VCV Rack by Marc Boulé
+//Six channel 128-step sequencer module for VCV Rack by Marc Boulé
 //
 //Based on code from the Fundamental and AudibleInstruments plugins by Andrew Belt 
 //and graphics from the Component Library by Wes Milholen 
@@ -17,7 +17,7 @@
 #include "PhraseSeqUtil.hpp"
 
 
-struct BigButtonTest : Module {
+struct BigButtonSeq2 : Module {
 	enum ParamIds {
 		CHAN_PARAM,
 		LEN_PARAM,
@@ -66,8 +66,8 @@ struct BigButtonTest : Module {
 	bool quantizeBig;
 	int indexStep;
 	int bank[6];
-	uint64_t gates[6][2];// chan , bank
-	float cv[6][2][64];// chan , bank , step
+	uint64_t gates[6][2];// channel , bank
+	float cv[6][2][64];// channel , bank , indexStep
 	
 	// No need to save
 	long clockIgnoreOnReset;
@@ -81,8 +81,8 @@ struct BigButtonTest : Module {
 	float bigLight = 0.0f;
 	float metronomeLightStart = 0.0f;
 	float metronomeLightDiv = 0.0f;
-	int chan = 0;
-	int len = 0; 
+	int channel = 0;
+	int length = 0; 
 	SchmittTrigger clockTrigger;
 	SchmittTrigger resetTrigger;
 	SchmittTrigger bankTrigger;
@@ -93,14 +93,17 @@ struct BigButtonTest : Module {
 	PulseGenerator bigLightPulse;
 
 	
-	inline void toggleGate(int chan) {gates[chan][bank[chan]] ^= (((uint64_t)1) << (uint64_t)indexStep);}
-	inline void setGate(int chan) {gates[chan][bank[chan]] |= (((uint64_t)1) << (uint64_t)indexStep);}
-	inline void setCV(int chan, float cvValue) {cv[chan][bank[chan]][indexStep] = cvValue;}
-	inline void clearGate(int chan) {gates[chan][bank[chan]] &= ~(((uint64_t)1) << (uint64_t)indexStep);}
 	inline bool getGate(int chan) {return !((gates[chan][bank[chan]] & (((uint64_t)1) << (uint64_t)indexStep)) == 0);}
+	inline void setGate(int chan) {gates[chan][bank[chan]] |= (((uint64_t)1) << (uint64_t)indexStep);}
+	inline void clearGate(int chan) {gates[chan][bank[chan]] &= ~(((uint64_t)1) << (uint64_t)indexStep);}
+	inline void toggleGate(int chan) {gates[chan][bank[chan]] ^= (((uint64_t)1) << (uint64_t)indexStep);}
+	inline void clearGates(int chan, int bnk) {gates[chan][bnk] = 0;}
+	inline void randomizeGates(int chan, int bnk) {gates[chan][bnk] = randomu64();}
+	inline void writeCV(int chan, float cvValue) {cv[chan][bank[chan]][indexStep] = cvValue;}
+	inline void writeCV(int chan, int bnk, int step, float cvValue) {cv[chan][bnk][step] = cvValue;}
 
 	
-	BigButtonTest() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {		
+	BigButtonSeq2() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {		
 		onReset();
 	}
 
@@ -111,9 +114,9 @@ struct BigButtonTest : Module {
 		for (int c = 0; c < 6; c++) {
 			bank[c] = 0;
 			for (int b = 0; b < 2; b++) {
-				gates[c][b] = 0;
+				clearGates(c, b);
 				for (int s = 0; s < 64; s++)
-					cv[c][b][s] = 0.0f;
+					writeCV(c, b, s, 0.0f);
 			}
 		}
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
@@ -125,13 +128,13 @@ struct BigButtonTest : Module {
 
 
 	void onRandomize() override {
-		indexStep = randomu32() % 32;
+		indexStep = randomu32() % 64;
 		for (int c = 0; c < 6; c++) {
 			bank[c] = randomu32() % 2;
 			for (int b = 0; b < 2; b++) {
-				gates[c][b] = randomu64();
+				randomizeGates(c, b);
 				for (int s = 0; s < 64; s++)
-					cv[c][b][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
+					writeCV(c, b, s, ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f);
 			}
 		}
 		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
@@ -157,7 +160,7 @@ struct BigButtonTest : Module {
 		// gates
 		json_t *gatesJ = json_array();
 		for (int c = 0; c < 6; c++)
-			for (int b = 0; b < 8; b++) {// bank to store is like to uint64_t to store, so go to 8
+			for (int b = 0; b < 8; b++) {// bank to store is like uint64_t to store, so go to 8
 				// first to get stored is 16 lsbits of bank 0, then next 16 bits,... to 16 msbits of bank 1
 				unsigned int intValue = (unsigned int) ( (uint64_t)0xFFFF & (gates[c][b/4] >> (uint64_t)(16 * (b % 4))) );
 				json_array_insert_new(gatesJ, b + (c << 3) , json_integer(intValue));
@@ -280,11 +283,11 @@ struct BigButtonTest : Module {
 		//********** Buttons, knobs, switches and inputs **********
 		
 		// Length
-		len = (int) clamp(roundf( params[LEN_PARAM].value + ( inputs[LEN_INPUT].active ? (inputs[LEN_INPUT].value / 10.0f * (64.0f - 1.0f)) : 0.0f ) ), 0.0f, (64.0f - 1.0f)) + 1;	
+		length = (int) clamp(roundf( params[LEN_PARAM].value + ( inputs[LEN_INPUT].active ? (inputs[LEN_INPUT].value / 10.0f * (64.0f - 1.0f)) : 0.0f ) ), 0.0f, (64.0f - 1.0f)) + 1;	
 
-		// Chan
+		// Channel
 		float chanInputValue = inputs[CHAN_INPUT].value / 10.0f * (6.0f - 1.0f);
-		chan = (int) clamp(roundf(params[CHAN_PARAM].value + chanInputValue), 0.0f, (6.0f - 1.0f));		
+		channel = (int) clamp(roundf(params[CHAN_PARAM].value + chanInputValue), 0.0f, (6.0f - 1.0f));		
 		
 		// Big button
 		if (bigTrigger.process(params[BIG_PARAM].value + inputs[BIG_INPUT].value)) {
@@ -294,24 +297,24 @@ struct BigButtonTest : Module {
 				pendingCV = inputs[CV_INPUT].value;
 			}
 			else {
-				if (!getGate(chan)) {
-					setGate(chan);// bank and indexStep are global
+				if (!getGate(channel)) {
+					setGate(channel);// bank and indexStep are global
 					bigPulse.trigger(0.001f);
 				}
-				setCV(chan, inputs[CV_INPUT].value);
+				writeCV(channel, inputs[CV_INPUT].value);
 				bigLightPulse.trigger(lightTime);
 			}
 		}
 
 		// Bank button
 		if (bankTrigger.process(params[BANK_PARAM].value + inputs[BANK_INPUT].value))
-			bank[chan] = 1 - bank[chan];
+			bank[channel] = 1 - bank[channel];
 		
 		// Clear button
 		if (params[CLEAR_PARAM].value + inputs[CLEAR_INPUT].value > 0.5f) {
-			gates[chan][bank[chan]] = 0;
+			clearGates(channel, bank[channel]);
 			for (int s = 0; s < 64; s++)
-				cv[chan][bank[chan]][s] = 0.0f;
+				cv[channel][bank[channel]][s] = 0.0f;
 		}
 		
 		// Del button
@@ -319,20 +322,20 @@ struct BigButtonTest : Module {
 			if (clockTime > (lastPeriod / 2.0) && clockTime <= (lastPeriod * 1.01))// allow for 1% clock jitter
 				pendingOp = -1;// overrides the pending write if it exists
 			else {
-				clearGate(chan);// bank and indexStep are global
-				cv[chan][bank[chan]][indexStep] = 0.0f;
+				clearGate(channel);// bank and indexStep are global
+				cv[channel][bank[channel]][indexStep] = 0.0f;
 			}
 		}
 
 		// Fill button
 		bool fillPressed = (params[FILL_PARAM].value + inputs[FILL_INPUT].value) > 0.5f;
 		if (fillPressed && writeFillsToMemory)
-			setGate(chan);// bank and indexStep are global
+			setGate(channel);// bank and indexStep are global
 
 
 		// Pending timeout (write/del current step)
 		if (pendingOp != 0 && clockTime > (lastPeriod * 1.01) ) 
-			performPending(chan, lightTime);
+			performPending(channel, lightTime);
 
 		
 		
@@ -344,10 +347,10 @@ struct BigButtonTest : Module {
 				outPulse.trigger(0.001f);
 				outLightPulse.trigger(lightTime);
 				
-				indexStep = moveIndex(indexStep, indexStep + 1, len);
+				indexStep = moveIndex(indexStep, indexStep + 1, length);
 				
 				if (pendingOp != 0)
-					performPending(chan, lightTime);// Proper pending write/del to next step which is now reached
+					performPending(channel, lightTime);// Proper pending write/del to next step which is now reached
 				
 				if (indexStep == 0)
 					metronomeLightStart = 1.0f;
@@ -357,7 +360,7 @@ struct BigButtonTest : Module {
 				float rnd01 = params[RND_PARAM].value / 100.0f + inputs[RND_INPUT].value / 10.0f;
 				if (rnd01 > 0.0f) {
 					if (randomUniform() < rnd01)// randomUniform is [0.0, 1.0), see include/util/common.hpp
-						toggleGate(chan);
+						toggleGate(channel);
 				}
 				lastPeriod = clockTime > 2.0 ? 2.0 : clockTime;
 				clockTime = 0.0;
@@ -385,7 +388,7 @@ struct BigButtonTest : Module {
 		bool outPulseState = outPulse.process((float)sampleTime);
 		for (int i = 0; i < 6; i++) {
 			bool gate = getGate(i);
-			bool outSignal = (((gate || (i == chan && fillPressed)) && outPulseState) || (gate && bigPulseState && i == chan));
+			bool outSignal = (((gate || (i == channel && fillPressed)) && outPulseState) || (gate && bigPulseState && i == channel));
 			outputs[CHAN_OUTPUTS + i].value = outSignal ? 10.0f : 0.0f;
 			outputs[CV_OUTPUTS + i].value = cv[i][bank[i]][indexStep];
 		}
@@ -400,13 +403,13 @@ struct BigButtonTest : Module {
 			bool outLightPulseState = outLightPulse.process((float)sampleTime * displayRefreshStepSkips);
 			for (int i = 0; i < 6; i++) {
 				bool gate = getGate(i);
-				bool outLight  = (((gate || (i == chan && fillPressed)) && outLightPulseState) || (gate && bigLightPulseState && i == chan));
+				bool outLight  = (((gate || (i == channel && fillPressed)) && outLightPulseState) || (gate && bigLightPulseState && i == channel));
 				lights[(CHAN_LIGHTS + i) * 2 + 1].setBrightnessSmooth(outLight ? 1.0f : 0.0f, displayRefreshStepSkips);
-				lights[(CHAN_LIGHTS + i) * 2 + 0].value = (i == chan ? (1.0f - lights[(CHAN_LIGHTS + i) * 2 + 1].value) / 2.0f : 0.0f);
+				lights[(CHAN_LIGHTS + i) * 2 + 0].value = (i == channel ? (1.0f - lights[(CHAN_LIGHTS + i) * 2 + 1].value) / 2.0f : 0.0f);
 			}
 
 			// Big button lights
-			lights[BIG_LIGHT].value = bank[chan] == 1 ? 1.0f : 0.0f;
+			lights[BIG_LIGHT].value = bank[channel] == 1 ? 1.0f : 0.0f;
 			lights[BIGC_LIGHT].value = bigLight;
 			
 			// Metronome light
@@ -432,7 +435,7 @@ struct BigButtonTest : Module {
 				setGate(chan);// bank and indexStep are global
 				bigPulse.trigger(0.001f);
 			}
-			setCV(chan, pendingCV);
+			writeCV(chan, pendingCV);
 			bigLightPulse.trigger(lightTime);
 		}
 		else {
@@ -443,11 +446,11 @@ struct BigButtonTest : Module {
 };
 
 
-struct BigButtonTestWidget : ModuleWidget {
+struct BigButtonSeq2Widget : ModuleWidget {
 
 
 	struct ChanDisplayWidget : TransparentWidget {
-		int *chan;
+		int *channel;
 		std::shared_ptr<Font> font;
 		
 		ChanDisplayWidget() {
@@ -464,13 +467,13 @@ struct BigButtonTestWidget : ModuleWidget {
 			nvgText(vg, textPos.x, textPos.y, "~", NULL);
 			nvgFillColor(vg, textColor);
 			char displayStr[2];
-			snprintf(displayStr, 2, "%1u", (unsigned) (*chan + 1) );
+			snprintf(displayStr, 2, "%1u", (unsigned) (*channel + 1) );
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};
 
 	struct StepsDisplayWidget : TransparentWidget {
-		int *len;
+		int *length;
 		std::shared_ptr<Font> font;
 		
 		StepsDisplayWidget() {
@@ -487,13 +490,13 @@ struct BigButtonTestWidget : ModuleWidget {
 			nvgText(vg, textPos.x, textPos.y, "~~", NULL);
 			nvgFillColor(vg, textColor);
 			char displayStr[3];
-			snprintf(displayStr, 3, "%2u", (unsigned) *len );
+			snprintf(displayStr, 3, "%2u", (unsigned) *length);
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};
 	
 	struct PanelThemeItem : MenuItem {
-		BigButtonTest *module;
+		BigButtonSeq2 *module;
 		int theme;
 		void onAction(EventAction &e) override {
 			module->panelTheme = theme;
@@ -503,7 +506,7 @@ struct BigButtonTestWidget : ModuleWidget {
 		}
 	};
 	struct MetronomeItem : MenuItem {
-		BigButtonTest *module;
+		BigButtonSeq2 *module;
 		int div;
 		void onAction(EventAction &e) override {
 			module->metronomeDiv = div;
@@ -513,13 +516,13 @@ struct BigButtonTestWidget : ModuleWidget {
 		}
 	};
 	struct FillModeItem : MenuItem {
-		BigButtonTest *module;
+		BigButtonSeq2 *module;
 		void onAction(EventAction &e) override {
 			module->writeFillsToMemory = !module->writeFillsToMemory;
 		}
 	};
 	struct QuantizeBigItem : MenuItem {
-		BigButtonTest *module;
+		BigButtonSeq2 *module;
 		void onAction(EventAction &e) override {
 			module->quantizeBig = !module->quantizeBig;
 		}
@@ -530,7 +533,7 @@ struct BigButtonTestWidget : ModuleWidget {
 		MenuLabel *spacerLabel = new MenuLabel();
 		menu->addChild(spacerLabel);
 
-		BigButtonTest *module = dynamic_cast<BigButtonTest*>(this->module);
+		BigButtonSeq2 *module = dynamic_cast<BigButtonSeq2*>(this->module);
 		assert(module);
 
 		MenuLabel *themeLabel = new MenuLabel();
@@ -600,11 +603,11 @@ struct BigButtonTestWidget : ModuleWidget {
 	}	
 	
 	
-	BigButtonTestWidget(BigButtonTest *module) : ModuleWidget(module) {
+	BigButtonSeq2Widget(BigButtonSeq2 *module) : ModuleWidget(module) {
 		// Main panel from Inkscape
         DynamicSVGPanel *panel = new DynamicSVGPanel();
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/BigButtonTest.svg")));
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/BigButtonTest_dark.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/BigButtonSeq2.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/BigButtonSeq2_dark.svg")));
         box.size = panel->box.size;
         panel->mode = &module->panelTheme;
         addChild(panel);
@@ -630,19 +633,19 @@ struct BigButtonTestWidget : ModuleWidget {
 		static const int ledOffsetY = 28;
 		
 		// Outputs
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT0, rowRuler0), Port::OUTPUT, module, BigButtonTest::CHAN_OUTPUTS + 0, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT1, rowRuler0), Port::OUTPUT, module, BigButtonTest::CHAN_OUTPUTS + 1, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT2, rowRuler0), Port::OUTPUT, module, BigButtonTest::CHAN_OUTPUTS + 2, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT3, rowRuler0), Port::OUTPUT, module, BigButtonTest::CHAN_OUTPUTS + 3, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT4, rowRuler0), Port::OUTPUT, module, BigButtonTest::CHAN_OUTPUTS + 4, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT5, rowRuler0), Port::OUTPUT, module, BigButtonTest::CHAN_OUTPUTS + 5, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT0, rowRuler0), Port::OUTPUT, module, BigButtonSeq2::CHAN_OUTPUTS + 0, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT1, rowRuler0), Port::OUTPUT, module, BigButtonSeq2::CHAN_OUTPUTS + 1, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT2, rowRuler0), Port::OUTPUT, module, BigButtonSeq2::CHAN_OUTPUTS + 2, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT3, rowRuler0), Port::OUTPUT, module, BigButtonSeq2::CHAN_OUTPUTS + 3, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT4, rowRuler0), Port::OUTPUT, module, BigButtonSeq2::CHAN_OUTPUTS + 4, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT5, rowRuler0), Port::OUTPUT, module, BigButtonSeq2::CHAN_OUTPUTS + 5, &module->panelTheme));
 		// LEDs
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerT0 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonTest::CHAN_LIGHTS + 0));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerT1 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonTest::CHAN_LIGHTS + 2));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerT2 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonTest::CHAN_LIGHTS + 4));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerT3 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonTest::CHAN_LIGHTS + 6));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerT4 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonTest::CHAN_LIGHTS + 8));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerT5 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonTest::CHAN_LIGHTS + 10));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerT0 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq2::CHAN_LIGHTS + 0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerT1 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq2::CHAN_LIGHTS + 2));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerT2 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq2::CHAN_LIGHTS + 4));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerT3 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq2::CHAN_LIGHTS + 6));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerT4 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq2::CHAN_LIGHTS + 8));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerT5 + offsetMediumLight - 1, rowRuler0 + ledOffsetY + offsetMediumLight), module, BigButtonSeq2::CHAN_LIGHTS + 10));
 
 		
 		
@@ -650,21 +653,21 @@ struct BigButtonTestWidget : ModuleWidget {
 		static const int knobCVjackOffsetX = 52;
 		
 		// Clock input
-		addInput(createDynamicPort<IMPort>(Vec(colRulerT0, rowRuler1), Port::INPUT, module, BigButtonTest::CLK_INPUT, &module->panelTheme));
-		// Chan knob and jack
-		addParam(createDynamicParam<IMSixPosBigKnob>(Vec(colRulerCenter + offsetIMBigKnob, rowRuler1 + offsetIMBigKnob), module, BigButtonTest::CHAN_PARAM, 0.0f, 6.0f - 1.0f, 0.0f, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - knobCVjackOffsetX, rowRuler1), Port::INPUT, module, BigButtonTest::CHAN_INPUT, &module->panelTheme));
-		// Chan display
+		addInput(createDynamicPort<IMPort>(Vec(colRulerT0, rowRuler1), Port::INPUT, module, BigButtonSeq2::CLK_INPUT, &module->panelTheme));
+		// Channel knob and jack
+		addParam(createDynamicParam<IMSixPosBigKnob>(Vec(colRulerCenter + offsetIMBigKnob, rowRuler1 + offsetIMBigKnob), module, BigButtonSeq2::CHAN_PARAM, 0.0f, 6.0f - 1.0f, 0.0f, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - knobCVjackOffsetX, rowRuler1), Port::INPUT, module, BigButtonSeq2::CHAN_INPUT, &module->panelTheme));
+		// Channel display
 		ChanDisplayWidget *displayChan = new ChanDisplayWidget();
 		displayChan->box.pos = Vec(colRulerCenter + 43, rowRuler1 + vOffsetDisplay - 1);
 		displayChan->box.size = Vec(24, 30);// 1 character
-		displayChan->chan = &module->chan;
+		displayChan->channel = &module->channel;
 		addChild(displayChan);	
 		// Length display
 		StepsDisplayWidget *displaySteps = new StepsDisplayWidget();
 		displaySteps->box.pos = Vec(colRulerT5 - 17, rowRuler1 + vOffsetDisplay - 1);
 		displaySteps->box.size = Vec(40, 30);// 2 characters
-		displaySteps->len = &module->len;
+		displaySteps->length = &module->length;
 		addChild(displaySteps);	
 
 
@@ -673,11 +676,11 @@ struct BigButtonTestWidget : ModuleWidget {
 		static const int lenAndRndKnobOffsetX = 90;
 		
 		// Len knob and jack
-		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter - lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonTest::LEN_PARAM, 0.0f, 64.0f - 1.0f, 32.0f - 1.0f, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - lenAndRndKnobOffsetX + knobCVjackOffsetX, rowRuler2), Port::INPUT, module, BigButtonTest::LEN_INPUT, &module->panelTheme));
+		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter - lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq2::LEN_PARAM, 0.0f, 64.0f - 1.0f, 32.0f - 1.0f, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - lenAndRndKnobOffsetX + knobCVjackOffsetX, rowRuler2), Port::INPUT, module, BigButtonSeq2::LEN_INPUT, &module->panelTheme));
 		// Rnd knob and jack
-		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter + lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonTest::RND_PARAM, 0.0f, 100.0f, 0.0f, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter + lenAndRndKnobOffsetX - knobCVjackOffsetX, rowRuler2), Port::INPUT, module, BigButtonTest::RND_INPUT, &module->panelTheme));
+		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter + lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq2::RND_PARAM, 0.0f, 100.0f, 0.0f, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter + lenAndRndKnobOffsetX - knobCVjackOffsetX, rowRuler2), Port::INPUT, module, BigButtonSeq2::RND_INPUT, &module->panelTheme));
 
 
 		
@@ -688,46 +691,46 @@ struct BigButtonTestWidget : ModuleWidget {
 		static const int knobCVjackOffsetY = 40;
 		
 		// Bank button and jack
-		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerCenter + offsetCKD6b, rowRuler3 + offsetCKD6b), module, BigButtonTest::BANK_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));	
-		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter, rowRuler3 + knobCVjackOffsetY), Port::INPUT, module, BigButtonTest::BANK_INPUT, &module->panelTheme));
+		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerCenter + offsetCKD6b, rowRuler3 + offsetCKD6b), module, BigButtonSeq2::BANK_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));	
+		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter, rowRuler3 + knobCVjackOffsetY), Port::INPUT, module, BigButtonSeq2::BANK_INPUT, &module->panelTheme));
 		// Clear button and jack
-		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerCenter - clearAndDelButtonOffsetX + offsetCKD6b, rowRuler4 + offsetCKD6b), module, BigButtonTest::CLEAR_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));	
-		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - clearAndDelButtonOffsetX, rowRuler4 + knobCVjackOffsetY), Port::INPUT, module, BigButtonTest::CLEAR_INPUT, &module->panelTheme));
+		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerCenter - clearAndDelButtonOffsetX + offsetCKD6b, rowRuler4 + offsetCKD6b), module, BigButtonSeq2::CLEAR_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));	
+		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - clearAndDelButtonOffsetX, rowRuler4 + knobCVjackOffsetY), Port::INPUT, module, BigButtonSeq2::CLEAR_INPUT, &module->panelTheme));
 		// Del button and jack
-		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerCenter + clearAndDelButtonOffsetX + offsetCKD6b, rowRuler4 + offsetCKD6b), module, BigButtonTest::DEL_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));	
-		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter + clearAndDelButtonOffsetX, rowRuler4 + knobCVjackOffsetY), Port::INPUT, module, BigButtonTest::DEL_INPUT, &module->panelTheme));
+		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerCenter + clearAndDelButtonOffsetX + offsetCKD6b, rowRuler4 + offsetCKD6b), module, BigButtonSeq2::DEL_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));	
+		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter + clearAndDelButtonOffsetX, rowRuler4 + knobCVjackOffsetY), Port::INPUT, module, BigButtonSeq2::DEL_INPUT, &module->panelTheme));
 		// Reset button and jack
-		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerT0 + offsetCKD6b, rowRuler5 + offsetCKD6b), module, BigButtonTest::RESET_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));	
-		addInput(createDynamicPort<IMPort>(Vec(colRulerT0, rowRuler5 + knobCVjackOffsetY), Port::INPUT, module, BigButtonTest::RESET_INPUT, &module->panelTheme));
+		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerT0 + offsetCKD6b, rowRuler5 + offsetCKD6b), module, BigButtonSeq2::RESET_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));	
+		addInput(createDynamicPort<IMPort>(Vec(colRulerT0, rowRuler5 + knobCVjackOffsetY), Port::INPUT, module, BigButtonSeq2::RESET_INPUT, &module->panelTheme));
 		// Fill button and jack
-		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerT5 + offsetCKD6b, rowRuler5 + offsetCKD6b), module, BigButtonTest::FILL_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));	
-		addInput(createDynamicPort<IMPort>(Vec(colRulerT5, rowRuler5 + knobCVjackOffsetY), Port::INPUT, module, BigButtonTest::FILL_INPUT, &module->panelTheme));
+		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerT5 + offsetCKD6b, rowRuler5 + offsetCKD6b), module, BigButtonSeq2::FILL_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));	
+		addInput(createDynamicPort<IMPort>(Vec(colRulerT5, rowRuler5 + knobCVjackOffsetY), Port::INPUT, module, BigButtonSeq2::FILL_INPUT, &module->panelTheme));
 
 		// And now time for... BIG BUTTON!
-		addChild(createLight<GiantLight<RedLight>>(Vec(colRulerCenter + offsetLEDbezelBig - offsetLEDbezelLight*2.0f, rowRuler5 + 26 + offsetLEDbezelBig - offsetLEDbezelLight*2.0f), module, BigButtonTest::BIG_LIGHT));
-		addParam(createParam<LEDBezelBig>(Vec(colRulerCenter + offsetLEDbezelBig, rowRuler5 + 26 + offsetLEDbezelBig), module, BigButtonTest::BIG_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(createLight<GiantLight2<RedLight>>(Vec(colRulerCenter + offsetLEDbezelBig - offsetLEDbezelLight*2.0f + 9, rowRuler5 + 26 + offsetLEDbezelBig - offsetLEDbezelLight*2.0f + 9), module, BigButtonTest::BIGC_LIGHT));
+		addChild(createLight<GiantLight<RedLight>>(Vec(colRulerCenter + offsetLEDbezelBig - offsetLEDbezelLight*2.0f, rowRuler5 + 26 + offsetLEDbezelBig - offsetLEDbezelLight*2.0f), module, BigButtonSeq2::BIG_LIGHT));
+		addParam(createParam<LEDBezelBig>(Vec(colRulerCenter + offsetLEDbezelBig, rowRuler5 + 26 + offsetLEDbezelBig), module, BigButtonSeq2::BIG_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<GiantLight2<RedLight>>(Vec(colRulerCenter + offsetLEDbezelBig - offsetLEDbezelLight*2.0f + 9, rowRuler5 + 26 + offsetLEDbezelBig - offsetLEDbezelLight*2.0f + 9), module, BigButtonSeq2::BIGC_LIGHT));
 		// Big input
-		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - clearAndDelButtonOffsetX, rowRuler5 + knobCVjackOffsetY), Port::INPUT, module, BigButtonTest::BIG_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - clearAndDelButtonOffsetX, rowRuler5 + knobCVjackOffsetY), Port::INPUT, module, BigButtonSeq2::BIG_INPUT, &module->panelTheme));
 		// Metronome light
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerCenter + clearAndDelButtonOffsetX + offsetMediumLight - 1, rowRuler5 + knobCVjackOffsetY + offsetMediumLight - 1), module, BigButtonTest::METRONOME_LIGHT + 0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerCenter + clearAndDelButtonOffsetX + offsetMediumLight - 1, rowRuler5 + knobCVjackOffsetY + offsetMediumLight - 1), module, BigButtonSeq2::METRONOME_LIGHT + 0));
 
 		
 		
 		// CV Outputs
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT0 + 255, rowRuler0), Port::OUTPUT, module, BigButtonTest::CV_OUTPUTS + 0, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT1 + 255, rowRuler0), Port::OUTPUT, module, BigButtonTest::CV_OUTPUTS + 1, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT2 + 255, rowRuler0), Port::OUTPUT, module, BigButtonTest::CV_OUTPUTS + 2, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT3 + 255, rowRuler0), Port::OUTPUT, module, BigButtonTest::CV_OUTPUTS + 3, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT4 + 255, rowRuler0), Port::OUTPUT, module, BigButtonTest::CV_OUTPUTS + 4, &module->panelTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT5 + 255, rowRuler0), Port::OUTPUT, module, BigButtonTest::CV_OUTPUTS + 5, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT0 + 255, rowRuler0), Port::OUTPUT, module, BigButtonSeq2::CV_OUTPUTS + 0, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT1 + 255, rowRuler0), Port::OUTPUT, module, BigButtonSeq2::CV_OUTPUTS + 1, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT2 + 255, rowRuler0), Port::OUTPUT, module, BigButtonSeq2::CV_OUTPUTS + 2, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT3 + 255, rowRuler0), Port::OUTPUT, module, BigButtonSeq2::CV_OUTPUTS + 3, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT4 + 255, rowRuler0), Port::OUTPUT, module, BigButtonSeq2::CV_OUTPUTS + 4, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT5 + 255, rowRuler0), Port::OUTPUT, module, BigButtonSeq2::CV_OUTPUTS + 5, &module->panelTheme));
 
 		// CV Inputs
-		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter + 255 - 6, rowRuler2 - 20), Port::INPUT, module, BigButtonTest::CV_INPUT, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter + 255 - 6, rowRuler2 - 20), Port::INPUT, module, BigButtonSeq2::CV_INPUT, &module->panelTheme));		
 	}
 };
 
-Model *modelBigButtonTest = Model::create<BigButtonTest, BigButtonTestWidget>("Impromptu Modular", "Big-Button-Test", "SEQ - Big-Button-Test", SEQUENCER_TAG);
+Model *modelBigButtonSeq2 = Model::create<BigButtonSeq2, BigButtonSeq2Widget>("Impromptu Modular", "Big-Button-Test", "SEQ - Big-Button-Test", SEQUENCER_TAG);
 
 /*CHANGE LOG
 

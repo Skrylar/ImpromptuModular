@@ -112,7 +112,7 @@ struct BigButtonSeq : Module {
 
 
 	void onRandomize() override {
-		indexStep = randomu32() % 32;
+		indexStep = randomu32() % 64;
 		for (int c = 0; c < 6; c++) {
 			bank[c] = randomu32() % 2;
 			gates[c][0] = randomu64();
