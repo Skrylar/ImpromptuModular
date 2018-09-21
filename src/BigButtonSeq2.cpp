@@ -28,6 +28,10 @@ struct BigButtonSeq2 : Module {
 		DEL_PARAM,
 		FILL_PARAM,
 		BIG_PARAM,
+		WRITEFILL_PARAM,
+		QUANTIZEBIG_PARAM,
+		SAMPLEHOLD_PARAM,
+		CLOCK_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -41,13 +45,11 @@ struct BigButtonSeq2 : Module {
 		BANK_INPUT,
 		DEL_INPUT,
 		FILL_INPUT,
-		// -- 0.6.10 ^^
 		CV_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
 		ENUMS(CHAN_OUTPUTS, 6),
-		// -- 0.6.10 ^^
 		ENUMS(CV_OUTPUTS, 6),
 		NUM_OUTPUTS
 	};
@@ -56,18 +58,22 @@ struct BigButtonSeq2 : Module {
 		BIG_LIGHT,
 		BIGC_LIGHT,
 		ENUMS(METRONOME_LIGHT, 2),// Room for GreenRed
+		WRITEFILL_LIGHT,
+		QUANTIZEBIG_LIGHT,
+		SAMPLEHOLD_LIGHT,		
 		NUM_LIGHTS
 	};
 	
 	// Need to save
 	int panelTheme = 0;
 	int metronomeDiv = 4;
-	bool writeFillsToMemory = false;
+	bool writeFillsToMemory;
 	bool quantizeBig;
+	bool sampleAndHold;
 	int indexStep;
 	int bank[6];
-	uint64_t gates[6][2];// channel , bank
-	float cv[6][2][64];// channel , bank , indexStep
+	uint64_t gates[6][2][2];// channel , bank , 64x2 page for 128
+	float cv[6][2][128];// channel , bank , indexStep
 	
 	// No need to save
 	long clockIgnoreOnReset;
@@ -87,18 +93,22 @@ struct BigButtonSeq2 : Module {
 	SchmittTrigger resetTrigger;
 	SchmittTrigger bankTrigger;
 	SchmittTrigger bigTrigger;
+	SchmittTrigger clearTrigger;
+	SchmittTrigger writeFillTrigger;
+	SchmittTrigger quantizeBigTrigger;
+	SchmittTrigger sampleHoldTrigger;
 	PulseGenerator outPulse;
 	PulseGenerator outLightPulse;
 	PulseGenerator bigPulse;
 	PulseGenerator bigLightPulse;
 
 	
-	inline bool getGate(int chan) {return !((gates[chan][bank[chan]] & (((uint64_t)1) << (uint64_t)indexStep)) == 0);}
-	inline void setGate(int chan) {gates[chan][bank[chan]] |= (((uint64_t)1) << (uint64_t)indexStep);}
-	inline void clearGate(int chan) {gates[chan][bank[chan]] &= ~(((uint64_t)1) << (uint64_t)indexStep);}
-	inline void toggleGate(int chan) {gates[chan][bank[chan]] ^= (((uint64_t)1) << (uint64_t)indexStep);}
-	inline void clearGates(int chan, int bnk) {gates[chan][bnk] = 0;}
-	inline void randomizeGates(int chan, int bnk) {gates[chan][bnk] = randomu64();}
+	inline bool getGate(int chan) {return !((gates[chan][bank[chan]][indexStep >> 6] & (((uint64_t)1) << (uint64_t)(indexStep & 0x3F))) == 0);}
+	inline void setGate(int chan) {gates[chan][bank[chan]][indexStep >> 6] |= (((uint64_t)1) << (uint64_t)(indexStep & 0x3F));}
+	inline void clearGate(int chan) {gates[chan][bank[chan]][indexStep >> 6] &= ~(((uint64_t)1) << (uint64_t)(indexStep & 0x3F));}
+	inline void toggleGate(int chan) {gates[chan][bank[chan]][indexStep >> 6] ^= (((uint64_t)1) << (uint64_t)(indexStep & 0x3F));}
+	inline void clearGates(int chan, int bnk) {gates[chan][bnk][0] = 0; gates[chan][bnk][1] = 0;}
+	inline void randomizeGates(int chan, int bnk) {gates[chan][bnk][0] = randomu64(); gates[chan][bnk][1] = randomu64();}
 	inline void writeCV(int chan, float cvValue) {cv[chan][bank[chan]][indexStep] = cvValue;}
 	inline void writeCV(int chan, int bnk, int step, float cvValue) {cv[chan][bnk][step] = cvValue;}
 
@@ -109,13 +119,15 @@ struct BigButtonSeq2 : Module {
 
 	
 	void onReset() override {
+		writeFillsToMemory = false;
 		quantizeBig = true;
+		sampleAndHold = false;
 		indexStep = 0;
 		for (int c = 0; c < 6; c++) {
 			bank[c] = 0;
 			for (int b = 0; b < 2; b++) {
 				clearGates(c, b);
-				for (int s = 0; s < 64; s++)
+				for (int s = 0; s < 128; s++)
 					writeCV(c, b, s, 0.0f);
 			}
 		}
@@ -128,12 +140,12 @@ struct BigButtonSeq2 : Module {
 
 
 	void onRandomize() override {
-		indexStep = randomu32() % 64;
+		indexStep = randomu32() % 128;
 		for (int c = 0; c < 6; c++) {
 			bank[c] = randomu32() % 2;
 			for (int b = 0; b < 2; b++) {
 				randomizeGates(c, b);
-				for (int s = 0; s < 64; s++)
+				for (int s = 0; s < 128; s++)
 					writeCV(c, b, s, ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f);
 			}
 		}
@@ -157,29 +169,38 @@ struct BigButtonSeq2 : Module {
 			json_array_insert_new(bankJ, c, json_integer(bank[c]));
 		json_object_set_new(rootJ, "bank", bankJ);
 
-		// gates
-		json_t *gatesJ = json_array();
+		// gates LS64
+		json_t *gatesLJ = json_array();
 		for (int c = 0; c < 6; c++)
 			for (int b = 0; b < 8; b++) {// bank to store is like uint64_t to store, so go to 8
 				// first to get stored is 16 lsbits of bank 0, then next 16 bits,... to 16 msbits of bank 1
-				unsigned int intValue = (unsigned int) ( (uint64_t)0xFFFF & (gates[c][b/4] >> (uint64_t)(16 * (b % 4))) );
-				json_array_insert_new(gatesJ, b + (c << 3) , json_integer(intValue));
+				unsigned int intValue = (unsigned int) ( (uint64_t)0xFFFF & (gates[c][b/4][0] >> (uint64_t)(16 * (b % 4))) );
+				json_array_insert_new(gatesLJ, b + (c << 3) , json_integer(intValue));
 			}
-		json_object_set_new(rootJ, "gates", gatesJ);
+		json_object_set_new(rootJ, "gatesL", gatesLJ);
+		// gates MS64
+		json_t *gatesMJ = json_array();
+		for (int c = 0; c < 6; c++)
+			for (int b = 0; b < 8; b++) {// bank to store is like uint64_t to store, so go to 8
+				// first to get stored is 16 lsbits of bank 0, then next 16 bits,... to 16 msbits of bank 1
+				unsigned int intValue = (unsigned int) ( (uint64_t)0xFFFF & (gates[c][b/4][1] >> (uint64_t)(16 * (b % 4))) );
+				json_array_insert_new(gatesMJ, b + (c << 3) , json_integer(intValue));
+			}
+		json_object_set_new(rootJ, "gatesM", gatesMJ);
 
 		// CV bank 0
 		json_t *cv0J = json_array();
 		for (int c = 0; c < 6; c++) {
-			for (int s = 0; s < 64; s++) {
-				json_array_insert_new(cv0J, s + c * 64, json_real(cv[c][0][s]));
+			for (int s = 0; s < 128; s++) {
+				json_array_insert_new(cv0J, s + c * 128, json_real(cv[c][0][s]));
 			}
 		}
 		json_object_set_new(rootJ, "cv0", cv0J);
 		// CV bank 1
 		json_t *cv1J = json_array();
 		for (int c = 0; c < 6; c++) {
-			for (int s = 0; s < 64; s++) {
-				json_array_insert_new(cv1J, s + c * 64, json_real(cv[c][1][s]));
+			for (int s = 0; s < 128; s++) {
+				json_array_insert_new(cv1J, s + c * 128, json_real(cv[c][1][s]));
 			}
 		}
 		json_object_set_new(rootJ, "cv1", cv1J);
@@ -216,19 +237,34 @@ struct BigButtonSeq2 : Module {
 					bank[c] = json_integer_value(bankArrayJ);
 			}
 
-		// gates
-		json_t *gatesJ = json_object_get(rootJ, "gates");
-		uint64_t bank8ints[8] = {0,0,0,0,0,0,0,0};
-		if (gatesJ) {
+		// gates LS64
+		json_t *gatesLJ = json_object_get(rootJ, "gatesL");
+		uint64_t bank8intsL[8] = {0,0,0,0,0,0,0,0};
+		if (gatesLJ) {
 			for (int c = 0; c < 6; c++) {
 				for (int b = 0; b < 8; b++) {// bank to store is like to uint64_t to store, so go to 8
 					// first to get read is 16 lsbits of bank 0, then next 16 bits,... to 16 msbits of bank 1
-					json_t *gateJ = json_array_get(gatesJ, b + (c << 3));
-					if (gateJ)
-						bank8ints[b] = (uint64_t) json_integer_value(gateJ);
+					json_t *gateLJ = json_array_get(gatesLJ, b + (c << 3));
+					if (gateLJ)
+						bank8intsL[b] = (uint64_t) json_integer_value(gateLJ);
 				}
-				gates[c][0] = bank8ints[0] | (bank8ints[1] << (uint64_t)16) | (bank8ints[2] << (uint64_t)32) | (bank8ints[3] << (uint64_t)48);
-				gates[c][1] = bank8ints[4] | (bank8ints[5] << (uint64_t)16) | (bank8ints[6] << (uint64_t)32) | (bank8ints[7] << (uint64_t)48);
+				gates[c][0][0] = bank8intsL[0] | (bank8intsL[1] << (uint64_t)16) | (bank8intsL[2] << (uint64_t)32) | (bank8intsL[3] << (uint64_t)48);
+				gates[c][1][0] = bank8intsL[4] | (bank8intsL[5] << (uint64_t)16) | (bank8intsL[6] << (uint64_t)32) | (bank8intsL[7] << (uint64_t)48);
+			}
+		}
+		// gates MS64
+		json_t *gatesMJ = json_object_get(rootJ, "gatesM");
+		uint64_t bank8intsM[8] = {0,0,0,0,0,0,0,0};
+		if (gatesMJ) {
+			for (int c = 0; c < 6; c++) {
+				for (int b = 0; b < 8; b++) {// bank to store is like to uint64_t to store, so go to 8
+					// first to get read is 16 lsbits of bank 0, then next 16 bits,... to 16 msbits of bank 1
+					json_t *gateMJ = json_array_get(gatesMJ, b + (c << 3));
+					if (gateMJ)
+						bank8intsM[b] = (uint64_t) json_integer_value(gateMJ);
+				}
+				gates[c][0][1] = bank8intsM[0] | (bank8intsM[1] << (uint64_t)16) | (bank8intsM[2] << (uint64_t)32) | (bank8intsM[3] << (uint64_t)48);
+				gates[c][1][1] = bank8intsM[4] | (bank8intsM[5] << (uint64_t)16) | (bank8intsM[6] << (uint64_t)32) | (bank8intsM[7] << (uint64_t)48);
 			}
 		}
 		
@@ -236,8 +272,8 @@ struct BigButtonSeq2 : Module {
 		json_t *cv0J = json_object_get(rootJ, "cv0");
 		if (cv0J) {
 			for (int c = 0; c < 6; c++)
-				for (int s = 0; s < 32; s++) {
-					json_t *cv0ArrayJ = json_array_get(cv0J, s + c * 64);
+				for (int s = 0; s < 128; s++) {
+					json_t *cv0ArrayJ = json_array_get(cv0J, s + c * 128);
 					if (cv0ArrayJ)
 						cv[c][0][s] = json_number_value(cv0ArrayJ);
 				}
@@ -246,8 +282,8 @@ struct BigButtonSeq2 : Module {
 		json_t *cv1J = json_object_get(rootJ, "cv1");
 		if (cv1J) {
 			for (int c = 0; c < 6; c++)
-				for (int s = 0; s < 32; s++) {
-					json_t *cv1ArrayJ = json_array_get(cv1J, s + c * 64);
+				for (int s = 0; s < 128; s++) {
+					json_t *cv1ArrayJ = json_array_get(cv1J, s + c * 128);
 					if (cv1ArrayJ)
 						cv[c][1][s] = json_number_value(cv1ArrayJ);
 				}
@@ -283,7 +319,7 @@ struct BigButtonSeq2 : Module {
 		//********** Buttons, knobs, switches and inputs **********
 		
 		// Length
-		length = (int) clamp(roundf( params[LEN_PARAM].value + ( inputs[LEN_INPUT].active ? (inputs[LEN_INPUT].value / 10.0f * (64.0f - 1.0f)) : 0.0f ) ), 0.0f, (64.0f - 1.0f)) + 1;	
+		length = (int) clamp(roundf( params[LEN_PARAM].value + ( inputs[LEN_INPUT].active ? (inputs[LEN_INPUT].value / 10.0f * (128.0f - 1.0f)) : 0.0f ) ), 0.0f, (128.0f - 1.0f)) + 1;	
 
 		// Channel
 		float chanInputValue = inputs[CHAN_INPUT].value / 10.0f * (6.0f - 1.0f);
@@ -311,11 +347,23 @@ struct BigButtonSeq2 : Module {
 			bank[channel] = 1 - bank[channel];
 		
 		// Clear button
-		if (params[CLEAR_PARAM].value + inputs[CLEAR_INPUT].value > 0.5f) {
+		if (clearTrigger.process(params[CLEAR_PARAM].value + inputs[CLEAR_INPUT].value)) {
 			clearGates(channel, bank[channel]);
-			for (int s = 0; s < 64; s++)
+			for (int s = 0; s < 128; s++)
 				cv[channel][bank[channel]][s] = 0.0f;
 		}
+		
+		// Write fill to memory
+		if (writeFillTrigger.process(params[WRITEFILL_PARAM].value))
+			writeFillsToMemory = !writeFillsToMemory;
+
+		// Quantize big button (aka snap)
+		if (quantizeBigTrigger.process(params[QUANTIZEBIG_PARAM].value))
+			quantizeBig = !quantizeBig;
+
+		// Sample and hold
+		if (sampleHoldTrigger.process(params[SAMPLEHOLD_PARAM].value))
+			sampleAndHold = !sampleAndHold;
 		
 		// Del button
 		if (params[DEL_PARAM].value + inputs[DEL_INPUT].value > 0.5f) {
@@ -342,7 +390,7 @@ struct BigButtonSeq2 : Module {
 		//********** Clock and reset **********
 		
 		// Clock
-		if (clockTrigger.process(inputs[CLK_INPUT].value)) {
+		if (clockTrigger.process(inputs[CLK_INPUT].value + params[CLOCK_PARAM].value)) {
 			if (clockIgnoreOnReset == 0l) {
 				outPulse.trigger(0.001f);
 				outLightPulse.trigger(lightTime);
@@ -416,6 +464,10 @@ struct BigButtonSeq2 : Module {
 			lights[METRONOME_LIGHT + 1].value = metronomeLightStart;
 			lights[METRONOME_LIGHT + 0].value = metronomeLightDiv;
 		
+			// Other push button lights
+			lights[WRITEFILL_LIGHT].value = writeFillsToMemory ? 1.0f : 0.0f;
+			lights[QUANTIZEBIG_LIGHT].value = quantizeBig ? 1.0f : 0.0f;
+			lights[SAMPLEHOLD_LIGHT].value = sampleAndHold ? 1.0f : 0.0f;
 		
 			bigLight -= (bigLight / lightLambda) * (float)sampleTime * displayRefreshStepSkips;	
 			metronomeLightStart -= (metronomeLightStart / lightLambda) * (float)sampleTime * displayRefreshStepSkips;	
@@ -487,10 +539,10 @@ struct BigButtonSeq2Widget : ModuleWidget {
 
 			Vec textPos = Vec(6, 24);
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
-			nvgText(vg, textPos.x, textPos.y, "~~", NULL);
+			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
-			char displayStr[3];
-			snprintf(displayStr, 3, "%2u", (unsigned) *length);
+			char displayStr[4];
+			snprintf(displayStr, 4, "%3u", (unsigned) *length);
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
 	};
@@ -513,18 +565,6 @@ struct BigButtonSeq2Widget : ModuleWidget {
 		}
 		void step() override {
 			rightText = (module->metronomeDiv == div) ? "✔" : "";
-		}
-	};
-	struct FillModeItem : MenuItem {
-		BigButtonSeq2 *module;
-		void onAction(EventAction &e) override {
-			module->writeFillsToMemory = !module->writeFillsToMemory;
-		}
-	};
-	struct QuantizeBigItem : MenuItem {
-		BigButtonSeq2 *module;
-		void onAction(EventAction &e) override {
-			module->quantizeBig = !module->quantizeBig;
 		}
 	};
 	Menu *createContextMenu() override {
@@ -554,20 +594,6 @@ struct BigButtonSeq2Widget : ModuleWidget {
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
 
-		menu->addChild(new MenuLabel());// empty line
-		
-		MenuLabel *settingsLabel = new MenuLabel();
-		settingsLabel->text = "Settings";
-		menu->addChild(settingsLabel);
-
-		FillModeItem *fillItem = MenuItem::create<FillModeItem>("Write Fills to Memory", CHECKMARK(module->writeFillsToMemory));
-		fillItem->module = module;
-		menu->addChild(fillItem);		
-		
-		QuantizeBigItem *qtzBigItem = MenuItem::create<QuantizeBigItem>("Quantize Big Button (temporally)", CHECKMARK(module->quantizeBig));
-		qtzBigItem->module = module;
-		menu->addChild(qtzBigItem);		
-		
 		menu->addChild(new MenuLabel());// empty line
 		
 		MenuLabel *metronomeLabel = new MenuLabel();
@@ -666,7 +692,7 @@ struct BigButtonSeq2Widget : ModuleWidget {
 		// Length display
 		StepsDisplayWidget *displaySteps = new StepsDisplayWidget();
 		displaySteps->box.pos = Vec(colRulerT5 - 17, rowRuler1 + vOffsetDisplay - 1);
-		displaySteps->box.size = Vec(40, 30);// 2 characters
+		displaySteps->box.size = Vec(55, 30);// 3 characters
 		displaySteps->length = &module->length;
 		addChild(displaySteps);	
 
@@ -676,10 +702,10 @@ struct BigButtonSeq2Widget : ModuleWidget {
 		static const int lenAndRndKnobOffsetX = 90;
 		
 		// Len knob and jack
-		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter - lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq2::LEN_PARAM, 0.0f, 64.0f - 1.0f, 32.0f - 1.0f, &module->panelTheme));		
+		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter - lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq2::LEN_PARAM, 0.0f, 128.0f - 1.0f, 32.0f - 1.0f, &module->panelTheme));		
 		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - lenAndRndKnobOffsetX + knobCVjackOffsetX, rowRuler2), Port::INPUT, module, BigButtonSeq2::LEN_INPUT, &module->panelTheme));
 		// Rnd knob and jack
-		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter + lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq2::RND_PARAM, 0.0f, 100.0f, 0.0f, &module->panelTheme));		
+		addParam(createDynamicParam<IMSmallSnapKnob>(Vec(colRulerCenter + lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq2::RND_PARAM, 0.0f, 100.0f, 0.0f, &module->panelTheme));		
 		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter + lenAndRndKnobOffsetX - knobCVjackOffsetX, rowRuler2), Port::INPUT, module, BigButtonSeq2::RND_INPUT, &module->panelTheme));
 
 
@@ -730,19 +756,11 @@ struct BigButtonSeq2Widget : ModuleWidget {
 	}
 };
 
-Model *modelBigButtonSeq2 = Model::create<BigButtonSeq2, BigButtonSeq2Widget>("Impromptu Modular", "Big-Button-Test", "SEQ - Big-Button-Test", SEQUENCER_TAG);
+Model *modelBigButtonSeq2 = Model::create<BigButtonSeq2, BigButtonSeq2Widget>("Impromptu Modular", "Big-Button-Seq2", "SEQ - Big-Button-Seq2", SEQUENCER_TAG);
 
 /*CHANGE LOG
 
 0.6.11:
-add channel display
-add cv (1 input, 6 outputs)
-add big quantize option in settings
-
-0.6.10: 
-detect BPM and snap BigButton and Del to nearest beat (with timeout if beat slows down too much or stops).
-
-0.6.8:
 created
 
 */
