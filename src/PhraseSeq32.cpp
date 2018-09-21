@@ -173,7 +173,8 @@ struct PhraseSeq32 : Module {
 	HoldDetect modeHoldDetect;
 	HoldDetect gate1HoldDetect;
 	HoldDetect gate2HoldDetect;
-	
+	int lengthsBuffer[32];// buffer from Json for thread safety
+
 
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
 	inline int getStepConfig(float paramValue) {// 1 = 2x16 = 1.0f,  2 = 1x32 = 0.0f
@@ -203,6 +204,8 @@ struct PhraseSeq32 : Module {
 	
 		
 	PhraseSeq32() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
+		for (int i = 0; i < 32; i++)
+			lengthsBuffer[i] = 16;
 		onReset();
 	}
 
@@ -432,7 +435,7 @@ struct PhraseSeq32 : Module {
 			{
 				json_t *lengthsArrayJ = json_array_get(lengthsJ, i);
 				if (lengthsArrayJ)
-					lengths[i] = json_integer_value(lengthsArrayJ);
+					lengthsBuffer[i] = json_integer_value(lengthsArrayJ);
 			}
 			
 		// phrase
@@ -482,7 +485,7 @@ struct PhraseSeq32 : Module {
 		if (resetOnRunJ)
 			resetOnRun = json_is_true(resetOnRunJ);
 
-		stepConfigSync = 1;// soft only, since lengths are implicitly ok because it's a load, not a real config switch change
+		stepConfigSync = 1;// signal a sync from fromJson so that step will get lengths from lengthsBuffer
 	}
 
 	void rotateSeq(int seqNum, bool directionRight, int seqLength, bool chanB_16) {
@@ -533,11 +536,15 @@ struct PhraseSeq32 : Module {
 		// Config switch
 		if (stepConfigSync != 0) {
 			stepConfig = getStepConfig(params[CONFIG_PARAM].value);
-			initRun(true);			
-			if (stepConfigSync == 2) {// if hard sync, init lengths since souce was a real mouse drag event on the switch itself.
+			if (stepConfigSync == 1) {// sync from fromJson, so read lengths from lengthsBuffer
 				for (int i = 0; i < 32; i++)
-					lengths[i] = 16 * stepConfig;// set lengths to their new max when move switch
+					lengths[i] = lengthsBuffer[i];
 			}
+			else if (stepConfigSync == 2) {// sync from a real mouse drag event on the switch itself, so init lengths
+				for (int i = 0; i < 32; i++)
+					lengths[i] = 16 * stepConfig;
+			}
+			initRun(true);			
 			attachedChanB = false;
 			stepConfigSync = 0;
 		}
@@ -1574,7 +1581,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 		CKSSNotify() {};
 		void onDragStart(EventDragStart &e) override {
 			ToggleSwitch::onDragStart(e);
-			((PhraseSeq32*)(module))->stepConfigSync = 2;// request hard sync (reset lengths)
+			((PhraseSeq32*)(module))->stepConfigSync = 2;// signal a sync from switch so that steps get initialized
 		}	
 	};
 	

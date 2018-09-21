@@ -134,6 +134,7 @@ struct GateSeq64 : Module {
 	SchmittTrigger probTrigger;
 	BooleanTrigger editingSequenceTrigger;
 	HoldDetect modeHoldDetect;
+	int lengthsBuffer[16];// buffer from Json for thread safety
 
 	
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
@@ -193,6 +194,8 @@ struct GateSeq64 : Module {
 		
 		
 	GateSeq64() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
+		for (int i = 0; i < 16; i++)
+			lengthsBuffer[i] = 16;
 		onReset();
 	}
 
@@ -391,7 +394,7 @@ struct GateSeq64 : Module {
 			{
 				json_t *lengthsArrayJ = json_array_get(lengthsJ, i);
 				if (lengthsArrayJ)
-					lengths[i] = json_integer_value(lengthsArrayJ);
+					lengthsBuffer[i] = json_integer_value(lengthsArrayJ);
 			}			
 		}
 		
@@ -440,7 +443,7 @@ struct GateSeq64 : Module {
 		if (resetOnRunJ)
 			resetOnRun = json_is_true(resetOnRunJ);
 
-		stepConfigSync = 1;// soft only, since lengths are implicitly ok because it's a load, not a real config switch change
+		stepConfigSync = 1;// signal a sync from fromJson so that step will get lengths from lengthsBuffer
 	}
 
 	
@@ -459,11 +462,15 @@ struct GateSeq64 : Module {
 		// Config switch
 		if (stepConfigSync != 0) {
 			stepConfig = getStepConfig(params[CONFIG_PARAM].value);
-			initRun(true);	
-			if (stepConfigSync == 2) {// if hard sync, init lengths since souce was a real mouse drag event on the switch itself.
+			if (stepConfigSync == 1) {// sync from fromJson, so read lengths from lengthsBuffer
+				for (int i = 0; i < 16; i++)
+					lengths[i] = lengthsBuffer[i];
+			}
+			else if (stepConfigSync == 2) {// sync from a real mouse drag event on the switch itself, so init lengths
 				for (int i = 0; i < 16; i++)
 					lengths[i] = 16 * stepConfig;
 			}
+			initRun(true);	
 			stepConfigSync = 0;
 		}
 		
@@ -1200,7 +1207,7 @@ struct GateSeq64Widget : ModuleWidget {
 		CKSSThreeInvNotify() {};
 		void onDragStart(EventDragStart &e) override {
 			ToggleSwitch::onDragStart(e);
-			((GateSeq64*)(module))->stepConfigSync = 2;// request hard sync (reset lengths)
+			((GateSeq64*)(module))->stepConfigSync = 2;// signal a sync from switch so that steps get initialized
 		}	
 	};
 
