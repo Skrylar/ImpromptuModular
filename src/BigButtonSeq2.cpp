@@ -113,6 +113,8 @@ struct BigButtonSeq2 : Module {
 	inline void randomizeGates(int chan, int bnk) {gates[chan][bnk][0] = randomu64(); gates[chan][bnk][1] = randomu64();}
 	inline void writeCV(int chan, float cvValue) {cv[chan][bank[chan]][indexStep] = cvValue;}
 	inline void writeCV(int chan, int bnk, int step, float cvValue) {cv[chan][bnk][step] = cvValue;}
+	inline void sampleOutput() {for (int i = 0; i < 6; i++) if (getGate(i)) sampleHoldBuf[i] = cv[i][bank[i]][indexStep];}
+
 
 	
 	BigButtonSeq2() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {		
@@ -151,11 +153,6 @@ struct BigButtonSeq2 : Module {
 					writeCV(c, b, s, ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f);
 			}
 		}
-		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		//lastPeriod = 2.0;
-		//clockTime = 0.0;
-		//pendingOp = 0;
-		//pendingCV = 0.0f;
 	}
 
 	
@@ -405,8 +402,7 @@ struct BigButtonSeq2 : Module {
 				indexStep = moveIndex(indexStep, indexStep + 1, length);
 				outPulse.trigger(0.001f);
 				outLightPulse.trigger(lightTime);
-				for (int i = 0; i < 6; i++)
-					sampleHoldBuf[i] = cv[i][bank[i]][indexStep];
+				sampleOutput();
 				
 				if (pendingOp != 0)
 					performPending(channel, lightTime);// Proper pending write/del to next step which is now reached
@@ -432,8 +428,7 @@ struct BigButtonSeq2 : Module {
 			indexStep = 0;
 			outPulse.trigger(0.001f);
 			outLightPulse.trigger(0.02f);
-			for (int i = 0; i < 6; i++)
-				sampleHoldBuf[i] = cv[i][bank[i]][indexStep];
+			sampleOutput();
 			metronomeLightStart = 1.0f;
 			metronomeLightDiv = 0.0f;
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
@@ -449,9 +444,9 @@ struct BigButtonSeq2 : Module {
 		bool outPulseState = outPulse.process((float)sampleTime);
 		for (int i = 0; i < 6; i++) {
 			bool gate = getGate(i);
-			bool outSignal = (((gate || (i == channel && fillPressed)) && outPulseState) || (gate && bigPulseState && i == channel));
+			bool outSignal = ( ((gate || (i == channel && fillPressed)) && outPulseState) || (gate && bigPulseState && i == channel) );
 			outputs[CHAN_OUTPUTS + i].value = outSignal ? 10.0f : 0.0f;// TODO make this the clock pulse and not a 1ms pulse
-			outputs[CV_OUTPUTS + i].value = cv[i][bank[i]][indexStep];
+			outputs[CV_OUTPUTS + i].value = sampleAndHold ? sampleHoldBuf[i] : cv[i][bank[i]][indexStep];
 		}
 
 		
