@@ -75,16 +75,18 @@ struct DynamicSVGPanel : FramebufferWidget { // like SVGPanel (in app.hpp and SV
 template <class TDynamicPort>
 TDynamicPort* createDynamicPort(Vec pos, Port::PortType type, Module *module, int portId,
                                                int* mode) {
-	TDynamicPort *dynPort = createInput<TDynamicPort>(pos, module, portId);
-	dynPort->type = type;
+	TDynamicPort *dynPort = type == Port::INPUT ? 
+		createInput<TDynamicPort>(pos, module, portId) :
+		createOutput<TDynamicPort>(pos, module, portId);
 	dynPort->mode = mode;
 	return dynPort;
 }
 template <class TDynamicPort>
 TDynamicPort* createDynamicPortCentered(Vec pos, Port::PortType type, Module *module, int portId,
                                                int* mode) {
-	TDynamicPort *dynPort = createInput<TDynamicPort>(pos, type, module, portId);
-	dynPort->type = type;
+	TDynamicPort *dynPort = type == Port::INPUT ? 
+		createInput<TDynamicPort>(pos, module, portId) :
+		createOutput<TDynamicPort>(pos, module, portId);
 	dynPort->mode = mode;
 	dynPort->box.pos = dynPort->box.pos.minus(dynPort->box.size.div(2));// centering
 	return dynPort;
