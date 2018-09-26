@@ -441,6 +441,7 @@ struct Tact1 : Module {
 
 	enum ParamIds {
 		TACT_PARAM,// touch pad
+		ATTV_PARAM,// attenuverter
 		RATE_PARAM,// rate knob
 		EXP_PARAM,
 		NUM_PARAMS
@@ -542,7 +543,7 @@ struct Tact1 : Module {
 		
 	
 		// CV Output
-		outputs[CV_OUTPUT].value = (float)cv;
+		outputs[CV_OUTPUT].value = (float)cv * params[ATTV_PARAM].value;
 		
 		
 		lightRefreshCounter++;
@@ -621,7 +622,7 @@ struct Tact1Widget : ModuleWidget {
 		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->panelTheme));
 		
 		
-		static const int rowRuler0 = 40;
+		static const int rowRuler0 = 42;
 		static const int colRulerPad = 14;
 		
 		// Tactile touch pad
@@ -636,14 +637,18 @@ struct Tact1Widget : ModuleWidget {
 			addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerLed, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact1::TACT_LIGHTS + i * 2));
 		}
 
-		static const int rowRuler2 = 263;// rate and exp
+		static const int rowRuler2 = 279;// rate and exp
+		static const int offsetFromSide2 = 25;
 		// Rate knob
-		addParam(createDynamicParam<IMSmallKnob>(Vec(15 + offsetIMSmallKnob, rowRuler2 + offsetIMSmallKnob), module, Tact1::RATE_PARAM, 0.0f, 4.0f, 0.2f, &module->panelTheme));
-		// Exp switch
-		addParam(createParam<CKSS>(Vec(56 + hOffsetCKSS, rowRuler2 + vOffsetCKSS), module, Tact1::EXP_PARAM, 0.0f, 1.0f, 0.0f));		
-
+		addParam(createDynamicParamCentered<IMSmallKnob>(Vec(offsetFromSide2, rowRuler2), module, Tact1::RATE_PARAM, 0.0f, 4.0f, 0.2f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMSmallKnob>(Vec(box.size.x - offsetFromSide2, rowRuler2), module, Tact1::ATTV_PARAM, -1.0f, 1.0f, 1.0f, &module->panelTheme));
+		
+		static const int rowRuler3 = 318;
+		
 		// Output
-		addOutput(createDynamicPort<IMPort>(Vec(40, 316), Port::OUTPUT, module, Tact1::CV_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(28, rowRuler3), Port::OUTPUT, module, Tact1::CV_OUTPUT, &module->panelTheme));
+		// Exp switch
+		addParam(createParam<CKSS>(Vec(61 + hOffsetCKSS, rowRuler3 + vOffsetCKSS), module, Tact1::EXP_PARAM, 0.0f, 1.0f, 0.0f));		
 	}
 };
 
