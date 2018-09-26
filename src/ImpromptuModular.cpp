@@ -19,6 +19,7 @@ void init(rack::Plugin *p) {
 	p->version = TOSTRING(VERSION);
 
 	p->addModel(modelTact);
+	p->addModel(modelTact1);
 	p->addModel(modelTwelveKey);
 	p->addModel(modelClocked);
 	//p->addModel(modelMidiFile);

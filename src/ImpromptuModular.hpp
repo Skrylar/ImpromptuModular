@@ -22,6 +22,7 @@ extern Plugin *plugin;
 
 // All modules that are part of plugin go here
 extern Model *modelTact;
+extern Model *modelTact1;
 extern Model *modelTwelveKey;
 extern Model *modelClocked;
 extern Model *modelMidiFile;

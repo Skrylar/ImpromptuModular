@@ -433,9 +433,230 @@ struct TactWidget : ModuleWidget {
 	}
 };
 
+
+//*****************************************************************************
+
+struct Tact1 : Module {
+	static const int numLights = 10;// number of lights per channel
+
+	enum ParamIds {
+		TACT_PARAM,// touch pad
+		RATE_PARAM,// rate knob
+		EXP_PARAM,
+		NUM_PARAMS
+	};
+	enum InputIds {
+		NUM_INPUTS
+	};
+	enum OutputIds {
+		CV_OUTPUT,
+		NUM_OUTPUTS
+	};
+	enum LightIds {
+		ENUMS(TACT_LIGHTS, numLights * 2), // (*2 for GreenRed)
+		NUM_LIGHTS
+	};
+		
+	// Need to save
+	int panelTheme = 0;
+	double cv;// actual Tact CV since Tactknob can be different than these when transitioning
+
+	// No need to save
+	unsigned int lightRefreshCounter = 0;	
+	
+	inline bool isExpSliding(void) {return params[EXP_PARAM].value > 0.5f;}
+
+	
+	Tact1() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
+		onReset();
+	}
+
+	
+	void onReset() override {
+		cv = 0.0f;
+	}
+
+	
+	void onRandomize() override {
+		cv = clamp(params[TACT_PARAM].value, 0.0f, 10.0f);
+	}
+
+	
+	json_t *toJson() override {
+		json_t *rootJ = json_object();
+
+		// cv
+		json_object_set_new(rootJ, "cv", json_real(cv));
+		
+		// panelTheme
+		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
+
+		return rootJ;
+	}
+
+	
+	void fromJson(json_t *rootJ) override {
+
+		// cv
+		json_t *cvJ = json_object_get(rootJ, "cv");
+		if (cvJ)
+			cv = json_number_value(cvJ);
+
+		// panelTheme
+		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
+		if (panelThemeJ)
+			panelTheme = json_integer_value(panelThemeJ);
+	}
+
+	
+	void step() override {		
+		float sampleTime = engineGetSampleTime();
+		
+		// cv
+		bool expSliding = isExpSliding();
+		float newParamValue = clamp(params[TACT_PARAM].value, 0.0f, 10.0f);
+		if (newParamValue != cv) {
+			double transitionRate = params[RATE_PARAM].value; // s/V
+			double dt = sampleTime;
+			if ((newParamValue - cv) > 0.001f && transitionRate > 0.001) {
+				double dV = expSliding ? (cv + 1.0) * (pow(11.0, dt / (10.0 * transitionRate)) - 1.0) : dt/transitionRate;
+				double newCV = cv + dV;
+				if (newCV > newParamValue)
+					cv = newParamValue;
+				else
+					cv = (float)newCV;
+			}
+			else if ((newParamValue - cv) < -0.001f && transitionRate > 0.001) {
+				dt *= -1.0;
+				double dV = expSliding ? (cv + 1.0) * (pow(11.0, dt / (10.0 * transitionRate)) - 1.0) : dt/transitionRate;
+				double newCV = cv + dV;
+				if (newCV < newParamValue)
+					cv = newParamValue;
+				else
+					cv = (float)newCV;
+			}
+			else {// too close to target or rate too fast, thus no slide
+				cv = newParamValue;	
+			}
+		}
+		
+	
+		// CV Output
+		outputs[CV_OUTPUT].value = (float)cv;
+		
+		
+		lightRefreshCounter++;
+		if (lightRefreshCounter > displayRefreshStepSkips) {
+			lightRefreshCounter = 0;
+
+			setTLights();
+		}
+	}
+	
+	void setTLights() {
+		float cvValue = (float)cv;
+		for (int i = 0; i < numLights; i++) {
+			float level = clamp( cvValue - ((float)(i)), 0.0f, 1.0f);
+			// Green diode
+			lights[TACT_LIGHTS + (numLights - 1 - i) * 2 + 0].setBrightness(level);
+			// Red diode
+			lights[TACT_LIGHTS + (numLights - 1 - i) * 2 + 1].value = 0.0f;
+		}
+	}
+};
+
+struct Tact1Widget : ModuleWidget {
+
+	struct PanelThemeItem : MenuItem {
+		Tact1 *module;
+		int theme;
+		void onAction(EventAction &e) override {
+			module->panelTheme = theme;
+		}
+		void step() override {
+			rightText = (module->panelTheme == theme) ? "✔" : "";
+		}
+	};
+	Menu *createContextMenu() override {
+		Menu *menu = ModuleWidget::createContextMenu();
+
+		MenuLabel *spacerLabel = new MenuLabel();
+		menu->addChild(spacerLabel);
+
+		Tact1 *module = dynamic_cast<Tact1*>(this->module);
+		assert(module);
+
+		MenuLabel *themeLabel = new MenuLabel();
+		themeLabel->text = "Panel Theme";
+		menu->addChild(themeLabel);
+
+		PanelThemeItem *lightItem = new PanelThemeItem();
+		lightItem->text = lightPanelID;// ImpromptuModular.hpp
+		lightItem->module = module;
+		lightItem->theme = 0;
+		menu->addChild(lightItem);
+
+		PanelThemeItem *darkItem = new PanelThemeItem();
+		darkItem->text = darkPanelID;// ImpromptuModular.hpp
+		darkItem->module = module;
+		darkItem->theme = 1;
+		menu->addChild(darkItem);
+
+		return menu;
+	}	
+	
+	Tact1Widget(Tact1 *module) : ModuleWidget(module) {
+		// Main panel from Inkscape
+        DynamicSVGPanel *panel = new DynamicSVGPanel();
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Tact1.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Tact1.svg")));
+        box.size = panel->box.size;
+        panel->mode = &module->panelTheme;
+        addChild(panel);
+
+		// Screws
+		addChild(createDynamicScrew<IMScrew>(Vec(15, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(15, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->panelTheme));
+		
+		
+		static const int rowRuler0 = 40;
+		static const int colRulerPad = 14;
+		
+		// Tactile touch pad
+		addParam(createDynamicParam2<IMTactile>(Vec(colRulerPad, rowRuler0), module, Tact1::TACT_PARAM, -1.0f, 11.0f, 0.0f, nullptr, nullptr));
+			
+		static const int colRulerLed = colRulerPad + 56;
+		static const int lightsOffsetY = 19;
+		static const int lightsSpacingY = 17;
+				
+		// Tactile lights
+		for (int i = 0 ; i < Tact1::numLights; i++) {
+			addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerLed, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact1::TACT_LIGHTS + i * 2));
+		}
+
+		static const int rowRuler2 = 263;// rate and exp
+		// Rate knob
+		addParam(createDynamicParam<IMSmallKnob>(Vec(15 + offsetIMSmallKnob, rowRuler2 + offsetIMSmallKnob), module, Tact1::RATE_PARAM, 0.0f, 4.0f, 0.2f, &module->panelTheme));
+		// Exp switch
+		addParam(createParam<CKSS>(Vec(56 + hOffsetCKSS, rowRuler2 + vOffsetCKSS), module, Tact1::EXP_PARAM, 0.0f, 1.0f, 0.0f));		
+
+		// Output
+		addOutput(createDynamicPort<IMPort>(Vec(40, 316), Port::OUTPUT, module, Tact1::CV_OUTPUT, &module->panelTheme));
+	}
+};
+
+
+//*****************************************************************************
+
 Model *modelTact = Model::create<Tact, TactWidget>("Impromptu Modular", "Tact", "CTRL - Tact", CONTROLLER_TAG);
+Model *modelTact1 = Model::create<Tact1, Tact1Widget>("Impromptu Modular", "Tact1", "CTRL - Tact-1", CONTROLLER_TAG);
 
 /*CHANGE LOG
+
+0.6.11:
+create Tact-1
 
 0.6.9:
 move EOC outputs to main panel and remove expansion panel
