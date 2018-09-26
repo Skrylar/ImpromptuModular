@@ -648,7 +648,7 @@ struct Tact1Widget : ModuleWidget {
 		// Output
 		addOutput(createDynamicPort<IMPort>(Vec(28, rowRuler3), Port::OUTPUT, module, Tact1::CV_OUTPUT, &module->panelTheme));
 		// Exp switch
-		addParam(createParam<CKSS>(Vec(61 + hOffsetCKSS, rowRuler3 + vOffsetCKSS), module, Tact1::EXP_PARAM, 0.0f, 1.0f, 0.0f));		
+		addParam(createParam<CKSS>(Vec(61 + hOffsetCKSS, rowRuler3 + 2 + vOffsetCKSS), module, Tact1::EXP_PARAM, 0.0f, 1.0f, 0.0f));		
 	}
 };
 
