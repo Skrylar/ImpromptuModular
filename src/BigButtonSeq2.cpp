@@ -99,7 +99,7 @@ struct BigButtonSeq2 : Module {
 	SchmittTrigger writeFillTrigger;
 	SchmittTrigger quantizeBigTrigger;
 	SchmittTrigger sampleHoldTrigger;
-	PulseGenerator outPulse;
+	//PulseGenerator outPulse;
 	PulseGenerator outLightPulse;
 	PulseGenerator bigPulse;
 	PulseGenerator bigLightPulse;
@@ -384,8 +384,10 @@ struct BigButtonSeq2 : Module {
 
 		// Fill button
 		bool fillPressed = (params[FILL_PARAM].value + inputs[FILL_INPUT].value) > 0.5f;
-		if (fillPressed && writeFillsToMemory)
+		if (fillPressed && writeFillsToMemory) {
 			setGate(channel);// bank and indexStep are global
+			writeCV(channel, inputs[CV_INPUT].value);
+		}
 
 
 		// Pending timeout (write/del current step)
@@ -400,7 +402,7 @@ struct BigButtonSeq2 : Module {
 		if (clockTrigger.process(inputs[CLK_INPUT].value + params[CLOCK_PARAM].value)) {
 			if (clockIgnoreOnReset == 0l) {			
 				indexStep = moveIndex(indexStep, indexStep + 1, length);
-				outPulse.trigger(0.001f);
+				//outPulse.trigger(0.001f);
 				outLightPulse.trigger(lightTime);
 				sampleOutput();
 				
@@ -426,7 +428,7 @@ struct BigButtonSeq2 : Module {
 		// Reset
 		if (resetTrigger.process(params[RESET_PARAM].value + inputs[RESET_INPUT].value)) {
 			indexStep = 0;
-			outPulse.trigger(0.001f);
+			//outPulse.trigger(0.001f);
 			outLightPulse.trigger(0.02f);
 			sampleOutput();
 			metronomeLightStart = 1.0f;
@@ -441,7 +443,7 @@ struct BigButtonSeq2 : Module {
 		
 		// Gate outputs
 		bool bigPulseState = bigPulse.process((float)sampleTime);
-		bool outPulseState = outPulse.process((float)sampleTime);
+		bool outPulseState = clockTrigger.isHigh();//outPulse.process((float)sampleTime);
 		for (int i = 0; i < 6; i++) {
 			bool gate = getGate(i);
 			bool outSignal = ( ((gate || (i == channel && fillPressed)) && outPulseState) || (gate && bigPulseState && i == channel) );

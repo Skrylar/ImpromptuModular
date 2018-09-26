@@ -13,7 +13,7 @@
    version="1.1"
    id="svg72"
    sodipodi:docname="BigButtonSeq2.svg"
-   inkscape:version="0.92.3 (2405546, 2018-03-11)">
+   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)">
   <metadata
      id="metadata78">
     <rdf:RDF>
@@ -41,9 +41,9 @@
      inkscape:window-height="1017"
      id="namedview74"
      showgrid="false"
-     inkscape:zoom="3.1559292"
-     inkscape:cx="134.45416"
-     inkscape:cy="153.68652"
+     inkscape:zoom="4.4631579"
+     inkscape:cx="146.33656"
+     inkscape:cy="241.13455"
      inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
@@ -64,6 +64,21 @@
        position="19.617908,62.123352"
        orientation="1,0"
        id="guide921"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="71.764642,63.045573"
+       orientation="1,0"
+       id="guide925"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="7.5453478,60.530457"
+       orientation="1,0"
+       id="guide927"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="34.324192,19.918702"
+       orientation="1,0"
+       id="guide974"
        inkscape:locked="false" />
   </sodipodi:namedview>
   <path
@@ -187,7 +202,7 @@
   <g
      id="g26"
      style="line-height:1.25"
-     transform="translate(-26.424436,-186.97184)">
+     transform="translate(-26.013831,-186.97184)">
     <path
        inkscape:connector-curvature="0"
        id="path24"
@@ -535,4 +550,34 @@
      inkscape:connector-curvature="0"
      id="path68-7-8-32-9-5"
      d="m 60.446621,41.264338 v 2.01084" />
+  <path
+     style="fill:none;stroke:#000000;stroke-width:0.132"
+     inkscape:connector-curvature="0"
+     id="path68-7-8-32-9-5-5"
+     d="m 60.44662,55.945802 v 0.952503" />
+  <path
+     style="fill:none;stroke:#000000;stroke-width:0.132"
+     inkscape:connector-curvature="0"
+     id="path68-7-8-32-9-5-5-3"
+     d="m 71.796189,54.887478 v 2.01084" />
+  <path
+     style="fill:none;stroke:#000000;stroke-width:0.132"
+     inkscape:connector-curvature="0"
+     id="path68-7-8-32-9-5-5-3-4"
+     d="m 7.4962372,55.945813 v 0.952503" />
+  <path
+     style="fill:none;stroke:#000000;stroke-width:0.132"
+     inkscape:connector-curvature="0"
+     id="path68-7-8-32-9-5-5-3-4-0"
+     d="m 19.617908,44.039522 v 0.952503" />
+  <path
+     style="fill:none;stroke:#000000;stroke-width:0.132"
+     inkscape:connector-curvature="0"
+     id="path68-7-8-32-9-5-5-3-4-0-4"
+     d="m 34.324192,36.366578 v 0.952503" />
+  <path
+     style="fill:none;stroke:#000000;stroke-width:0.132"
+     inkscape:connector-curvature="0"
+     id="path68-7-8-32-9-5-5-3-4-0-8"
+     d="m 48.241508,44.039522 v 0.952503" />
 </svg>

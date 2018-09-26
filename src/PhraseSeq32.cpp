@@ -377,6 +377,12 @@ struct PhraseSeq32 : Module {
 		// resetOnRun
 		json_object_set_new(rootJ, "resetOnRun", json_boolean(resetOnRun));
 		
+		// stepIndexEdit
+		json_object_set_new(rootJ, "stepIndexEdit", json_integer(stepIndexEdit));
+	
+		// phraseIndexEdit
+		json_object_set_new(rootJ, "phraseIndexEdit", json_integer(phraseIndexEdit));
+
 		return rootJ;
 	}
 
@@ -485,6 +491,16 @@ struct PhraseSeq32 : Module {
 		if (resetOnRunJ)
 			resetOnRun = json_is_true(resetOnRunJ);
 
+		// stepIndexEdit
+		json_t *stepIndexEditJ = json_object_get(rootJ, "stepIndexEdit");
+		if (stepIndexEditJ)
+			stepIndexEdit = json_integer_value(stepIndexEditJ);
+		
+		// phraseIndexEdit
+		json_t *phraseIndexEditJ = json_object_get(rootJ, "phraseIndexEdit");
+		if (phraseIndexEditJ)
+			phraseIndexEdit = json_integer_value(phraseIndexEditJ);
+		
 		stepConfigSync = 1;// signal a sync from fromJson so that step will get lengths from lengthsBuffer
 	}
 
