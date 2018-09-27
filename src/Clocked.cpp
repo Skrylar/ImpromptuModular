@@ -534,7 +534,7 @@ struct Clocked : Module {
 			if (clk[0].isReset()) {
 				// See if ratio knobs changed (or unitinialized)
 				for (int i = 1; i < 4; i++) {
-					if (syncRatios[i]) {// always false for master
+					if (syncRatios[i]) {// unused for master (undetermined state)
 						clk[i].reset();// force reset (thus refresh) of that sub-clock
 						ratiosDoubled[i] = getRatioDoubled(i);//newRatiosDoubled[i];
 						syncRatios[i] = false;
@@ -855,12 +855,13 @@ struct ClockedWidget : ModuleWidget {
 	};
 	struct IMBigSnapKnobNotify : IMBigSnapKnob {
 		IMBigSnapKnobNotify() {};
-		void onDragMove(EventDragMove &e) override {
+		void onChange(EventChange &e) override {
 			int dispIndex = 0;
 			if ( (paramId >= Clocked::RATIO_PARAMS + 1) && (paramId <= Clocked::RATIO_PARAMS + 3) )
 				dispIndex = paramId - Clocked::RATIO_PARAMS;
 			((Clocked*)(module))->syncRatios[dispIndex] = true;
-			Knob::onDragMove(e);
+			((Clocked*)(module))->notifyInfo[dispIndex] = 0l;
+			SVGKnob::onChange(e);		
 		}
 	};
 
