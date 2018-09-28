@@ -99,6 +99,7 @@ struct BigButtonSeq2 : Module {
 	SchmittTrigger writeFillTrigger;
 	SchmittTrigger quantizeBigTrigger;
 	SchmittTrigger sampleHoldTrigger;
+	SchmittTrigger internalSHTriggers[6];
 	//PulseGenerator outPulse;
 	PulseGenerator outLightPulse;
 	PulseGenerator bigPulse;
@@ -113,7 +114,7 @@ struct BigButtonSeq2 : Module {
 	inline void randomizeGates(int chan, int bnk) {gates[chan][bnk][0] = randomu64(); gates[chan][bnk][1] = randomu64();}
 	inline void writeCV(int chan, float cvValue) {cv[chan][bank[chan]][indexStep] = cvValue;}
 	inline void writeCV(int chan, int bnk, int step, float cvValue) {cv[chan][bnk][step] = cvValue;}
-	inline void sampleOutput() {for (int i = 0; i < 6; i++) if (getGate(i)) sampleHoldBuf[i] = cv[i][bank[i]][indexStep];}
+	inline void sampleOutput(int chan) {sampleHoldBuf[chan] = cv[chan][bank[chan]][indexStep];}
 
 
 	
@@ -386,7 +387,8 @@ struct BigButtonSeq2 : Module {
 		bool fillPressed = (params[FILL_PARAM].value + inputs[FILL_INPUT].value) > 0.5f;
 		if (fillPressed && writeFillsToMemory) {
 			setGate(channel);// bank and indexStep are global
-			writeCV(channel, inputs[CV_INPUT].value);
+			//if (sampleAndHold)
+				//writeCV(channel, sampleHoldBuf[channel]);
 		}
 
 
@@ -404,7 +406,6 @@ struct BigButtonSeq2 : Module {
 				indexStep = moveIndex(indexStep, indexStep + 1, length);
 				//outPulse.trigger(0.001f);
 				outLightPulse.trigger(lightTime);
-				sampleOutput();
 				
 				if (pendingOp != 0)
 					performPending(channel, lightTime);// Proper pending write/del to next step which is now reached
@@ -430,7 +431,6 @@ struct BigButtonSeq2 : Module {
 			indexStep = 0;
 			//outPulse.trigger(0.001f);
 			outLightPulse.trigger(0.02f);
-			sampleOutput();
 			metronomeLightStart = 1.0f;
 			metronomeLightDiv = 0.0f;
 			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
@@ -447,7 +447,10 @@ struct BigButtonSeq2 : Module {
 		for (int i = 0; i < 6; i++) {
 			bool gate = getGate(i);
 			bool outSignal = ( ((gate || (i == channel && fillPressed)) && outPulseState) || (gate && bigPulseState && i == channel) );
-			outputs[CHAN_OUTPUTS + i].value = outSignal ? 10.0f : 0.0f;// TODO make this the clock pulse and not a 1ms pulse
+			float outGateValue = outSignal ? 10.0f : 0.0f;
+			if (internalSHTriggers[i].process(outGateValue))
+				sampleOutput(i);
+			outputs[CHAN_OUTPUTS + i].value = outGateValue;
 			outputs[CV_OUTPUTS + i].value = sampleAndHold ? sampleHoldBuf[i] : cv[i][bank[i]][indexStep];
 		}
 
