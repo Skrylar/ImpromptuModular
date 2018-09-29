@@ -20,7 +20,7 @@ Impromptu Modular is not a single-person endeavor:
 * Thanks to **Steve Baker** for many fruitful discussions regarding the BPM Detection method in Clocked, testing and improvements that were suggested for that module. 
 * Thanks to **Omri Cohen** for testing and suggesting improvements to the modules, and for the [PhraseSeq16/32 tutorial](https://www.youtube.com/watch?v=N8_rMNzsS7w) and the [advanceed gate mode tutorial](https://www.youtube.com/watch?v=B2w0_h5oN6M).
 * Thanks to **Latif Karoumi** for [testing](https://www.youtube.com/watch?v=5PZCXvWlFZM) and suggesting improvement to the modules, particularly the advanced gate modes in the GateSeq64 and PhraseSeq sequencers.
-* Thanks also to **Pyer (Pierre Collard)**, **Alfredo Santamaria**, **Nay Seven**, **Alberto Zamora**, **Clément Foulc**, **Espen Storø**, **Wouter Spekkink**, **Jakub Mudrák**, **Georg Carlson**, **Jean-Sébastien Monzani**, **John Melcher** for suggesting improvements to the modules, bug reports and testing.
+* Thanks also to **Pyer (Pierre Collard)**, **Alfredo Santamaria**, **Nay Seven**, **Alberto Zamora**, **Clément Foulc**, **Espen Storø**, **Wouter Spekkink**, **Jakub Mudrák**, **Georg Carlson**, **Jean-Sébastien Monzani**, **John Melcher**, **Paul Piko** for suggesting improvements to the modules, bug reports and testing.
 
 
 

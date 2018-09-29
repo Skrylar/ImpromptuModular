@@ -48,6 +48,7 @@ struct Tact : Module {
 	int panelTheme = 0;
 	double cv[2];// actual Tact CV since Tactknob can be different than these when transitioning
 	float storeCV[2];
+	float rateMultiplier;
 
 	// No need to save
 	long infoStore;// 0 when no info, positive downward step counter when store left channel, negative upward for right
@@ -77,6 +78,7 @@ struct Tact : Module {
 			cv[i] = 0.0f;
 			storeCV[i] = 0.0f;
 		}
+		rateMultiplier = 1.0f;
 		infoStore = 0l;
 	}
 
@@ -98,6 +100,9 @@ struct Tact : Module {
 		// storeCV
 		json_object_set_new(rootJ, "storeCV0", json_real(storeCV[0]));
 		json_object_set_new(rootJ, "storeCV1", json_real(storeCV[1]));
+		
+		// rateMultiplier
+		json_object_set_new(rootJ, "rateMultiplier", json_real(rateMultiplier));
 		
 		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
@@ -123,6 +128,11 @@ struct Tact : Module {
 		json_t *storeCV1J = json_object_get(rootJ, "storeCV1");
 		if (storeCV1J)
 			storeCV[1] = json_number_value(storeCV1J);
+
+		// rateMultiplier
+		json_t *rateMultiplierJ = json_object_get(rootJ, "rateMultiplier");
+		if (rateMultiplierJ)
+			rateMultiplier = json_number_value(rateMultiplierJ);
 
 		// panelTheme
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
@@ -181,7 +191,7 @@ struct Tact : Module {
 				continue;			
 			float newParamValue = clamp(params[TACT_PARAMS + i].value, 0.0f, 10.0f);
 			if (newParamValue != cv[i]) {
-				double transitionRate = params[RATE_PARAMS + i].value; // s/V
+				double transitionRate = params[RATE_PARAMS + i].value * rateMultiplier; // s/V
 				double dt = sampleTime;
 				if ((newParamValue - cv[i]) > 0.001f && transitionRate > 0.001) {
 					double dV = expSliding ? (cv[i] + 1.0) * (pow(11.0, dt / (10.0 * transitionRate)) - 1.0) : dt/transitionRate;
@@ -291,6 +301,15 @@ struct TactWidget : ModuleWidget {
 			rightText = (module->panelTheme == theme) ? "✔" : "";
 		}
 	};
+	struct ExtendRateItem : MenuItem {
+		Tact *module;
+		void onAction(EventAction &e) override {
+			if (module->rateMultiplier < 2.0f)
+				module->rateMultiplier = 3.0f;
+			else
+				module->rateMultiplier = 1.0f;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -315,6 +334,16 @@ struct TactWidget : ModuleWidget {
 		darkItem->module = module;
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
+
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *settingsLabel = new MenuLabel();
+		settingsLabel->text = "Settings";
+		menu->addChild(settingsLabel);
+		
+		ExtendRateItem *extRateItem = MenuItem::create<ExtendRateItem>("Rate knob x3 (max 12 s/V)", CHECKMARK(module->rateMultiplier > 2.0f));
+		extRateItem->module = module;
+		menu->addChild(extRateItem);
 
 		return menu;
 	}	
@@ -461,6 +490,7 @@ struct Tact1 : Module {
 	// Need to save
 	int panelTheme = 0;
 	double cv;// actual Tact CV since Tactknob can be different than these when transitioning
+	float rateMultiplier;
 
 	// No need to save
 	unsigned int lightRefreshCounter = 0;	
@@ -475,6 +505,7 @@ struct Tact1 : Module {
 	
 	void onReset() override {
 		cv = 0.0f;
+		rateMultiplier = 1.0f;
 	}
 
 	
@@ -488,6 +519,9 @@ struct Tact1 : Module {
 
 		// cv
 		json_object_set_new(rootJ, "cv", json_real(cv));
+		
+		// rateMultiplier
+		json_object_set_new(rootJ, "rateMultiplier", json_real(rateMultiplier));
 		
 		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
@@ -503,6 +537,11 @@ struct Tact1 : Module {
 		if (cvJ)
 			cv = json_number_value(cvJ);
 
+		// rateMultiplier
+		json_t *rateMultiplierJ = json_object_get(rootJ, "rateMultiplier");
+		if (rateMultiplierJ)
+			rateMultiplier = json_number_value(rateMultiplierJ);
+
 		// panelTheme
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
@@ -517,7 +556,7 @@ struct Tact1 : Module {
 		bool expSliding = isExpSliding();
 		float newParamValue = clamp(params[TACT_PARAM].value, 0.0f, 10.0f);
 		if (newParamValue != cv) {
-			double transitionRate = params[RATE_PARAM].value; // s/V
+			double transitionRate = params[RATE_PARAM].value * rateMultiplier; // s/V
 			double dt = sampleTime;
 			if ((newParamValue - cv) > 0.001f && transitionRate > 0.001) {
 				double dV = expSliding ? (cv + 1.0) * (pow(11.0, dt / (10.0 * transitionRate)) - 1.0) : dt/transitionRate;
@@ -578,6 +617,15 @@ struct Tact1Widget : ModuleWidget {
 			rightText = (module->panelTheme == theme) ? "✔" : "";
 		}
 	};
+	struct ExtendRateItem : MenuItem {
+		Tact1 *module;
+		void onAction(EventAction &e) override {
+			if (module->rateMultiplier < 2.0f)
+				module->rateMultiplier = 3.0f;
+			else
+				module->rateMultiplier = 1.0f;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -602,6 +650,16 @@ struct Tact1Widget : ModuleWidget {
 		darkItem->module = module;
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
+
+		menu->addChild(new MenuLabel());// empty line
+		
+		MenuLabel *settingsLabel = new MenuLabel();
+		settingsLabel->text = "Settings";
+		menu->addChild(settingsLabel);
+		
+		ExtendRateItem *extRateItem = MenuItem::create<ExtendRateItem>("Rate knob x3 (max 12 s/V)", CHECKMARK(module->rateMultiplier > 2.0f));
+		extRateItem->module = module;
+		menu->addChild(extRateItem);
 
 		return menu;
 	}	
@@ -662,6 +720,7 @@ Model *modelTact1 = Model::create<Tact1, Tact1Widget>("Impromptu Modular", "Tact
 
 0.6.11:
 create Tact-1
+add right click option for rate x3
 
 0.6.9:
 move EOC outputs to main panel and remove expansion panel
