@@ -11,6 +11,7 @@
 //Module concept by Marc Boulé
 //***********************************************************************************************
 
+//http://www.music.mcgill.ca/~ich/classes/mumt306/StandardMIDIfileformat.html
 
 #include "ImpromptuModular.hpp"
 #include "midifile/MidiFile.h"
