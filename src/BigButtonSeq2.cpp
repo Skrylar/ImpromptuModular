@@ -82,7 +82,7 @@ struct BigButtonSeq2 : Module {
 	double clockTime;//clock time counter (time since last clock)
 	int pendingOp;// 0 means nothing pending, +1 means pending big button push, -1 means pending del
 	float pendingCV;// 
-
+	bool fillPressed;
 
 	unsigned int lightRefreshCounter = 0;	
 	float bigLight = 0.0f;
@@ -141,6 +141,7 @@ struct BigButtonSeq2 : Module {
 		clockTime = 0.0;
 		pendingOp = 0;
 		pendingCV = 0.0f;
+		fillPressed = false;
 	}
 
 
@@ -375,7 +376,7 @@ struct BigButtonSeq2 : Module {
 		
 		// Del button
 		if (params[DEL_PARAM].value + inputs[DEL_INPUT].value > 0.5f) {
-			if (clockTime > (lastPeriod / 2.0) && clockTime <= (lastPeriod * 1.01))// allow for 1% clock jitter
+			if (quantizeBig && (clockTime > (lastPeriod / 2.0)) && (clockTime <= (lastPeriod * 1.01)))// allow for 1% clock jitter
 				pendingOp = -1;// overrides the pending write if it exists
 			else {
 				clearGate(channel);// bank and indexStep are global
@@ -383,19 +384,9 @@ struct BigButtonSeq2 : Module {
 			}
 		}
 
-		// Fill button
-		bool fillPressed = (params[FILL_PARAM].value + inputs[FILL_INPUT].value) > 0.5f;
-		if (fillPressed && writeFillsToMemory) {
-			setGate(channel);// bank and indexStep are global
-			//if (sampleAndHold)
-				//writeCV(channel, sampleHoldBuf[channel]);
-		}
-
-
 		// Pending timeout (write/del current step)
 		if (pendingOp != 0 && clockTime > (lastPeriod * 1.01) ) 
 			performPending(channel, lightTime);
-
 		
 		
 		//********** Clock and reset **********
@@ -404,6 +395,14 @@ struct BigButtonSeq2 : Module {
 		if (clockTrigger.process(inputs[CLK_INPUT].value + params[CLOCK_PARAM].value)) {
 			if (clockIgnoreOnReset == 0l) {			
 				indexStep = moveIndex(indexStep, indexStep + 1, length);
+				
+				// Fill button
+				fillPressed = (params[FILL_PARAM].value + inputs[FILL_INPUT].value) > 0.5f;// used in clock block and others
+				if (fillPressed && writeFillsToMemory) {
+					setGate(channel);// bank and indexStep are global
+					writeCV(channel, sampleHoldBuf[channel]);
+				}
+				
 				//outPulse.trigger(0.001f);
 				outLightPulse.trigger(lightTime);
 				

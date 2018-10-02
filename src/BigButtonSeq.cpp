@@ -75,7 +75,8 @@ struct BigButtonSeq : Module {
 	double lastPeriod;//2.0 when not seen yet (init or stopped clock and went greater than 2s, which is max period supported for time-snap)
 	double clockTime;//clock time counter (time since last clock)
 	int pendingOp;// 0 means nothing pending, +1 means pending big button push, -1 means pending del
-
+	bool fillPressed;
+	
 
 	unsigned int lightRefreshCounter = 0;	
 	float bigLight = 0.0f;
@@ -119,6 +120,7 @@ struct BigButtonSeq : Module {
 		lastPeriod = 2.0;
 		clockTime = 0.0;
 		pendingOp = 0;
+		fillPressed = false;
 	}
 
 
@@ -266,17 +268,11 @@ struct BigButtonSeq : Module {
 		
 		// Del button
 		if (params[DEL_PARAM].value + inputs[DEL_INPUT].value > 0.5f) {
-			if (clockTime > (lastPeriod / 2.0) && clockTime <= (lastPeriod * 1.01))// allow for 1% clock jitter
+			if (quantizeBig && (clockTime > (lastPeriod / 2.0)) && (clockTime <= (lastPeriod * 1.01)))// allow for 1% clock jitter
 				pendingOp = -1;// overrides the pending write if it exists
 			else 
 				clearGate(chan);// bank and indexStep are global
 		}
-
-		// Fill button
-		bool fillPressed = (params[FILL_PARAM].value + inputs[FILL_INPUT].value) > 0.5f;
-		if (fillPressed && writeFillsToMemory)
-			setGate(chan);// bank and indexStep are global
-
 
 		// Pending timeout (write/del current step)
 		if (pendingOp != 0 && clockTime > (lastPeriod * 1.01) ) 
@@ -290,16 +286,22 @@ struct BigButtonSeq : Module {
 		if (quantizeBigTrigger.process(params[QUANTIZEBIG_PARAM].value))
 			quantizeBig = !quantizeBig;
 		
+
 		
 		//********** Clock and reset **********
 		
 		// Clock
 		if (clockTrigger.process(inputs[CLK_INPUT].value)) {
 			if (clockIgnoreOnReset == 0l) {
+				indexStep = moveIndex(indexStep, indexStep + 1, len);
+				
+				// Fill button
+				fillPressed = (params[FILL_PARAM].value + inputs[FILL_INPUT].value) > 0.5f;
+				if (fillPressed && writeFillsToMemory)
+					setGate(chan);// bank and indexStep are global
+				
 				outPulse.trigger(0.001f);
 				outLightPulse.trigger(lightTime);
-				
-				indexStep = moveIndex(indexStep, indexStep + 1, len);
 				
 				if (pendingOp != 0)
 					performPending(chan, lightTime);// Proper pending write/del to next step which is now reached

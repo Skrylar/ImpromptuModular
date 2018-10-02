@@ -13,7 +13,7 @@
    version="1.1"
    id="svg72"
    sodipodi:docname="BigButtonSeq.svg"
-   inkscape:version="0.92.3 (2405546, 2018-03-11)">
+   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)">
   <metadata
      id="metadata78">
     <rdf:RDF>
@@ -42,9 +42,9 @@
      showgrid="false"
      showguides="true"
      inkscape:guide-bbox="true"
-     inkscape:zoom="6.3119224"
-     inkscape:cx="125.36025"
-     inkscape:cy="108.46733"
+     inkscape:zoom="3.1559612"
+     inkscape:cx="96.446713"
+     inkscape:cy="209.86275"
      inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
@@ -55,7 +55,7 @@
        id="guide919"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="60.278334,21.629778"
+       position="57.427898,50.217973"
        orientation="1,0"
        id="guide921"
        inkscape:locked="false" />
@@ -355,4 +355,9 @@
      inkscape:connector-curvature="0"
      id="path68-7-8-32-9-5"
      d="M 60.239073,68.064831 V 69.75817" />
+  <path
+     style="fill:none;stroke:#000000;stroke-width:0.13200001"
+     inkscape:connector-curvature="0"
+     id="path68-7-8-32-9-5-5"
+     d="m 57.459433,40.544574 v 1.693339" />
 </svg>
