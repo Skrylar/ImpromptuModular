@@ -28,6 +28,9 @@ struct BigButtonSeq : Module {
 		DEL_PARAM,
 		FILL_PARAM,
 		BIG_PARAM,
+		// -- 0.6.10 ^^
+		WRITEFILL_PARAM,
+		QUANTIZEBIG_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -52,13 +55,17 @@ struct BigButtonSeq : Module {
 		BIG_LIGHT,
 		BIGC_LIGHT,
 		ENUMS(METRONOME_LIGHT, 2),// Room for GreenRed
+		// -- 0.6.10 ^^
+		WRITEFILL_LIGHT,
+		QUANTIZEBIG_LIGHT,
 		NUM_LIGHTS
 	};
 	
 	// Need to save
 	int panelTheme = 0;
 	int metronomeDiv = 4;
-	bool writeFillsToMemory = false;
+	bool writeFillsToMemory;
+	bool quantizeBig;
 	int indexStep;
 	int bank[6];
 	uint64_t gates[6][2];// chan , bank
@@ -80,6 +87,8 @@ struct BigButtonSeq : Module {
 	SchmittTrigger resetTrigger;
 	SchmittTrigger bankTrigger;
 	SchmittTrigger bigTrigger;
+	SchmittTrigger writeFillTrigger;
+	SchmittTrigger quantizeBigTrigger;
 	PulseGenerator outPulse;
 	PulseGenerator outLightPulse;
 	PulseGenerator bigPulse;
@@ -98,6 +107,8 @@ struct BigButtonSeq : Module {
 
 	
 	void onReset() override {
+		writeFillsToMemory = false;
+		quantizeBig = true;
 		indexStep = 0;
 		for (int c = 0; c < 6; c++) {
 			bank[c] = 0;
@@ -156,6 +167,9 @@ struct BigButtonSeq : Module {
 		// writeFillsToMemory
 		json_object_set_new(rootJ, "writeFillsToMemory", json_boolean(writeFillsToMemory));
 
+		// quantizeBig
+		json_object_set_new(rootJ, "quantizeBig", json_boolean(quantizeBig));
+
 		return rootJ;
 	}
 
@@ -206,6 +220,11 @@ struct BigButtonSeq : Module {
 		json_t *writeFillsToMemoryJ = json_object_get(rootJ, "writeFillsToMemory");
 		if (writeFillsToMemoryJ)
 			writeFillsToMemory = json_is_true(writeFillsToMemoryJ);
+		
+		// quantizeBig
+		json_t *quantizeBigJ = json_object_get(rootJ, "quantizeBig");
+		if (quantizeBigJ)
+			quantizeBig = json_is_true(quantizeBigJ);
 	}
 
 	
@@ -226,7 +245,7 @@ struct BigButtonSeq : Module {
 		// Big button
 		if (bigTrigger.process(params[BIG_PARAM].value + inputs[BIG_INPUT].value)) {
 			bigLight = 1.0f;
-			if (clockTime > (lastPeriod / 2.0) && clockTime <= (lastPeriod * 1.01))// allow for 1% clock jitter
+			if (quantizeBig && (clockTime > (lastPeriod / 2.0)) && (clockTime <= (lastPeriod * 1.01))) // allow for 1% clock jitter
 				pendingOp = 1;
 			else {
 				if (!getGate(chan)) {
@@ -263,6 +282,13 @@ struct BigButtonSeq : Module {
 		if (pendingOp != 0 && clockTime > (lastPeriod * 1.01) ) 
 			performPending(chan, lightTime);
 
+		// Write fill to memory
+		if (writeFillTrigger.process(params[WRITEFILL_PARAM].value))
+			writeFillsToMemory = !writeFillsToMemory;
+
+		// Quantize big button (aka snap)
+		if (quantizeBigTrigger.process(params[QUANTIZEBIG_PARAM].value))
+			quantizeBig = !quantizeBig;
 		
 		
 		//********** Clock and reset **********
@@ -341,6 +367,9 @@ struct BigButtonSeq : Module {
 			lights[METRONOME_LIGHT + 1].value = metronomeLightStart;
 			lights[METRONOME_LIGHT + 0].value = metronomeLightDiv;
 		
+			// Other push button lights
+			lights[WRITEFILL_LIGHT].value = writeFillsToMemory ? 1.0f : 0.0f;
+			lights[QUANTIZEBIG_LIGHT].value = quantizeBig ? 1.0f : 0.0f;
 		
 			bigLight -= (bigLight / lightLambda) * (float)sampleTime * displayRefreshStepSkips;	
 			metronomeLightStart -= (metronomeLightStart / lightLambda) * (float)sampleTime * displayRefreshStepSkips;	
@@ -439,12 +468,6 @@ struct BigButtonSeqWidget : ModuleWidget {
 			rightText = (module->metronomeDiv == div) ? "✔" : "";
 		}
 	};
-	struct FillModeItem : MenuItem {
-		BigButtonSeq *module;
-		void onAction(EventAction &e) override {
-			module->writeFillsToMemory = !module->writeFillsToMemory;
-		}
-	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -471,16 +494,6 @@ struct BigButtonSeqWidget : ModuleWidget {
 		darkItem->module = module;
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
-
-		menu->addChild(new MenuLabel());// empty line
-		
-		MenuLabel *settingsLabel = new MenuLabel();
-		settingsLabel->text = "Settings";
-		menu->addChild(settingsLabel);
-
-		FillModeItem *fillItem = MenuItem::create<FillModeItem>("Write Fills to Memory", CHECKMARK(module->writeFillsToMemory));
-		fillItem->module = module;
-		menu->addChild(fillItem);		
 		
 		menu->addChild(new MenuLabel());// empty line
 		
@@ -590,11 +603,11 @@ struct BigButtonSeqWidget : ModuleWidget {
 		static const int lenAndRndKnobOffsetX = 90;
 		
 		// Len knob and jack
-		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter - lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq::LEN_PARAM, 0.0f, 64.0f - 1.0f, 32.0f - 1.0f, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - lenAndRndKnobOffsetX + knobCVjackOffsetX, rowRuler2), Port::INPUT, module, BigButtonSeq::LEN_INPUT, &module->panelTheme));
+		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter + lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq::LEN_PARAM, 0.0f, 64.0f - 1.0f, 32.0f - 1.0f, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter + lenAndRndKnobOffsetX - knobCVjackOffsetX, rowRuler2), Port::INPUT, module, BigButtonSeq::LEN_INPUT, &module->panelTheme));
 		// Rnd knob and jack
-		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter + lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq::RND_PARAM, 0.0f, 100.0f, 0.0f, &module->panelTheme));		
-		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter + lenAndRndKnobOffsetX - knobCVjackOffsetX, rowRuler2), Port::INPUT, module, BigButtonSeq::RND_INPUT, &module->panelTheme));
+		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerCenter - lenAndRndKnobOffsetX + offsetIMBigKnob, rowRuler2 + offsetIMBigKnob), module, BigButtonSeq::RND_PARAM, 0.0f, 100.0f, 0.0f, &module->panelTheme));		
+		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - lenAndRndKnobOffsetX + knobCVjackOffsetX, rowRuler2), Port::INPUT, module, BigButtonSeq::RND_INPUT, &module->panelTheme));
 
 
 		
@@ -626,8 +639,20 @@ struct BigButtonSeqWidget : ModuleWidget {
 		addChild(createLight<GiantLight2<RedLight>>(Vec(colRulerCenter + offsetLEDbezelBig - offsetLEDbezelLight*2.0f + 9, rowRuler5 + 26 + offsetLEDbezelBig - offsetLEDbezelLight*2.0f + 9), module, BigButtonSeq::BIGC_LIGHT));
 		// Big input
 		addInput(createDynamicPort<IMPort>(Vec(colRulerCenter - clearAndDelButtonOffsetX, rowRuler5 + knobCVjackOffsetY), Port::INPUT, module, BigButtonSeq::BIG_INPUT, &module->panelTheme));
+		// Big snap
+		addParam(createParam<LEDButton>(Vec(colRulerCenter + clearAndDelButtonOffsetX + offsetLEDbutton, rowRuler5 + 1 + knobCVjackOffsetY + offsetLEDbutton), module, BigButtonSeq::QUANTIZEBIG_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MediumLight<GreenLight>>(Vec(colRulerCenter + clearAndDelButtonOffsetX + offsetLEDbutton + offsetLEDbuttonLight, rowRuler5 + 1 + knobCVjackOffsetY + offsetLEDbutton + offsetLEDbuttonLight), module, BigButtonSeq::QUANTIZEBIG_LIGHT));
+		
+		
+		static const int rowRulerExtras = rowRuler4 + 12.0f;
+		
+		// Mem fill LED button
+		addParam(createParam<LEDButton>(Vec(colRulerT5 + offsetLEDbutton, rowRulerExtras - offsetLEDbuttonLight), module, BigButtonSeq::WRITEFILL_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MediumLight<GreenLight>>(Vec(colRulerT5 + offsetLEDbutton + offsetLEDbuttonLight, rowRulerExtras), module, BigButtonSeq::WRITEFILL_LIGHT));
+
+		
 		// Metronome light
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerCenter + clearAndDelButtonOffsetX + offsetMediumLight - 1, rowRuler5 + knobCVjackOffsetY + offsetMediumLight - 1), module, BigButtonSeq::METRONOME_LIGHT + 0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerT0 + offsetMediumLight - 1, rowRulerExtras), module, BigButtonSeq::METRONOME_LIGHT + 0));
 
 	}
 };
