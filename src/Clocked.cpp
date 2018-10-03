@@ -300,6 +300,7 @@ struct Clocked : Module {
 
 	void onReset() override {
 		running = false;
+		editingBpmMode = 0l;
 		resetClocked();		
 	}
 	
@@ -330,7 +331,6 @@ struct Clocked : Module {
 			newMasterLength = 120.0f / getBpmKnob();
 		newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
 		masterLength = newMasterLength;
-		editingBpmMode = 0l;
 	}	
 	
 	
@@ -440,7 +440,7 @@ struct Clocked : Module {
 
 		// BPM mode
 		if (bpmModeTrigger.process(params[BPMMODE_PARAM].value)) {
-			if (inputs[BPM_INPUT].active) {
+			//if (inputs[BPM_INPUT].active) {
 				if (editingBpmMode != 0ul) {// force active before allow change
 					if (bpmDetectionMode == false) {
 						bpmDetectionMode = true;
@@ -458,9 +458,9 @@ struct Clocked : Module {
 					}
 				}
 				editingBpmMode = (long) (3.0 * sampleRate / displayRefreshStepSkips);
-			}
-			else
-				editingBpmMode = (long) (-1.5 * sampleRate / displayRefreshStepSkips);
+			//}
+			//else
+				//editingBpmMode = (long) (-1.5 * sampleRate / displayRefreshStepSkips);
 		}
 		
 		// BPM input and knob
@@ -489,7 +489,7 @@ struct Clocked : Module {
 						else {
 							// all other ppqn pulses except the first one. now we have an interval upon which to plan a strecth 
 							double timeLeft = extIntervalTime * (double)(ppqn * 2 - extPulseNumber) / ((double)extPulseNumber);
-							newMasterLength = clk[0].getStep() + timeLeft;
+							newMasterLength = clamp(clk[0].getStep() + timeLeft, masterLengthMin / 1.5f, masterLengthMax * 1.5f);// extended range for better sync ability (20-450 BPM)
 							timeoutTime = extIntervalTime * ((double)(1 + extPulseNumber) / ((double)extPulseNumber)) + 0.1;
 						}
 					}
@@ -497,6 +497,7 @@ struct Clocked : Module {
 				if (running) {
 					extIntervalTime += sampleTime;
 					if (extIntervalTime > timeoutTime) {
+						//info("*** extIntervalTime = %f, timeoutTime = %f",extIntervalTime, timeoutTime);
 						running = false;
 						runPulse.trigger(0.001f);
 						resetClocked();
@@ -507,15 +508,15 @@ struct Clocked : Module {
 				}
 			}
 			// BPM CV method
-			else {
-				newMasterLength = 1.0f / powf(2.0f, inputs[BPM_INPUT].value);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
+			else {// bpmDetectionMode not active
+				newMasterLength = clamp(1.0f / powf(2.0f, inputs[BPM_INPUT].value), masterLengthMin, masterLengthMax);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
 				// no need to round since this clocked's master's BPM knob is a snap knob thus already rounded, and with passthru approach, no cumul error
 			}
 		}
-		else {
-			newMasterLength = 120.0f / getBpmKnob();
+		else {// BPM_INPUT not active
+			newMasterLength = clamp(120.0f / getBpmKnob(), masterLengthMin, masterLengthMax);
 		}
-		newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
+		//newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);// done above separately, so can relax range when sync mode
 		if (newMasterLength != masterLength) {
 			double lengthStretchFactor = ((double)newMasterLength) / ((double)masterLength);
 			for (int i = 0; i < 4; i++) {
@@ -621,9 +622,9 @@ struct Clocked : Module {
 			if (cantRunWarning > 0l) 
 				warningFlashState = calcWarningFlash(cantRunWarning, (long) (0.7 * sampleRate / displayRefreshStepSkips));
 			lights[BPMSYNC_LIGHT + 0].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? 1.0f : 0.0f;
-			if (editingBpmMode < 0l)
-				lights[BPMSYNC_LIGHT + 1].value = 1.0f;
-			else
+			//if (editingBpmMode < 0l)
+				//lights[BPMSYNC_LIGHT + 1].value = 1.0f;
+			//else
 				lights[BPMSYNC_LIGHT + 1].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
 			
 			// ratios synched lights
@@ -638,12 +639,15 @@ struct Clocked : Module {
 			}
 			if (cantRunWarning > 0l)
 				cantRunWarning--;
-			if (editingBpmMode != 0l) {// with schedulesReset method, this block is not thread-unsafe and is ok as it is
+			/*if (editingBpmMode != 0l) {// with schedulesReset method, this block is not thread-unsafe and is ok as it is
 				if (editingBpmMode > 0l)
 					editingBpmMode--;
 				else
 					editingBpmMode++;
-			}
+			}*/
+			editingBpmMode--;
+			if (editingBpmMode < 0l)
+				editingBpmMode = 0l;
 		}// lightRefreshCounter
 	}// step()
 };
@@ -722,14 +726,14 @@ struct ClockedWidget : ModuleWidget {
 				}
 				else {// BPM to display
 					if (module->editingBpmMode != 0l) {
-						if (module->editingBpmMode > 0l) {
+						//if (module->editingBpmMode > 0l) {
 							if (!module->bpmDetectionMode)
 								snprintf(displayStr, 4, " CV");
 							else
 								snprintf(displayStr, 4, "P%2u", (unsigned) module->ppqn);
-						}
-						else
-							snprintf(displayStr, 4, " --");
+						//}
+						//else
+							//snprintf(displayStr, 4, " --");
 					}
 					else
 						snprintf(displayStr, 4, "%3u", (unsigned)((120.0f / module->masterLength) + 0.5f));
@@ -1001,6 +1005,8 @@ Model *modelClocked = Model::create<Clocked, ClockedWidget>("Impromptu Modular",
 
 0.6.11:
 display PW when knob changes (1 to 99, indicative of knob position only, actual PW determined by clock engine)
+let mode button change mode even if no BPM input connected (will have no effect but can nonetheless be changed)
+allow extended BPM range in sync mode (20-450 BPM) to improve sync speed for supported range (30-300 BPM)
 
 0.6.10:
 add ppqn setting of 12
