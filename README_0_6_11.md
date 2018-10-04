@@ -28,7 +28,7 @@ Impromptu Modular is not a single-person endeavor:
 
 Each module is available in light (Classic) or dark (Dark-valor) panels, selectable by right-clicking the module in Rack.
 
-* [Tact](#tact): A touch-like controller module with dual CV outputs and variable rate of change.
+* [Tact/Tact1](#tact): Touch-like controller modules with variable CV outputs and rates of change.
 
 * [TwelveKey](#twelve-key): Chainable one-octave keyboard controller.
 
@@ -41,6 +41,8 @@ Each module is available in light (Classic) or dark (Dark-valor) panels, selecta
 * [GateSeq64](#gate-seq-64): 16-phrase gate sequencer with 64 steps per sequence and per-step gate probability control, perfect for adding controlled randomness to your drum patterns (can be configured as 1x64, 2x32 or 4x16).
 
 * [BigButtonSeq](#big-button-seq): 6-channel 64-step trigger sequencer based on the infamous BigButton by Look Mum No Computer.
+
+* [BigButtonSeq2](#big-button-seq2): 6-channel 128-step gate and CV sequencer based on BigButtonSeq.
 
 * [Semi-Modular Synth 16](#sms-16): Internally pre-patched all in one synthesizer for quickly getting sounds and learning the basics of modular synthesis.
 
@@ -74,13 +76,13 @@ Many modules feature an **Expansion panel** to provide additional CV inputs for 
 
 
 
-## Tact <a id="tact"></a>
+## Tact/Tact1 <a id="tact"></a>
 
 ![IM](res/img/Tact.jpg)
 
-A touch-like controller module with dual CV outputs and variable rate of change. With a fast rate of change, the controller offers an alternative to knobs for modulating parameters, and with a slow rate of change it can be used to automate in-out fades, for example, freeing the performer to work elsewhere in the patch.
+A touch-like controller module with dual CV outputs and variable rate of change. With a fast rate of change, the controller offers an alternative to knobs for setting parameters, and with a slow rate of change it can be used to automate in-out fades, for example, freeing the performer to work elsewhere in the patch. **New in version 0.6.11**: Tact-1 is a single channel version of Tact with fewer options. 
 
-**RATE**: Transition time of CV, from 0 (instant transition) to 4 seconds per volt. Transition time is the inverse of slew rate. This knob can be turned in real time to affect the rate of change of a transition already under way.
+**RATE**: Transition time of CV, from 0 (instant transition) to 4 seconds per volt. Transition time is the inverse of slew rate. This knob can be turned in real time to affect the rate of change of a transition already under way. An option in the right click menu called **Rate knob x3** can be used for even slower transitions, in which case a full transition from 0 to 10V (or vice versa) will last 2 minutes instead of 40 seconds in the default setting.
 
 **LINK**: Both controls are linked and will be synchronized to the same value. Useful when controlling stereo sounds. Only the left side controls have an effect in this mode; however, both touch pads can be used to change the single CV (which is sent to both output jacks).
 
@@ -314,7 +316,7 @@ In cross paste operation, the copied content is actually irrelevant and unused.
 
 ![IM](res/img/BigButtonSeq.jpg)
 
-A 6-channel 64-step trigger sequencer based on the infamous [BigButton](https://www.youtube.com/watch?v=6ArDGcUqiWM) by [Look Mum No Computer](https://www.lookmumnocomputer.com/projects/#/big-button/). The sequencer is mainly for live uses. Although this is not a direct port of the original module, the intent was to keep it as faithful as possible, while adding a few minor extras such as CV inputs. For two-handed control of the knobs and buttons, connect the sequencer to a midi control surface using Rack's Core MIDI-CC module. To see more examples of what the sequencer can do, please see the following videos:
+A 6-channel 64-step trigger sequencer based on the infamous [BigButton](https://www.youtube.com/watch?v=6ArDGcUqiWM) by [Look Mum No Computer](https://www.lookmumnocomputer.com/projects/#/big-button/). Although this is not a direct port of the original module, the intent was to keep it as faithful as possible, while adding a few minor extras such as CV inputs and displays. For two-handed control of the knobs and buttons, connect the sequencer to a midi control surface using Rack's Core MIDI-CC module. To see more examples of what the sequencer can do, please see the following videos:
 
 * [BigButton VCV Rack Module test](https://www.youtube.com/watch?v=uN2l2t5SCyE) by Alberto Zamora;
 
@@ -326,11 +328,11 @@ Here are a few more details on some of the uses of the buttons. The sequencer us
 
 **CHAN**: channel select button (can be changed in real time). All state buttons will have an effect immediately when the channel is changed.
 
-**BIG BUTTON**: trigger-type button to set the trigger at the current step in the current channel (when pressing on a step that has a trigger, nothing is done).
+**BIG BUTTON**: trigger-type button to set the trigger at the current step in the current channel and bank. When pressing on a step that has a trigger, nothing is done.
 
 **CLK**: clock input. The sequencer is always running. To stop it, the clock has to be stopped.
 
-**RND**: a 0 to 1 probability knob, used to randomly change the state of a step. The probability is applied to the trigger of the next step being reached at every clock pulse, in the current channel. A 0 value means no change, 1 means the state of the trigger will be toggled (useful for inverting a pattern). The RND CV input's voltage is divided by 10 and added to the value of the knob to yield the actual probablility. For example, with the knob at full right, the CV input has no effet, and with the knob at full left, an value of 10V on the CV input gives a probability of 1.  
+**RND**: a 0 to 1 probability knob, used to randomly change the state of a step. The probability is applied to the trigger of the next step being reached at every clock pulse, in the current channel. A 0 value means no change, 1 means the state of the trigger will be toggled (useful for inverting a pattern). The RND CV input's voltage is divided by 10 and added to the value of the knob to yield the actual probablility. For example, with the knob at full right, the CV input has no effet, and with the knob at full left, a value of 10V on the CV input gives a probability of 1.  
 
 **CLEAR**: state-type button that turns of all triggers of the current channel.
 
@@ -338,9 +340,29 @@ Here are a few more details on some of the uses of the buttons. The sequencer us
 
 **DEL**: state-type button that clears the trigger at the current step. The button can be held to clear multiple steps.
 
-**FILL**: plays continuous triggers for the given channel as long as the button is kept pressed. By default the fills are not written to memory and are only for playback; however, an option to allow the writing of fill steps to memory is available in the right-click menu.
+**FILL**: state-type button that plays continuous triggers for the given channel as long as the button is kept pressed. The fill starts on the next clock edge and continues on each clock edge while the button is held. 
 
-The BIG and DEL buttons are **quantized to the nearest beat**. Without quantization, button presses typically affect the current beat (step) of the sequencer. With quantized buttons, they affect the nearest beat. For example, pressing the big button 1 microsecond before a beat would normally record the beat in the current step and not the next one that is about to occur, which is actually the closest. For the quantization to work properly, the sequencer must recieve a stable clock of at least 30 BPM. When this is not the case, the option is automatically disabled internally. When manually advancing the clock to program a sequence in non real-time, for example, the option has no effect and the current step is always the target of a button press.
+**MEM**: when the MEM button is turned off, the fills are not written to memory and are only for playback. 
+
+**SNAP**: the BIG and DEL buttons are uantized to the nearest beat when the SNAP button is active. Without quantization, button presses always affect the current beat (step) of the sequencer. With quantized buttons, they affect the nearest beat. For example, without quantization, pressing the big button 1 microsecond before a beat would normally record the beat in the current step and not the next one that is about to occur (which is actually the closest). For the quantization to work properly however, the sequencer must recieve a stable clock of at least 30 BPM. When this is not the case, the option is automatically disabled internally. When manually advancing the clock to program a sequence in non real-time, for example, the option has no effect and the current step is always the target of a button press.
+
+([Back to module list](#modules))
+
+
+
+## BigButtonSeq2 <a id="big-button-seq2"></a>
+
+![IM](res/img/BigButtonSeq2.jpg)
+
+**New in version 0.6.11**: A 6-channel 128-step gate and CV sequencer based [BigButtonSeq](#big-button-seq). Familiarity with that sequencer is recommended since only the differences with that sequencer are discussed here. With its long sequence lengths and CV capabilities, the sequencer can be used as a CV recorder by setting the FILL CV input to a constant voltage greater then 1V and activating the MEM button, thereby sampling the CV IN port at every clock edge and committing its voltage to memory.
+
+**BIG BUTTON**: as well as turing on the gate of the current step, the CV IN port is also read and stored as the CV value of the given step.
+
+**GATE**: the clock signal's pulse is used as the gate out pulse, contrary to BigButtonSeq that emits 1 millisecond triggers.
+
+**CLEAR**: trigger-type button that turns of all gates and reinitialised all CVs to C4 for the current channel, contrary to BigButtonSeq where CLEAR is a state-type button.
+
+**S&H**: sample and hold the CV outputs using the gate outputs as the triggers for the sampling.
 
 ([Back to module list](#modules))
 
@@ -396,7 +418,7 @@ WriteSeq64 is a four-channel 64-step writable sequencer module. This sequencer i
 
 WriteSeq64 has dual clock inputs, where each controls a pair of channels. When no wire is connected to **CLOCK 3,4**, the **CLOCK 1,2** signal is used internally as the clock for channels 3 and 4. 
 
-Ideas: The first part of the famous [Piano Phase](https://en.wikipedia.org/wiki/Piano_Phase) piece by Steve Reich can be easily programmed into the sequencer by entering the twelve notes into channel 1 with a keyboard, setting STEPS to 12, copy-pasting channel 1 into channel 3, and then driving each clock input with two LFOs that have slightly different frequencies. Exercise left to the reader!
+Ideas: The first part of the famous [Piano Phase](https://en.wikipedia.org/wiki/Piano_Phase) piece by Steve Reich can be easily programmed into WriteSeq64 by entering the twelve notes into channel 1 with a keyboard, setting STEPS to 12, copy-pasting channel 1 into channel 3, and then driving each clock input with two LFOs that have slightly different frequencies. Exercise left to the reader!
 
 ([Back to module list](#modules))
 
