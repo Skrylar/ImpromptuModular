@@ -645,11 +645,11 @@ struct Tact1Widget : ModuleWidget {
 		lightItem->theme = 0;
 		menu->addChild(lightItem);
 
-		PanelThemeItem *darkItem = new PanelThemeItem();
+		/*PanelThemeItem *darkItem = new PanelThemeItem();
 		darkItem->text = darkPanelID;// ImpromptuModular.hpp
 		darkItem->module = module;
 		darkItem->theme = 1;
-		menu->addChild(darkItem);
+		menu->addChild(darkItem);*/
 
 		menu->addChild(new MenuLabel());// empty line
 		
@@ -695,18 +695,18 @@ struct Tact1Widget : ModuleWidget {
 			addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerLed, rowRuler0 + lightsOffsetY + i * lightsSpacingY), module, Tact1::TACT_LIGHTS + i * 2));
 		}
 
-		static const int rowRuler2 = 279;// rate and exp
+		static const int rowRuler2 = 275;// rate and exp
 		static const int offsetFromSide2 = 25;
 		// Rate knob
 		addParam(createDynamicParamCentered<IMSmallKnob>(Vec(offsetFromSide2, rowRuler2), module, Tact1::RATE_PARAM, 0.0f, 4.0f, 0.2f, &module->panelTheme));
 		addParam(createDynamicParamCentered<IMSmallKnob>(Vec(box.size.x - offsetFromSide2, rowRuler2), module, Tact1::ATTV_PARAM, -1.0f, 1.0f, 1.0f, &module->panelTheme));
 		
-		static const int rowRuler3 = 318;
+		static const int rowRuler3 = 320;
 		
 		// Output
-		addOutput(createDynamicPort<IMPort>(Vec(28, rowRuler3), Port::OUTPUT, module, Tact1::CV_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(18, rowRuler3), Port::OUTPUT, module, Tact1::CV_OUTPUT, &module->panelTheme));
 		// Exp switch
-		addParam(createParam<CKSS>(Vec(61 + hOffsetCKSS, rowRuler3 + 2 + vOffsetCKSS), module, Tact1::EXP_PARAM, 0.0f, 1.0f, 0.0f));		
+		addParam(createParam<CKSS>(Vec(57 + hOffsetCKSS, rowRuler3 + vOffsetCKSS), module, Tact1::EXP_PARAM, 0.0f, 1.0f, 0.0f));		
 	}
 };
 

@@ -599,13 +599,13 @@ struct BigButtonSeq2Widget : ModuleWidget {
 		lightItem->theme = 0;
 		menu->addChild(lightItem);
 
-		PanelThemeItem *darkItem = new PanelThemeItem();
+		/*PanelThemeItem *darkItem = new PanelThemeItem();
 		std::string hotRodLabel = " Hot-rod";
 		hotRodLabel.insert(0, darkPanelID);// ImpromptuModular.hpp
 		darkItem->text = hotRodLabel;
 		darkItem->module = module;
 		darkItem->theme = 1;
-		menu->addChild(darkItem);
+		menu->addChild(darkItem);*/
 
 		menu->addChild(new MenuLabel());// empty line
 		
@@ -646,7 +646,7 @@ struct BigButtonSeq2Widget : ModuleWidget {
 		// Main panel from Inkscape
         DynamicSVGPanel *panel = new DynamicSVGPanel();
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/BigButtonSeq2.svg")));
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/BigButtonSeq2_dark.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/BigButtonSeq_dark.svg")));
         box.size = panel->box.size;
         panel->mode = &module->panelTheme;
         addChild(panel);
