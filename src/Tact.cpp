@@ -49,6 +49,7 @@ struct Tact : Module {
 	double cv[2];// actual Tact CV since Tactknob can be different than these when transitioning
 	float storeCV[2];
 	float rateMultiplier;
+	bool levelSensitiveTopBot = true;
 
 	// No need to save
 	long infoStore;// 0 when no info, positive downward step counter when store left channel, negative upward for right
@@ -59,6 +60,8 @@ struct Tact : Module {
 	unsigned int lightRefreshCounter = 0;
 	SchmittTrigger topTriggers[2];
 	SchmittTrigger botTriggers[2];
+	SchmittTrigger topInvTriggers[2];
+	SchmittTrigger botInvTriggers[2];
 	SchmittTrigger storeTriggers[2];
 	SchmittTrigger recallTriggers[2];
 	PulseGenerator eocPulses[2];
@@ -107,6 +110,9 @@ struct Tact : Module {
 		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
 
+		// levelSensitiveTopBot
+		json_object_set_new(rootJ, "levelSensitiveTopBot", json_boolean(levelSensitiveTopBot));
+
 		return rootJ;
 	}
 
@@ -138,6 +144,11 @@ struct Tact : Module {
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
 			panelTheme = json_integer_value(panelThemeJ);
+		
+		// levelSensitiveTopBot
+		json_t *levelSensitiveTopBotJ = json_object_get(rootJ, "levelSensitiveTopBot");
+		if (levelSensitiveTopBotJ)
+			levelSensitiveTopBot = json_is_true(levelSensitiveTopBotJ);
 	}
 
 	
@@ -160,15 +171,25 @@ struct Tact : Module {
 		for (int i = 0; i < 2; i++) {
 			if (topTriggers[i].process(inputs[TOP_INPUTS + i].value)) {
 				if ( !(i == 1 && isLinked()) ) {// ignore right channel top cv in when linked
-					//tactWidgets[i]->changeValue(10.0f);
 					paramReadRequest[i] = 10.0f;
 					infoCVinLight[i] = 1.0f;
 				}
 			}
 			if (botTriggers[i].process(inputs[BOT_INPUTS + i].value)) {
 				if ( !(i == 1 && isLinked()) ) {// ignore right channel bot cv in when linked
-					//tactWidgets[i]->changeValue(0.0f);
 					paramReadRequest[i] = 0.0f;
+					infoCVinLight[i] = 1.0f;
+				}				
+			}
+			if (topInvTriggers[i].process(1.0f - inputs[TOP_INPUTS + i].value)) {
+				if ( !(i == 1 && isLinked()) ) {// ignore right channel top cv in when linked
+					paramReadRequest[i] = cv[i];
+					infoCVinLight[i] = 1.0f;
+				}
+			}
+			if (botInvTriggers[i].process(1.0f - inputs[BOT_INPUTS + i].value)) {
+				if ( !(i == 1 && isLinked()) ) {// ignore right channel bot cv in when linked
+					paramReadRequest[i] = cv[i];
 					infoCVinLight[i] = 1.0f;
 				}				
 			}
@@ -310,6 +331,12 @@ struct TactWidget : ModuleWidget {
 				module->rateMultiplier = 1.0f;
 		}
 	};
+	struct LevelSensitiveItem : MenuItem {
+		Tact *module;
+		void onAction(EventAction &e) override {
+			module->levelSensitiveTopBot = !module->levelSensitiveTopBot;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -344,6 +371,10 @@ struct TactWidget : ModuleWidget {
 		ExtendRateItem *extRateItem = MenuItem::create<ExtendRateItem>("Rate knob x3 (max 12 s/V)", CHECKMARK(module->rateMultiplier > 2.0f));
 		extRateItem->module = module;
 		menu->addChild(extRateItem);
+
+		LevelSensitiveItem *levelSensItem = MenuItem::create<LevelSensitiveItem>("Level sensitive arrow CV inputs", CHECKMARK(module->levelSensitiveTopBot));
+		levelSensItem->module = module;
+		menu->addChild(levelSensItem);
 
 		return menu;
 	}	
@@ -720,7 +751,8 @@ Model *modelTact1 = Model::create<Tact1, Tact1Widget>("Impromptu Modular", "Tact
 
 0.6.11:
 create Tact-1
-add right click option for rate x3
+add right click option for rate x3 in both Tacts
+add right click option in Tact for level sensitive min/max CV inputs
 
 0.6.9:
 move EOC outputs to main panel and remove expansion panel
