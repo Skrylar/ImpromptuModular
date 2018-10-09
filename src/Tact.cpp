@@ -676,11 +676,11 @@ struct Tact1Widget : ModuleWidget {
 		lightItem->theme = 0;
 		menu->addChild(lightItem);
 
-		/*PanelThemeItem *darkItem = new PanelThemeItem();
+		PanelThemeItem *darkItem = new PanelThemeItem();
 		darkItem->text = darkPanelID;// ImpromptuModular.hpp
 		darkItem->module = module;
 		darkItem->theme = 1;
-		menu->addChild(darkItem);*/
+		menu->addChild(darkItem);
 
 		menu->addChild(new MenuLabel());// empty line
 		
@@ -699,7 +699,7 @@ struct Tact1Widget : ModuleWidget {
 		// Main panel from Inkscape
         DynamicSVGPanel *panel = new DynamicSVGPanel();
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Tact1.svg")));
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Tact1.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/Tact1_dark.svg")));
         box.size = panel->box.size;
         panel->mode = &module->panelTheme;
         addChild(panel);
