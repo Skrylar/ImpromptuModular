@@ -182,13 +182,13 @@ struct Tact : Module {
 				}				
 			}
 			if (topInvTriggers[i].process(1.0f - inputs[TOP_INPUTS + i].value)) {
-				if ( !(i == 1 && isLinked()) ) {// ignore right channel top cv in when linked
+				if ( levelSensitiveTopBot && !(i == 1 && isLinked()) ) {// ignore right channel top cv in when linked
 					paramReadRequest[i] = cv[i];
 					infoCVinLight[i] = 1.0f;
 				}
 			}
 			if (botInvTriggers[i].process(1.0f - inputs[BOT_INPUTS + i].value)) {
-				if ( !(i == 1 && isLinked()) ) {// ignore right channel bot cv in when linked
+				if ( levelSensitiveTopBot && !(i == 1 && isLinked()) ) {// ignore right channel bot cv in when linked
 					paramReadRequest[i] = cv[i];
 					infoCVinLight[i] = 1.0f;
 				}				
