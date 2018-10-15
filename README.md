@@ -2,9 +2,7 @@
 
 Modules for [VCV Rack](https://vcvrack.com), available in the [plugin manager](https://vcvrack.com/plugins.html).
 
-Version 0.6.11 (**currently 0.6.10 in the plugin manager**)
-
-For the 0.6.10 manual, please see [here](https://github.com/MarcBoule/ImpromptuModular/blob/0.6.10/README.md)
+Version 0.6.11
 
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!   120% Zoom for jpgs)
 
@@ -222,7 +220,7 @@ Since the editing time for the advanced gate mode is kept rather short (4s), hol
 
 ### Cross paste<a id="cross-paste-ps"></a>
 
-Pressing the copy button in one mode (Seq or Song), and then the paste button in the opposite mode would normally result in a an invalid operation. In these cases, depending on the state of the copy-paste switch (4/8/ALL), called *type* below, the following shortcuts are performed: 
+Pressing the copy button in one mode (Seq or Song), and then the paste button in the opposite mode would normally result in an invalid operation. In these cases, depending on the state of the copy-paste switch (4/8/ALL), called *type* below, the following shortcuts are performed: 
 
 ```
 Cross paste from Song to Seq  
@@ -250,7 +248,7 @@ In cross paste operation, the copied content is actually irrelevant and unused.
 
 A 32 phrase sequencer module, where each phrase is an index into a set of 32 sequences of 32 steps (maximum). This sequencer is very similar to [PhraseSeq16](#phrase-seq-16), but with an added configuration switch allowing the sequencer to output dual 16 step sequences (**2x16**) instead of single 32 step sequences (**1x32**). When the 1x32 configuration is selected, only the top channel outputs are used (labeled A), and when the 2x16 configuration is selected, the top row is sent to the top outputs (CV and gates A), whereas the bottom row of steps is sent to the bottom outputs (CV and gates B). 
 
-When running in the 2x16 configuration and in Seq mode, thw following details become relevant:
+When running in the 2x16 configuration and in Seq mode, the following details become relevant:
 
 1. When **ATTACH** is activated, clicking any step in a given row will attach the edit head to that row. 
 1. Only the row corresponding to the edit head's position will be transposed or rotated when the **TRAN/ROT** button is used.
@@ -270,7 +268,7 @@ A 64 step gate sequencer with the ability to define **probabilities** for each s
 
 When running in the 4x16 configuration, each of the four rows is sent to the four **GATE** output jacks (jacks 1 to 4, with jack 1 being the top-most jack). In the 2x32 configuration, jacks 1 and 3 are used, and in the 1x64 configuration, only jack 1 is used (top-most jack). When activating a given step by clicking it once, it will turn green showing that the step is on. Clicking the _"p"_ button turns it yellow, and the main display shows the probability associated with this step. While the probability remains shown, the probability can be adjusted with the main knob, in 0.02 increments, between 0 and 1. When a yellow step is selected, clicking the _"p"_ button again will turn it off.
 
-This sequencer also features the song mode found in [PhraseSeq16](#phrase-seq-16); 64 phrases can be defined, where a phrase is an index into a set of 16 sequences. In GateSeq64, the song steps are shown using the entire grid of steps, overlapped with the actual sequence progression in lighter shades in the lights. The actual content of the sequencees is not visible in Song mode. Here are a few more points regarding Song mode:
+This sequencer also features the song mode found in [PhraseSeq16](#phrase-seq-16); 64 phrases can be defined, where a phrase is an index into a set of 16 sequences. In GateSeq64, the song steps are shown using the entire grid of steps, overlapped with the actual sequence progression in lighter shades in the lights. The actual content of the sequences is not visible in Song mode. Here are a few more points regarding Song mode:
 
 1. When not running, the phrase cursor position is shown with a red light. 
 1. When running, the current phrase being played is shown with a full green light and the position in the sequence is shown with a pale green light.
@@ -283,16 +281,16 @@ Although no **Write** capabilities appear in the main part of the module, automa
 
 ### Advanced gate mode<a id="advanced-gate-mode-gs"></a>
 
-The advanced gate mode in GateSeq64 has some similarities to the one available in the PhraseSeq16/32 sequencers, and is covered in Omri Cohen's [advanceed gate mode tutorial](https://www.youtube.com/watch?v=B2w0_h5oN6M).
+The advanced gate mode in GateSeq64 has some similarities to the one available in the PhraseSeq16/32 sequencers, and is covered in Omri Cohen's [advanced gate mode tutorial](https://www.youtube.com/watch?v=B2w0_h5oN6M).
 
-Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than 1, which unlocks the advanced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In such cases, a mutliplied clock must be supplied in order to keep the same tempo in the sequencer. In advanced gate mode, the pulse width of the clock is not used and has no effect on the gates.
+Holding the MODE button for **two seconds** allows the selection of the clock resolution, in number of pulses per step (PPS). When set to a value greater than 1, which unlocks the advanced gate mode, the sequencer will skip this many clock pulses before advancing to the next step. In such cases, a multiplied clock must be supplied in order to keep the same tempo in the sequencer. In advanced gate mode, the pulse width of the clock is not used and has no effect on the gates.
 
 The PPS be a multiple of 4 for the first three gate types, while the PPS be a multiple of 6 for the last five gate types. A chosen gate type not meeting its required pulse rate will have a red LED beside it to indicate this (normally it is green). When a gate type is red, the sequencer will still emit a (possibly empty) gate pattern for that step, but with no guarantee that it will match the type that was selected. All gate types can be used when selecting a PPS value of 12 or 24.
 
 
 ### Cross paste<a id="cross-paste-gs"></a>
 
-Pressing the copy button in one mode (Seq or Song), and then the paste button in the opposite mode would normally result in a an invalid operation. In these cases, depending on the state of the copy-paste switch (4/8/ALL), called *type* below, the following shortcuts are performed: 
+Pressing the copy button in one mode (Seq or Song), and then the paste button in the opposite mode would normally result in an invalid operation. In these cases, depending on the state of the copy-paste switch (4/8/ALL), called *type* below, the following shortcuts are performed: 
 
 ```
 Cross paste from Song to Seq  
@@ -334,7 +332,7 @@ Here are a few more details on some of the uses of the buttons. The sequencer us
 
 **CLK**: clock input. The sequencer is always running. To stop it, the clock has to be stopped.
 
-**RND**: a 0 to 1 probability knob, used to randomly change the state of a step. The probability is applied to the trigger of the next step being reached at every clock pulse, in the current channel. A 0 value means no change, 1 means the state of the trigger will be toggled (useful for inverting a pattern). The RND CV input's voltage is divided by 10 and added to the value of the knob to yield the actual probablility. For example, with the knob at full right, the CV input has no effet, and with the knob at full left, a value of 10V on the CV input gives a probability of 1.  
+**RND**: a 0 to 1 probability knob, used to randomly change the state of a step. The probability is applied to the trigger of the next step being reached at every clock pulse, in the current channel. A 0 value means no change, 1 means the state of the trigger will be toggled (useful for inverting a pattern). The RND CV input's voltage is divided by 10 and added to the value of the knob to yield the actual probability. For example, with the knob at full right, the CV input has no effect, and with the knob at full left, a value of 10V on the CV input gives a probability of 1.  
 
 **CLEAR**: state-type button that turns of all triggers of the current channel.
 
@@ -346,7 +344,7 @@ Here are a few more details on some of the uses of the buttons. The sequencer us
 
 **MEM**: when the MEM button is turned off, the fills are not written to memory and are only for playback. 
 
-**SNAP**: the BIG and DEL buttons are uantized to the nearest beat when the SNAP button is active. Without quantization, button presses always affect the current beat (step) of the sequencer. With quantized buttons, they affect the nearest beat. For example, without quantization, pressing the big button 1 microsecond before a beat would normally record the beat in the current step and not the next one that is about to occur (which is actually the closest). For the quantization to work properly however, the sequencer must recieve a stable clock of at least 30 BPM. When this is not the case, the option is automatically disabled internally. When manually advancing the clock to program a sequence in non real-time, for example, the option has no effect and the current step is always the target of a button press.
+**SNAP**: the BIG and DEL buttons are quantized to the nearest beat when the SNAP button is active. Without quantization, button presses always affect the current beat (step) of the sequencer. With quantized buttons, they affect the nearest beat. For example, without quantization, pressing the big button 1 microsecond before a beat would normally record the beat in the current step and not the next one that is about to occur (which is actually the closest). For the quantization to work properly however, the sequencer must receive a stable clock of at least 30 BPM. When this is not the case, the option is automatically disabled internally. When manually advancing the clock to program a sequence in non real-time, for example, the option has no effect and the current step is always the target of a button press.
 
 ([Back to module list](#modules))
 
@@ -356,13 +354,13 @@ Here are a few more details on some of the uses of the buttons. The sequencer us
 
 ![IM](res/img/BigButtonSeq2.jpg)
 
-A 6-channel 128-step gate and CV sequencer based [BigButtonSeq](#big-button-seq). Familiarity with that sequencer is recommended since only the differences with that sequencer are discussed here. With its long sequence lengths and CV capabilities, the sequencer can be used as a CV recorder by setting the FILL CV input to a constant voltage greater then 1V and activating the MEM button, thereby sampling the CV IN port at every clock edge and committing its voltage to memory.
+A 6-channel 128-step gate and CV sequencer based [BigButtonSeq](#big-button-seq). Familiarity with that sequencer is recommended since only the differences are discussed here. With its long sequence lengths and CV capabilities, the sequencer can be used as a CV recorder by setting the FILL CV input to a constant voltage greater than 1V and activating the MEM button, thereby sampling the CV IN port at every clock edge and committing its voltage to memory.
 
-**BIG BUTTON**: as well as turing on the gate of the current step, the CV IN port is also read and stored as the CV value of the given step.
+**BIG BUTTON**: as well as turning on the gate of the current step, the CV IN port is also read and stored as the CV value of the given step.
 
 **GATE**: the clock signal's pulse is used as the gate out pulse, contrary to BigButtonSeq that emits 1 millisecond triggers.
 
-**CLEAR**: trigger-type button that turns of all gates and reinitialised all CVs to C4 for the current channel, contrary to BigButtonSeq where CLEAR is a state-type button.
+**CLEAR**: trigger-type button that turns of all gates and reinitialized all CVs to C4 for the current channel, contrary to BigButtonSeq where CLEAR is a state-type button.
 
 **S&H**: sample and hold the CV outputs using the gate outputs as the triggers for the sampling.
 
