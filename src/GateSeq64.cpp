@@ -1368,6 +1368,7 @@ add step-left CV input in expansion panel
 implement copy-paste in song mode and change 4/ROW/ALL to 4/8/ALL
 implement cross paste trick for init and randomize seq/song
 add AutoSeq option when writing via CV inputs 
+make song mode 64 sequences long
 
 0.6.10:
 add advanced gate mode
