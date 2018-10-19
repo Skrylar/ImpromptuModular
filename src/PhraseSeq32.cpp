@@ -542,13 +542,6 @@ struct PhraseSeq32 : Module {
 		
 		//********** Buttons, knobs, switches and inputs **********
 		
-		// Notes: 
-		// * a tied step's attributes can not be modified by any of the following: 
-		//   write input, oct and keyboard buttons, gate1Prob and slide buttons
-		//   however, paste, transpose, rotate obviously can, and gate1/2 can be turned back on if desired.
-		// * Whenever cv[][] is modified or tied[] is activated for a step, call applyTiedStep(sequence,stepIndexEdit,steps)
-		
-
 		// Config switch
 		if (stepConfigSync != 0) {
 			stepConfig = getStepConfig(params[CONFIG_PARAM].value);

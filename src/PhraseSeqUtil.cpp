@@ -49,8 +49,13 @@ bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {
 			if ((*history) == 2000) {// forward phase
 				(*index)++;
 				if ((*index) >= numSteps) {
-					(*index) = numSteps - 1 - (numSteps > 1 ? 1 : 0);// last term was absent in former PPG method
-					(*history) = 2001;
+					(*index) = numSteps - 2;
+					if ((*index) < 1) {// if back at 0 after turnaround, then no reverse phase needed
+						crossBoundary = true;
+						(*index) = 0;
+					}
+					else
+						(*history) = 2001;
 				}
 			}
 			else {// it is 2001; reverse phase
