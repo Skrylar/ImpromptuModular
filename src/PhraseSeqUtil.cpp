@@ -134,3 +134,10 @@ int keyIndexToGateMode(int keyIndex, int pulsesPerStep) {
 		return -1;
 	return keyIndex;// keyLight index now matches gate modes, so no mapping table needed anymore
 }
+
+/*CHANGE LOG
+
+0.6.12:
+fix PPG run mode, so that it is a true PPG (ex: 1,2,3,2,1,2... instead of 1,2,3,3,2,1,1,2...)
+
+*/

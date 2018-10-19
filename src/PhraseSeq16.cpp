@@ -119,6 +119,7 @@ struct PhraseSeq16 : Module {
 	int attributes[16][16];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
 	bool resetOnRun;
 	bool attached;
+	int transposeOffsets[16];
 
 	// No need to save
 	int stepIndexEdit;
@@ -140,7 +141,6 @@ struct PhraseSeq16 : Module {
 	int modeCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
 	int startCP;
-	int transposeOffset;// no need to initialize, this is companion to displayMode = DISP_TRANSPOSE
 	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
 	long clockIgnoreOnReset;
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
@@ -224,6 +224,7 @@ struct PhraseSeq16 : Module {
 			lengths[i] = 16;
 			cvCPbuffer[i] = 0.0f;
 			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
+			transposeOffsets[i] = 0;
 		}
 		initRun(true);
 		lengthCPbuffer = 16;
@@ -266,16 +267,6 @@ struct PhraseSeq16 : Module {
 			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun(true);
-		// editingGate = 0ul;
-		// infoCopyPaste = 0l;
-		// displayState = DISP_NORMAL;
-		// slideStepsRemain = 0ul;
-		// attached = true;
-		// clockPeriod = 0ul;
-		// tiedWarning = 0ul;
-		// revertDisplay = 0l;
-		// editGateLengthTimeInitMult = 1l;
-		// editingPpqn = 0l;
 	}
 	
 	
@@ -365,6 +356,12 @@ struct PhraseSeq16 : Module {
 	
 		// phraseIndexEdit
 		json_object_set_new(rootJ, "phraseIndexEdit", json_integer(phraseIndexEdit));
+
+		// transposeOffsets
+		json_t *transposeOffsetsJ = json_array();
+		for (int i = 0; i < 16; i++)
+			json_array_insert_new(transposeOffsetsJ, i, json_integer(transposeOffsets[i]));
+		json_object_set_new(rootJ, "transposeOffsets", transposeOffsetsJ);
 
 		return rootJ;
 	}
@@ -554,6 +551,17 @@ struct PhraseSeq16 : Module {
 		if (phraseIndexEditJ)
 			phraseIndexEdit = json_integer_value(phraseIndexEditJ);
 		
+		// transposeOffsets
+		json_t *transposeOffsetsJ = json_object_get(rootJ, "transposeOffsets");
+		if (transposeOffsetsJ) {
+			for (int i = 0; i < 16; i++)
+			{
+				json_t *transposeOffsetsArrayJ = json_array_get(transposeOffsetsJ, i);
+				if (transposeOffsetsArrayJ)
+					transposeOffsets[i] = json_integer_value(transposeOffsetsArrayJ);
+			}			
+		}
+		
 		// Initialize dependants after everything loaded
 		initRun(true);
 	}
@@ -673,6 +681,7 @@ struct PhraseSeq16 : Module {
 					if (params[CPMODE_PARAM].value > 1.5f) {// all
 						lengths[sequence] = lengthCPbuffer;
 						runModeSeq[sequence] = modeCPbuffer;
+						transposeOffsets[sequence] = 0;
 					}
 				}
 				else {// crossed paste to seq (seq vs song)
@@ -839,7 +848,7 @@ struct PhraseSeq16 : Module {
 			if (editingSequence) {
 				if (displayState == DISP_NORMAL || displayState == DISP_MODE || displayState == DISP_LENGTH) {
 					displayState = DISP_TRANSPOSE;
-					transposeOffset = 0;
+					//transposeOffset = 0;
 				}
 				else if (displayState == DISP_TRANSPOSE) {
 					displayState = DISP_ROTATE;
@@ -890,9 +899,9 @@ struct PhraseSeq16 : Module {
 				}
 				else if (displayState == DISP_TRANSPOSE) {
 					if (editingSequence) {
-						transposeOffset += deltaKnob;
-						if (transposeOffset > 99) transposeOffset = 99;
-						if (transposeOffset < -99) transposeOffset = -99;						
+						transposeOffsets[sequence] += deltaKnob;
+						if (transposeOffsets[sequence] > 99) transposeOffsets[sequence] = 99;
+						if (transposeOffsets[sequence] < -99) transposeOffsets[sequence] = -99;						
 						// Tranpose by this number of semi-tones: deltaKnob
 						float transposeOffsetCV = ((float)(deltaKnob))/12.0f;
 						for (int s = 0; s < 16; s++) {
@@ -1443,8 +1452,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
 			}
 			else if (module->displayState == PhraseSeq16::DISP_TRANSPOSE) {
-				snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffset));
-				if (module->transposeOffset < 0)
+				snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffsets[module->sequence]));
+				if (module->transposeOffsets[module->sequence] < 0)
 					displayStr[0] = '-';
 			}
 			else if (module->displayState == PhraseSeq16::DISP_ROTATE) {
@@ -1770,6 +1779,9 @@ struct PhraseSeq16Widget : ModuleWidget {
 Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromptu Modular", "Phrase-Seq-16", "SEQ - Phrase-Seq-16", SEQUENCER_TAG);
 
 /*CHANGE LOG
+
+0.6.12:
+transposition amount stays persistent and is saved (reset to 0 on module init or paste ALL)
 
 0.6.11:
 step optimization of lights refresh
