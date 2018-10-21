@@ -1670,7 +1670,7 @@ struct PhraseSeq16Widget : ModuleWidget {
 		displaySequence->box.size = Vec(55, 30);// 3 characters
 		displaySequence->module = module;
 		addChild(displaySequence);
-		// Run mode button
+		// Len/mode button
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK0 + 0 + offsetCKD6b), module, PhraseSeq16::RUNMODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 
 		// Run LED bezel and light

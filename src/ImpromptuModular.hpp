@@ -91,7 +91,8 @@ struct IMScrew : DynamicSVGScrew {
 
 struct IMPort : DynamicSVGPort {
 	IMPort() {
-		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
+		//addFrame(SVG::load(assetGlobal("res/ComponentLibrary/PJ301M.svg")));
+		addFrame(SVG::load(assetPlugin(plugin, "res/light/comp/PJ301M.svg")));
 		addFrame(SVG::load(assetPlugin(plugin, "res/dark/comp/PJ301M.svg")));
 		shadow->blurRadius = 10.0;
 		shadow->opacity = 0.8;
