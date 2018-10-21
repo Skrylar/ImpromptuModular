@@ -30,8 +30,10 @@ struct GateSeq64 : Module {
 		SEQUENCE_PARAM,
 		CPMODE_PARAM,
 		// -- 0.6.9 ^^
-		GMODELEFT_PARAM,
-		GMODERIGHT_PARAM,
+		GMODELEFT_PARAM,// no longer used
+		GMODERIGHT_PARAM,// no longer used
+		// -- 0.6.11 ^^
+		ENUMS(GMODE_PARAMS, 8),
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -129,8 +131,7 @@ struct GateSeq64 : Module {
 	SchmittTrigger write0Trigger;
 	SchmittTrigger write1Trigger;
 	SchmittTrigger stepLTrigger;
-	SchmittTrigger gModeLTrigger;
-	SchmittTrigger gModeRTrigger;
+	SchmittTrigger gModeTriggers[8];
 	SchmittTrigger probTrigger;
 	BooleanTrigger editingSequenceTrigger;
 	HoldDetect modeHoldDetect;
@@ -727,29 +728,22 @@ struct GateSeq64 : Module {
 		}
 		
 		// GateMode buttons
-		// Left
-		if (gModeLTrigger.process(params[GMODELEFT_PARAM].value)) {
-			blinkNum = blinkNumInit;
-			if (pulsesPerStep != 1 && editingSequence && getGate(sequence, stepIndexEdit)) {
-				int gmode = getGateMode(sequence, stepIndexEdit);
-				gmode--;
-				if (gmode < 0)
-					gmode = 7;
-				setGateMode(sequence, stepIndexEdit, gmode);
+		for (int i = 0; i < 8; i++) {
+			if (gModeTriggers[i].process(params[GMODE_PARAMS + i].value)) {
+				blinkNum = blinkNumInit;
+				if (pulsesPerStep != 1 && editingSequence && getGate(sequence, stepIndexEdit)) {
+					int gmode = i;/*getGateMode(sequence, stepIndexEdit);
+					gmode--;
+					if (gmode < 0)
+						gmode = 7;*/
+					setGateMode(sequence, stepIndexEdit, gmode);
+				}
+				else {
+					editingPpqn = (long) (2.5f * sampleRate / displayRefreshStepSkips);
+				}
 			}
 		}
-		// Right
-		if (gModeRTrigger.process(params[GMODERIGHT_PARAM].value)) {
-			blinkNum = blinkNumInit;
-			if (pulsesPerStep != 1 && editingSequence && getGate(sequence, stepIndexEdit)) {
-				int gmode = getGateMode(sequence, stepIndexEdit);
-				gmode++;
-				if (gmode > 7)
-					gmode = 0;
-				setGateMode(sequence, stepIndexEdit, gmode);
-			}
-		}
-		
+
 		
 		// Sequence knob (Main knob)
 		float seqParamValue = params[SEQUENCE_PARAM].value;
@@ -1250,10 +1244,10 @@ struct GateSeq64Widget : ModuleWidget {
 		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30-expWidth, 365), &module->panelTheme));
 		
 		
-		// ****** Top portion (2 switches and LED button array ******
+		// ****** Top portion (LED button array and gate type LED buttons) ******
 		
 		static const int rowRuler0 = 32;
-		static const int spacingRows = 34;
+		static const int spacingRows = 32;
 		static const int colRulerSteps = 15;
 		static const int spacingSteps = 20;
 		static const int spacingSteps4 = 4;
@@ -1265,17 +1259,29 @@ struct GateSeq64Widget : ModuleWidget {
 			for (int x = 0; x < 16; x++) {
 				addParam(createParam<LEDButton>(Vec(posX, rowRuler0 + 8 + y * spacingRows - 4.4f), module, GateSeq64::STEP_PARAMS + y * 16 + x, 0.0f, 1.0f, 0.0f));
 				addChild(createLight<MediumLight<GreenRedLight>>(Vec(posX + 4.4f, rowRuler0 + 8 + y * spacingRows), module, GateSeq64::STEP_LIGHTS + (y * 16 + x) * 2));
-				
-				if (y == 3 && ((x & 0x1) == 0)) {
-					addChild(createLight<SmallLight<GreenRedLight>>(Vec(posX + 3, 169), module, GateSeq64::GMODE_LIGHTS + x));	
-				}
-				
 				posX += spacingSteps;
 				if ((x + 1) % 4 == 0)
 					posX += spacingSteps4;
 			}
 		}
 					
+		// Gate type LED buttons (bottom left to top left to top right)
+		static const int rowRulerG0 = 166;
+		static const int rowSpacingG = 26;
+		static const int colSpacingG = 56;
+		
+		addParam(createParam<LEDButton>(Vec(colRulerSteps, rowRulerG0 + rowSpacingG * 2 - 4.4f), module, GateSeq64::GMODE_PARAMS + 2, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerSteps + 4.4f, rowRulerG0 + rowSpacingG * 2), module, GateSeq64::GMODE_LIGHTS + 2 * 2));
+		addParam(createParam<LEDButton>(Vec(colRulerSteps, rowRulerG0 + rowSpacingG - 4.4f), module, GateSeq64::GMODE_PARAMS + 1, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerSteps + 4.4f, rowRulerG0 + rowSpacingG), module, GateSeq64::GMODE_LIGHTS + 1 * 2));
+		addParam(createParam<LEDButton>(Vec(colRulerSteps, rowRulerG0 - 4.4f), module, GateSeq64::GMODE_PARAMS + 0, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerSteps + 4.4f, rowRulerG0), module, GateSeq64::GMODE_LIGHTS + 0 * 2));		
+		for (int x = 1; x < 6; x++) {
+			addParam(createParam<LEDButton>(Vec(colRulerSteps + colSpacingG * x, rowRulerG0 - 4.4f), module, GateSeq64::GMODE_PARAMS + 2 + x, 0.0f, 1.0f, 0.0f));
+			addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerSteps + colSpacingG * x + 4.4f, rowRulerG0), module, GateSeq64::GMODE_LIGHTS + (2 + x) * 2));
+		}
+		
+		
 		
 		
 		// ****** 5x3 Main bottom half Control section ******
@@ -1289,12 +1295,8 @@ struct GateSeq64Widget : ModuleWidget {
 		static const int rowRulerSpacing = 58;
 		static const int rowRulerC1 = rowRulerC0 + rowRulerSpacing;
 		static const int rowRulerC2 = rowRulerC1 + rowRulerSpacing;
+				
 		
-		
-		
-		// GateMode buttons
-		addParam(createDynamicParam<IMPushButton>(Vec(colRulerC0 - 10 , rowRulerC0 + offsetTL1105), module, GateSeq64::GMODELEFT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addParam(createDynamicParam<IMPushButton>(Vec(colRulerC0 + 20, rowRulerC0 + offsetTL1105), module, GateSeq64::GMODERIGHT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Clock input
 		addInput(createDynamicPort<IMPort>(Vec(colRulerC0, rowRulerC1), Port::INPUT, module, GateSeq64::CLOCK_INPUT, &module->panelTheme));
 		// Reset CV
