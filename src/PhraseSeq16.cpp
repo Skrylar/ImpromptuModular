@@ -19,8 +19,8 @@
 struct PhraseSeq16 : Module {
 	enum ParamIds {
 		KEYNOTE_PARAM,// 0.6.12 replaces unused
-		KEYGATE1_PARAM,// 0.6.12 replaces unused
-		KEYGATE2_PARAM,// 0.6.12 replaces unused
+		KEYGATE_PARAM,// 0.6.12 replaces unused
+		KEYGATE2_PARAM,// no longer unused
 		EDIT_PARAM,
 		SEQUENCE_PARAM,
 		RUN_PARAM,
@@ -96,8 +96,7 @@ struct PhraseSeq16 : Module {
 		GATE1_PROB_LIGHT,
 		TIE_LIGHT,
 		KEYNOTE_LIGHT,
-		ENUMS(KEYGATE1_LIGHT, 2),// room for GreenRed
-		ENUMS(KEYGATE2_LIGHT, 2),// room for GreenRed
+		ENUMS(KEYGATE_LIGHT, 2),// room for GreenRed
 		NUM_LIGHTS
 	};
 	
@@ -150,6 +149,7 @@ struct PhraseSeq16 : Module {
 	int gate2Code;
 	long revertDisplay;
 	long editingGateLength;// 0 when no info, positive when gate1, negative when gate2
+	long lastGateEdit;
 	//long editGateLengthTimeInitMult;// multiplier for extended setting of advanced gates
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
@@ -180,8 +180,7 @@ struct PhraseSeq16 : Module {
 	SchmittTrigger tiedTrigger;
 	SchmittTrigger stepTriggers[16];
 	SchmittTrigger keyNoteTrigger;
-	SchmittTrigger keyGate1Trigger;
-	SchmittTrigger keyGate2Trigger;
+	SchmittTrigger keyGateTrigger;
 	HoldDetect modeHoldDetect;
 	//HoldDetect gate1HoldDetect;
 	//HoldDetect gate2HoldDetect;
@@ -246,6 +245,7 @@ struct PhraseSeq16 : Module {
 		resetOnRun = false;
 		//editGateLengthTimeInitMult = 1l;
 		editingGateLength = 0l;
+		lastGateEdit = 1l;
 		editingPpqn = 0l;
 	}
 
@@ -1021,20 +1021,18 @@ struct PhraseSeq16 : Module {
 		if (keyNoteTrigger.process(params[KEYNOTE_PARAM].value)) {
 			editingGateLength = 0l;
 		}
-		if (keyGate1Trigger.process(params[KEYGATE1_PARAM].value)) {
+		if (keyGateTrigger.process(params[KEYGATE_PARAM].value)) {
 			if (pulsesPerStep < 2) {
 				editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 			}
 			else {
-				editingGateLength = 1l;
-			}
-		}
-		if (keyGate2Trigger.process(params[KEYGATE2_PARAM].value)) {
-			if (pulsesPerStep < 2) {
-				editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-			}
-			else {
-				editingGateLength = -1l;
+				if (editingGateLength == 0l) {
+					editingGateLength = lastGateEdit;
+				}
+				else {
+					editingGateLength *= -1l;
+					lastGateEdit = editingGateLength;
+				}
 			}
 		}
 
@@ -1286,14 +1284,12 @@ struct PhraseSeq16 : Module {
 			
 			// Key mode light (note or gate type)
 			lights[KEYNOTE_LIGHT].value = editingGateLength == 0l ? 10.0f : 0.0f;
-			if (editingGateLength == 1l)
-				setGreenRed(KEYGATE1_LIGHT, 1.0f, 0.2f);
+			if (editingGateLength == 0l)
+				setGreenRed(KEYGATE_LIGHT, 0.0f, 0.0f);
+			else if (editingGateLength > 0l)
+				setGreenRed(KEYGATE_LIGHT, 1.0f, 0.2f);
 			else
-				setGreenRed(KEYGATE1_LIGHT, 0.0f, 0.0f);
-			if (editingGateLength == -1l)
-				setGreenRed(KEYGATE2_LIGHT, 0.2f, 1.0f);
-			else
-				setGreenRed(KEYGATE2_LIGHT, 0.0f, 0.0f);
+				setGreenRed(KEYGATE_LIGHT, 0.2f, 1.0f);
 
 			// Gate1, Gate1Prob, Gate2, Slide and Tied lights
 			if (!editingSequence && (!attached || !running)) {// no oct lights when song mode and either (detached [1] or stopped [2])
@@ -1635,8 +1631,8 @@ struct PhraseSeq16Widget : ModuleWidget {
 		static int spacingSteps4 = 4;
 		for (int x = 0; x < 16; x++) {
 			// First row
-			addParam(createParam<LEDButton>(Vec(posX, rowRulerT0 - 10 + 3 - 4.4f), module, PhraseSeq16::STEP_PHRASE_PARAMS + x, 0.0f, 1.0f, 0.0f));
-			addChild(createLight<MediumLight<GreenRedLight>>(Vec(posX + 4.4f, rowRulerT0 - 10 + 3), module, PhraseSeq16::STEP_PHRASE_LIGHTS + (x * 2)));
+			addParam(createParam<LEDButton>(Vec(posX, rowRulerT0 - 7 + 3 - 4.4f), module, PhraseSeq16::STEP_PHRASE_PARAMS + x, 0.0f, 1.0f, 0.0f));
+			addChild(createLight<MediumLight<GreenRedLight>>(Vec(posX + 4.4f, rowRulerT0 - 7 + 3), module, PhraseSeq16::STEP_PHRASE_LIGHTS + (x * 2)));
 			// step position to next location and handle groups of four
 			posX += spacingSteps;
 			if ((x + 1) % 4 == 0)
@@ -1648,14 +1644,12 @@ struct PhraseSeq16Widget : ModuleWidget {
 
 		
 		// Key mode LED buttons	
-		static const int rowRulerKM = rowRulerT0 + 20;
-		static const int colRulerKM = columnRulerT0 - 3;
-		addParam(createParam<LEDButton>(Vec(colRulerKM + spacingSteps * 2, rowRulerKM - 4.4f), module, PhraseSeq16::KEYNOTE_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(createLight<MediumLight<RedLight>>(Vec(colRulerKM + spacingSteps * 2 + 4.4f,  rowRulerKM), module, PhraseSeq16::KEYNOTE_LIGHT));
-		addParam(createParam<LEDButton>(Vec(colRulerKM + spacingSteps * 5 + spacingSteps / 2 + spacingSteps4, rowRulerKM - 4.4f), module, PhraseSeq16::KEYGATE1_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerKM + spacingSteps * 5 + spacingSteps / 2 + spacingSteps4 + 4.4f, rowRulerKM), module, PhraseSeq16::KEYGATE1_LIGHT));
-		addParam(createParam<LEDButton>(Vec(colRulerKM + spacingSteps * 9 + spacingSteps4 * 2, rowRulerKM - 4.4f), module, PhraseSeq16::KEYGATE2_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerKM + spacingSteps * 9 + spacingSteps4 * 2 + 4.4f, rowRulerKM), module, PhraseSeq16::KEYGATE2_LIGHT));
+		static const int rowRulerKM = rowRulerT0 + 26;
+		static const int colRulerKM = columnRulerT0 + 113;
+		addParam(createParam<LEDButton>(Vec(colRulerKM + 112, rowRulerKM - 4.4f), module, PhraseSeq16::KEYNOTE_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MediumLight<RedLight>>(Vec(colRulerKM + 112 + 4.4f,  rowRulerKM), module, PhraseSeq16::KEYNOTE_LIGHT));
+		addParam(createParam<LEDButton>(Vec(colRulerKM, rowRulerKM - 4.4f), module, PhraseSeq16::KEYGATE_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerKM + 4.4f, rowRulerKM), module, PhraseSeq16::KEYGATE_LIGHT));
 
 		
 		
