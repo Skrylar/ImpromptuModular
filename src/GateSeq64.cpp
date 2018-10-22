@@ -60,8 +60,8 @@ struct GateSeq64 : Module {
 		P_LIGHT,
 		RUN_LIGHT,
 		RESET_LIGHT,
-		// -- 0.6.9 ^^
 		ENUMS(GMODE_LIGHTS, 8 * 2),// room for GreenRed
+		RES_LIGHT,
 		NUM_LIGHTS
 	};
 	
@@ -470,6 +470,7 @@ struct GateSeq64 : Module {
 		static const float revertDisplayTime = 0.5f;// seconds
 		static const float holdDetectTime = 2.0f;// seconds
 		static const float editingPhraseSongRunningTime = 4.0f;// seconds
+		static const float editingPpqnTime = 3.5f;// seconds
 		float sampleRate = engineGetSampleRate();
 		
 
@@ -731,18 +732,11 @@ struct GateSeq64 : Module {
 		for (int i = 0; i < 8; i++) {
 			if (gModeTriggers[i].process(params[GMODE_PARAMS + i].value)) {
 				blinkNum = blinkNumInit;
-				if (pulsesPerStep != 1 && editingSequence && getGate(sequence, stepIndexEdit)) {
-					/*int gmode = getGateMode(sequence, stepIndexEdit);
-					gmode--;
-					if (gmode < 0)
-						gmode = 7;*/
-					if ( (pulsesPerStep == 4 && i > 2) || (pulsesPerStep == 6 && i <= 2) ) // pps requirement not met
-						editingPpqn = (long) (2.5f * sampleRate / displayRefreshStepSkips);
-					else
-						setGateMode(sequence, stepIndexEdit, i);//gmode);
-				}
-				else {
-					editingPpqn = (long) (2.5f * sampleRate / displayRefreshStepSkips);
+				if (editingSequence) {
+					if ( (pulsesPerStep < 2) || (pulsesPerStep == 4 && i > 2) || (pulsesPerStep == 6 && i <= 2) ) // pps requirement not met
+						editingPpqn = (long) (editingPpqnTime * sampleRate / displayRefreshStepSkips);
+					else if (getGate(sequence, stepIndexEdit))
+						setGateMode(sequence, stepIndexEdit, i);
 				}
 			}
 		}
@@ -769,7 +763,7 @@ struct GateSeq64 : Module {
 				}
 				else if (editingPpqn != 0) {
 					pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
-					editingPpqn = (long) (2.5f * sampleRate / displayRefreshStepSkips);
+					editingPpqn = (long) (editingPpqnTime * sampleRate / displayRefreshStepSkips);
 				}
 				else if (displayState == DISP_MODES) {
 					if (editingSequence) {
@@ -974,6 +968,15 @@ struct GateSeq64 : Module {
 					setGreenRed(GMODE_LIGHTS + i * 2, 0.0f, 0.0f);
 			}
 		
+			// Res light
+			long editingPpqnInit = (long) (editingPpqnTime * sampleRate / displayRefreshStepSkips);
+			if ( ((editingPpqn > 0l) && (editingPpqn < (editingPpqnInit / 6l))) ||
+				 ((editingPpqn > (editingPpqnInit * 2l / 6l)) && (editingPpqn < (editingPpqnInit * 3l / 6l))) ||
+				 ((editingPpqn > (editingPpqnInit * 4l / 6l)) && (editingPpqn < (editingPpqnInit * 5l / 6l))) )
+				lights[RES_LIGHT].value = 1.0f;
+			else 
+				lights[RES_LIGHT].value = 0.0f;
+
 			// Reset light
 			lights[RESET_LIGHT].value =	resetLight;	
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime() * displayRefreshStepSkips;
@@ -991,7 +994,7 @@ struct GateSeq64 : Module {
 				displayProbInfo--;
 			if (modeHoldDetect.process(params[MODES_PARAM].value)) {
 				displayState = DISP_GATE;
-				editingPpqn = (long) (2.5f * sampleRate / displayRefreshStepSkips);
+				editingPpqn = (long) (editingPpqnTime * sampleRate / displayRefreshStepSkips);
 			}
 			if (editingPpqn > 0l)
 				editingPpqn--;
@@ -1332,6 +1335,7 @@ struct GateSeq64Widget : ModuleWidget {
 		addChild(displaySequence);
 		// Modes button
 		addParam(createDynamicParam<IMBigPushButton>(Vec(colRulerC3 + offsetCKD6b, rowRulerC1 + offsetCKD6b), module, GateSeq64::MODES_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(createLight<SmallLight<RedLight>>(Vec(colRulerC3 + offsetCKD6b + 24, rowRulerC1 + 0 + offsetCKD6b + 31), module, GateSeq64::RES_LIGHT));
 		// Copy/paste buttons
 		addParam(createDynamicParam<IMPushButton>(Vec(colRulerC3 - 10, rowRulerC2 + offsetTL1105), module, GateSeq64::COPY_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		addParam(createDynamicParam<IMPushButton>(Vec(colRulerC3 + 20, rowRulerC2 + offsetTL1105), module, GateSeq64::PASTE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
