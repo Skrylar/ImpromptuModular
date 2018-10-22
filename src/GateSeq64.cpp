@@ -732,11 +732,14 @@ struct GateSeq64 : Module {
 			if (gModeTriggers[i].process(params[GMODE_PARAMS + i].value)) {
 				blinkNum = blinkNumInit;
 				if (pulsesPerStep != 1 && editingSequence && getGate(sequence, stepIndexEdit)) {
-					int gmode = i;/*getGateMode(sequence, stepIndexEdit);
+					/*int gmode = getGateMode(sequence, stepIndexEdit);
 					gmode--;
 					if (gmode < 0)
 						gmode = 7;*/
-					setGateMode(sequence, stepIndexEdit, gmode);
+					if ( (pulsesPerStep == 4 && i > 2) || (pulsesPerStep == 6 && i <= 2) ) // pps requirement not met
+						editingPpqn = (long) (2.5f * sampleRate / displayRefreshStepSkips);
+					else
+						setGateMode(sequence, stepIndexEdit, i);//gmode);
 				}
 				else {
 					editingPpqn = (long) (2.5f * sampleRate / displayRefreshStepSkips);

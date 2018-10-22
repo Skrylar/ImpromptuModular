@@ -21,9 +21,9 @@
 struct SemiModularSynth : Module {
 	enum ParamIds {
 		// SEQUENCER
-		LEFT_PARAM,// no longer used
-		RIGHT_PARAM,// no longer used
-		LENGTH_PARAM,// no longer used
+		KEYNOTE_PARAM,// 0.6.12 replaces unused
+		KEYGATE1_PARAM,// 0.6.12 replaces unused
+		KEYGATE2_PARAM,// 0.6.12 replaces unused
 		EDIT_PARAM,
 		SEQUENCE_PARAM,
 		RUN_PARAM,
@@ -166,6 +166,9 @@ struct SemiModularSynth : Module {
 		ATTACH_LIGHT,
 		GATE1_PROB_LIGHT,
 		TIE_LIGHT,
+		KEYNOTE_LIGHT,
+		ENUMS(KEYGATE1_LIGHT, 2),// room for GreenRed
+		ENUMS(KEYGATE2_LIGHT, 2),// room for GreenRed
 		
 		// VCO, CLK, VCA
 		// none
@@ -224,8 +227,8 @@ struct SemiModularSynth : Module {
 	int gate1Code;
 	int gate2Code;
 	long revertDisplay;
-	long editingGateLength;// 0 when no info, positive downward step counter timer when gate1, negative upward when gate2
-	long editGateLengthTimeInitMult;// multiplier for extended setting of advanced gates
+	long editingGateLength;// 0 when no info, positive when gate1, negative when gate2
+	//long editGateLengthTimeInitMult;// multiplier for extended setting of advanced gates
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
 	
@@ -270,9 +273,12 @@ struct SemiModularSynth : Module {
 	SchmittTrigger transposeTrigger;
 	SchmittTrigger tiedTrigger;
 	SchmittTrigger stepTriggers[16];
+	SchmittTrigger keyNoteTrigger;
+	SchmittTrigger keyGate1Trigger;
+	SchmittTrigger keyGate2Trigger;
 	HoldDetect modeHoldDetect;
-	HoldDetect gate1HoldDetect;
-	HoldDetect gate2HoldDetect;
+	//HoldDetect gate1HoldDetect;
+	//HoldDetect gate2HoldDetect;
 	
 	
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
@@ -337,7 +343,8 @@ struct SemiModularSynth : Module {
 		tiedWarning = 0ul;
 		revertDisplay = 0l;
 		resetOnRun = false;
-		editGateLengthTimeInitMult = 1l;
+		//editGateLengthTimeInitMult = 1l;
+		editingGateLength = 0l;
 		editingPpqn = 0l;
 		
 		// VCO
@@ -386,7 +393,6 @@ struct SemiModularSynth : Module {
 		gate1Code = calcGate1Code(attributes[seq][stepIndexRun], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
 		gate2Code = calcGate2Code(attributes[seq][stepIndexRun], 0, pulsesPerStep);
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		editingGateLength = 0l;
 	}
 	
 	
@@ -899,6 +905,8 @@ struct SemiModularSynth : Module {
 			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 				if (editingPpqn != 0) {
 					pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
+					if (pulsesPerStep < 2)
+						editingGateLength = 0l;
 					editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 				}
 				else if (displayState == DISP_MODE) {
@@ -1007,14 +1015,14 @@ struct SemiModularSynth : Module {
 								setGate1Mode(sequence, stepIndexEdit, newMode);
 							else
 								editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-							editingGateLength = ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
+							//editingGateLength = ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
 						}
 						else {
 							if (newMode != -1)
 								setGate2Mode(sequence, stepIndexEdit, newMode);
 							else
 								editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-							editingGateLength = -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
+							//editingGateLength = -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
 						}
 					}
 					else if (getTied(sequence,stepIndexEdit)) {
@@ -1039,14 +1047,35 @@ struct SemiModularSynth : Module {
 			}
 		}
 		
+		// Keyboard mode (note or gate type)
+		if (keyNoteTrigger.process(params[KEYNOTE_PARAM].value)) {
+			editingGateLength = 0l;
+		}
+		if (keyGate1Trigger.process(params[KEYGATE1_PARAM].value)) {
+			if (pulsesPerStep < 2) {
+				editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+			}
+			else {
+				editingGateLength = 1l;
+			}
+		}
+		if (keyGate2Trigger.process(params[KEYGATE2_PARAM].value)) {
+			if (pulsesPerStep < 2) {
+				editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+			}
+			else {
+				editingGateLength = -1l;
+			}
+		}
+
 		// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
 		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 			if (editingSequence) {
 				toggleGate1a(&attributes[sequence][stepIndexEdit]);
-				if (pulsesPerStep != 1) {
-					editingGateLength = getGate1(sequence,stepIndexEdit) ? ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
-					gate1HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
-				}
+				//if (pulsesPerStep != 1) {
+					//editingGateLength = getGate1(sequence,stepIndexEdit) ? ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
+					//gate1HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
+				//}
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -1062,10 +1091,10 @@ struct SemiModularSynth : Module {
 		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
 			if (editingSequence) {
 				toggleGate2a(&attributes[sequence][stepIndexEdit]);
-				if (pulsesPerStep != 1) {
-					editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
-					gate2HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
-				}
+				//if (pulsesPerStep != 1) {
+					//editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
+					//gate2HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
+				//}
 			}
 			displayState = DISP_NORMAL;
 		}		
@@ -1248,7 +1277,7 @@ struct SemiModularSynth : Module {
 			else	
 				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
 			int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
-			if (editingGateLength != 0 && editingSequence) {
+			if (editingGateLength != 0l && editingSequence) {
 				int modeLightIndex = gateModeToKeyLightIndex(attributes[sequence][stepIndexEdit], editingGateLength > 0l);
 				for (int i = 0; i < 12; i++) {
 					if (i == modeLightIndex) {
@@ -1286,6 +1315,17 @@ struct SemiModularSynth : Module {
 				}	
 			}	
 			
+			// Key mode light (note or gate type)
+			lights[KEYNOTE_LIGHT].value = editingGateLength == 0l ? 10.0f : 0.0f;
+			if (editingGateLength == 1l)
+				setGreenRed(KEYGATE1_LIGHT, 1.0f, 0.2f);
+			else
+				setGreenRed(KEYGATE1_LIGHT, 0.0f, 0.0f);
+			if (editingGateLength == -1l)
+				setGreenRed(KEYGATE2_LIGHT, 0.2f, 1.0f);
+			else
+				setGreenRed(KEYGATE2_LIGHT, 0.0f, 0.0f);
+
 			// Gate1, Gate1Prob, Gate2, Slide and Tied lights
 			if (!editingSequence && (!attached || !running)) {// no oct lights when song mode and either (detached [1] or stopped [2])
 											// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
@@ -1331,7 +1371,7 @@ struct SemiModularSynth : Module {
 				if (infoCopyPaste < 0l)
 					infoCopyPaste ++;
 			}
-			if (editingGateLength > 0l) {// needs thread safe version (that's why it appears not optimized)
+			/*if (editingGateLength > 0l) {// needs thread safe version (that's why it appears not optimized)
 				editingGateLength --;
 				if (editingGateLength < 0l)
 					editingGateLength = 0l;
@@ -1340,7 +1380,7 @@ struct SemiModularSynth : Module {
 				editingGateLength ++;
 				if (editingGateLength > 0l)
 					editingGateLength = 0l;
-			}
+			}*/
 			if (editingPpqn > 0l)
 				editingPpqn--;
 			if (tiedWarning > 0l)
@@ -1349,14 +1389,14 @@ struct SemiModularSynth : Module {
 				displayState = DISP_NORMAL;
 				editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 			}
-			if (gate1HoldDetect.process(params[GATE1_PARAM].value)) {
+			/*if (gate1HoldDetect.process(params[GATE1_PARAM].value)) {
 				toggleGate1a(&attributes[sequence][stepIndexEdit]);
 				editGateLengthTimeInitMult = 1;
 			}
 			if (gate2HoldDetect.process(params[GATE2_PARAM].value)) {
 				toggleGate2a(&attributes[sequence][stepIndexEdit]);
 				editGateLengthTimeInitMult = 100;
-			}
+			}*/
 			if (revertDisplay > 0l) {
 				if (revertDisplay == 1)
 					displayState = DISP_NORMAL;
@@ -1746,8 +1786,8 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static int spacingSteps4 = 4;
 		for (int x = 0; x < 16; x++) {
 			// First row
-			addParam(createParam<LEDButton>(Vec(posX, rowRulerT0 + 3 - 4.4f), module, SemiModularSynth::STEP_PHRASE_PARAMS + x, 0.0f, 1.0f, 0.0f));
-			addChild(createLight<MediumLight<GreenRedLight>>(Vec(posX + 4.4f, rowRulerT0 + 3), module, SemiModularSynth::STEP_PHRASE_LIGHTS + (x * 2)));
+			addParam(createParam<LEDButton>(Vec(posX, rowRulerT0 - 10 + 3 - 4.4f), module, SemiModularSynth::STEP_PHRASE_PARAMS + x, 0.0f, 1.0f, 0.0f));
+			addChild(createLight<MediumLight<GreenRedLight>>(Vec(posX + 4.4f, rowRulerT0 - 10 + 3), module, SemiModularSynth::STEP_PHRASE_LIGHTS + (x * 2)));
 			// step position to next location and handle groups of four
 			posX += spacingSteps;
 			if ((x + 1) % 4 == 0)
@@ -1758,6 +1798,17 @@ struct SemiModularSynthWidget : ModuleWidget {
 		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerT3 + 12 + offsetMediumLight, rowRulerT0 - 6 + offsetMediumLight), module, SemiModularSynth::ATTACH_LIGHT));
 
 
+		// Key mode LED buttons	
+		static const int rowRulerKM = rowRulerT0 + 20 - 2;
+		static const int colRulerKM = columnRulerT0 - 3;
+		addParam(createParam<LEDButton>(Vec(colRulerKM + spacingSteps * 2, rowRulerKM - 4.4f), module, SemiModularSynth::KEYNOTE_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MediumLight<RedLight>>(Vec(colRulerKM + spacingSteps * 2 + 4.4f,  rowRulerKM), module, SemiModularSynth::KEYNOTE_LIGHT));
+		addParam(createParam<LEDButton>(Vec(colRulerKM + spacingSteps * 5 + spacingSteps / 2 + spacingSteps4, rowRulerKM - 4.4f), module, SemiModularSynth::KEYGATE1_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerKM + spacingSteps * 5 + spacingSteps / 2 + spacingSteps4 + 4.4f, rowRulerKM), module, SemiModularSynth::KEYGATE1_LIGHT));
+		addParam(createParam<LEDButton>(Vec(colRulerKM + spacingSteps * 9 + spacingSteps4 * 2, rowRulerKM - 4.4f), module, SemiModularSynth::KEYGATE2_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerKM + spacingSteps * 9 + spacingSteps4 * 2 + 4.4f, rowRulerKM), module, SemiModularSynth::KEYGATE2_LIGHT));
+		
+		
 		
 		// ****** Octave and keyboard area ******
 		
