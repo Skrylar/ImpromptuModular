@@ -1269,16 +1269,17 @@ struct GateSeq64Widget : ModuleWidget {
 		static const int rowRulerG0 = 166;
 		static const int rowSpacingG = 26;
 		static const int colSpacingG = 56;
+		static const int colRulerG0 = 15 + 28;
 		
-		addParam(createParam<LEDButton>(Vec(colRulerSteps, rowRulerG0 + rowSpacingG * 2 - 4.4f), module, GateSeq64::GMODE_PARAMS + 2, 0.0f, 1.0f, 0.0f));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerSteps + 4.4f, rowRulerG0 + rowSpacingG * 2), module, GateSeq64::GMODE_LIGHTS + 2 * 2));
-		addParam(createParam<LEDButton>(Vec(colRulerSteps, rowRulerG0 + rowSpacingG - 4.4f), module, GateSeq64::GMODE_PARAMS + 1, 0.0f, 1.0f, 0.0f));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerSteps + 4.4f, rowRulerG0 + rowSpacingG), module, GateSeq64::GMODE_LIGHTS + 1 * 2));
-		addParam(createParam<LEDButton>(Vec(colRulerSteps, rowRulerG0 - 4.4f), module, GateSeq64::GMODE_PARAMS + 0, 0.0f, 1.0f, 0.0f));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerSteps + 4.4f, rowRulerG0), module, GateSeq64::GMODE_LIGHTS + 0 * 2));		
+		addParam(createParam<LEDButton>(Vec(colRulerG0, rowRulerG0 + rowSpacingG * 2 - 4.4f), module, GateSeq64::GMODE_PARAMS + 2, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerG0 + 4.4f, rowRulerG0 + rowSpacingG * 2), module, GateSeq64::GMODE_LIGHTS + 2 * 2));
+		addParam(createParam<LEDButton>(Vec(colRulerG0, rowRulerG0 + rowSpacingG - 4.4f), module, GateSeq64::GMODE_PARAMS + 1, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerG0 + 4.4f, rowRulerG0 + rowSpacingG), module, GateSeq64::GMODE_LIGHTS + 1 * 2));
+		addParam(createParam<LEDButton>(Vec(colRulerG0, rowRulerG0 - 4.4f), module, GateSeq64::GMODE_PARAMS + 0, 0.0f, 1.0f, 0.0f));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerG0 + 4.4f, rowRulerG0), module, GateSeq64::GMODE_LIGHTS + 0 * 2));		
 		for (int x = 1; x < 6; x++) {
-			addParam(createParam<LEDButton>(Vec(colRulerSteps + colSpacingG * x, rowRulerG0 - 4.4f), module, GateSeq64::GMODE_PARAMS + 2 + x, 0.0f, 1.0f, 0.0f));
-			addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerSteps + colSpacingG * x + 4.4f, rowRulerG0), module, GateSeq64::GMODE_LIGHTS + (2 + x) * 2));
+			addParam(createParam<LEDButton>(Vec(colRulerG0 + colSpacingG * x, rowRulerG0 - 4.4f), module, GateSeq64::GMODE_PARAMS + 2 + x, 0.0f, 1.0f, 0.0f));
+			addChild(createLight<MediumLight<GreenRedLight>>(Vec(colRulerG0 + colSpacingG * x + 4.4f, rowRulerG0), module, GateSeq64::GMODE_LIGHTS + (2 + x) * 2));
 		}
 		
 		
