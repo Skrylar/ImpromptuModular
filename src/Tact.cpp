@@ -157,52 +157,56 @@ struct Tact : Module {
 		float sampleTime = engineGetSampleTime();
 		static const float storeInfoTime = 0.5f;// seconds	
 	
-		// store buttons
-		for (int i = 0; i < 2; i++) {
-			if (storeTriggers[i].process(params[STORE_PARAMS + i].value)) {
-				if ( !(i == 1 && isLinked()) ) {// ignore right channel store-button press when linked
-					storeCV[i] = cv[i];
-					infoStore = (long) (storeInfoTime * sampleRate / displayRefreshStepSkips) * (i == 0 ? 1l : -1l);
-				}
-			}
-		}
+		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
 		
-		// top/bot/recall CV inputs
-		for (int i = 0; i < 2; i++) {
-			if (topTriggers[i].process(inputs[TOP_INPUTS + i].value)) {
-				if ( !(i == 1 && isLinked()) ) {// ignore right channel top cv in when linked
-					paramReadRequest[i] = 10.0f;
-					infoCVinLight[i] = 1.0f;
+			// store buttons
+			for (int i = 0; i < 2; i++) {
+				if (storeTriggers[i].process(params[STORE_PARAMS + i].value)) {
+					if ( !(i == 1 && isLinked()) ) {// ignore right channel store-button press when linked
+						storeCV[i] = cv[i];
+						infoStore = (long) (storeInfoTime * sampleRate / displayRefreshStepSkips) * (i == 0 ? 1l : -1l);
+					}
 				}
 			}
-			if (botTriggers[i].process(inputs[BOT_INPUTS + i].value)) {
-				if ( !(i == 1 && isLinked()) ) {// ignore right channel bot cv in when linked
-					paramReadRequest[i] = 0.0f;
-					infoCVinLight[i] = 1.0f;
-				}				
-			}
-			if (topInvTriggers[i].process(1.0f - inputs[TOP_INPUTS + i].value)) {
-				if ( levelSensitiveTopBot && !(i == 1 && isLinked()) ) {// ignore right channel top cv in when linked
-					paramReadRequest[i] = cv[i];
-					infoCVinLight[i] = 1.0f;
+			
+			// top/bot/recall CV inputs
+			for (int i = 0; i < 2; i++) {
+				if (topTriggers[i].process(inputs[TOP_INPUTS + i].value)) {
+					if ( !(i == 1 && isLinked()) ) {// ignore right channel top cv in when linked
+						paramReadRequest[i] = 10.0f;
+						infoCVinLight[i] = 1.0f;
+					}
+				}
+				if (botTriggers[i].process(inputs[BOT_INPUTS + i].value)) {
+					if ( !(i == 1 && isLinked()) ) {// ignore right channel bot cv in when linked
+						paramReadRequest[i] = 0.0f;
+						infoCVinLight[i] = 1.0f;
+					}				
+				}
+				if (topInvTriggers[i].process(1.0f - inputs[TOP_INPUTS + i].value)) {
+					if ( levelSensitiveTopBot && !(i == 1 && isLinked()) ) {// ignore right channel top cv in when linked
+						paramReadRequest[i] = cv[i];
+						infoCVinLight[i] = 1.0f;
+					}
+				}
+				if (botInvTriggers[i].process(1.0f - inputs[BOT_INPUTS + i].value)) {
+					if ( levelSensitiveTopBot && !(i == 1 && isLinked()) ) {// ignore right channel bot cv in when linked
+						paramReadRequest[i] = cv[i];
+						infoCVinLight[i] = 1.0f;
+					}				
+				}
+				if (recallTriggers[i].process(inputs[RECALL_INPUTS + i].value)) {// ignore right channel recall cv in when linked
+					if ( !(i == 1 && isLinked()) ) {
+						//tactWidgets[i]->changeValue(storeCV[i]);
+						paramReadRequest[i] = storeCV[i];
+						if (params[SLIDE_PARAMS + i].value < 0.5f) //if no slide
+							cv[i]=storeCV[i];
+						infoCVinLight[i] = 1.0f;
+					}				
 				}
 			}
-			if (botInvTriggers[i].process(1.0f - inputs[BOT_INPUTS + i].value)) {
-				if ( levelSensitiveTopBot && !(i == 1 && isLinked()) ) {// ignore right channel bot cv in when linked
-					paramReadRequest[i] = cv[i];
-					infoCVinLight[i] = 1.0f;
-				}				
-			}
-			if (recallTriggers[i].process(inputs[RECALL_INPUTS + i].value)) {// ignore right channel recall cv in when linked
-				if ( !(i == 1 && isLinked()) ) {
-					//tactWidgets[i]->changeValue(storeCV[i]);
-					paramReadRequest[i] = storeCV[i];
-					if (params[SLIDE_PARAMS + i].value < 0.5f) //if no slide
-						cv[i]=storeCV[i];
-					infoCVinLight[i] = 1.0f;
-				}				
-			}
-		}
+			
+		}// userInputs refresh
 		
 		
 		// cv
@@ -254,7 +258,7 @@ struct Tact : Module {
 		
 		
 		lightRefreshCounter++;
-		if (lightRefreshCounter > displayRefreshStepSkips) {
+		if (lightRefreshCounter >= displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
 
 			// Tactile lights
@@ -617,7 +621,7 @@ struct Tact1 : Module {
 		
 		
 		lightRefreshCounter++;
-		if (lightRefreshCounter > displayRefreshStepSkips) {
+		if (lightRefreshCounter >= displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
 
 			setTLights();

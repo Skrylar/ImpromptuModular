@@ -247,19 +247,19 @@ struct WriteSeq32 : Module {
 		int numSteps = (int) clamp(roundf(params[STEPS_PARAM].value), 1.0f, 32.0f);	
 		bool canEdit = !running || (indexChannel == 3);
 		
+		// Run state button
+		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
+			running = !running;
+			//pendingPaste = 0;// no pending pastes across run state toggles
+			if (running && resetOnRun) {
+				indexStep = 0;
+				indexStepStage = 0;
+			}
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		}
+		
 		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
 		
-			// Run state button
-			if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
-				running = !running;
-				//pendingPaste = 0;// no pending pastes across run state toggles
-				if (running && resetOnRun) {
-					indexStep = 0;
-					indexStepStage = 0;
-				}
-				clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-			}
-			
 			// Copy button
 			if (copyTrigger.process(params[COPY_PARAM].value)) {
 				infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate() / displayRefreshStepSkips);
@@ -415,7 +415,7 @@ struct WriteSeq32 : Module {
 		}
 
 		lightRefreshCounter++;
-		if (lightRefreshCounter > displayRefreshStepSkips) {
+		if (lightRefreshCounter >= displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
 
 			int index = (indexChannel == 3 ? indexStepStage : indexStep);

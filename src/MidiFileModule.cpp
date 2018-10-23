@@ -436,7 +436,7 @@ struct MidiFileModule : Module {
 		
 		
 		lightRefreshCounter++;
-		if (lightRefreshCounter > displayRefreshStepSkips) {
+		if (lightRefreshCounter >= displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
 			
 			// fileLoaded light

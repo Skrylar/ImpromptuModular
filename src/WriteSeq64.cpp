@@ -272,18 +272,18 @@ struct WriteSeq64 : Module {
 
 		bool canEdit = !running || (indexChannel == 4);
 		
-		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
-		
-			// Run state button
-			if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
-				running = !running;
-				//pendingPaste = 0;// no pending pastes across run state toggles
-				if (running && resetOnRun) {
-					for (int c = 0; c < 5; c++) 
-						indexStep[c] = 0;
-				}
-				clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		// Run state button
+		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
+			running = !running;
+			//pendingPaste = 0;// no pending pastes across run state toggles
+			if (running && resetOnRun) {
+				for (int c = 0; c < 5; c++) 
+					indexStep[c] = 0;
 			}
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+		}
+	
+		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
 		
 			// Copy button
 			if (copyTrigger.process(params[COPY_PARAM].value)) {
@@ -456,7 +456,7 @@ struct WriteSeq64 : Module {
 		}
 		
 		lightRefreshCounter++;
-		if (lightRefreshCounter > displayRefreshStepSkips) {
+		if (lightRefreshCounter >= displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
 
 			// Gate light

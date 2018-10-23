@@ -127,43 +127,44 @@ struct TwelveKey : Module {
 		
 		//********** Buttons, knobs, switches and inputs **********
 		
-		// Octave buttons and input
-		if (octIncTrigger.process(params[OCTINC_PARAM].value))
-			octaveNum++;
-		if (octDecTrigger.process(params[OCTDEC_PARAM].value))
-			octaveNum--;
+		bool upOctTrig = false;
+		bool downOctTrig = false;
+		
+		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
+		
+			// Octave buttons and input
+			upOctTrig = octIncTrigger.process(params[OCTINC_PARAM].value);
+			downOctTrig = octDecTrigger.process(params[OCTDEC_PARAM].value);
+				
+			// Keyboard buttons and gate input
+			for (int i = 0; i < 12; i++) {
+				if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
+					cv = ((float)(octaveNum - 4)) + ((float) i) / 12.0f;
+					stateInternal = true;
+					noteLightCounter = (unsigned long) (noteLightTime * engineGetSampleRate() / displayRefreshStepSkips);
+					lastKeyPressed = i;
+				}
+			}
+		
+		}// userInputs refresh
+		
+		
 		if (inputs[OCT_INPUT].active)
 			octaveNum = ((int) floor(inputs[OCT_INPUT].value));
+		else if (upOctTrig)
+			octaveNum++;
+		else if (downOctTrig)
+			octaveNum--;
 		if (octaveNum > 9) octaveNum = 9;
 		if (octaveNum < 0) octaveNum = 0;
 		
-		// Keyboard buttons and gate input
-		for (int i = 0; i < 12; i++) {
-			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
-				cv = ((float)(octaveNum - 4)) + ((float) i) / 12.0f;
-				stateInternal = true;
-				noteLightCounter = (unsigned long) (noteLightTime * engineGetSampleRate() / displayRefreshStepSkips);
-				lastKeyPressed = i;
-			}
-		}
-		if (gateInputTrigger.process(inputs[GATE_INPUT].value)) {
+		if (gateInputTrigger.process(inputs[GATE_INPUT].value)) {// no input refresh here, don't want propagation lag in long 12-key chain
 			cv = inputs[CV_INPUT].value;			
 			stateInternal = false;
 		}
 		
 		
 		//********** Outputs and lights **********
-		
-		// Gate light (with fade)
-		int pressed = 0;
-		for (int i = 0; i < 12; i++)
-			if (params[KEY_PARAMS + i].value > 0.5f)
-				pressed++;
-		/*if (pressed != 0)
-			gateLight = 1.0f;
-		else
-			gateLight -= (gateLight / lightLambda) * engineGetSampleTime();
-		lights[PRESS_LIGHT].value = gateLight;*/
 		
 		// cv output
 		outputs[CV_OUTPUT].value = cv;
@@ -173,14 +174,14 @@ struct TwelveKey : Module {
 			outputs[GATE_OUTPUT].value = inputs[GATE_INPUT].value;
 		}
 		else {// key from this
-			outputs[GATE_OUTPUT].value = (pressed != 0 ? 10.0f : 0.0f);
+			outputs[GATE_OUTPUT].value = (params[KEY_PARAMS + lastKeyPressed].value > 0.5f) ? 10.0f : 0.0f;
 		}
 		
 		// Octave output
 		outputs[OCT_OUTPUT].value = round( (float)(octaveNum + 1) );
 		
 		lightRefreshCounter++;
-		if (lightRefreshCounter > displayRefreshStepSkips) {
+		if (lightRefreshCounter >= displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
 
 			// Key lights

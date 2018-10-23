@@ -460,7 +460,7 @@ struct BigButtonSeq2 : Module {
 
 		
 		lightRefreshCounter++;
-		if (lightRefreshCounter > displayRefreshStepSkips) {
+		if (lightRefreshCounter >= displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
 
 			// Gate light outputs

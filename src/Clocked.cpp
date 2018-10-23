@@ -418,7 +418,7 @@ struct Clocked : Module {
 		}
 		
 		// Run button
-		if (runTrigger.process(params[RUN_PARAM].value + inputs[RUN_INPUT].value)) {
+		if (runTrigger.process(params[RUN_PARAM].value + inputs[RUN_INPUT].value)) {// no input refresh here, don't want to introduce clock skew
 			if (!(bpmDetectionMode && inputs[BPM_INPUT].active) || running) {// toggle when not BPM detect, turn off only when BPM detect (allows turn off faster than timeout if don't want any trailing beats after stoppage). If allow manually start in bpmDetectionMode   the clock will not know which pulse is the 1st of a ppqn set, so only allow stop
 				running = !running;
 				runPulse.trigger(0.001f);
@@ -439,28 +439,24 @@ struct Clocked : Module {
 		}	
 
 		// BPM mode
-		if (bpmModeTrigger.process(params[BPMMODE_PARAM].value)) {
-			//if (inputs[BPM_INPUT].active) {
-				if (editingBpmMode != 0ul) {// force active before allow change
-					if (bpmDetectionMode == false) {
-						bpmDetectionMode = true;
-						ppqn = 4;
-					}
-					else {
-						if (ppqn == 4)
-							ppqn = 8;
-						else if (ppqn == 8)
-							ppqn = 12;
-						else if (ppqn == 12)
-							ppqn = 24;
-						else 
-							bpmDetectionMode = false;
-					}
+		if (bpmModeTrigger.process(params[BPMMODE_PARAM].value)) {// no input refresh here, not worth it just for one button (this is the only potential button to input-refresh optimize)
+			if (editingBpmMode != 0ul) {// force active before allow change
+				if (bpmDetectionMode == false) {
+					bpmDetectionMode = true;
+					ppqn = 4;
 				}
-				editingBpmMode = (long) (3.0 * sampleRate / displayRefreshStepSkips);
-			//}
-			//else
-				//editingBpmMode = (long) (-1.5 * sampleRate / displayRefreshStepSkips);
+				else {
+					if (ppqn == 4)
+						ppqn = 8;
+					else if (ppqn == 8)
+						ppqn = 12;
+					else if (ppqn == 12)
+						ppqn = 24;
+					else 
+						bpmDetectionMode = false;
+				}
+			}
+			editingBpmMode = (long) (3.0 * sampleRate / displayRefreshStepSkips);
 		}
 		
 		// BPM input and knob
@@ -607,7 +603,7 @@ struct Clocked : Module {
 			
 		
 		lightRefreshCounter++;
-		if (lightRefreshCounter > displayRefreshStepSkips) {
+		if (lightRefreshCounter >= displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
 
 			// Reset light

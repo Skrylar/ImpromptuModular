@@ -648,6 +648,14 @@ struct SemiModularSynth : Module {
 		// Edit mode
 		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		
+		// Run button
+		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
+			running = !running;
+			if (running)
+				initRun(resetOnRun);
+			displayState = DISP_NORMAL;
+		}
+
 		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
 
 			// Seq CV input
@@ -655,14 +663,6 @@ struct SemiModularSynth : Module {
 				sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (16.0f - 1.0f) / 10.0f), 0.0f, (16.0f - 1.0f) );
 			}
 			
-			// Run button
-			if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
-				running = !running;
-				if (running)
-					initRun(resetOnRun);
-				displayState = DISP_NORMAL;
-			}
-
 			// Attach button
 			if (attachedTrigger.process(params[ATTACH_PARAM].value)) {
 				attached = !attached;	
@@ -1199,7 +1199,7 @@ struct SemiModularSynth : Module {
 			slideStepsRemain--;
 		
 		lightRefreshCounter++;
-		if (lightRefreshCounter > displayRefreshStepSkips) {
+		if (lightRefreshCounter >= displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
 
 			// Step/phrase lights

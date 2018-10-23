@@ -560,6 +560,14 @@ struct PhraseSeq32 : Module {
 		// Edit mode
 		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		
+		// Run button
+		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
+			running = !running;
+			if (running)
+				initRun(resetOnRun);
+			displayState = DISP_NORMAL;
+		}
+
 		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
 
 			// Config switch
@@ -589,14 +597,6 @@ struct PhraseSeq32 : Module {
 					runModeSeq[sequence] = (int) clamp( round(inputs[MODECV_INPUT].value * ((float)NUM_MODES - 1.0f) / 10.0f), 0.0f, (float)NUM_MODES - 1.0f );
 			}
 			
-			// Run button
-			if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
-				running = !running;
-				if (running)
-					initRun(resetOnRun);
-				displayState = DISP_NORMAL;
-			}
-
 			// Attach button
 			if (attachedTrigger.process(params[ATTACH_PARAM].value)) {
 				attached = !attached;
@@ -1201,7 +1201,7 @@ struct PhraseSeq32 : Module {
 
 		
 		lightRefreshCounter++;
-		if (lightRefreshCounter > displayRefreshStepSkips) {
+		if (lightRefreshCounter >= displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
 		
 			// Step/phrase lights

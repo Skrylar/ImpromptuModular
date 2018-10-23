@@ -480,6 +480,16 @@ struct GateSeq64 : Module {
 		// Edit mode		
 		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		
+		// Run state button
+		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
+			running = !running;
+			if (running)
+				initRun(resetOnRun);
+			else
+				blinkNum = blinkNumInit;
+			displayState = DISP_GATE;
+		}
+		
 		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
 			
 			// Edit mode blink when change
@@ -504,16 +514,6 @@ struct GateSeq64 : Module {
 			// Seq CV input
 			if (inputs[SEQCV_INPUT].active) {
 				sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * 15.0f / 10.0f), 0.0f, 15.0f );
-			}
-			
-			// Run state button
-			if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
-				running = !running;
-				if (running)
-					initRun(resetOnRun);
-				else
-					blinkNum = blinkNumInit;
-				displayState = DISP_GATE;
 			}
 			
 			// Copy button
