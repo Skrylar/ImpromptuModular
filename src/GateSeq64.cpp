@@ -477,346 +477,348 @@ struct GateSeq64 : Module {
 		
 		//********** Buttons, knobs, switches and inputs **********
 
-		// Config switch
-		if (stepConfigSync != 0) {
-			stepConfig = getStepConfig(params[CONFIG_PARAM].value);
-			if (stepConfigSync == 1) {// sync from fromJson, so read lengths from lengthsBuffer
-				for (int i = 0; i < 16; i++)
-					lengths[i] = lengthsBuffer[i];
-			}
-			else if (stepConfigSync == 2) {// sync from a real mouse drag event on the switch itself, so init lengths
-				for (int i = 0; i < 16; i++)
-					lengths[i] = 16 * stepConfig;
-			}
-			initRun(true);	
-			stepConfigSync = 0;
-		}
-		
 		// Edit mode		
 		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
-		if (editingSequenceTrigger.process(editingSequence))
-			blinkNum = blinkNumInit;
-
-		// Seq CV input
-		if (inputs[SEQCV_INPUT].active) {
-			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * 15.0f / 10.0f), 0.0f, 15.0f );
-		}
-
-		// Run state button
-		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
-			running = !running;
-			if (running)
-				initRun(resetOnRun);
-			else
-				blinkNum = blinkNumInit;
-			displayState = DISP_GATE;
-		}
 		
-		// Copy button
-		if (copyTrigger.process(params[COPY_PARAM].value)) {
-			startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
-			countCP = 64;
-			if (params[CPMODE_PARAM].value > 1.5f)// ALL
-				startCP = 0;			
-			else if (params[CPMODE_PARAM].value < 0.5f)// 4
-				countCP = min(4, 64 - startCP);
-			else// 8
-				countCP = min(8, 64 - startCP);
-			if (editingSequence) {	
-				for (int i = 0, s = startCP; i < countCP; i++, s++)
-					attribOrPhraseCPbuffer[i] = attributes[sequence][s];
-				lengthCPbuffer = lengths[sequence];
-				modeCPbuffer = runModeSeq[sequence];		
+		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
+			
+			// Edit mode blink when change
+			if (editingSequenceTrigger.process(editingSequence))
+				blinkNum = blinkNumInit;
+
+			// Config switch
+			if (stepConfigSync != 0) {
+				stepConfig = getStepConfig(params[CONFIG_PARAM].value);
+				if (stepConfigSync == 1) {// sync from fromJson, so read lengths from lengthsBuffer
+					for (int i = 0; i < 16; i++)
+						lengths[i] = lengthsBuffer[i];
+				}
+				else if (stepConfigSync == 2) {// sync from a real mouse drag event on the switch itself, so init lengths
+					for (int i = 0; i < 16; i++)
+						lengths[i] = 16 * stepConfig;
+				}
+				initRun(true);	
+				stepConfigSync = 0;
 			}
-			else {
-				for (int i = 0, p = startCP; i < countCP; i++, p++)
-					attribOrPhraseCPbuffer[i] = phrase[p];
-				lengthCPbuffer = -1;// so that a cross paste can be detected
+			
+			// Seq CV input
+			if (inputs[SEQCV_INPUT].active) {
+				sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * 15.0f / 10.0f), 0.0f, 15.0f );
 			}
-			infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
-			displayState = DISP_GATE;
-			blinkNum = blinkNumInit;
-		}
-		// Paste button
-		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
-			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
-			startCP = 0;
-			if (countCP <= 8) {
+			
+			// Run state button
+			if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
+				running = !running;
+				if (running)
+					initRun(resetOnRun);
+				else
+					blinkNum = blinkNumInit;
+				displayState = DISP_GATE;
+			}
+			
+			// Copy button
+			if (copyTrigger.process(params[COPY_PARAM].value)) {
 				startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
-				countCP = min(countCP, 64 - startCP);
-			}
-			// else nothing to do for ALL
-				
-			if (editingSequence) {
-				if (lengthCPbuffer >= 0) {// non-crossed paste (seq vs song)
+				countCP = 64;
+				if (params[CPMODE_PARAM].value > 1.5f)// ALL
+					startCP = 0;			
+				else if (params[CPMODE_PARAM].value < 0.5f)// 4
+					countCP = min(4, 64 - startCP);
+				else// 8
+					countCP = min(8, 64 - startCP);
+				if (editingSequence) {	
 					for (int i = 0, s = startCP; i < countCP; i++, s++)
-						attributes[sequence][s] = attribOrPhraseCPbuffer[i];
-					if (params[CPMODE_PARAM].value > 1.5f) {// all
-						lengths[sequence] = lengthCPbuffer;
-						if (lengths[sequence] > 16 * stepConfig)
-							lengths[sequence] = 16 * stepConfig;
-						runModeSeq[sequence] = modeCPbuffer;
-					}
-				}
-				else {// crossed paste to seq (seq vs song)
-					if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init steps)
-						for (int s = 0; s < 64; s++)
-							initAttrib(sequence, s);
-					}
-					else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (randomize gates)
-						for (int s = 0; s < 64; s++)
-							if ( (randomu32() & 0x1) != 0)
-								toggleGate(sequence, s);
-					}
-					else {// 8 (randomize probs)
-						for (int s = 0; s < 64; s++) {
-							setGateP(sequence, s, (randomu32() & 0x1) != 0);
-							setGatePVal(sequence, s, randomu32() % 101);
-						}
-					}
-					startCP = 0;
-					countCP = 64;
-					infoCopyPaste *= 2l;
-				}
-			}
-			else {// song
-				if (lengthCPbuffer < 0) {// non-crossed paste (seq vs song)
-					for (int i = 0, p = startCP; i < countCP; i++, p++)
-						phrase[p] = attribOrPhraseCPbuffer[i] & 0xF;
-				}
-				else {// crossed paste to song (seq vs song)
-					if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init phrases)
-						for (int p = 0; p < 64; p++)
-							phrase[p] = 0;
-					}
-					else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (phrases increase from 1 to 64)
-						for (int p = 0; p < 64; p++)
-							phrase[p] = p;						
-					}
-					else {// 8 (randomize phrases)
-						for (int p = 0; p < 64; p++)
-							phrase[p] = randomu32() % 64;
-					}
-					startCP = 0;
-					countCP = 64;
-					infoCopyPaste *= 2l;
-				}
-			}
-			displayState = DISP_GATE;
-			blinkNum = blinkNumInit;
-		}
-		
-		// Write CV inputs 
-		bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
-		bool write0Trig = write0Trigger.process(inputs[WRITE0_INPUT].value);
-		bool write1Trig = write1Trigger.process(inputs[WRITE1_INPUT].value);
-		if (writeTrig || write0Trig || write1Trig) {
-			if (editingSequence) {
-				blinkNum = blinkNumInit;
-				if (writeTrig) {// higher priority than write0 and write1
-					if (inputs[PROB_INPUT].active) {
-						setGatePVal(sequence, stepIndexEdit, clamp( (int)round(inputs[PROB_INPUT].value * 10.0f), 0, 100) );
-						setGateP(sequence, stepIndexEdit, true);
-					}
-					else{
-						setGatePVal(sequence, stepIndexEdit, 50);
-						setGateP(sequence, stepIndexEdit, false);
-					}
-					setGate(sequence, stepIndexEdit, inputs[GATE_INPUT].value >= 1.0f);
-				}
-				else {// write1 or write0			
-					setGate(sequence, stepIndexEdit, write1Trig);
-				}
-				// Autostep (after grab all active inputs)
-				stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 64);
-				if (stepIndexEdit == 0 && autoseq)
-					sequence = moveIndex(sequence, sequence + 1, 16);			
-			}
-		}
-
-		// Step left CV input
-		if (stepLTrigger.process(inputs[STEPL_INPUT].value)) {
-			if (editingSequence) {
-				blinkNum = blinkNumInit;
-				stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit - 1, 64);					
-			}
-		}
-
-		// Step LED button presses
-		int stepPressed = -1;
-		for (int i = 0; i < 64; i++) {
-			if (stepTriggers[i].process(params[STEP_PARAMS + i].value))
-				stepPressed = i;
-		}		
-		if (stepPressed != -1) {
-			if (editingSequence) {
-				if (displayState == DISP_LENGTH) {
-					lengths[sequence] = stepPressed % (16 * stepConfig) + 1;
-					revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
-				}
-				else if (displayState == DISP_MODES) {
+						attribOrPhraseCPbuffer[i] = attributes[sequence][s];
+					lengthCPbuffer = lengths[sequence];
+					modeCPbuffer = runModeSeq[sequence];		
 				}
 				else {
-					if (!getGate(sequence, stepPressed)) {// clicked inactive, so turn gate on
-						setGate(sequence, stepPressed, true);
-						if (getGateP(sequence, stepPressed))
-							displayProbInfo = (long) (displayProbInfoTime * sampleRate / displayRefreshStepSkips);
-						else
-							displayProbInfo = 0l;
-					}
-					else {// clicked active
-						if (stepIndexEdit == stepPressed && blinkNum != 0) {// only if coming from current step, turn off
-							setGate(sequence, stepPressed, false);
-							displayProbInfo = 0l;
+					for (int i = 0, p = startCP; i < countCP; i++, p++)
+						attribOrPhraseCPbuffer[i] = phrase[p];
+					lengthCPbuffer = -1;// so that a cross paste can be detected
+				}
+				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
+				displayState = DISP_GATE;
+				blinkNum = blinkNumInit;
+			}
+			// Paste button
+			if (pasteTrigger.process(params[PASTE_PARAM].value)) {
+				infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
+				startCP = 0;
+				if (countCP <= 8) {
+					startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
+					countCP = min(countCP, 64 - startCP);
+				}
+				// else nothing to do for ALL
+					
+				if (editingSequence) {
+					if (lengthCPbuffer >= 0) {// non-crossed paste (seq vs song)
+						for (int i = 0, s = startCP; i < countCP; i++, s++)
+							attributes[sequence][s] = attribOrPhraseCPbuffer[i];
+						if (params[CPMODE_PARAM].value > 1.5f) {// all
+							lengths[sequence] = lengthCPbuffer;
+							if (lengths[sequence] > 16 * stepConfig)
+								lengths[sequence] = 16 * stepConfig;
+							runModeSeq[sequence] = modeCPbuffer;
 						}
-						else {
+					}
+					else {// crossed paste to seq (seq vs song)
+						if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init steps)
+							for (int s = 0; s < 64; s++)
+								initAttrib(sequence, s);
+						}
+						else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (randomize gates)
+							for (int s = 0; s < 64; s++)
+								if ( (randomu32() & 0x1) != 0)
+									toggleGate(sequence, s);
+						}
+						else {// 8 (randomize probs)
+							for (int s = 0; s < 64; s++) {
+								setGateP(sequence, s, (randomu32() & 0x1) != 0);
+								setGatePVal(sequence, s, randomu32() % 101);
+							}
+						}
+						startCP = 0;
+						countCP = 64;
+						infoCopyPaste *= 2l;
+					}
+				}
+				else {// song
+					if (lengthCPbuffer < 0) {// non-crossed paste (seq vs song)
+						for (int i = 0, p = startCP; i < countCP; i++, p++)
+							phrase[p] = attribOrPhraseCPbuffer[i] & 0xF;
+					}
+					else {// crossed paste to song (seq vs song)
+						if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init phrases)
+							for (int p = 0; p < 64; p++)
+								phrase[p] = 0;
+						}
+						else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (phrases increase from 1 to 64)
+							for (int p = 0; p < 64; p++)
+								phrase[p] = p;						
+						}
+						else {// 8 (randomize phrases)
+							for (int p = 0; p < 64; p++)
+								phrase[p] = randomu32() % 64;
+						}
+						startCP = 0;
+						countCP = 64;
+						infoCopyPaste *= 2l;
+					}
+				}
+				displayState = DISP_GATE;
+				blinkNum = blinkNumInit;
+			}
+			
+			// Write CV inputs 
+			bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
+			bool write0Trig = write0Trigger.process(inputs[WRITE0_INPUT].value);
+			bool write1Trig = write1Trigger.process(inputs[WRITE1_INPUT].value);
+			if (writeTrig || write0Trig || write1Trig) {
+				if (editingSequence) {
+					blinkNum = blinkNumInit;
+					if (writeTrig) {// higher priority than write0 and write1
+						if (inputs[PROB_INPUT].active) {
+							setGatePVal(sequence, stepIndexEdit, clamp( (int)round(inputs[PROB_INPUT].value * 10.0f), 0, 100) );
+							setGateP(sequence, stepIndexEdit, true);
+						}
+						else{
+							setGatePVal(sequence, stepIndexEdit, 50);
+							setGateP(sequence, stepIndexEdit, false);
+						}
+						setGate(sequence, stepIndexEdit, inputs[GATE_INPUT].value >= 1.0f);
+					}
+					else {// write1 or write0			
+						setGate(sequence, stepIndexEdit, write1Trig);
+					}
+					// Autostep (after grab all active inputs)
+					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 64);
+					if (stepIndexEdit == 0 && autoseq)
+						sequence = moveIndex(sequence, sequence + 1, 16);			
+				}
+			}
+
+			// Step left CV input
+			if (stepLTrigger.process(inputs[STEPL_INPUT].value)) {
+				if (editingSequence) {
+					blinkNum = blinkNumInit;
+					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit - 1, 64);					
+				}
+			}
+
+			// Step LED button presses
+			int stepPressed = -1;
+			for (int i = 0; i < 64; i++) {
+				if (stepTriggers[i].process(params[STEP_PARAMS + i].value))
+					stepPressed = i;
+			}		
+			if (stepPressed != -1) {
+				if (editingSequence) {
+					if (displayState == DISP_LENGTH) {
+						lengths[sequence] = stepPressed % (16 * stepConfig) + 1;
+						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
+					}
+					else if (displayState == DISP_MODES) {
+					}
+					else {
+						if (!getGate(sequence, stepPressed)) {// clicked inactive, so turn gate on
+							setGate(sequence, stepPressed, true);
 							if (getGateP(sequence, stepPressed))
 								displayProbInfo = (long) (displayProbInfoTime * sampleRate / displayRefreshStepSkips);
 							else
 								displayProbInfo = 0l;
 						}
+						else {// clicked active
+							if (stepIndexEdit == stepPressed && blinkNum != 0) {// only if coming from current step, turn off
+								setGate(sequence, stepPressed, false);
+								displayProbInfo = 0l;
+							}
+							else {
+								if (getGateP(sequence, stepPressed))
+									displayProbInfo = (long) (displayProbInfoTime * sampleRate / displayRefreshStepSkips);
+								else
+									displayProbInfo = 0l;
+							}
+						}
+						stepIndexEdit = stepPressed;
 					}
-					stepIndexEdit = stepPressed;
-				}
-				blinkNum = blinkNumInit;
-			}
-			else {// editing song
-				if (displayState == DISP_LENGTH) {
-					phrases = stepPressed + 1;
-					if (phrases > 64) phrases = 64;
-					if (phrases < 1 ) phrases = 1;
-					revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
-				}
-				else if (displayState == DISP_MODES) {
-				}
-				else {
-					phraseIndexEdit = stepPressed;
-					if (running)
-						editingPhraseSongRunning = (long) (editingPhraseSongRunningTime * sampleRate / displayRefreshStepSkips);
-					else
-						phraseIndexRun = stepPressed;
-				}
-			}
-		}
-
-		// Mode/Length button
-		if (modesTrigger.process(params[MODES_PARAM].value)) {
-			blinkNum = blinkNumInit;
-			if (editingPpqn != 0l)
-				editingPpqn = 0l;			
-			if (displayState == DISP_GATE)
-				displayState = DISP_LENGTH;
-			else if (displayState == DISP_LENGTH)
-				displayState = DISP_MODES;
-			else
-				displayState = DISP_GATE;
-			modeHoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
-		}
-
-		// Prob button
-		if (probTrigger.process(params[PROB_PARAM].value)) {
-			blinkNum = blinkNumInit;
-			if (editingSequence && getGate(sequence, stepIndexEdit)) {
-				if (getGateP(sequence, stepIndexEdit)) {
-					displayProbInfo = 0l;
-					setGateP(sequence, stepIndexEdit, false);
-				}
-				else {
-					displayProbInfo = (long) (displayProbInfoTime * sampleRate / displayRefreshStepSkips);
-					setGateP(sequence, stepIndexEdit, true);
-				}
-			}
-		}
-		
-		// GateMode buttons
-		for (int i = 0; i < 8; i++) {
-			if (gModeTriggers[i].process(params[GMODE_PARAMS + i].value)) {
-				blinkNum = blinkNumInit;
-				if (editingSequence) {
-					if ( (pulsesPerStep < 2) || (pulsesPerStep == 4 && i > 2) || (pulsesPerStep == 6 && i <= 2) ) // pps requirement not met
-						editingPpqn = (long) (editingPpqnTime * sampleRate / displayRefreshStepSkips);
-					else if (getGate(sequence, stepIndexEdit))
-						setGateMode(sequence, stepIndexEdit, i);
-				}
-			}
-		}
-
-		
-		// Sequence knob (Main knob)
-		float seqParamValue = params[SEQUENCE_PARAM].value;
-		int newSequenceKnob = (int)roundf(seqParamValue * 7.0f);
-		if (seqParamValue == 0.0f)// true when constructor or fromJson() occured
-			sequenceKnob = newSequenceKnob;
-		int deltaKnob = newSequenceKnob - sequenceKnob;
-		if (deltaKnob != 0) {
-			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
-				if (displayProbInfo != 0l && editingSequence) {
 					blinkNum = blinkNumInit;
-					int pval = getGatePVal(sequence, stepIndexEdit);
-					pval += deltaKnob * 2;
-					if (pval > 100)
-						pval = 100;
-					if (pval < 0)
-						pval = 0;
-					setGatePVal(sequence, stepIndexEdit, pval);
-					displayProbInfo = (long) (displayProbInfoTime * sampleRate / displayRefreshStepSkips);
 				}
-				else if (editingPpqn != 0) {
-					pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
-					editingPpqn = (long) (editingPpqnTime * sampleRate / displayRefreshStepSkips);
-				}
-				else if (displayState == DISP_MODES) {
-					if (editingSequence) {
-						runModeSeq[sequence] += deltaKnob;
-						if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
-						if (runModeSeq[sequence] >= NUM_MODES) runModeSeq[sequence] = NUM_MODES - 1;
-					}
-					else {
-						runModeSong += deltaKnob;
-						if (runModeSong < 0) runModeSong = 0;
-						if (runModeSong >= 5) runModeSong = 5 - 1;
-					}
-				}
-				else if (displayState == DISP_LENGTH) {
-					if (editingSequence) {
-						lengths[sequence] += deltaKnob;
-						if (lengths[sequence] > (16 * stepConfig)) 
-							lengths[sequence] = (16 * stepConfig);
-						if (lengths[sequence] < 1 ) lengths[sequence] = 1;
-					}
-					else {
-						phrases += deltaKnob;
+				else {// editing song
+					if (displayState == DISP_LENGTH) {
+						phrases = stepPressed + 1;
 						if (phrases > 64) phrases = 64;
 						if (phrases < 1 ) phrases = 1;
+						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
+					}
+					else if (displayState == DISP_MODES) {
+					}
+					else {
+						phraseIndexEdit = stepPressed;
+						if (running)
+							editingPhraseSongRunning = (long) (editingPhraseSongRunningTime * sampleRate / displayRefreshStepSkips);
+						else
+							phraseIndexRun = stepPressed;
 					}
 				}
-				else {
-					if (editingSequence) {
+			}
+
+			// Mode/Length button
+			if (modesTrigger.process(params[MODES_PARAM].value)) {
+				blinkNum = blinkNumInit;
+				if (editingPpqn != 0l)
+					editingPpqn = 0l;			
+				if (displayState == DISP_GATE)
+					displayState = DISP_LENGTH;
+				else if (displayState == DISP_LENGTH)
+					displayState = DISP_MODES;
+				else
+					displayState = DISP_GATE;
+				modeHoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
+			}
+
+			// Prob button
+			if (probTrigger.process(params[PROB_PARAM].value)) {
+				blinkNum = blinkNumInit;
+				if (editingSequence && getGate(sequence, stepIndexEdit)) {
+					if (getGateP(sequence, stepIndexEdit)) {
+						displayProbInfo = 0l;
+						setGateP(sequence, stepIndexEdit, false);
+					}
+					else {
+						displayProbInfo = (long) (displayProbInfoTime * sampleRate / displayRefreshStepSkips);
+						setGateP(sequence, stepIndexEdit, true);
+					}
+				}
+			}
+			
+			// GateMode buttons
+			for (int i = 0; i < 8; i++) {
+				if (gModeTriggers[i].process(params[GMODE_PARAMS + i].value)) {
+					blinkNum = blinkNumInit;
+					if (editingSequence && getGate(sequence, stepIndexEdit)) {
+						if ( (pulsesPerStep < 2) || (pulsesPerStep == 4 && i > 2) || (pulsesPerStep == 6 && i <= 2) ) // pps requirement not met
+							editingPpqn = (long) (editingPpqnTime * sampleRate / displayRefreshStepSkips);
+						else
+							setGateMode(sequence, stepIndexEdit, i);
+					}
+				}
+			}
+
+			
+			// Sequence knob (Main knob)
+			float seqParamValue = params[SEQUENCE_PARAM].value;
+			int newSequenceKnob = (int)roundf(seqParamValue * 7.0f);
+			if (seqParamValue == 0.0f)// true when constructor or fromJson() occured
+				sequenceKnob = newSequenceKnob;
+			int deltaKnob = newSequenceKnob - sequenceKnob;
+			if (deltaKnob != 0) {
+				if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
+					if (displayProbInfo != 0l && editingSequence) {
 						blinkNum = blinkNumInit;
-						if (!inputs[SEQCV_INPUT].active) {
-							sequence += deltaKnob;
-							if (sequence < 0) sequence = 0;
-							if (sequence >= 16) sequence = (16 - 1);
+						int pval = getGatePVal(sequence, stepIndexEdit);
+						pval += deltaKnob * 2;
+						if (pval > 100)
+							pval = 100;
+						if (pval < 0)
+							pval = 0;
+						setGatePVal(sequence, stepIndexEdit, pval);
+						displayProbInfo = (long) (displayProbInfoTime * sampleRate / displayRefreshStepSkips);
+					}
+					else if (editingPpqn != 0) {
+						pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
+						editingPpqn = (long) (editingPpqnTime * sampleRate / displayRefreshStepSkips);
+					}
+					else if (displayState == DISP_MODES) {
+						if (editingSequence) {
+							runModeSeq[sequence] += deltaKnob;
+							if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
+							if (runModeSeq[sequence] >= NUM_MODES) runModeSeq[sequence] = NUM_MODES - 1;
+						}
+						else {
+							runModeSong += deltaKnob;
+							if (runModeSong < 0) runModeSong = 0;
+							if (runModeSong >= 5) runModeSong = 5 - 1;
+						}
+					}
+					else if (displayState == DISP_LENGTH) {
+						if (editingSequence) {
+							lengths[sequence] += deltaKnob;
+							if (lengths[sequence] > (16 * stepConfig)) 
+								lengths[sequence] = (16 * stepConfig);
+							if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+						}
+						else {
+							phrases += deltaKnob;
+							if (phrases > 64) phrases = 64;
+							if (phrases < 1 ) phrases = 1;
 						}
 					}
 					else {
-						if (editingPhraseSongRunning > 0l || !running) {
-							phrase[phraseIndexEdit] += deltaKnob;
-							if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
-							if (phrase[phraseIndexEdit] >= 16) phrase[phraseIndexEdit] = (16 - 1);
-							if (running)
-								editingPhraseSongRunning = (long) (editingPhraseSongRunningTime * sampleRate / displayRefreshStepSkips);
+						if (editingSequence) {
+							blinkNum = blinkNumInit;
+							if (!inputs[SEQCV_INPUT].active) {
+								sequence += deltaKnob;
+								if (sequence < 0) sequence = 0;
+								if (sequence >= 16) sequence = (16 - 1);
+							}
 						}
-						// else {
-							// phrase[phraseIndexRun] += deltaKnob;
-							// if (phrase[phraseIndexRun] < 0) phrase[phraseIndexRun] = 0;
-							// if (phrase[phraseIndexRun] >= 16) phrase[phraseIndexRun] = (16 - 1);
-						// }
-					}	
-				}					
-			}
-			sequenceKnob = newSequenceKnob;
-		}		
+						else {
+							if (editingPhraseSongRunning > 0l || !running) {
+								phrase[phraseIndexEdit] += deltaKnob;
+								if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
+								if (phrase[phraseIndexEdit] >= 16) phrase[phraseIndexEdit] = (16 - 1);
+								if (running)
+									editingPhraseSongRunning = (long) (editingPhraseSongRunningTime * sampleRate / displayRefreshStepSkips);
+							}
+						}	
+					}					
+				}
+				sequenceKnob = newSequenceKnob;
+			}		
+		
+		}// userInputs refresh
+		
 		
 		
 		//********** Clock and reset **********
@@ -874,7 +876,7 @@ struct GateSeq64 : Module {
 		}
 
 		lightRefreshCounter++;
-		if (lightRefreshCounter > displayRefreshStepSkips) {
+		if (lightRefreshCounter >= displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
 
 			// Step LED button lights

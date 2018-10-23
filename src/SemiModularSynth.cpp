@@ -648,477 +648,482 @@ struct SemiModularSynth : Module {
 		// Edit mode
 		bool editingSequence = isEditingSequence();// true = editing sequence, false = editing song
 		
-		// Seq CV input
-		if (inputs[SEQCV_INPUT].active) {
-			sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (16.0f - 1.0f) / 10.0f), 0.0f, (16.0f - 1.0f) );
-		}
-		
-		// Run button
-		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
-			running = !running;
-			if (running)
-				initRun(resetOnRun);
-			displayState = DISP_NORMAL;
-		}
+		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
 
-		// Attach button
-		if (attachedTrigger.process(params[ATTACH_PARAM].value)) {
-			attached = !attached;	
-			displayState = DISP_NORMAL;			
-		}
-		if (running && attached) {
-			if (editingSequence)
-				stepIndexEdit = stepIndexRun;
-			else
-				phraseIndexEdit = phraseIndexRun;
-		}
-		
-		// Copy button
-		if (copyTrigger.process(params[COPY_PARAM].value)) {
-			startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
-			countCP = 16;
-			if (params[CPMODE_PARAM].value > 1.5f)// all
-				startCP = 0;
-			else if (params[CPMODE_PARAM].value < 0.5f)// 4
-				countCP = min(4, 16 - startCP);
-			else// 8
-				countCP = min(8, 16 - startCP);
-			if (editingSequence) {
-				for (int i = 0, s = startCP; i < countCP; i++, s++) {
-					cvCPbuffer[i] = cv[sequence][s];
-					attribOrPhraseCPbuffer[i] = attributes[sequence][s];
-				}
-				lengthCPbuffer = lengths[sequence];
-				modeCPbuffer = runModeSeq[sequence];
+			// Seq CV input
+			if (inputs[SEQCV_INPUT].active) {
+				sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (16.0f - 1.0f) / 10.0f), 0.0f, (16.0f - 1.0f) );
 			}
-			else {
-				for (int i = 0, p = startCP; i < countCP; i++, p++)
-					attribOrPhraseCPbuffer[i] = phrase[p];
-				lengthCPbuffer = -1;// so that a cross paste can be detected
+			
+			// Run button
+			if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
+				running = !running;
+				if (running)
+					initRun(resetOnRun);
+				displayState = DISP_NORMAL;
 			}
-			infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
-			displayState = DISP_NORMAL;
-		}
-		// Paste button
-		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
-			infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
-			startCP = 0;
-			if (countCP <= 8) {
+
+			// Attach button
+			if (attachedTrigger.process(params[ATTACH_PARAM].value)) {
+				attached = !attached;	
+				displayState = DISP_NORMAL;			
+			}
+			if (running && attached) {
+				if (editingSequence)
+					stepIndexEdit = stepIndexRun;
+				else
+					phraseIndexEdit = phraseIndexRun;
+			}
+			
+			// Copy button
+			if (copyTrigger.process(params[COPY_PARAM].value)) {
 				startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
-				countCP = min(countCP, 16 - startCP);
-			}
-			// else nothing to do for ALL
-
-			if (editingSequence) {
-				if (lengthCPbuffer >= 0) {// non-crossed paste (seq vs song)
-					for (int i = 0, s = startCP; i < countCP; i++, s++) {
-						cv[sequence][s] = cvCPbuffer[i];
-						attributes[sequence][s] = attribOrPhraseCPbuffer[i];
-					}
-					if (params[CPMODE_PARAM].value > 1.5f) {// all
-						lengths[sequence] = lengthCPbuffer;
-						runModeSeq[sequence] = modeCPbuffer;
-						transposeOffsets[sequence] = 0;
-					}
-				}
-				else {// crossed paste to seq (seq vs song)
-					if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init steps)
-						for (int s = 0; s < 16; s++) {
-							cv[sequence][s] = 0.0f;
-							initAttrib(sequence, s);
-						}
-					}
-					else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (randomize CVs)
-						for (int s = 0; s < 16; s++)
-							cv[sequence][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
-					}
-					else {// 8 (randomize gate 1)
-						for (int s = 0; s < 16; s++)
-							if ( (randomu32() & 0x1) != 0)
-								toggleGate1(sequence, s);
-					}
+				countCP = 16;
+				if (params[CPMODE_PARAM].value > 1.5f)// all
 					startCP = 0;
-					countCP = 16;
-					infoCopyPaste *= 2l;
-				}
-			}
-			else {
-				if (lengthCPbuffer < 0) {// non-crossed paste (seq vs song)
-					for (int i = 0, p = startCP; i < countCP; i++, p++)
-						phrase[p] = attribOrPhraseCPbuffer[i];
-				}
-				else {// crossed paste to song (seq vs song)
-					if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init phrases)
-						for (int p = 0; p < 16; p++)
-							phrase[p] = 0;
-					}
-					else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (phrases increase from 1 to 16)
-						for (int p = 0; p < 16; p++)
-							phrase[p] = p;						
-					}
-					else {// 8 (randomize phrases)
-						for (int p = 0; p < 16; p++)
-							phrase[p] = randomu32() % 16;
-					}
-					startCP = 0;
-					countCP = 16;
-					infoCopyPaste *= 2l;
-				}					
-			}
-			displayState = DISP_NORMAL;
-		}
-		
-		// Write input (must be before Left and Right in case route gate simultaneously to Right and Write for example)
-		//  (write must be to correct step)
-		bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
-		if (writeTrig) {
-			if (editingSequence) {
-				cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
-				applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
-				editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
-				editingGateCV = cv[sequence][stepIndexEdit];
-				editingGateKeyLight = -1;
-				// Autostep (after grab all active inputs)
-				if (params[AUTOSTEP_PARAM].value > 0.5f) {
-					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
-					if (stepIndexEdit == 0 && autoseq)
-						sequence = moveIndex(sequence, sequence + 1, 16);
-				}
-			}
-			displayState = DISP_NORMAL;
-		}
-		// Left and Right CV inputs
-		int delta = 0;
-		if (leftTrigger.process(inputs[LEFTCV_INPUT].value)) { 
-			delta = -1;
-			if (displayState != DISP_LENGTH)
-				displayState = DISP_NORMAL;
-		}
-		if (rightTrigger.process(inputs[RIGHTCV_INPUT].value)) {
-			delta = +1;
-			if (displayState != DISP_LENGTH)
-				displayState = DISP_NORMAL;
-		}
-		if (delta != 0) {
-			if (displayState == DISP_LENGTH) {
+				else if (params[CPMODE_PARAM].value < 0.5f)// 4
+					countCP = min(4, 16 - startCP);
+				else// 8
+					countCP = min(8, 16 - startCP);
 				if (editingSequence) {
-					lengths[sequence] += delta;
-					if (lengths[sequence] > 16) lengths[sequence] = 16;
-					if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+					for (int i = 0, s = startCP; i < countCP; i++, s++) {
+						cvCPbuffer[i] = cv[sequence][s];
+						attribOrPhraseCPbuffer[i] = attributes[sequence][s];
+					}
+					lengthCPbuffer = lengths[sequence];
+					modeCPbuffer = runModeSeq[sequence];
 				}
 				else {
-					phrases += delta;
-					if (phrases > 16) phrases = 16;
-					if (phrases < 1 ) phrases = 1;
+					for (int i = 0, p = startCP; i < countCP; i++, p++)
+						attribOrPhraseCPbuffer[i] = phrase[p];
+					lengthCPbuffer = -1;// so that a cross paste can be detected
+				}
+				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
+				displayState = DISP_NORMAL;
+			}
+			// Paste button
+			if (pasteTrigger.process(params[PASTE_PARAM].value)) {
+				infoCopyPaste = (long) (-1 * copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
+				startCP = 0;
+				if (countCP <= 8) {
+					startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
+					countCP = min(countCP, 16 - startCP);
+				}
+				// else nothing to do for ALL
+
+				if (editingSequence) {
+					if (lengthCPbuffer >= 0) {// non-crossed paste (seq vs song)
+						for (int i = 0, s = startCP; i < countCP; i++, s++) {
+							cv[sequence][s] = cvCPbuffer[i];
+							attributes[sequence][s] = attribOrPhraseCPbuffer[i];
+						}
+						if (params[CPMODE_PARAM].value > 1.5f) {// all
+							lengths[sequence] = lengthCPbuffer;
+							runModeSeq[sequence] = modeCPbuffer;
+							transposeOffsets[sequence] = 0;
+						}
+					}
+					else {// crossed paste to seq (seq vs song)
+						if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init steps)
+							for (int s = 0; s < 16; s++) {
+								cv[sequence][s] = 0.0f;
+								initAttrib(sequence, s);
+							}
+						}
+						else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (randomize CVs)
+							for (int s = 0; s < 16; s++)
+								cv[sequence][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
+						}
+						else {// 8 (randomize gate 1)
+							for (int s = 0; s < 16; s++)
+								if ( (randomu32() & 0x1) != 0)
+									toggleGate1(sequence, s);
+						}
+						startCP = 0;
+						countCP = 16;
+						infoCopyPaste *= 2l;
+					}
+				}
+				else {
+					if (lengthCPbuffer < 0) {// non-crossed paste (seq vs song)
+						for (int i = 0, p = startCP; i < countCP; i++, p++)
+							phrase[p] = attribOrPhraseCPbuffer[i];
+					}
+					else {// crossed paste to song (seq vs song)
+						if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init phrases)
+							for (int p = 0; p < 16; p++)
+								phrase[p] = 0;
+						}
+						else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (phrases increase from 1 to 16)
+							for (int p = 0; p < 16; p++)
+								phrase[p] = p;						
+						}
+						else {// 8 (randomize phrases)
+							for (int p = 0; p < 16; p++)
+								phrase[p] = randomu32() % 16;
+						}
+						startCP = 0;
+						countCP = 16;
+						infoCopyPaste *= 2l;
+					}					
+				}
+				displayState = DISP_NORMAL;
+			}
+			
+			// Write input (must be before Left and Right in case route gate simultaneously to Right and Write for example)
+			//  (write must be to correct step)
+			bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
+			if (writeTrig) {
+				if (editingSequence) {
+					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
+					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+					editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+					editingGateCV = cv[sequence][stepIndexEdit];
+					editingGateKeyLight = -1;
+					// Autostep (after grab all active inputs)
+					if (params[AUTOSTEP_PARAM].value > 0.5f) {
+						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
+						if (stepIndexEdit == 0 && autoseq)
+							sequence = moveIndex(sequence, sequence + 1, 16);
+					}
+				}
+				displayState = DISP_NORMAL;
+			}
+			// Left and Right CV inputs
+			int delta = 0;
+			if (leftTrigger.process(inputs[LEFTCV_INPUT].value)) { 
+				delta = -1;
+				if (displayState != DISP_LENGTH)
+					displayState = DISP_NORMAL;
+			}
+			if (rightTrigger.process(inputs[RIGHTCV_INPUT].value)) {
+				delta = +1;
+				if (displayState != DISP_LENGTH)
+					displayState = DISP_NORMAL;
+			}
+			if (delta != 0) {
+				if (displayState == DISP_LENGTH) {
+					if (editingSequence) {
+						lengths[sequence] += delta;
+						if (lengths[sequence] > 16) lengths[sequence] = 16;
+						if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+					}
+					else {
+						phrases += delta;
+						if (phrases > 16) phrases = 16;
+						if (phrases < 1 ) phrases = 1;
+					}
+				}
+				else {
+					if (!running || !attached) {// don't move heads when attach and running
+						if (editingSequence) {
+							stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, 16);
+							if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
+								if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
+									editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+									editingGateCV = cv[sequence][stepIndexEdit];
+									editingGateKeyLight = -1;
+								}
+							}
+						}
+						else {
+							phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, 16);
+							if (!running)
+								phraseIndexRun = phraseIndexEdit;
+						}
+					}
 				}
 			}
-			else {
-				if (!running || !attached) {// don't move heads when attach and running
-					if (editingSequence) {
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, 16);
-						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
-							if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
+
+			// Step button presses
+			int stepPressed = -1;
+			for (int i = 0; i < 16; i++) {
+				if (stepTriggers[i].process(params[STEP_PHRASE_PARAMS + i].value))
+					stepPressed = i;
+			}
+			if (stepPressed != -1) {
+				if (displayState == DISP_LENGTH) {
+					if (editingSequence)
+						lengths[sequence] = stepPressed + 1;
+					else
+						phrases = stepPressed + 1;
+					revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
+				}
+				else {
+					if (!running || !attached) {// not running or detached
+						if (editingSequence) {
+							stepIndexEdit = stepPressed;
+							if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 								editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 								editingGateCV = cv[sequence][stepIndexEdit];
 								editingGateKeyLight = -1;
 							}
 						}
-					}
-					else {
-						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + delta, 16);
-						if (!running)
-							phraseIndexRun = phraseIndexEdit;
-					}
-				}
-			}
-		}
-
-		// Step button presses
-		int stepPressed = -1;
-		for (int i = 0; i < 16; i++) {
-			if (stepTriggers[i].process(params[STEP_PHRASE_PARAMS + i].value))
-				stepPressed = i;
-		}
-		if (stepPressed != -1) {
-			if (displayState == DISP_LENGTH) {
-				if (editingSequence)
-					lengths[sequence] = stepPressed + 1;
-				else
-					phrases = stepPressed + 1;
-				revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
-			}
-			else {
-				if (!running || !attached) {// not running or detached
-					if (editingSequence) {
-						stepIndexEdit = stepPressed;
-						if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
-							editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
-							editingGateCV = cv[sequence][stepIndexEdit];
-							editingGateKeyLight = -1;
+						else {
+							phraseIndexEdit = stepPressed;
+							if (!running)
+								phraseIndexRun = stepPressed;
 						}
 					}
-					else {
-						phraseIndexEdit = stepPressed;
-						if (!running)
-							phraseIndexRun = stepPressed;
-					}
-				}
-				displayState = DISP_NORMAL;
-			}
-		} 
-		
-		// Mode/Length button
-		if (modeTrigger.process(params[RUNMODE_PARAM].value)) {
-			if (editingPpqn != 0l)
-				editingPpqn = 0l;			
-			if (displayState == DISP_NORMAL || displayState == DISP_TRANSPOSE || displayState == DISP_ROTATE)
-				displayState = DISP_LENGTH;
-			else if (displayState == DISP_LENGTH)
-				displayState = DISP_MODE;
-			else
-				displayState = DISP_NORMAL;
-			modeHoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
-		}
-		
-		// Transpose/Rotate button
-		if (transposeTrigger.process(params[TRAN_ROT_PARAM].value)) {
-			if (editingSequence) {
-				if (displayState == DISP_NORMAL || displayState == DISP_MODE || displayState == DISP_LENGTH) {
-					displayState = DISP_TRANSPOSE;
-					//transposeOffset = 0;
-				}
-				else if (displayState == DISP_TRANSPOSE) {
-					displayState = DISP_ROTATE;
-					rotateOffset = 0;
-				}
-				else 
 					displayState = DISP_NORMAL;
+				}
+			} 
+			
+			// Mode/Length button
+			if (modeTrigger.process(params[RUNMODE_PARAM].value)) {
+				if (editingPpqn != 0l)
+					editingPpqn = 0l;			
+				if (displayState == DISP_NORMAL || displayState == DISP_TRANSPOSE || displayState == DISP_ROTATE)
+					displayState = DISP_LENGTH;
+				else if (displayState == DISP_LENGTH)
+					displayState = DISP_MODE;
+				else
+					displayState = DISP_NORMAL;
+				modeHoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
 			}
-		}			
-		
-		// Sequence knob  
-		float seqParamValue = params[SEQUENCE_PARAM].value;
-		int newSequenceKnob = (int)roundf(seqParamValue * 7.0f);
-		if (seqParamValue == 0.0f)// true when constructor or fromJson() occured
-			sequenceKnob = newSequenceKnob;
-		int deltaKnob = newSequenceKnob - sequenceKnob;
-		if (deltaKnob != 0) {
-			if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
-				if (editingPpqn != 0) {
-					pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
-					if (pulsesPerStep < 2)
-						editingGateLength = 0l;
-					editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-				}
-				else if (displayState == DISP_MODE) {
-					if (editingSequence) {
-						runModeSeq[sequence] += deltaKnob;
-						if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
-						if (runModeSeq[sequence] >= (NUM_MODES - 1)) runModeSeq[sequence] = (NUM_MODES - 1 - 1);
-					}
-					else {
-						runModeSong += deltaKnob;
-						if (runModeSong < 0) runModeSong = 0;
-						if (runModeSong >= 5) runModeSong = 5 - 1;
-					}
-				}
-				else if (displayState == DISP_LENGTH) {
-					if (editingSequence) {
-						lengths[sequence] += deltaKnob;
-						if (lengths[sequence] > 16) lengths[sequence] = 16;
-						if (lengths[sequence] < 1 ) lengths[sequence] = 1;
-					}
-					else {
-						phrases += deltaKnob;
-						if (phrases > 16) phrases = 16;
-						if (phrases < 1 ) phrases = 1;
-					}
-				}
-				else if (displayState == DISP_TRANSPOSE) {
-					if (editingSequence) {
-						transposeOffsets[sequence] += deltaKnob;
-						if (transposeOffsets[sequence] > 99) transposeOffsets[sequence] = 99;
-						if (transposeOffsets[sequence] < -99) transposeOffsets[sequence] = -99;						
-						// Tranpose by this number of semi-tones: deltaKnob
-						float transposeOffsetCV = ((float)(deltaKnob))/12.0f;
-						for (int s = 0; s < 16; s++) {
-							cv[sequence][s] += transposeOffsetCV;
-						}
-					}
-				}
-				else if (displayState == DISP_ROTATE) {
-					if (editingSequence) {
-						rotateOffset += deltaKnob;
-						if (rotateOffset > 99) rotateOffset = 99;
-						if (rotateOffset < -99) rotateOffset = -99;	
-						if (deltaKnob > 0 && deltaKnob < 99) {// Rotate right, 99 is safety
-							for (int i = deltaKnob; i > 0; i--)
-								rotateSeq(sequence, true, lengths[sequence]);
-						}
-						if (deltaKnob < 0 && deltaKnob > -99) {// Rotate left, 99 is safety
-							for (int i = deltaKnob; i < 0; i++)
-								rotateSeq(sequence, false, lengths[sequence]);
-						}
-					}						
-				}
-				else {// DISP_NORMAL
-					if (editingSequence) {
-						if (!inputs[SEQCV_INPUT].active) {
-							sequence += deltaKnob;
-							if (sequence < 0) sequence = 0;
-							if (sequence >= 16) sequence = (16 - 1);
-						}
-					}
-					else {
-						phrase[phraseIndexEdit] += deltaKnob;
-						if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
-						if (phrase[phraseIndexEdit] >= 16) phrase[phraseIndexEdit] = (16 - 1);				
-					}
-				}
-			}
-			sequenceKnob = newSequenceKnob;
-		}	
-		
-		// Octave buttons
-		int newOct = -1;
-		for (int i = 0; i < 7; i++) {
-			if (octTriggers[i].process(params[OCTAVE_PARAM + i].value)) {
-				newOct = 6 - i;
-				displayState = DISP_NORMAL;
-			}
-		}
-		if (newOct >= 0 && newOct <= 6) {
-			if (editingSequence) {
-				if (getTied(sequence,stepIndexEdit))
-					tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
-				else {			
-					float newCV = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
-					newCV = newCV - floor(newCV) + (float) (newOct - 3);
-					if (newCV >= -3.0f && newCV < 4.0f) {
-						cv[sequence][stepIndexEdit] = newCV;
-						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
-					}
-					editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
-					editingGateCV = cv[sequence][stepIndexEdit];
-					editingGateKeyLight = -1;
-				}
-			}
-		}		
-		
-		// Keyboard buttons
-		for (int i = 0; i < 12; i++) {
-			if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
+			
+			// Transpose/Rotate button
+			if (transposeTrigger.process(params[TRAN_ROT_PARAM].value)) {
 				if (editingSequence) {
-					if (editingGateLength != 0l) {
-						int newMode = keyIndexToGateMode(i, pulsesPerStep);
-						if (editingGateLength > 0l) {
-							if (newMode != -1)
-								setGate1Mode(sequence, stepIndexEdit, newMode);
-							else
-								editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-							//editingGateLength = ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
+					if (displayState == DISP_NORMAL || displayState == DISP_MODE || displayState == DISP_LENGTH) {
+						displayState = DISP_TRANSPOSE;
+						//transposeOffset = 0;
+					}
+					else if (displayState == DISP_TRANSPOSE) {
+						displayState = DISP_ROTATE;
+						rotateOffset = 0;
+					}
+					else 
+						displayState = DISP_NORMAL;
+				}
+			}			
+			
+			// Sequence knob  
+			float seqParamValue = params[SEQUENCE_PARAM].value;
+			int newSequenceKnob = (int)roundf(seqParamValue * 7.0f);
+			if (seqParamValue == 0.0f)// true when constructor or fromJson() occured
+				sequenceKnob = newSequenceKnob;
+			int deltaKnob = newSequenceKnob - sequenceKnob;
+			if (deltaKnob != 0) {
+				if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
+					if (editingPpqn != 0) {
+						pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
+						if (pulsesPerStep < 2)
+							editingGateLength = 0l;
+						editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+					}
+					else if (displayState == DISP_MODE) {
+						if (editingSequence) {
+							runModeSeq[sequence] += deltaKnob;
+							if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
+							if (runModeSeq[sequence] >= (NUM_MODES - 1)) runModeSeq[sequence] = (NUM_MODES - 1 - 1);
 						}
 						else {
-							if (newMode != -1)
-								setGate2Mode(sequence, stepIndexEdit, newMode);
-							else
-								editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-							//editingGateLength = -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
+							runModeSong += deltaKnob;
+							if (runModeSong < 0) runModeSong = 0;
+							if (runModeSong >= 5) runModeSong = 5 - 1;
 						}
 					}
-					else if (getTied(sequence,stepIndexEdit)) {
-						if (params[KEY_PARAMS + i].value > 1.5f)
-							stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
-						else
-							tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
+					else if (displayState == DISP_LENGTH) {
+						if (editingSequence) {
+							lengths[sequence] += deltaKnob;
+							if (lengths[sequence] > 16) lengths[sequence] = 16;
+							if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+						}
+						else {
+							phrases += deltaKnob;
+							if (phrases > 16) phrases = 16;
+							if (phrases < 1 ) phrases = 1;
+						}
 					}
+					else if (displayState == DISP_TRANSPOSE) {
+						if (editingSequence) {
+							transposeOffsets[sequence] += deltaKnob;
+							if (transposeOffsets[sequence] > 99) transposeOffsets[sequence] = 99;
+							if (transposeOffsets[sequence] < -99) transposeOffsets[sequence] = -99;						
+							// Tranpose by this number of semi-tones: deltaKnob
+							float transposeOffsetCV = ((float)(deltaKnob))/12.0f;
+							for (int s = 0; s < 16; s++) {
+								cv[sequence][s] += transposeOffsetCV;
+							}
+						}
+					}
+					else if (displayState == DISP_ROTATE) {
+						if (editingSequence) {
+							rotateOffset += deltaKnob;
+							if (rotateOffset > 99) rotateOffset = 99;
+							if (rotateOffset < -99) rotateOffset = -99;	
+							if (deltaKnob > 0 && deltaKnob < 99) {// Rotate right, 99 is safety
+								for (int i = deltaKnob; i > 0; i--)
+									rotateSeq(sequence, true, lengths[sequence]);
+							}
+							if (deltaKnob < 0 && deltaKnob > -99) {// Rotate left, 99 is safety
+								for (int i = deltaKnob; i < 0; i++)
+									rotateSeq(sequence, false, lengths[sequence]);
+							}
+						}						
+					}
+					else {// DISP_NORMAL
+						if (editingSequence) {
+							if (!inputs[SEQCV_INPUT].active) {
+								sequence += deltaKnob;
+								if (sequence < 0) sequence = 0;
+								if (sequence >= 16) sequence = (16 - 1);
+							}
+						}
+						else {
+							phrase[phraseIndexEdit] += deltaKnob;
+							if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
+							if (phrase[phraseIndexEdit] >= 16) phrase[phraseIndexEdit] = (16 - 1);				
+						}
+					}
+				}
+				sequenceKnob = newSequenceKnob;
+			}	
+			
+			// Octave buttons
+			int newOct = -1;
+			for (int i = 0; i < 7; i++) {
+				if (octTriggers[i].process(params[OCTAVE_PARAM + i].value)) {
+					newOct = 6 - i;
+					displayState = DISP_NORMAL;
+				}
+			}
+			if (newOct >= 0 && newOct <= 6) {
+				if (editingSequence) {
+					if (getTied(sequence,stepIndexEdit))
+						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 					else {			
-						cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
-						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+						float newCV = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
+						newCV = newCV - floor(newCV) + (float) (newOct - 3);
+						if (newCV >= -3.0f && newCV < 4.0f) {
+							cv[sequence][stepIndexEdit] = newCV;
+							applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+						}
 						editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 						editingGateCV = cv[sequence][stepIndexEdit];
 						editingGateKeyLight = -1;
-						if (params[KEY_PARAMS + i].value > 1.5f) {
-							stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
-							editingGateKeyLight = i;
-						}
-					}						
+					}
 				}
-				displayState = DISP_NORMAL;
+			}		
+			
+			// Keyboard buttons
+			for (int i = 0; i < 12; i++) {
+				if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
+					if (editingSequence) {
+						if (editingGateLength != 0l) {
+							int newMode = keyIndexToGateMode(i, pulsesPerStep);
+							if (editingGateLength > 0l) {
+								if (newMode != -1)
+									setGate1Mode(sequence, stepIndexEdit, newMode);
+								else
+									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+								//editingGateLength = ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
+							}
+							else {
+								if (newMode != -1)
+									setGate2Mode(sequence, stepIndexEdit, newMode);
+								else
+									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+								//editingGateLength = -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
+							}
+						}
+						else if (getTied(sequence,stepIndexEdit)) {
+							if (params[KEY_PARAMS + i].value > 1.5f)
+								stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
+							else
+								tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
+						}
+						else {			
+							cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
+							applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+							editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+							editingGateCV = cv[sequence][stepIndexEdit];
+							editingGateKeyLight = -1;
+							if (params[KEY_PARAMS + i].value > 1.5f) {
+								stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
+								editingGateKeyLight = i;
+							}
+						}						
+					}
+					displayState = DISP_NORMAL;
+				}
 			}
-		}
-		
-		// Keyboard mode (note or gate type)
-		if (keyNoteTrigger.process(params[KEYNOTE_PARAM].value)) {
-			editingGateLength = 0l;
-		}
-		if (keyGateTrigger.process(params[KEYGATE_PARAM].value)) {
-			if (pulsesPerStep < 2) {
-				editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+			
+			// Keyboard mode (note or gate type)
+			if (keyNoteTrigger.process(params[KEYNOTE_PARAM].value)) {
+				editingGateLength = 0l;
 			}
-			else {
-				if (editingGateLength == 0l) {
-					editingGateLength = lastGateEdit;
+			if (keyGateTrigger.process(params[KEYGATE_PARAM].value)) {
+				if (pulsesPerStep < 2) {
+					editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 				}
 				else {
-					editingGateLength *= -1l;
-					lastGateEdit = editingGateLength;
+					if (editingGateLength == 0l) {
+						editingGateLength = lastGateEdit;
+					}
+					else {
+						editingGateLength *= -1l;
+						lastGateEdit = editingGateLength;
+					}
 				}
 			}
-		}
 
-		// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
-		if (gate1Trigger.process(params[GATE1_PARAM].value)) {
-			if (editingSequence) {
-				toggleGate1a(&attributes[sequence][stepIndexEdit]);
-				//if (pulsesPerStep != 1) {
-					//editingGateLength = getGate1(sequence,stepIndexEdit) ? ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
-					//gate1HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
-				//}
-			}
-			displayState = DISP_NORMAL;
-		}		
-		if (gate1ProbTrigger.process(params[GATE1_PROB_PARAM].value)) {
-			if (editingSequence) {
-				if (getTied(sequence,stepIndexEdit))
-					tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
-				else
-					toggleGate1Pa(&attributes[sequence][stepIndexEdit]);
-			}
-			displayState = DISP_NORMAL;
-		}		
-		if (gate2Trigger.process(params[GATE2_PARAM].value)) {
-			if (editingSequence) {
-				toggleGate2a(&attributes[sequence][stepIndexEdit]);
-				//if (pulsesPerStep != 1) {
-					//editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
-					//gate2HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
-				//}
-			}
-			displayState = DISP_NORMAL;
-		}		
-		if (slideTrigger.process(params[SLIDE_BTN_PARAM].value)) {
-			if (editingSequence) {
-				if (getTied(sequence,stepIndexEdit))
-					tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
-				else
-					toggleSlideA(&attributes[sequence][stepIndexEdit]);
-			}
-			displayState = DISP_NORMAL;
-		}		
-		if (tiedTrigger.process(params[TIE_PARAM].value)) {
-			if (editingSequence) {
-				toggleTiedA(&attributes[sequence][stepIndexEdit]);
-				if (getTied(sequence,stepIndexEdit)) {
-					setGate1a(&attributes[sequence][stepIndexEdit], false);
-					setGate2a(&attributes[sequence][stepIndexEdit], false);
-					setSlideA(&attributes[sequence][stepIndexEdit], false);
-					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+			// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
+			if (gate1Trigger.process(params[GATE1_PARAM].value)) {
+				if (editingSequence) {
+					toggleGate1a(&attributes[sequence][stepIndexEdit]);
+					//if (pulsesPerStep != 1) {
+						//editingGateLength = getGate1(sequence,stepIndexEdit) ? ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
+						//gate1HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
+					//}
 				}
-			}
-			displayState = DISP_NORMAL;
-		}		
+				displayState = DISP_NORMAL;
+			}		
+			if (gate1ProbTrigger.process(params[GATE1_PROB_PARAM].value)) {
+				if (editingSequence) {
+					if (getTied(sequence,stepIndexEdit))
+						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
+					else
+						toggleGate1Pa(&attributes[sequence][stepIndexEdit]);
+				}
+				displayState = DISP_NORMAL;
+			}		
+			if (gate2Trigger.process(params[GATE2_PARAM].value)) {
+				if (editingSequence) {
+					toggleGate2a(&attributes[sequence][stepIndexEdit]);
+					//if (pulsesPerStep != 1) {
+						//editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
+						//gate2HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
+					//}
+				}
+				displayState = DISP_NORMAL;
+			}		
+			if (slideTrigger.process(params[SLIDE_BTN_PARAM].value)) {
+				if (editingSequence) {
+					if (getTied(sequence,stepIndexEdit))
+						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
+					else
+						toggleSlideA(&attributes[sequence][stepIndexEdit]);
+				}
+				displayState = DISP_NORMAL;
+			}		
+			if (tiedTrigger.process(params[TIE_PARAM].value)) {
+				if (editingSequence) {
+					toggleTiedA(&attributes[sequence][stepIndexEdit]);
+					if (getTied(sequence,stepIndexEdit)) {
+						setGate1a(&attributes[sequence][stepIndexEdit], false);
+						setGate2a(&attributes[sequence][stepIndexEdit], false);
+						setSlideA(&attributes[sequence][stepIndexEdit], false);
+						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+					}
+				}
+				displayState = DISP_NORMAL;
+			}		
 		
+		}// userInputs refresh
+
+
 		
 		//********** Clock and reset **********
 		

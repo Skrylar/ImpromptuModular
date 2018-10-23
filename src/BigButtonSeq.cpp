@@ -131,10 +131,6 @@ struct BigButtonSeq : Module {
 			gates[c][0] = randomu64();
 			gates[c][1] = randomu64();
 		}
-		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		//lastPeriod = 2.0;
-		//clockTime = 0.0;
-		//pendingOp = 0;
 	}
 
 	
@@ -244,49 +240,53 @@ struct BigButtonSeq : Module {
 		float chanInputValue = inputs[CHAN_INPUT].value / 10.0f * (6.0f - 1.0f);
 		chan = (int) clamp(roundf(params[CHAN_PARAM].value + chanInputValue), 0.0f, (6.0f - 1.0f));		
 		
-		// Big button
-		if (bigTrigger.process(params[BIG_PARAM].value + inputs[BIG_INPUT].value)) {
-			bigLight = 1.0f;
-			if (quantizeBig && (clockTime > (lastPeriod / 2.0)) && (clockTime <= (lastPeriod * 1.01))) // allow for 1% clock jitter
-				pendingOp = 1;
-			else {
-				if (!getGate(chan)) {
-					setGate(chan);// bank and indexStep are global
-					bigPulse.trigger(0.001f);
-					bigLightPulse.trigger(lightTime);
+		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
+
+			// Big button
+			if (bigTrigger.process(params[BIG_PARAM].value + inputs[BIG_INPUT].value)) {
+				bigLight = 1.0f;
+				if (quantizeBig && (clockTime > (lastPeriod / 2.0)) && (clockTime <= (lastPeriod * 1.01))) // allow for 1% clock jitter
+					pendingOp = 1;
+				else {
+					if (!getGate(chan)) {
+						setGate(chan);// bank and indexStep are global
+						bigPulse.trigger(0.001f);
+						bigLightPulse.trigger(lightTime);
+					}
 				}
 			}
-		}
 
-		// Bank button
-		if (bankTrigger.process(params[BANK_PARAM].value + inputs[BANK_INPUT].value))
-			bank[chan] = 1 - bank[chan];
+			// Bank button
+			if (bankTrigger.process(params[BANK_PARAM].value + inputs[BANK_INPUT].value))
+				bank[chan] = 1 - bank[chan];
+			
+			// Clear button
+			if (params[CLEAR_PARAM].value + inputs[CLEAR_INPUT].value > 0.5f)
+				gates[chan][bank[chan]] = 0;
+			
+			// Del button
+			if (params[DEL_PARAM].value + inputs[DEL_INPUT].value > 0.5f) {
+				if (quantizeBig && (clockTime > (lastPeriod / 2.0)) && (clockTime <= (lastPeriod * 1.01)))// allow for 1% clock jitter
+					pendingOp = -1;// overrides the pending write if it exists
+				else 
+					clearGate(chan);// bank and indexStep are global
+			}
+
+			// Pending timeout (write/del current step)
+			if (pendingOp != 0 && clockTime > (lastPeriod * 1.01) ) 
+				performPending(chan, lightTime);
+
+			// Write fill to memory
+			if (writeFillTrigger.process(params[WRITEFILL_PARAM].value))
+				writeFillsToMemory = !writeFillsToMemory;
+
+			// Quantize big button (aka snap)
+			if (quantizeBigTrigger.process(params[QUANTIZEBIG_PARAM].value))
+				quantizeBig = !quantizeBig;
+			
+		}// userInputs refresh
 		
-		// Clear button
-		if (params[CLEAR_PARAM].value + inputs[CLEAR_INPUT].value > 0.5f)
-			gates[chan][bank[chan]] = 0;
 		
-		// Del button
-		if (params[DEL_PARAM].value + inputs[DEL_INPUT].value > 0.5f) {
-			if (quantizeBig && (clockTime > (lastPeriod / 2.0)) && (clockTime <= (lastPeriod * 1.01)))// allow for 1% clock jitter
-				pendingOp = -1;// overrides the pending write if it exists
-			else 
-				clearGate(chan);// bank and indexStep are global
-		}
-
-		// Pending timeout (write/del current step)
-		if (pendingOp != 0 && clockTime > (lastPeriod * 1.01) ) 
-			performPending(chan, lightTime);
-
-		// Write fill to memory
-		if (writeFillTrigger.process(params[WRITEFILL_PARAM].value))
-			writeFillsToMemory = !writeFillsToMemory;
-
-		// Quantize big button (aka snap)
-		if (quantizeBigTrigger.process(params[QUANTIZEBIG_PARAM].value))
-			quantizeBig = !quantizeBig;
-		
-
 		
 		//********** Clock and reset **********
 		

@@ -334,59 +334,64 @@ struct BigButtonSeq2 : Module {
 		float chanInputValue = inputs[CHAN_INPUT].value / 10.0f * (6.0f - 1.0f);
 		channel = (int) clamp(roundf(params[CHAN_PARAM].value + chanInputValue), 0.0f, (6.0f - 1.0f));		
 		
-		// Big button
-		if (bigTrigger.process(params[BIG_PARAM].value + inputs[BIG_INPUT].value)) {
-			bigLight = 1.0f;
-			if (quantizeBig && (clockTime > (lastPeriod / 2.0)) && (clockTime <= (lastPeriod * 1.01))) {// allow for 1% clock jitter
-				pendingOp = 1;
-				pendingCV = inputs[CV_INPUT].value;
-			}
-			else {
-				if (!getGate(channel)) {
-					setGate(channel);// bank and indexStep are global
-					bigPulse.trigger(0.001f);
+		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {		
+		
+			// Big button
+			if (bigTrigger.process(params[BIG_PARAM].value + inputs[BIG_INPUT].value)) {
+				bigLight = 1.0f;
+				if (quantizeBig && (clockTime > (lastPeriod / 2.0)) && (clockTime <= (lastPeriod * 1.01))) {// allow for 1% clock jitter
+					pendingOp = 1;
+					pendingCV = inputs[CV_INPUT].value;
 				}
-				writeCV(channel, inputs[CV_INPUT].value);
-				bigLightPulse.trigger(lightTime);
+				else {
+					if (!getGate(channel)) {
+						setGate(channel);// bank and indexStep are global
+						bigPulse.trigger(0.001f);
+					}
+					writeCV(channel, inputs[CV_INPUT].value);
+					bigLightPulse.trigger(lightTime);
+				}
 			}
-		}
 
-		// Bank button
-		if (bankTrigger.process(params[BANK_PARAM].value + inputs[BANK_INPUT].value))
-			bank[channel] = 1 - bank[channel];
-		
-		// Clear button
-		if (clearTrigger.process(params[CLEAR_PARAM].value + inputs[CLEAR_INPUT].value)) {
-			clearGates(channel, bank[channel]);
-			for (int s = 0; s < 128; s++)
-				cv[channel][bank[channel]][s] = 0.0f;
-		}
-		
-		// Write fill to memory
-		if (writeFillTrigger.process(params[WRITEFILL_PARAM].value))
-			writeFillsToMemory = !writeFillsToMemory;
-
-		// Quantize big button (aka snap)
-		if (quantizeBigTrigger.process(params[QUANTIZEBIG_PARAM].value))
-			quantizeBig = !quantizeBig;
-
-		// Sample and hold
-		if (sampleHoldTrigger.process(params[SAMPLEHOLD_PARAM].value))
-			sampleAndHold = !sampleAndHold;
-		
-		// Del button
-		if (params[DEL_PARAM].value + inputs[DEL_INPUT].value > 0.5f) {
-			if (quantizeBig && (clockTime > (lastPeriod / 2.0)) && (clockTime <= (lastPeriod * 1.01)))// allow for 1% clock jitter
-				pendingOp = -1;// overrides the pending write if it exists
-			else {
-				clearGate(channel);// bank and indexStep are global
-				cv[channel][bank[channel]][indexStep] = 0.0f;
+			// Bank button
+			if (bankTrigger.process(params[BANK_PARAM].value + inputs[BANK_INPUT].value))
+				bank[channel] = 1 - bank[channel];
+			
+			// Clear button
+			if (clearTrigger.process(params[CLEAR_PARAM].value + inputs[CLEAR_INPUT].value)) {
+				clearGates(channel, bank[channel]);
+				for (int s = 0; s < 128; s++)
+					cv[channel][bank[channel]][s] = 0.0f;
 			}
-		}
+			
+			// Write fill to memory
+			if (writeFillTrigger.process(params[WRITEFILL_PARAM].value))
+				writeFillsToMemory = !writeFillsToMemory;
 
-		// Pending timeout (write/del current step)
-		if (pendingOp != 0 && clockTime > (lastPeriod * 1.01) ) 
-			performPending(channel, lightTime);
+			// Quantize big button (aka snap)
+			if (quantizeBigTrigger.process(params[QUANTIZEBIG_PARAM].value))
+				quantizeBig = !quantizeBig;
+
+			// Sample and hold
+			if (sampleHoldTrigger.process(params[SAMPLEHOLD_PARAM].value))
+				sampleAndHold = !sampleAndHold;
+			
+			// Del button
+			if (params[DEL_PARAM].value + inputs[DEL_INPUT].value > 0.5f) {
+				if (quantizeBig && (clockTime > (lastPeriod / 2.0)) && (clockTime <= (lastPeriod * 1.01)))// allow for 1% clock jitter
+					pendingOp = -1;// overrides the pending write if it exists
+				else {
+					clearGate(channel);// bank and indexStep are global
+					cv[channel][bank[channel]][indexStep] = 0.0f;
+				}
+			}
+
+			// Pending timeout (write/del current step)
+			if (pendingOp != 0 && clockTime > (lastPeriod * 1.01) ) 
+				performPending(channel, lightTime);
+			
+		}// userInputs refresh
+		
 		
 		
 		//********** Clock and reset **********

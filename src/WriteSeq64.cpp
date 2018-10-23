@@ -269,113 +269,118 @@ struct WriteSeq64 : Module {
 		
 		
 		//********** Buttons, knobs, switches and inputs **********
+
+		bool canEdit = !running || (indexChannel == 4);
 		
-		// Run state button
-		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
-			running = !running;
-			//pendingPaste = 0;// no pending pastes across run state toggles
-			if (running && resetOnRun) {
-				for (int c = 0; c < 5; c++) 
-					indexStep[c] = 0;
-			}
-			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-		}
-	
-		// Copy button
-		if (copyTrigger.process(params[COPY_PARAM].value)) {
-			infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate() / displayRefreshStepSkips);
-			for (int s = 0; s < 64; s++) {
-				cvCPbuffer[s] = cv[indexChannel][s];
-				gateCPbuffer[s] = gates[indexChannel][s];
-			}
-			stepsCPbuffer = indexSteps[indexChannel];
-			pendingPaste = 0;
-		}
-		// Paste button
-		if (pasteTrigger.process(params[PASTE_PARAM].value)) {
-			if (params[PASTESYNC_PARAM].value < 0.5f || indexChannel == 4) {
-				// Paste realtime, no pending to schedule
-				infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate() / displayRefreshStepSkips);
-				for (int s = 0; s < 64; s++) {
-					cv[indexChannel][s] = cvCPbuffer[s];
-					gates[indexChannel][s] = gateCPbuffer[s];
+		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
+		
+			// Run state button
+			if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {
+				running = !running;
+				//pendingPaste = 0;// no pending pastes across run state toggles
+				if (running && resetOnRun) {
+					for (int c = 0; c < 5; c++) 
+						indexStep[c] = 0;
 				}
-				indexSteps[indexChannel] = stepsCPbuffer;
-				if (indexStep[indexChannel] >= stepsCPbuffer)
-					indexStep[indexChannel] = stepsCPbuffer - 1;
+				clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+			}
+		
+			// Copy button
+			if (copyTrigger.process(params[COPY_PARAM].value)) {
+				infoCopyPaste = (long) (copyPasteInfoTime * engineGetSampleRate() / displayRefreshStepSkips);
+				for (int s = 0; s < 64; s++) {
+					cvCPbuffer[s] = cv[indexChannel][s];
+					gateCPbuffer[s] = gates[indexChannel][s];
+				}
+				stepsCPbuffer = indexSteps[indexChannel];
 				pendingPaste = 0;
 			}
-			else {
-				pendingPaste = params[PASTESYNC_PARAM].value > 1.5f ? 2 : 1;
-				pendingPaste |= indexChannel<<2; // add paste destination channel into pendingPaste				
+			// Paste button
+			if (pasteTrigger.process(params[PASTE_PARAM].value)) {
+				if (params[PASTESYNC_PARAM].value < 0.5f || indexChannel == 4) {
+					// Paste realtime, no pending to schedule
+					infoCopyPaste = (long) (-1 * copyPasteInfoTime * engineGetSampleRate() / displayRefreshStepSkips);
+					for (int s = 0; s < 64; s++) {
+						cv[indexChannel][s] = cvCPbuffer[s];
+						gates[indexChannel][s] = gateCPbuffer[s];
+					}
+					indexSteps[indexChannel] = stepsCPbuffer;
+					if (indexStep[indexChannel] >= stepsCPbuffer)
+						indexStep[indexChannel] = stepsCPbuffer - 1;
+					pendingPaste = 0;
+				}
+				else {
+					pendingPaste = params[PASTESYNC_PARAM].value > 1.5f ? 2 : 1;
+					pendingPaste |= indexChannel<<2; // add paste destination channel into pendingPaste				
+				}
 			}
-		}
+				
+			// Channel selection button
+			if (channelTrigger.process(params[CHANNEL_PARAM].value)) {
+				indexChannel++;
+				if (indexChannel >= 5)
+					indexChannel = 0;
+			}
 			
-		// Channel selection button
-		if (channelTrigger.process(params[CHANNEL_PARAM].value)) {
-			indexChannel++;
-			if (indexChannel >= 5)
-				indexChannel = 0;
-		}
-		
-		// Gate button
-		if (gateTrigger.process(params[GATE_PARAM].value)) {
-			gates[indexChannel][indexStep[indexChannel]] = !gates[indexChannel][indexStep[indexChannel]];
-		}
-		
-		bool canEdit = !running || (indexChannel == 4);
-
-		// Steps knob
-		float stepsParamValue = params[STEPS_PARAM].value;
-		int newStepsKnob = (int)roundf(stepsParamValue * 10.0f);
-		if (stepsParamValue == 0.0f)// true when constructor or fromJson() occured
-			stepsKnob = newStepsKnob;
-		if (newStepsKnob != stepsKnob) {
-			if (abs(newStepsKnob - stepsKnob) <= 3) // avoid discontinuous step (initialize for example)
-				indexSteps[indexChannel] = clamp( indexSteps[indexChannel] + newStepsKnob - stepsKnob, 1, 64); 
-			stepsKnob = newStepsKnob;
-		}	
-		// Step knob
-		float stepParamValue = params[STEP_PARAM].value;
-		int newStepKnob = (int)roundf(stepParamValue * 10.0f);
-		if (stepsParamValue == 0.0f)// true when constructor or fromJson() occured
-			stepKnob = newStepKnob;
-		if (newStepKnob != stepKnob) {
-			if (canEdit && (abs(newStepKnob - stepKnob) <= 3) ) // avoid discontinuous step (initialize for example)
-				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + newStepKnob - stepKnob, indexSteps[indexChannel]);
-			stepKnob = newStepKnob;// must do this step whether running or not
-		}	
-		// If steps knob goes down past step, step knob will not get triggered above, so reduce accordingly
-		for (int c = 0; c < 5; c++)
-			if (indexStep[c] >= indexSteps[c])
-				indexStep[c] = indexSteps[c] - 1;
-		
-		// Write button and input (must be before StepL and StepR in case route gate simultaneously to Step R and Write for example)
-		//  (write must be to correct step)
-		if (writeTrigger.process(params[WRITE_PARAM].value + inputs[WRITE_INPUT].value)) {
-			if (canEdit) {		
-				// CV
-				cv[indexChannel][indexStep[indexChannel]] = quantize(inputs[CV_INPUT].value, params[QUANTIZE_PARAM].value > 0.5f);
-				// Gate
-				if (inputs[GATE_INPUT].active)
-					gates[indexChannel][indexStep[indexChannel]] = (inputs[GATE_INPUT].value >= 1.0f) ? true : false;
-				// Autostep
-				if (params[AUTOSTEP_PARAM].value > 0.5f)
-					indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + 1, indexSteps[indexChannel]);
+			// Gate button
+			if (gateTrigger.process(params[GATE_PARAM].value)) {
+				gates[indexChannel][indexStep[indexChannel]] = !gates[indexChannel][indexStep[indexChannel]];
 			}
-		}
-		// Step L button
-		if (stepLTrigger.process(params[STEPL_PARAM].value + inputs[STEPL_INPUT].value)) {
-			if (canEdit) {		
-				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] - 1, indexSteps[indexChannel]); 
+			
+			// Steps knob
+			float stepsParamValue = params[STEPS_PARAM].value;
+			int newStepsKnob = (int)roundf(stepsParamValue * 10.0f);
+			if (stepsParamValue == 0.0f)// true when constructor or fromJson() occured
+				stepsKnob = newStepsKnob;
+			if (newStepsKnob != stepsKnob) {
+				if (abs(newStepsKnob - stepsKnob) <= 3) // avoid discontinuous step (initialize for example)
+					indexSteps[indexChannel] = clamp( indexSteps[indexChannel] + newStepsKnob - stepsKnob, 1, 64); 
+				stepsKnob = newStepsKnob;
+			}	
+			// Step knob
+			float stepParamValue = params[STEP_PARAM].value;
+			int newStepKnob = (int)roundf(stepParamValue * 10.0f);
+			if (stepsParamValue == 0.0f)// true when constructor or fromJson() occured
+				stepKnob = newStepKnob;
+			if (newStepKnob != stepKnob) {
+				if (canEdit && (abs(newStepKnob - stepKnob) <= 3) ) // avoid discontinuous step (initialize for example)
+					indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + newStepKnob - stepKnob, indexSteps[indexChannel]);
+				stepKnob = newStepKnob;// must do this step whether running or not
+			}	
+			// If steps knob goes down past step, step knob will not get triggered above, so reduce accordingly
+			for (int c = 0; c < 5; c++)
+				if (indexStep[c] >= indexSteps[c])
+					indexStep[c] = indexSteps[c] - 1;
+			
+			// Write button and input (must be before StepL and StepR in case route gate simultaneously to Step R and Write for example)
+			//  (write must be to correct step)
+			if (writeTrigger.process(params[WRITE_PARAM].value + inputs[WRITE_INPUT].value)) {
+				if (canEdit) {		
+					// CV
+					cv[indexChannel][indexStep[indexChannel]] = quantize(inputs[CV_INPUT].value, params[QUANTIZE_PARAM].value > 0.5f);
+					// Gate
+					if (inputs[GATE_INPUT].active)
+						gates[indexChannel][indexStep[indexChannel]] = (inputs[GATE_INPUT].value >= 1.0f) ? true : false;
+					// Autostep
+					if (params[AUTOSTEP_PARAM].value > 0.5f)
+						indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + 1, indexSteps[indexChannel]);
+				}
 			}
-		}
-		// Step R button
-		if (stepRTrigger.process(params[STEPR_PARAM].value + inputs[STEPR_INPUT].value)) {
-			if (canEdit) {		
-				indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + 1, indexSteps[indexChannel]); 
+			// Step L button
+			if (stepLTrigger.process(params[STEPL_PARAM].value + inputs[STEPL_INPUT].value)) {
+				if (canEdit) {		
+					indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] - 1, indexSteps[indexChannel]); 
+				}
 			}
-		}
+			// Step R button
+			if (stepRTrigger.process(params[STEPR_PARAM].value + inputs[STEPR_INPUT].value)) {
+				if (canEdit) {		
+					indexStep[indexChannel] = moveIndex(indexStep[indexChannel], indexStep[indexChannel] + 1, indexSteps[indexChannel]); 
+				}
+			}
+		
+		}// userInputs refresh
+		
 		
 		
 		//********** Clock and reset **********

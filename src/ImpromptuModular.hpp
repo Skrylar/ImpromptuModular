@@ -43,6 +43,7 @@ static const std::string lightPanelID = "Classic";
 static const std::string darkPanelID = "Dark-valor";
 static const std::string expansionMenuLabel = "Extra CVs (requires +4HP to the right!)";
 static const unsigned int displayRefreshStepSkips = 256;
+static const unsigned int userInputsStepSkipMask = 0xF;// sub interval of displayRefreshStepSkips, since inputs should be more responsive than lights
 
 
 // Constants for displaying notes
