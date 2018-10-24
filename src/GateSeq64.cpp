@@ -623,10 +623,11 @@ struct GateSeq64 : Module {
 							setGateP(sequence, stepIndexEdit, true);
 						}
 						else{
-							setGatePVal(sequence, stepIndexEdit, 50);
+							//setGatePVal(sequence, stepIndexEdit, 50);
 							setGateP(sequence, stepIndexEdit, false);
 						}
-						setGate(sequence, stepIndexEdit, inputs[GATE_INPUT].value >= 1.0f);
+						if (inputs[GATE_INPUT].active)
+							setGate(sequence, stepIndexEdit, inputs[GATE_INPUT].value >= 1.0f);
 					}
 					else {// write1 or write0			
 						setGate(sequence, stepIndexEdit, write1Trig);
