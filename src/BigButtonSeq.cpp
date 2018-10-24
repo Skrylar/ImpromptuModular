@@ -663,6 +663,9 @@ Model *modelBigButtonSeq = Model::create<BigButtonSeq, BigButtonSeqWidget>("Impr
 
 /*CHANGE LOG
 
+0.6.12:
+input refresh optimization
+
 0.6.11:
 add channel display
 

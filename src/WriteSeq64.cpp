@@ -849,6 +849,9 @@ Model *modelWriteSeq64 = Model::create<WriteSeq64, WriteSeq64Widget>("Impromptu 
 
 /*CHANGE LOG
 
+0.6.12:
+input refresh optimization
+
 0.6.7:
 no reset on run by default, with switch added in context menu
 reset does not revert chan number to 1

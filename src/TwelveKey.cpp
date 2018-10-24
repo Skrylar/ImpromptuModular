@@ -354,3 +354,10 @@ struct TwelveKeyWidget : ModuleWidget {
 };
 
 Model *modelTwelveKey = Model::create<TwelveKey, TwelveKeyWidget>("Impromptu Modular", "Twelve-Key", "CTRL - Twelve-Key", CONTROLLER_TAG);
+
+/*CHANGE LOG
+
+0.6.12:
+input refresh optimization
+
+*/

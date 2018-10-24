@@ -669,10 +669,12 @@ struct PhraseSeq32 : Module {
 								cv[sequence][s] = 0.0f;
 								initAttrib(sequence, s);
 							}
+							transposeOffsets[sequence] = 0;
 						}
 						else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (randomize CVs)
 							for (int s = 0; s < 32; s++)
 								cv[sequence][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
+							transposeOffsets[sequence] = 0;
 						}
 						else {// 8 (randomize gate 1)
 							for (int s = 0; s < 32; s++)
@@ -1891,6 +1893,8 @@ Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromp
 /*CHANGE LOG
 
 0.6.12:
+input refresh optimization
+add buttons for note vs advanced-gate selection (remove timeout method)
 transposition amount stays persistent and is saved (reset to 0 on module init or paste ALL)
 
 0.6.11:

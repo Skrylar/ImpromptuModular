@@ -1373,6 +1373,10 @@ Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Mod
 
 /*CHANGE LOG
 
+0.6.12:
+input refresh optimization
+add separate buttons for each advanced-gate (remove left right buttons)
+
 0.6.11:
 step optimization of lights refresh
 add RN2 run mode

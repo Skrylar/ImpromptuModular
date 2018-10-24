@@ -753,6 +753,9 @@ Model *modelTact1 = Model::create<Tact1, Tact1Widget>("Impromptu Modular", "Tact
 
 /*CHANGE LOG
 
+0.6.12:
+input refresh optimization
+
 0.6.11:
 create Tact-1
 add right click option for rate x3 in both Tacts

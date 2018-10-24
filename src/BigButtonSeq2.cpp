@@ -789,6 +789,9 @@ Model *modelBigButtonSeq2 = Model::create<BigButtonSeq2, BigButtonSeq2Widget>("I
 
 /*CHANGE LOG
 
+0.6.12:
+input refresh optimization
+
 0.6.11:
 created
 
