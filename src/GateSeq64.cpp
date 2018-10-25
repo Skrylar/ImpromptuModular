@@ -1377,6 +1377,7 @@ Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Mod
 0.6.12:
 input refresh optimization
 add separate buttons for each advanced-gate (remove left right buttons)
+change behavior of write CV input in exp pannel (prob not reset when ProbIn unconnected, and gate not written when GateIn unconnected)
 
 0.6.11:
 step optimization of lights refresh
