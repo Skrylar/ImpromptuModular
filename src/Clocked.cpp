@@ -6,7 +6,7 @@
 //See ./LICENSE.txt for all licenses
 //See ./res/fonts/ for font licenses
 //
-//Module concept and design by Marc Boulé, Nigel Sixsmith and Xavier Belmont
+//Module concept and design by Marc Boulé, Nigel Sixsmith, Xavier Belmont and Steve Baker
 //
 //***********************************************************************************************
 

@@ -22,6 +22,7 @@ void init(rack::Plugin *p) {
 	p->addModel(modelTact1);
 	p->addModel(modelTwelveKey);
 	p->addModel(modelClocked);
+	//p->addModel(modelClockedLFO);
 	//p->addModel(modelMidiFile);
 	p->addModel(modelPhraseSeq16);
 	p->addModel(modelPhraseSeq32);
