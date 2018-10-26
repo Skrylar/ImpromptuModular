@@ -301,17 +301,17 @@ struct Clocked : Module {
 	void onReset() override {
 		running = false;
 		editingBpmMode = 0l;
-		resetClocked();		
+		resetClocked(true);		
 	}
 	
 	
 	void onRandomize() override {
 		//running = false;
-		resetClocked();
+		resetClocked(false);
 	}
 
 	
-	void resetClocked() {
+	void resetClocked(bool hardReset) {// set hardReset to true to revert learned BPM to 120 in sync mode, or else when false, learned bmp will stay persistent
 		for (int i = 0; i < 4; i++) {
 			clk[i].reset();
 			delay[i].reset();
@@ -322,8 +322,10 @@ struct Clocked : Module {
 		extIntervalTime = 0.0;
 		timeoutTime = 2.0 / ppqn + 0.1;
 		if (inputs[BPM_INPUT].active) {
-			if (bpmDetectionMode)
-				newMasterLength = 1.0f;// 120 BPM
+			if (bpmDetectionMode) {
+				if (hardReset)
+					newMasterLength = 1.0f;// 120 BPM
+			}
 			else
 				newMasterLength = 1.0f / powf(2.0f, inputs[BPM_INPUT].value);// bpm = 120*2^V, 2T = 120/bpm = 120/(120*2^V) = 1/2^V
 		}
@@ -403,7 +405,7 @@ struct Clocked : Module {
 
 	
 	void onSampleRateChange() override {
-		resetClocked();
+		resetClocked(false);
 	}		
 	
 
@@ -413,7 +415,7 @@ struct Clocked : Module {
 
 		// Scheduled reset
 		if (scheduledReset) {
-			resetClocked();		
+			resetClocked(false);		
 			scheduledReset = false;
 		}
 		
@@ -422,7 +424,7 @@ struct Clocked : Module {
 			if (!(bpmDetectionMode && inputs[BPM_INPUT].active) || running) {// toggle when not BPM detect, turn off only when BPM detect (allows turn off faster than timeout if don't want any trailing beats after stoppage). If allow manually start in bpmDetectionMode   the clock will not know which pulse is the 1st of a ppqn set, so only allow stop
 				running = !running;
 				runPulse.trigger(0.001f);
-				resetClocked();// reset on any change of run state (will not re-launch if not running, thus clock railed low)
+				resetClocked(false);// reset on any change of run state (will not re-launch if not running, thus clock railed low)
 				if (!running && emitResetOnStopRun) {
 					resetPulse.trigger(0.001f);
 				}
@@ -435,7 +437,7 @@ struct Clocked : Module {
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			resetLight = 1.0f;
 			resetPulse.trigger(0.001f);
-			resetClocked();	
+			resetClocked(false);	
 		}	
 
 		// BPM mode
@@ -474,7 +476,7 @@ struct Clocked : Module {
 						//runPulse.trigger(0.001f); don't need this since slaves will detect the same thing
 						running = true;
 						runPulse.trigger(0.001f);
-						resetClocked();
+						resetClocked(false);
 					}
 					if (running) {
 						extPulseNumber++;
@@ -496,7 +498,7 @@ struct Clocked : Module {
 						//info("*** extIntervalTime = %f, timeoutTime = %f",extIntervalTime, timeoutTime);
 						running = false;
 						runPulse.trigger(0.001f);
-						resetClocked();
+						resetClocked(false);
 						if (emitResetOnStopRun) {
 							resetPulse.trigger(0.001f);
 						}
@@ -998,6 +1000,9 @@ struct ClockedWidget : ModuleWidget {
 Model *modelClocked = Model::create<Clocked, ClockedWidget>("Impromptu Modular", "Clocked", "CLK - Clocked", CLOCK_TAG);
 
 /*CHANGE LOG
+
+0.6.12:
+fixed BPM memorization in BPM sync mode (i.e. when external clock stops, remember last BPM instead of revert to 120)
 
 0.6.11:
 display PW when knob changes (1 to 99, indicative of knob position only, actual PW determined by clock engine)

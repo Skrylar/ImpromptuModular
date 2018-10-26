@@ -14,6 +14,66 @@
 #include "ImpromptuModular.hpp"
 
 
+class Clock {
+	// The -1.0 step is used as a reset state every double-period so that 
+	//   lengths can be re-computed; it will stay at -1.0 when a clock is inactive.
+	// a clock frame is defined as "length * iterations + syncWait", and
+	//   for master, syncWait does not apply and iterations = 1
+
+	
+	double step;// -1.0 when stopped, [0 to 2*period[ for clock steps (*2 is because of swing, so we do groups of 2 periods)
+	double length;// double period
+	double sampleTime;
+	int iterations;// run this many double periods before going into sync if sub-clock
+	
+	public:
+	
+	Clock() {
+		reset();
+	}
+	
+	inline void reset() {
+		step = -1.0;
+	}
+	inline bool isReset() {
+		return step == -1.0;
+	}
+	inline double getStep() {
+		return step;
+	}
+	inline void start() {
+		step = 0.0;
+	}
+	
+	inline void setup(double lengthGiven, int iterationsGiven, double sampleTimeGiven) {
+		length = lengthGiven;
+		iterations = iterationsGiven;
+		sampleTime = sampleTimeGiven;
+	}
+
+	void stepClock() {// here the clock was output on step "step", this function is called at end of module::step()
+		if (step >= 0.0) {// if active clock
+			step += sampleTime;
+			if (step >= length) {// reached end iteration
+				iterations--;
+				step -= length;
+				if (iterations <= 0) 
+					reset();// frame done
+			}
+		}
+	}
+	
+	void applyNewLength(double lengthStretchFactor) {
+		if (step != -1.0)
+			step *= lengthStretchFactor;
+		length *= lengthStretchFactor;
+	}
+};
+
+
+//*****************************************************************************
+
+
 struct ClockedLFO : Module {
 	enum ParamIds {
 		ENUMS(RATIO_PARAMS, 4),// master is index 0
@@ -87,16 +147,9 @@ struct ClockedLFO : Module {
 	SchmittTrigger bpmModeTrigger;
 	PulseGenerator resetPulse;
 	PulseGenerator runPulse;
+	Clock clk;
+	
 
-	
-	inline float getBpmKnob() {
-		float knobBPM = params[RATIO_PARAMS + 0].value;// already integer BPM since using snap knob
-		if (knobBPM < (float)bpmMin)// safety in case module step() starts before widget defaults take effect.
-			return (float)bpmMin;	
-		return knobBPM;
-	}
-	
-	
 	// called from the main thread (step() can not be called until all modules created)
 	ClockedLFO() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
@@ -106,27 +159,29 @@ struct ClockedLFO : Module {
 	void onReset() override {
 		running = false;
 		editingBpmMode = 0l;
-		resetClockedLFO();		
+		resetClockedLFO(true);		
 	}
 	
 	
 	void onRandomize() override {
-		resetClockedLFO();
+		resetClockedLFO(false);
 	}
 
 	
-	void resetClockedLFO() {
+	void resetClockedLFO(bool hardReset) {// set hardReset to true to revert learned BPM to 120 in sync mode, or else when false, learned bmp will stay persistent
+		clk.reset();
 		for (int i = 0; i < 4; i++) {
 			syncRatios[i] = false;
 		}
 		extPulseNumber = -1;
 		extIntervalTime = 0.0;
 		timeoutTime = 2.0 / ppqn + 0.1;
-		if (inputs[BPM_INPUT].active) {
-			newMasterLength = 1.0f;// 120 BPM
-		}
-		else
-			newMasterLength = 120.0f / getBpmKnob();
+		//if (inputs[BPM_INPUT].active) {
+			if (hardReset)
+				newMasterLength = 1.0f;// 120 BPM
+		//}
+		//else
+			//newMasterLength = 120.0f / getBpmKnob();
 		newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
 		masterLength = newMasterLength;
 	}	
@@ -193,7 +248,7 @@ struct ClockedLFO : Module {
 
 	
 	void onSampleRateChange() override {
-		resetClockedLFO();
+		resetClockedLFO(false);
 	}		
 	
 
@@ -203,7 +258,7 @@ struct ClockedLFO : Module {
 
 		// Scheduled reset
 		if (scheduledReset) {
-			resetClockedLFO();		
+			resetClockedLFO(false);		
 			scheduledReset = false;
 		}
 		
@@ -211,7 +266,7 @@ struct ClockedLFO : Module {
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			resetLight = 1.0f;
 			resetPulse.trigger(0.001f);
-			resetClockedLFO();	
+			resetClockedLFO(false);	
 		}	
 
 		// BPM mode
@@ -231,7 +286,7 @@ struct ClockedLFO : Module {
 		
 		// BPM input and knob
 		newMasterLength = masterLength;
-		if (inputs[BPM_INPUT].active) { 
+		//if (inputs[BPM_INPUT].active) { 
 			bool trigBpmInValue = bpmDetectTrigger.process(inputs[BPM_INPUT].value);
 			
 			// BPM Detection method
@@ -243,7 +298,7 @@ struct ClockedLFO : Module {
 					//runPulse.trigger(0.001f); don't need this since slaves will detect the same thing
 					running = true;
 					runPulse.trigger(0.001f);
-					resetClockedLFO();
+					resetClockedLFO(false);
 				}
 				if (running) {
 					extPulseNumber++;
@@ -254,7 +309,7 @@ struct ClockedLFO : Module {
 					else {
 						// all other ppqn pulses except the first one. now we have an interval upon which to plan a strecth 
 						double timeLeft = extIntervalTime * (double)(ppqn * 2 - extPulseNumber) / ((double)extPulseNumber);
-						newMasterLength = clamp(timeLeft, masterLengthMin / 1.5f, masterLengthMax * 1.5f);// extended range for better sync ability (20-450 BPM)
+						newMasterLength = clamp(clk.getStep() + timeLeft, masterLengthMin / 1.5f, masterLengthMax * 1.5f);// extended range for better sync ability (20-450 BPM)
 						timeoutTime = extIntervalTime * ((double)(1 + extPulseNumber) / ((double)extPulseNumber)) + 0.1;
 					}
 				}
@@ -265,23 +320,39 @@ struct ClockedLFO : Module {
 					//info("*** extIntervalTime = %f, timeoutTime = %f",extIntervalTime, timeoutTime);
 					running = false;
 					runPulse.trigger(0.001f);
-					resetClockedLFO();
+					resetClockedLFO(false);
 					if (emitResetOnStopRun) {
 						resetPulse.trigger(0.001f);
 					}
 				}
 			}
-		}
-		else {// BPM_INPUT not active
-			newMasterLength = 120.0f; // clamp(120.0f / getBpmKnob(), masterLengthMin, masterLengthMax);
-		}
+		//}
+		//else {// BPM_INPUT not active
+			//newMasterLength = 120.0f; // clamp(120.0f / getBpmKnob(), masterLengthMin, masterLengthMax);
+		//}
 		if (newMasterLength != masterLength) {
+			double lengthStretchFactor = ((double)newMasterLength) / ((double)masterLength);
+			clk.applyNewLength(lengthStretchFactor);
 			masterLength = newMasterLength;
 		}
 		
 		
+		// main clock engine
+		if (running) {
+			// See if clocks finished their prescribed number of iteratios of double periods (and syncWait for sub) or 
+			//    if they were forced reset and if so, recalc and restart them
+			
+			// Master clock
+			if (clk.isReset()) {
+				clk.setup(masterLength, 1, sampleTime);// must call setup before start. length = double_period
+				clk.start();
+			}
+		}
+		clk.stepClock();
+
+		
 		// LFO Output (only a BPM CV for now!!!!!)
-		outputs[BPM_OUTPUT].value =  log2f(1.0f / masterLength);
+		outputs[BPM_OUTPUT].value = log2f(1.0f / masterLength);
 			
 		
 		lightRefreshCounter++;
@@ -299,8 +370,8 @@ struct ClockedLFO : Module {
 			bool warningFlashState = true;
 			if (cantRunWarning > 0l) 
 				warningFlashState = calcWarningFlash(cantRunWarning, (long) (0.7 * sampleRate / displayRefreshStepSkips));
-			lights[BPMSYNC_LIGHT + 0].value = (warningFlashState && inputs[BPM_INPUT].active) ? 1.0f : 0.0f;
-			lights[BPMSYNC_LIGHT + 1].value = (warningFlashState && inputs[BPM_INPUT].active) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
+			lights[BPMSYNC_LIGHT + 0].value = (warningFlashState) ? 1.0f : 0.0f;
+			lights[BPMSYNC_LIGHT + 1].value = (warningFlashState) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
 			
 			// ratios synched lights
 			for (int i = 1; i < 4; i++)
