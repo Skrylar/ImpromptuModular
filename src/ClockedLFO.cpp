@@ -221,8 +221,10 @@ struct ClockedLFO : Module {
 					ppqn = 8;
 				else if (ppqn == 8)
 					ppqn = 12;
-				else //if (ppqn == 12)
+				else if (ppqn == 12)
 					ppqn = 24;
+				else 
+					ppqn = 4;
 			}
 			editingBpmMode = (long) (3.0 * sampleRate / displayRefreshStepSkips);
 		}
@@ -377,7 +379,7 @@ struct ClockedLFOWidget : ModuleWidget {
 			}
 			else {
 				if (module->editingBpmMode != 0l) {
-					snprintf(displayStr, 4, " CV");
+					snprintf(displayStr, 4, "P%2u", (unsigned) module->ppqn);
 				}
 				else
 					snprintf(displayStr, 4, "%3u", (unsigned)((120.0f / module->masterLength) + 0.5f));
