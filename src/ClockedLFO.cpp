@@ -82,7 +82,6 @@ struct ClockedLFO : Module {
 		RESET_PARAM,
 		RUN_PARAM,
 		ENUMS(DELAY_PARAMS, 4),// index 0 is unused
-		// -- 0.6.9 ^^
 		BPMMODE_PARAM,
 		NUM_PARAMS
 	};
@@ -127,7 +126,6 @@ struct ClockedLFO : Module {
 	bool running;
 	
 	// No need to save
-	bool syncRatios[4];// 0 index unused
 	int extPulseNumber;// 0 to ppqn - 1
 	double extIntervalTime;
 	double timeoutTime;
@@ -170,18 +168,11 @@ struct ClockedLFO : Module {
 	
 	void resetClockedLFO(bool hardReset) {// set hardReset to true to revert learned BPM to 120 in sync mode, or else when false, learned bmp will stay persistent
 		clk.reset();
-		for (int i = 0; i < 4; i++) {
-			syncRatios[i] = false;
-		}
 		extPulseNumber = -1;
 		extIntervalTime = 0.0;
 		timeoutTime = 2.0 / ppqn + 0.1;
-		//if (inputs[BPM_INPUT].active) {
-			if (hardReset)
-				newMasterLength = 1.0f;// 120 BPM
-		//}
-		//else
-			//newMasterLength = 120.0f / getBpmKnob();
+		if (hardReset)
+			newMasterLength = 1.0f;// 120 BPM
 		newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
 		masterLength = newMasterLength;
 	}	
@@ -375,7 +366,7 @@ struct ClockedLFO : Module {
 			
 			// ratios synched lights
 			for (int i = 1; i < 4; i++)
-				lights[CLK_LIGHTS + i].value = (syncRatios[i] && running) ? 1.0f: 0.0f;
+				lights[CLK_LIGHTS + i].value = (running) ? 1.0f: 0.0f;
 
 			// info notification counters
 			for (int i = 0; i < 4; i++) {
@@ -561,17 +552,6 @@ struct ClockedLFOWidget : ModuleWidget {
 		IMSmallSnapKnobNotify() {
 			snap = true;
 			smooth = false;
-		}
-	};
-	struct IMBigSnapKnobNotify : IMBigSnapKnob {
-		IMBigSnapKnobNotify() {};
-		void onChange(EventChange &e) override {
-			int dispIndex = 0;
-			if ( (paramId >= ClockedLFO::RATIO_PARAMS + 1) && (paramId <= ClockedLFO::RATIO_PARAMS + 3) )
-				dispIndex = paramId - ClockedLFO::RATIO_PARAMS;
-			((ClockedLFO*)(module))->syncRatios[dispIndex] = true;
-			((ClockedLFO*)(module))->notifyInfo[dispIndex] = 0l;
-			SVGKnob::onChange(e);		
 		}
 	};
 
