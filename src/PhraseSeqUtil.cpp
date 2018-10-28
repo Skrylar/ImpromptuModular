@@ -64,10 +64,10 @@ bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {
 			}
 		break;
 
-		case MODE_PEN :// forward-reverse; history base is 2000
-			if ((*history) != 2000 && (*history) != 2001) // 2000 means going forward, 2001 means going reverse
-				(*history) = 2000;
-			if ((*history) == 2000) {// forward phase
+		case MODE_PEN :// forward-reverse; history base is 6000
+			if ((*history) != 6000 && (*history) != 6001) // 6000 means going forward, 6001 means going reverse
+				(*history) = 6000;
+			if ((*history) == 6000) {// forward phase
 				(*index)++;
 				if ((*index) >= numSteps) {
 					(*index) = numSteps - 2;
@@ -76,14 +76,14 @@ bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {
 						(*index) = 0;
 					}
 					else
-						(*history) = 2001;
+						(*history) = 6001;
 				}
 			}
-			else {// it is 2001; reverse phase
+			else {// it is 6001; reverse phase
 				(*index)--;
 				if ((*index) < 1) {// was 0 in former PPG method
 					(*index) = 0;
-					(*history) = 2000;
+					(*history) = 6000;
 					crossBoundary = true;
 				}
 			}
