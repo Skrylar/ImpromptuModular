@@ -43,7 +43,28 @@ bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {
 			}
 		break;
 		
+
 		case MODE_PPG :// forward-reverse; history base is 2000
+			if ((*history) != 2000 && (*history) != 2001) // 2000 means going forward, 2001 means going reverse
+				(*history) = 2000;
+			if ((*history) == 2000) {// forward phase
+				(*index)++;
+				if ((*index) >= numSteps) {
+					(*index) = numSteps - 1 ;//- (numSteps > 1 ? 1 : 0);// last term was absent in former PPG method
+					(*history) = 2001;
+				}
+			}
+			else {// it is 2001; reverse phase
+				(*index)--;
+				if ((*index) < 0) {// was 0 in former PPG method
+					(*index) = 0;
+					(*history) = 2000;
+					crossBoundary = true;
+				}
+			}
+		break;
+
+		/*case MODE_PND :// forward-reverse; history base is 2000
 			if ((*history) != 2000 && (*history) != 2001) // 2000 means going forward, 2001 means going reverse
 				(*history) = 2000;
 			if ((*history) == 2000) {// forward phase
@@ -66,7 +87,7 @@ bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {
 					crossBoundary = true;
 				}
 			}
-		break;
+		break;*/
 		
 		case MODE_BRN :// brownian random; history base is 3000
 			if ( (*history) < 3000 || ((*history) > (3000 + numSteps)) ) 

@@ -12,19 +12,17 @@
 
 
 #include "ImpromptuModular.hpp"
+#include "FundamentalUtil.hpp"
 
 
 class Clock {
-	// The -1.0 step is used as a reset state every double-period so that 
+	// The -1.0 step is used as a reset state every period so that 
 	//   lengths can be re-computed; it will stay at -1.0 when a clock is inactive.
-	// a clock frame is defined as "length * iterations + syncWait", and
-	//   for master, syncWait does not apply and iterations = 1
 
 	
-	double step;// -1.0 when stopped, [0 to 2*period[ for clock steps (*2 is because of swing, so we do groups of 2 periods)
-	double length;// double period
+	double step;// -1.0 when stopped, [0 to period[ for clock steps
+	double length;// period
 	double sampleTime;
-	int iterations;// run this many double periods before going into sync if sub-clock
 	
 	public:
 	
@@ -45,9 +43,8 @@ class Clock {
 		step = 0.0;
 	}
 	
-	inline void setup(double lengthGiven, int iterationsGiven, double sampleTimeGiven) {
+	inline void setup(double lengthGiven, double sampleTimeGiven) {
 		length = lengthGiven;
-		iterations = iterationsGiven;
 		sampleTime = sampleTimeGiven;
 	}
 
@@ -55,10 +52,8 @@ class Clock {
 		if (step >= 0.0) {// if active clock
 			step += sampleTime;
 			if (step >= length) {// reached end iteration
-				iterations--;
 				step -= length;
-				if (iterations <= 0) 
-					reset();// frame done
+				reset();// frame done
 			}
 		}
 	}
@@ -76,34 +71,25 @@ class Clock {
 
 struct ClockedLFO : Module {
 	enum ParamIds {
-		ENUMS(RATIO_PARAMS, 4),// master is index 0
 		ENUMS(SWING_PARAMS, 4),// master is index 0
 		ENUMS(PW_PARAMS, 4),// master is index 0
 		RESET_PARAM,
-		RUN_PARAM,
-		ENUMS(DELAY_PARAMS, 4),// index 0 is unused
 		BPMMODE_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
 		ENUMS(PW_INPUTS, 4),// master is index 0
 		RESET_INPUT,
-		RUN_INPUT,
-		BPM_INPUT,
+		CLK_INPUT,
 		ENUMS(SWING_INPUTS, 4),// master is index 0
 		NUM_INPUTS
 	};
 	enum OutputIds {
-		ENUMS(CLK_OUTPUTS, 4),// master is index 0
-		RESET_OUTPUT,
-		RUN_OUTPUT,
-		BPM_OUTPUT,
+		LFO_OUTPUT,
 		NUM_OUTPUTS
 	};
 	enum LightIds {
 		RESET_LIGHT,
-		RUN_LIGHT,
-		ENUMS(CLK_LIGHTS, 4),// master is index 0 (not used)
 		ENUMS(BPMSYNC_LIGHT, 2),// room for GreenRed
 		NUM_LIGHTS
 	};
@@ -112,20 +98,17 @@ struct ClockedLFO : Module {
 	// Constants
 	static const int bpmMax = 300;
 	static const int bpmMin = 30;
-	static constexpr float masterLengthMax = 120.0f / bpmMin;// a length is a double period
-	static constexpr float masterLengthMin = 120.0f / bpmMax;// a length is a double period
+	static constexpr float masterLengthMax = 60.0f / bpmMin;// a length is a double period
+	static constexpr float masterLengthMin = 60.0f / bpmMax;// a length is a double period
 	static constexpr float delayInfoTime = 3.0f;// seconds
 	static constexpr float swingInfoTime = 2.0f;// seconds
 	
 	// Need to save
 	int panelTheme = 0;
-	int expansion = 0;
-	bool displayDelayNoteMode = true;
-	bool emitResetOnStopRun = false;
 	int ppqn = 4;
-	bool running;
 	
 	// No need to save
+	bool running;
 	int extPulseNumber;// 0 to ppqn - 1
 	double extIntervalTime;
 	double timeoutTime;
@@ -146,6 +129,7 @@ struct ClockedLFO : Module {
 	PulseGenerator resetPulse;
 	PulseGenerator runPulse;
 	Clock clk;
+	LowFrequencyOscillator lfo;
 	
 
 	// called from the main thread (step() can not be called until all modules created)
@@ -158,6 +142,10 @@ struct ClockedLFO : Module {
 		running = false;
 		editingBpmMode = 0l;
 		resetClockedLFO(true);		
+		lfo.setPulseWidth(0.5f);//params[PW_PARAM].value + params[PWM_PARAM].value * inputs[PW_INPUT].value / 10.0f);
+		lfo.offset = false;//(params[OFFSET_PARAM].value > 0.0f);
+		lfo.invert = false;//(params[INVERT_PARAM].value <= 0.0f);
+		lfo.setReset(inputs[RESET_INPUT].value + params[RESET_PARAM].value);
 	}
 	
 	
@@ -170,32 +158,20 @@ struct ClockedLFO : Module {
 		clk.reset();
 		extPulseNumber = -1;
 		extIntervalTime = 0.0;
-		timeoutTime = 2.0 / ppqn + 0.1;
 		if (hardReset)
-			newMasterLength = 1.0f;// 120 BPM
+			newMasterLength = 0.5f;// 120 BPM
 		newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
 		masterLength = newMasterLength;
+		timeoutTime = 2.1f;// was : 2.0 / ppqn + 0.1;// 30 BPM without the 0.1
 	}	
 	
 	
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 		
-		// running
-		json_object_set_new(rootJ, "running", json_boolean(running));
-		
 		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
 
-		// expansion
-		json_object_set_new(rootJ, "expansion", json_integer(expansion));
-
-		// displayDelayNoteMode
-		json_object_set_new(rootJ, "displayDelayNoteMode", json_boolean(displayDelayNoteMode));
-		
-		// emitResetOnStopRun
-		json_object_set_new(rootJ, "emitResetOnStopRun", json_boolean(emitResetOnStopRun));
-		
 		// ppqn
 		json_object_set_new(rootJ, "ppqn", json_integer(ppqn));
 		
@@ -204,30 +180,10 @@ struct ClockedLFO : Module {
 
 
 	void fromJson(json_t *rootJ) override {
-		// running
-		json_t *runningJ = json_object_get(rootJ, "running");
-		if (runningJ)
-			running = json_is_true(runningJ);
-
 		// panelTheme
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
 			panelTheme = json_integer_value(panelThemeJ);
-
-		// expansion
-		json_t *expansionJ = json_object_get(rootJ, "expansion");
-		if (expansionJ)
-			expansion = json_integer_value(expansionJ);
-
-		// displayDelayNoteMode
-		json_t *displayDelayNoteModeJ = json_object_get(rootJ, "displayDelayNoteMode");
-		if (displayDelayNoteModeJ)
-			displayDelayNoteMode = json_is_true(displayDelayNoteModeJ);
-
-		// emitResetOnStopRun
-		json_t *emitResetOnStopRunJ = json_object_get(rootJ, "emitResetOnStopRun");
-		if (emitResetOnStopRunJ)
-			emitResetOnStopRun = json_is_true(emitResetOnStopRunJ);
 
 		// ppqn
 		json_t *ppqnJ = json_object_get(rootJ, "ppqn");
@@ -275,52 +231,38 @@ struct ClockedLFO : Module {
 			editingBpmMode = (long) (3.0 * sampleRate / displayRefreshStepSkips);
 		}
 		
-		// BPM input and knob
 		newMasterLength = masterLength;
-		//if (inputs[BPM_INPUT].active) { 
-			bool trigBpmInValue = bpmDetectTrigger.process(inputs[BPM_INPUT].value);
-			
-			// BPM Detection method
-			// rising edge detect
-			if (trigBpmInValue) {
-				if (!running) {
-					// this must be the only way to start runnning when in bpmDetectionMode or else
-					//   when manually starting, the clock will not know which pulse is the 1st of a ppqn set
-					//runPulse.trigger(0.001f); don't need this since slaves will detect the same thing
-					running = true;
-					runPulse.trigger(0.001f);
-					resetClockedLFO(false);
-				}
-				if (running) {
-					extPulseNumber++;
-					if (extPulseNumber >= ppqn * 2)// *2 because working with double_periods
-						extPulseNumber = 0;
-					if (extPulseNumber == 0)// if first pulse, start interval timer
-						extIntervalTime = 0.0;
-					else {
-						// all other ppqn pulses except the first one. now we have an interval upon which to plan a strecth 
-						double timeLeft = extIntervalTime * (double)(ppqn * 2 - extPulseNumber) / ((double)extPulseNumber);
-						newMasterLength = clamp(clk.getStep() + timeLeft, masterLengthMin / 1.5f, masterLengthMax * 1.5f);// extended range for better sync ability (20-450 BPM)
-						timeoutTime = extIntervalTime * ((double)(1 + extPulseNumber) / ((double)extPulseNumber)) + 0.1;
-					}
-				}
+		// rising edge detect
+		if (bpmDetectTrigger.process(inputs[CLK_INPUT].value)) {
+			if (!running) {
+				// this must be the only way to start runnning when in bpmDetectionMode or else
+				//   when manually starting, the clock will not know which pulse is the 1st of a ppqn set
+				running = true;
+				runPulse.trigger(0.001f);
+				resetClockedLFO(false);
 			}
 			if (running) {
-				extIntervalTime += sampleTime;
-				if (extIntervalTime > timeoutTime) {
-					//info("*** extIntervalTime = %f, timeoutTime = %f",extIntervalTime, timeoutTime);
-					running = false;
-					runPulse.trigger(0.001f);
-					resetClockedLFO(false);
-					if (emitResetOnStopRun) {
-						resetPulse.trigger(0.001f);
-					}
+				extPulseNumber++;
+				if (extPulseNumber >= ppqn)
+					extPulseNumber = 0;
+				if (extPulseNumber == 0)// if first pulse, start interval timer
+					extIntervalTime = 0.0;
+				else {
+					// all other ppqn pulses except the first one. now we have an interval upon which to plan a strecth 
+					double timeLeft = extIntervalTime * (double)(ppqn - extPulseNumber) / ((double)extPulseNumber);
+					newMasterLength = clamp(clk.getStep() + timeLeft, masterLengthMin / 1.5f, masterLengthMax * 1.5f);// extended range for better sync ability (20-450 BPM)
+					timeoutTime = 2.1f;//extIntervalTime * ((double)(1 + extPulseNumber) / ((double)extPulseNumber)) + 0.1;
 				}
 			}
-		//}
-		//else {// BPM_INPUT not active
-			//newMasterLength = 120.0f; // clamp(120.0f / getBpmKnob(), masterLengthMin, masterLengthMax);
-		//}
+		}
+		if (running) {
+			extIntervalTime += sampleTime;
+			if (extIntervalTime > timeoutTime) {
+				running = false;
+				runPulse.trigger(0.001f);
+				resetClockedLFO(false);
+			}
+		}
 		if (newMasterLength != masterLength) {
 			double lengthStretchFactor = ((double)newMasterLength) / ((double)masterLength);
 			clk.applyNewLength(lengthStretchFactor);
@@ -335,16 +277,18 @@ struct ClockedLFO : Module {
 			
 			// Master clock
 			if (clk.isReset()) {
-				clk.setup(masterLength, 1, sampleTime);// must call setup before start. length = double_period
+				clk.setup(masterLength, sampleTime);// must call setup before start. length = double_period
 				clk.start();
 			}
 		}
 		clk.stepClock();
 
 		
-		// LFO Output (only a BPM CV for now!!!!!)
-		outputs[BPM_OUTPUT].value = log2f(1.0f / masterLength);
-			
+
+		lfo.setPitch(log2f(1.0f / masterLength));
+		lfo.step(sampleTime);
+		outputs[LFO_OUTPUT].value = 5.0f * lfo.tri();
+		
 		
 		lightRefreshCounter++;
 		if (lightRefreshCounter >= displayRefreshStepSkips) {
@@ -354,9 +298,6 @@ struct ClockedLFO : Module {
 			lights[RESET_LIGHT].value =	resetLight;	
 			resetLight -= (resetLight / lightLambda) * (float)sampleTime * displayRefreshStepSkips;
 			
-			// Run light
-			lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
-			
 			// BPM light
 			bool warningFlashState = true;
 			if (cantRunWarning > 0l) 
@@ -364,10 +305,6 @@ struct ClockedLFO : Module {
 			lights[BPMSYNC_LIGHT + 0].value = (warningFlashState) ? 1.0f : 0.0f;
 			lights[BPMSYNC_LIGHT + 1].value = (warningFlashState) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
 			
-			// ratios synched lights
-			for (int i = 1; i < 4; i++)
-				lights[CLK_LIGHTS + i].value = (running) ? 1.0f: 0.0f;
-
 			// info notification counters
 			for (int i = 0; i < 4; i++) {
 				notifyInfo[i]--;
@@ -385,19 +322,12 @@ struct ClockedLFO : Module {
 
 
 struct ClockedLFOWidget : ModuleWidget {
-	ClockedLFO *module;
-	DynamicSVGPanel *panel;
-	int oldExpansion;
-	int expWidth = 60;
-	IMPort* expPorts[6];
-
 
 	struct RatioDisplayWidget : TransparentWidget {
 		ClockedLFO *module;
 		int knobIndex;
 		std::shared_ptr<Font> font;
 		char displayStr[4];
-		const std::string delayLabelsClock[8] = {"D 0", "/16",   "1/8",  "1/4", "1/3",     "1/2", "2/3",     "3/4"};
 		const std::string delayLabelsNote[8]  = {"D 0", "/64",   "/32",  "/16", "/8t",     "1/8", "/4t",     "/8d"};
 
 		
@@ -426,13 +356,6 @@ struct ClockedLFOWidget : ModuleWidget {
 					if (swInt >= 0)
 						displayStr[0] = '+';
 				}
-				else if ( (srcParam >= ClockedLFO::DELAY_PARAMS + 1) && (srcParam <= ClockedLFO::DELAY_PARAMS + 3) ) {				
-					int delayKnobIndex = (int)(module->params[ClockedLFO::DELAY_PARAMS + knobIndex].value + 0.5f);
-					if (module->displayDelayNoteMode)
-						snprintf(displayStr, 4, "%s", (delayLabelsNote[delayKnobIndex]).c_str());
-					else
-						snprintf(displayStr, 4, "%s", (delayLabelsClock[delayKnobIndex]).c_str());
-				}					
 				else if ( (srcParam >= ClockedLFO::PW_PARAMS + 0) && (srcParam <= ClockedLFO::PW_PARAMS + 3) ) {				
 					float pwValue = module->params[ClockedLFO::PW_PARAMS + knobIndex].value;
 					int pwInt = ((int)round(pwValue * 98.0f)) + 1;
@@ -444,7 +367,7 @@ struct ClockedLFOWidget : ModuleWidget {
 					snprintf(displayStr, 4, "P%2u", (unsigned) module->ppqn);
 				}
 				else
-					snprintf(displayStr, 4, "%3u", (unsigned)((120.0f / module->masterLength) + 0.5f));
+					snprintf(displayStr, 4, "%3u", (unsigned)((60.0f / module->masterLength) + 0.5f));
 			}
 			displayStr[3] = 0;// more safety
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
@@ -461,18 +384,6 @@ struct ClockedLFOWidget : ModuleWidget {
 			rightText = (module->panelTheme == theme) ? "✔" : "";
 		}
 	};
-	struct ExpansionItem : MenuItem {
-		ClockedLFO *module;
-		void onAction(EventAction &e) override {
-			module->expansion = module->expansion == 1 ? 0 : 1;
-		}
-	};
-	struct EmitResetItem : MenuItem {
-		ClockedLFO *module;
-		void onAction(EventAction &e) override {
-			module->emitResetOnStopRun = !module->emitResetOnStopRun;
-		}
-	};	
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -498,49 +409,20 @@ struct ClockedLFOWidget : ModuleWidget {
 		darkItem->theme = 1;
 		menu->addChild(darkItem);
 
-		menu->addChild(new MenuLabel());// empty line
+		//menu->addChild(new MenuLabel());// empty line
 		
-		MenuLabel *settingsLabel = new MenuLabel();
-		settingsLabel->text = "Settings";
-		menu->addChild(settingsLabel);
+		//MenuLabel *settingsLabel = new MenuLabel();
+		//settingsLabel->text = "Settings";
+		//menu->addChild(settingsLabel);
 		
-		EmitResetItem *erItem = MenuItem::create<EmitResetItem>("Emit Reset when Run is Turned Off", CHECKMARK(module->emitResetOnStopRun));
-		erItem->module = module;
-		menu->addChild(erItem);
-
-		menu->addChild(new MenuLabel());// empty line
-		
-		MenuLabel *expansionLabel = new MenuLabel();
-		expansionLabel->text = "Expansion module";
-		menu->addChild(expansionLabel);
-
-		ExpansionItem *expItem = MenuItem::create<ExpansionItem>(expansionMenuLabel, CHECKMARK(module->expansion != 0));
-		expItem->module = module;
-		menu->addChild(expItem);
-
 		return menu;
-	}	
-	
-	void step() override {
-		if(module->expansion != oldExpansion) {
-			if (oldExpansion!= -1 && module->expansion == 0) {// if just removed expansion panel, disconnect wires to those jacks
-				for (int i = 0; i < 6; i++)
-					gRackWidget->wireContainer->removeAllWires(expPorts[i]);
-			}
-			oldExpansion = module->expansion;		
-		}
-		box.size.x = panel->box.size.x - (1 - module->expansion) * expWidth;
-		Widget::step();
-	}
-	
+	}		
 	struct IMSmallKnobNotify : IMSmallKnob {
 		IMSmallKnobNotify() {};
 		void onDragMove(EventDragMove &e) override {
 			int dispIndex = 0;
 			if ( (paramId >= ClockedLFO::SWING_PARAMS + 0) && (paramId <= ClockedLFO::SWING_PARAMS + 3) )
 				dispIndex = paramId - ClockedLFO::SWING_PARAMS;
-			else if ( (paramId >= ClockedLFO::DELAY_PARAMS + 1) && (paramId <= ClockedLFO::DELAY_PARAMS + 3) )
-				dispIndex = paramId - ClockedLFO::DELAY_PARAMS;
 			else if ( (paramId >= ClockedLFO::PW_PARAMS + 0) && (paramId <= ClockedLFO::PW_PARAMS + 3) )
 				dispIndex = paramId - ClockedLFO::PW_PARAMS;
 			((ClockedLFO*)(module))->notifyingSource[dispIndex] = paramId;
@@ -557,17 +439,12 @@ struct ClockedLFOWidget : ModuleWidget {
 
 	
 	ClockedLFOWidget(ClockedLFO *module) : ModuleWidget(module) {
- 		this->module = module;
-		oldExpansion = -1;
-		
 		// Main panel from Inkscape
-        panel = new DynamicSVGPanel();
-        panel->mode = &module->panelTheme;
-		panel->expWidth = &expWidth;
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Clocked.svg")));
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/Clocked_dark.svg")));
+        DynamicSVGPanel *panel = new DynamicSVGPanel();
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/ClockedLFO.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/ClockedLFO.svg")));
         box.size = panel->box.size;
-		box.size.x = box.size.x - (1 - module->expansion) * expWidth;
+        panel->mode = &module->panelTheme;
         addChild(panel);		
 		
 		// Screws
@@ -575,18 +452,11 @@ struct ClockedLFOWidget : ModuleWidget {
 		addChild(createDynamicScrew<IMScrew>(Vec(15, 365), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30, 0), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30, 365), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30-expWidth, 0), &module->panelTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30-expWidth, 365), &module->panelTheme));
 
 
 		static const int rowRuler0 = 50;//reset,run inputs, master knob and bpm display
 		static const int rowRuler1 = rowRuler0 + 55;// reset,run switches
-		//
-		static const int rowRuler2 = rowRuler1 + 55;// clock 1
-		static const int rowSpacingClks = 50;
-		static const int rowRuler5 = rowRuler2 + rowSpacingClks * 2 + 55;// reset,run outputs, pw inputs
-		
-		
+		//		
 		static const int colRulerL = 18;// reset input and button, ratio knobs
 		// First two rows and last row
 		static const int colRulerSpacingT = 47;
@@ -603,12 +473,8 @@ struct ClockedLFOWidget : ModuleWidget {
 		// Row 0
 		// Reset input
 		addInput(createDynamicPort<IMPort>(Vec(colRulerL, rowRuler0), Port::INPUT, module, ClockedLFO::RESET_INPUT, &module->panelTheme));
-		// Run input
-		addInput(createDynamicPort<IMPort>(Vec(colRulerT1, rowRuler0), Port::INPUT, module, ClockedLFO::RUN_INPUT, &module->panelTheme));
-		// In input
-		addInput(createDynamicPort<IMPort>(Vec(colRulerT2, rowRuler0), Port::INPUT, module, ClockedLFO::BPM_INPUT, &module->panelTheme));
-		// Master BPM knob
-		addParam(createDynamicParam<IMBigSnapKnob>(Vec(colRulerT3 + 1 + offsetIMBigKnob, rowRuler0 + offsetIMBigKnob), module, ClockedLFO::RATIO_PARAMS + 0, (float)(module->bpmMin), (float)(module->bpmMax), 120.0f, &module->panelTheme));// must be a snap knob, code in step() assumes that a rounded value is read from the knob	(chaining considerations vs BPM detect)
+		// Clk input
+		addInput(createDynamicPort<IMPort>(Vec(colRulerT2, rowRuler0), Port::INPUT, module, ClockedLFO::CLK_INPUT, &module->panelTheme));
 		// BPM display
 		displayRatios[0] = new RatioDisplayWidget();
 		displayRatios[0]->box.pos = Vec(colRulerT4 + 11, rowRuler0 + vOffsetDisplay);
@@ -621,9 +487,6 @@ struct ClockedLFOWidget : ModuleWidget {
 		// Reset LED bezel and light
 		addParam(createParam<LEDBezel>(Vec(colRulerL + offsetLEDbezel, rowRuler1 + offsetLEDbezel), module, ClockedLFO::RESET_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(createLight<MuteLight<GreenLight>>(Vec(colRulerL + offsetLEDbezel + offsetLEDbezelLight, rowRuler1 + offsetLEDbezel + offsetLEDbezelLight), module, ClockedLFO::RESET_LIGHT));
-		// Run LED bezel and light
-		addParam(createParam<LEDBezel>(Vec(colRulerT1 + offsetLEDbezel, rowRuler1 + offsetLEDbezel), module, ClockedLFO::RUN_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(createLight<MuteLight<GreenLight>>(Vec(colRulerT1 + offsetLEDbezel + offsetLEDbezelLight, rowRuler1 + offsetLEDbezel + offsetLEDbezelLight), module, ClockedLFO::RUN_LIGHT));
 		// BPM mode and light
 		addParam(createDynamicParam<IMPushButton>(Vec(colRulerT2 + offsetTL1105, rowRuler1 + offsetTL1105), module, ClockedLFO::BPMMODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		addChild(createLight<SmallLight<GreenRedLight>>(Vec(colRulerM1 + 62, rowRuler1 + offsetMediumLight), module, ClockedLFO::BPMSYNC_LIGHT));		
@@ -631,11 +494,9 @@ struct ClockedLFOWidget : ModuleWidget {
 		addParam(createDynamicParam<IMSmallKnobNotify>(Vec(colRulerT3 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, ClockedLFO::SWING_PARAMS + 0, -1.0f, 1.0f, 0.0f, &module->panelTheme));
 		// PW master knob
 		addParam(createDynamicParam<IMSmallKnobNotify>(Vec(colRulerT4 + offsetIMSmallKnob, rowRuler1 + offsetIMSmallKnob), module, ClockedLFO::PW_PARAMS + 0, 0.0f, 1.0f, 0.5f, &module->panelTheme));
-		// Clock master out
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT5, rowRuler1), Port::OUTPUT, module, ClockedLFO::CLK_OUTPUTS + 0, &module->panelTheme));
 		
 		// Out out
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerT2, rowRuler5), Port::OUTPUT, module, ClockedLFO::BPM_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerT5, rowRuler1), Port::OUTPUT, module, ClockedLFO::LFO_OUTPUT, &module->panelTheme));
 	}
 };
 

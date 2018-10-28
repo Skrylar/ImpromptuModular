@@ -1384,16 +1384,6 @@ struct SemiModularSynth : Module {
 				if (infoCopyPaste < 0l)
 					infoCopyPaste ++;
 			}
-			/*if (editingGateLength > 0l) {// needs thread safe version (that's why it appears not optimized)
-				editingGateLength --;
-				if (editingGateLength < 0l)
-					editingGateLength = 0l;
-			}
-			if (editingGateLength < 0l) {// goes with previous if()
-				editingGateLength ++;
-				if (editingGateLength > 0l)
-					editingGateLength = 0l;
-			}*/
 			if (editingPpqn > 0l)
 				editingPpqn--;
 			if (tiedWarning > 0l)
@@ -1402,14 +1392,6 @@ struct SemiModularSynth : Module {
 				displayState = DISP_NORMAL;
 				editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 			}
-			/*if (gate1HoldDetect.process(params[GATE1_PARAM].value)) {
-				toggleGate1a(&attributes[sequence][stepIndexEdit]);
-				editGateLengthTimeInitMult = 1;
-			}
-			if (gate2HoldDetect.process(params[GATE2_PARAM].value)) {
-				toggleGate2a(&attributes[sequence][stepIndexEdit]);
-				editGateLengthTimeInitMult = 100;
-			}*/
 			if (revertDisplay > 0l) {
 				if (revertDisplay == 1)
 					displayState = DISP_NORMAL;
