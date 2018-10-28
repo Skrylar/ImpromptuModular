@@ -64,7 +64,7 @@ bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {
 			}
 		break;
 
-		/*case MODE_PND :// forward-reverse; history base is 2000
+		case MODE_PEN :// forward-reverse; history base is 2000
 			if ((*history) != 2000 && (*history) != 2001) // 2000 means going forward, 2001 means going reverse
 				(*history) = 2000;
 			if ((*history) == 2000) {// forward phase
@@ -87,7 +87,7 @@ bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {
 					crossBoundary = true;
 				}
 			}
-		break;*/
+		break;
 		
 		case MODE_BRN :// brownian random; history base is 3000
 			if ( (*history) < 3000 || ((*history) > (3000 + numSteps)) ) 
@@ -159,6 +159,7 @@ int keyIndexToGateMode(int keyIndex, int pulsesPerStep) {
 /*CHANGE LOG
 
 0.6.12:
+revert PPG and add the new one as a run mode called PND (Pendulum); fix PS, SMS, GS toJson/fromJson to adjust old patches
 fix PPG run mode, so that it is a true PPG (ex: 1,2,3,2,1,2... instead of 1,2,3,3,2,1,1,2...)
 
 */

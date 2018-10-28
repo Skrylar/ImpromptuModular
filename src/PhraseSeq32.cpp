@@ -328,12 +328,12 @@ struct PhraseSeq32 : Module {
 		
 		// runModeSeq
 		json_t *runModeSeqJ = json_array();
-		for (int i = 0; i < 16; i++)
+		for (int i = 0; i < 32; i++)
 			json_array_insert_new(runModeSeqJ, i, json_integer(runModeSeq[i]));
-		json_object_set_new(rootJ, "runModeSeq2", runModeSeqJ);// "2" appended so no break patches
+		json_object_set_new(rootJ, "runModeSeq3", runModeSeqJ);
 
 		// runModeSong
-		json_object_set_new(rootJ, "runModeSong", json_integer(runModeSong));
+		json_object_set_new(rootJ, "runModeSong3", json_integer(runModeSong));
 
 		// sequence
 		json_object_set_new(rootJ, "sequence", json_integer(sequence));
@@ -418,20 +418,42 @@ struct PhraseSeq32 : Module {
 			running = json_is_true(runningJ);
 
 		// runModeSeq
-		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq2");// "2" appended so no break patches
+		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq3");
 		if (runModeSeqJ) {
-			for (int i = 0; i < 16; i++)
+			for (int i = 0; i < 32; i++)
 			{
 				json_t *runModeSeqArrayJ = json_array_get(runModeSeqJ, i);
 				if (runModeSeqArrayJ)
 					runModeSeq[i] = json_integer_value(runModeSeqArrayJ);
 			}			
 		}		
+		else {// legacy
+			runModeSeqJ = json_object_get(rootJ, "runModeSeq2");
+			if (runModeSeqJ) {
+				for (int i = 0; i < 16; i++)// bug, should be 32 but keep since legacy patches were written with 16
+				{
+					json_t *runModeSeqArrayJ = json_array_get(runModeSeqJ, i);
+					if (runModeSeqArrayJ) {
+						runModeSeq[i] = json_integer_value(runModeSeqArrayJ);
+						if (runModeSeq[i] >= MODE_PEN)// this mode was not present in version runModeSeq2
+							runModeSeq[i]++;
+					}
+				}			
+			}			
+		}
 		
 		// runModeSong
-		json_t *runModeSongJ = json_object_get(rootJ, "runModeSong");
+		json_t *runModeSongJ = json_object_get(rootJ, "runModeSong3");
 		if (runModeSongJ)
 			runModeSong = json_integer_value(runModeSongJ);
+		else {// legacy
+			json_t *runModeSongJ = json_object_get(rootJ, "runModeSong");
+			if (runModeSongJ) {
+				runModeSong = json_integer_value(runModeSongJ);
+				if (runModeSong >= MODE_PEN)// this mode was not present in original version
+					runModeSong++;
+			}
+		}
 		
 		// sequence
 		json_t *sequenceJ = json_object_get(rootJ, "sequence");
@@ -881,7 +903,7 @@ struct PhraseSeq32 : Module {
 						else {
 							runModeSong += deltaKnob;
 							if (runModeSong < 0) runModeSong = 0;
-							if (runModeSong >= 5) runModeSong = 5 - 1;
+							if (runModeSong >= 6) runModeSong = 6 - 1;
 						}
 					}
 					else if (displayState == DISP_LENGTH) {
