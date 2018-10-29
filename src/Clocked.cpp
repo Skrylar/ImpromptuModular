@@ -320,7 +320,8 @@ struct Clocked : Module {
 		}
 		extPulseNumber = -1;
 		extIntervalTime = 0.0;
-		timeoutTime = 2.0 / ppqn + 0.1;
+		timeoutTime = 2.0 / ppqn + 0.1;// worst case. This is a double period at 30 BPM (4s), divided by the expected number of edges in the double period 
+									   //   which is 2*ppqn, plus epsilon. This timeoutTime is only used for timingout the 2nd clock edge
 		if (inputs[BPM_INPUT].active) {
 			if (bpmDetectionMode) {
 				if (hardReset)
@@ -488,7 +489,8 @@ struct Clocked : Module {
 							// all other ppqn pulses except the first one. now we have an interval upon which to plan a strecth 
 							double timeLeft = extIntervalTime * (double)(ppqn * 2 - extPulseNumber) / ((double)extPulseNumber);
 							newMasterLength = clamp(clk[0].getStep() + timeLeft, masterLengthMin / 1.5f, masterLengthMax * 1.5f);// extended range for better sync ability (20-450 BPM)
-							timeoutTime = extIntervalTime * ((double)(1 + extPulseNumber) / ((double)extPulseNumber)) + 0.1;
+							timeoutTime = extIntervalTime * ((double)(1 + extPulseNumber) / ((double)extPulseNumber)) + 0.1; // when a second or higher clock edge is received, 
+							//  the timeout is the predicted next edge (whici is extIntervalTime + extIntervalTime / extPulseNumber) plus epsilon
 						}
 					}
 				}

@@ -158,11 +158,12 @@ struct ClockedLFO : Module {
 		clk.reset();
 		extPulseNumber = -1;
 		extIntervalTime = 0.0;
+		timeoutTime = 2.0 / ppqn + 0.1;// worst case. This is a double period at 30 BPM (2s), divided by the expected number of edges in the double period 
+									   //   which is ppqn, plus epsilon. This timeoutTime is only used for timingout the 2nd clock edge
 		if (hardReset)
 			newMasterLength = 0.5f;// 120 BPM
 		newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);
 		masterLength = newMasterLength;
-		timeoutTime = 2.1f;// was : 2.0 / ppqn + 0.1;// 30 BPM without the 0.1
 	}	
 	
 	
@@ -251,7 +252,8 @@ struct ClockedLFO : Module {
 					// all other ppqn pulses except the first one. now we have an interval upon which to plan a strecth 
 					double timeLeft = extIntervalTime * (double)(ppqn - extPulseNumber) / ((double)extPulseNumber);
 					newMasterLength = clamp(clk.getStep() + timeLeft, masterLengthMin / 1.5f, masterLengthMax * 1.5f);// extended range for better sync ability (20-450 BPM)
-					timeoutTime = 2.1f;//extIntervalTime * ((double)(1 + extPulseNumber) / ((double)extPulseNumber)) + 0.1;
+					timeoutTime = extIntervalTime * ((double)(1 + extPulseNumber) / ((double)extPulseNumber)) + 0.1; // when a second or higher clock edge is received, 
+					//  the timeout is the predicted next edge (whici is extIntervalTime + extIntervalTime / extPulseNumber) plus epsilon
 				}
 			}
 		}
