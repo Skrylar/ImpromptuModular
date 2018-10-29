@@ -1183,17 +1183,39 @@ struct PhraseSeq32 : Module {
 		int seq = editingSequence ? (sequence) : (running ? phrase[phraseIndexRun] : phrase[phraseIndexEdit]);
 		int step0 = editingSequence ? (running ? stepIndexRun[0] : stepIndexEdit) : (stepIndexRun[0]);
 		if (running) {
+			bool muteGate1A = false;
+			bool muteGate1B = false;
+			bool muteGate2A = false;
+			bool muteGate2B = false;
+			if (!editingSequence && (params[GATE1_PARAM].value + params[GATE2_PARAM].value > 0.5f)) {// live mute
+				muteGate1A = params[GATE1_PARAM].value > 0.5f;
+				muteGate2A = params[GATE2_PARAM].value > 0.5f;
+				if (stepConfig == 1) {// 2x16
+					muteGate1B = muteGate1A;
+					muteGate2B = muteGate2A;
+					if (!attached) {// if not attached, mute only the channel where phraseIndexEdit is located (hack since phraseIndexEdit's row has no relation to channel)
+						if (phraseIndexEdit < 16) {
+							muteGate1B = false;
+							muteGate2B = false;
+						}
+						else {
+							muteGate1A = false;
+							muteGate2A = false;
+						}
+					}
+				}
+			}
 			float slideOffset[2];
 			for (int i = 0; i < 2; i += stepConfig)
 				slideOffset[i] = (slideStepsRemain[i] > 0ul ? (slideCVdelta[i] * (float)slideStepsRemain[i]) : 0.0f);
 			outputs[CVA_OUTPUT].value = cv[seq][step0] - slideOffset[0];
-			outputs[GATE1A_OUTPUT].value = calcGate(gate1Code[0], clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
-			outputs[GATE2A_OUTPUT].value = calcGate(gate2Code[0], clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
+			outputs[GATE1A_OUTPUT].value = (calcGate(gate1Code[0], clockTrigger, clockPeriod, sampleRate) && !muteGate1A) ? 10.0f : 0.0f;
+			outputs[GATE2A_OUTPUT].value = (calcGate(gate2Code[0], clockTrigger, clockPeriod, sampleRate) && !muteGate2A) ? 10.0f : 0.0f;
 			if (stepConfig == 1) {
 				int step1 = editingSequence ? (running ? stepIndexRun[1] : stepIndexEdit) : (stepIndexRun[1]);
 				outputs[CVB_OUTPUT].value = cv[seq][16 + step1] - slideOffset[1];
-				outputs[GATE1B_OUTPUT].value = calcGate(gate1Code[1], clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
-				outputs[GATE2B_OUTPUT].value = calcGate(gate2Code[1], clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
+				outputs[GATE1B_OUTPUT].value = (calcGate(gate1Code[1], clockTrigger, clockPeriod, sampleRate) && !muteGate1B) ? 10.0f : 0.0f;
+				outputs[GATE2B_OUTPUT].value = (calcGate(gate2Code[1], clockTrigger, clockPeriod, sampleRate) && !muteGate2B) ? 10.0f : 0.0f;
 			} 
 			else {
 				outputs[CVB_OUTPUT].value = 0.0f;
@@ -1413,16 +1435,6 @@ struct PhraseSeq32 : Module {
 				if (infoCopyPaste < 0l)
 					infoCopyPaste ++;
 			}
-			/*if (editingGateLength > 0l) {// needs thread safe version (that's why it appears not optimized)
-				editingGateLength --;
-				if (editingGateLength < 0l)
-					editingGateLength = 0l;
-			}
-			if (editingGateLength < 0l) {// goes with previous if()
-				editingGateLength ++;
-				if (editingGateLength > 0l)
-					editingGateLength = 0l;
-			}*/
 			if (editingPpqn > 0l)
 				editingPpqn--;
 			if (tiedWarning > 0l)
@@ -1431,14 +1443,6 @@ struct PhraseSeq32 : Module {
 				displayState = DISP_NORMAL;
 				editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 			}
-			/*if (gate1HoldDetect.process(params[GATE1_PARAM].value)) {
-				toggleGate1a(&attributes[sequence][stepIndexEdit]);
-				editGateLengthTimeInitMult = 1;
-			}
-			if (gate2HoldDetect.process(params[GATE2_PARAM].value)) {
-				toggleGate2a(&attributes[sequence][stepIndexEdit]);
-				editGateLengthTimeInitMult = 100;
-			}*/
 			if (revertDisplay > 0l) {
 				if (revertDisplay == 1)
 					displayState = DISP_NORMAL;
@@ -1915,6 +1919,7 @@ Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromp
 /*CHANGE LOG
 
 0.6.12:
+add live mute on Gate1 and Gate2 buttons in song mode
 input refresh optimization
 add buttons for note vs advanced-gate selection (remove timeout method)
 transposition amount stays persistent and is saved (reset to 0 on module init or paste ALL)

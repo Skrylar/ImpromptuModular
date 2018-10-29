@@ -1209,10 +1209,12 @@ struct SemiModularSynth : Module {
 		int seq = editingSequence ? (sequence) : (running ? phrase[phraseIndexRun] : phrase[phraseIndexEdit]);
 		int step = editingSequence ? (running ? stepIndexRun : stepIndexEdit) : (stepIndexRun);
 		if (running) {
+			bool muteGate1 = !editingSequence && params[GATE1_PARAM].value > 0.5f;
+			bool muteGate2 = !editingSequence && params[GATE2_PARAM].value > 0.5f;
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
 			outputs[CV_OUTPUT].value = cv[seq][step] - slideOffset;
-			outputs[GATE1_OUTPUT].value = calcGate(gate1Code, clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
-			outputs[GATE2_OUTPUT].value = calcGate(gate2Code, clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
+			outputs[GATE1_OUTPUT].value = (calcGate(gate1Code, clockTrigger, clockPeriod, sampleRate) && !muteGate1) ? 10.0f : 0.0f;
+			outputs[GATE2_OUTPUT].value = (calcGate(gate2Code, clockTrigger, clockPeriod, sampleRate) && !muteGate2) ? 10.0f : 0.0f;
 		}
 		else {// not running 
 			outputs[CV_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
@@ -2079,6 +2081,7 @@ Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthW
 /*CHANGE LOG
 
 0.6.12:
+add live mute on Gate1 and Gate2 buttons in song mode
 input refresh optimization
 add buttons for note vs advanced-gate selection (remove timeout method)
 transposition amount stays persistent and is saved (reset to 0 on module init or paste ALL)

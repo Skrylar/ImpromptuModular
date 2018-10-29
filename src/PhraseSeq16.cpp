@@ -1182,10 +1182,12 @@ struct PhraseSeq16 : Module {
 		int seq = editingSequence ? (sequence) : (running ? phrase[phraseIndexRun] : phrase[phraseIndexEdit]);
 		int step = editingSequence ? (running ? stepIndexRun : stepIndexEdit) : (stepIndexRun);
 		if (running) {
+			bool muteGate1 = !editingSequence && params[GATE1_PARAM].value > 0.5f;
+			bool muteGate2 = !editingSequence && params[GATE2_PARAM].value > 0.5f;
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
 			outputs[CV_OUTPUT].value = cv[seq][step] - slideOffset;
-			outputs[GATE1_OUTPUT].value = calcGate(gate1Code, clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
-			outputs[GATE2_OUTPUT].value = calcGate(gate2Code, clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f;
+			outputs[GATE1_OUTPUT].value = (calcGate(gate1Code, clockTrigger, clockPeriod, sampleRate) && !muteGate1) ? 10.0f : 0.0f;
+			outputs[GATE2_OUTPUT].value = (calcGate(gate2Code, clockTrigger, clockPeriod, sampleRate) && !muteGate2) ? 10.0f : 0.0f;
 		}
 		else {// not running
 			outputs[CV_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step];
@@ -1379,16 +1381,6 @@ struct PhraseSeq16 : Module {
 				if (infoCopyPaste < 0l)
 					infoCopyPaste ++;
 			}
-			/*if (editingGateLength > 0l) {// needs thread safe version (that's why it appears not optimized)
-				editingGateLength --;
-				if (editingGateLength < 0l)
-					editingGateLength = 0l;
-			}
-			if (editingGateLength < 0l) {// goes with previous if()
-				editingGateLength ++;
-				if (editingGateLength > 0l)
-					editingGateLength = 0l;
-			}*/
 			if (editingPpqn > 0l)
 				editingPpqn--;
 			if (tiedWarning > 0l)
@@ -1397,14 +1389,6 @@ struct PhraseSeq16 : Module {
 				displayState = DISP_NORMAL;
 				editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 			}
-			/*if (gate1HoldDetect.process(params[GATE1_PARAM].value)) {
-				toggleGate1a(&attributes[sequence][stepIndexEdit]);
-				editGateLengthTimeInitMult = 1;
-			}
-			if (gate2HoldDetect.process(params[GATE2_PARAM].value)) {
-				toggleGate2a(&attributes[sequence][stepIndexEdit]);
-				editGateLengthTimeInitMult = 100;
-			}*/
 			if (revertDisplay > 0l) {
 				if (revertDisplay == 1)
 					displayState = DISP_NORMAL;
@@ -1868,6 +1852,7 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 /*CHANGE LOG
 
 0.6.12:
+add live mute on Gate1 and Gate2 buttons in song mode
 input refresh optimization
 add buttons for note vs advanced-gate selection (remove timeout method)
 transposition amount stays persistent and is saved (reset to 0 on module init or paste ALL)
