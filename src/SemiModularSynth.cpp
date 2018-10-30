@@ -1097,10 +1097,6 @@ struct SemiModularSynth : Module {
 			if (gate1Trigger.process(params[GATE1_PARAM].value)) {
 				if (editingSequence) {
 					toggleGate1a(&attributes[sequence][stepIndexEdit]);
-					//if (pulsesPerStep != 1) {
-						//editingGateLength = getGate1(sequence,stepIndexEdit) ? ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
-						//gate1HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
-					//}
 				}
 				displayState = DISP_NORMAL;
 			}		
@@ -1116,10 +1112,6 @@ struct SemiModularSynth : Module {
 			if (gate2Trigger.process(params[GATE2_PARAM].value)) {
 				if (editingSequence) {
 					toggleGate2a(&attributes[sequence][stepIndexEdit]);
-					//if (pulsesPerStep != 1) {
-						//editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
-						//gate2HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
-					//}
 				}
 				displayState = DISP_NORMAL;
 			}		
@@ -1209,8 +1201,8 @@ struct SemiModularSynth : Module {
 		int seq = editingSequence ? (sequence) : (running ? phrase[phraseIndexRun] : phrase[phraseIndexEdit]);
 		int step = editingSequence ? (running ? stepIndexRun : stepIndexEdit) : (stepIndexRun);
 		if (running) {
-			bool muteGate1 = !editingSequence && params[GATE1_PARAM].value > 0.5f;
-			bool muteGate2 = !editingSequence && params[GATE2_PARAM].value > 0.5f;
+			bool muteGate1 = !editingSequence && (params[GATE1_PARAM].value > 0.5f);// live mute
+			bool muteGate2 = !editingSequence && (params[GATE2_PARAM].value > 0.5f);// live mute
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
 			outputs[CV_OUTPUT].value = cv[seq][step] - slideOffset;
 			outputs[GATE1_OUTPUT].value = (calcGate(gate1Code, clockTrigger, clockPeriod, sampleRate) && !muteGate1) ? 10.0f : 0.0f;
@@ -2080,8 +2072,10 @@ Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthW
 
 /*CHANGE LOG
 
-0.6.12:
+0.6.13:
 add live mute on Gate1 and Gate2 buttons in song mode
+
+0.6.12:
 input refresh optimization
 add buttons for note vs advanced-gate selection (remove timeout method)
 transposition amount stays persistent and is saved (reset to 0 on module init or paste ALL)

@@ -1065,10 +1065,6 @@ struct PhraseSeq32 : Module {
 			if (gate1Trigger.process(params[GATE1_PARAM].value + inputs[GATE1CV_INPUT].value)) {
 				if (editingSequence) {
 					toggleGate1a(&attributes[sequence][stepIndexEdit]);
-					//if (pulsesPerStep != 1) {
-						//editingGateLength = getGate1(sequence,stepIndexEdit) ? ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
-						//gate1HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
-					//}
 				}
 				displayState = DISP_NORMAL;
 			}		
@@ -1084,10 +1080,6 @@ struct PhraseSeq32 : Module {
 			if (gate2Trigger.process(params[GATE2_PARAM].value + inputs[GATE2CV_INPUT].value)) {
 				if (editingSequence) {
 					toggleGate2a(&attributes[sequence][stepIndexEdit]);
-					//if (pulsesPerStep != 1) {
-						//editingGateLength = getGate2(sequence,stepIndexEdit) ? -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult) : 0l;
-						//gate2HoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
-					//}
 				}
 				displayState = DISP_NORMAL;
 			}		
@@ -1183,26 +1175,19 @@ struct PhraseSeq32 : Module {
 		int seq = editingSequence ? (sequence) : (running ? phrase[phraseIndexRun] : phrase[phraseIndexEdit]);
 		int step0 = editingSequence ? (running ? stepIndexRun[0] : stepIndexEdit) : (stepIndexRun[0]);
 		if (running) {
-			bool muteGate1A = false;
-			bool muteGate1B = false;
-			bool muteGate2A = false;
-			bool muteGate2B = false;
-			if (!editingSequence && (params[GATE1_PARAM].value + params[GATE2_PARAM].value > 0.5f)) {// live mute
-				muteGate1A = params[GATE1_PARAM].value > 0.5f;
-				muteGate2A = params[GATE2_PARAM].value > 0.5f;
-				if (stepConfig == 1) {// 2x16
-					muteGate1B = muteGate1A;
-					muteGate2B = muteGate2A;
-					if (!attached) {// if not attached, mute only the channel where phraseIndexEdit is located (hack since phraseIndexEdit's row has no relation to channel)
-						if (phraseIndexEdit < 16) {
-							muteGate1B = false;
-							muteGate2B = false;
-						}
-						else {
-							muteGate1A = false;
-							muteGate2A = false;
-						}
-					}
+			bool muteGate1A = !editingSequence && ((params[GATE1_PARAM].value + inputs[GATE1CV_INPUT].value) > 0.5f);// live mute
+			bool muteGate1B = muteGate1A;
+			bool muteGate2A = !editingSequence && ((params[GATE2_PARAM].value + inputs[GATE2CV_INPUT].value) > 0.5f);// live mute
+			bool muteGate2B = muteGate2A;
+			if (!attached && (muteGate1B || muteGate2B) && stepConfig == 1) {
+				// if not attached in 2x16, mute only the channel where phraseIndexEdit is located (hack since phraseIndexEdit's row has no relation to channels)
+				if (phraseIndexEdit < 16) {
+					muteGate1B = false;
+					muteGate2B = false;
+				}
+				else {
+					muteGate1A = false;
+					muteGate2A = false;
 				}
 			}
 			float slideOffset[2];
@@ -1918,8 +1903,10 @@ Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromp
 
 /*CHANGE LOG
 
-0.6.12:
+0.6.13:
 add live mute on Gate1 and Gate2 buttons in song mode
+
+0.6.12:
 input refresh optimization
 add buttons for note vs advanced-gate selection (remove timeout method)
 transposition amount stays persistent and is saved (reset to 0 on module init or paste ALL)
