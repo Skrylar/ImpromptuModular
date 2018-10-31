@@ -229,7 +229,6 @@ struct SemiModularSynth : Module {
 	long revertDisplay;
 	long editingGateLength;// 0 when no info, positive when gate1, negative when gate2
 	long lastGateEdit;
-	//long editGateLengthTimeInitMult;// multiplier for extended setting of advanced gates
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
 	
@@ -277,8 +276,6 @@ struct SemiModularSynth : Module {
 	SchmittTrigger keyNoteTrigger;
 	SchmittTrigger keyGateTrigger;
 	HoldDetect modeHoldDetect;
-	//HoldDetect gate1HoldDetect;
-	//HoldDetect gate2HoldDetect;
 	
 	
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
@@ -304,6 +301,18 @@ struct SemiModularSynth : Module {
 
 	SemiModularSynth() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
+		
+		// VCO
+		oscillatorVco.soft = false;//params[VCO_SYNC_PARAM].value <= 0.0f;
+		
+		// CLK 
+		oscillatorClk.offset = true;//(params[OFFSET_PARAM].value > 0.0f);
+		oscillatorClk.invert = false;//(params[INVERT_PARAM].value <= 0.0f);
+		
+		// LFO
+		oscillatorLfo.setPulseWidth(0.5f);//params[PW_PARAM].value + params[PWM_PARAM].value * inputs[PW_INPUT].value / 10.0f);
+		oscillatorLfo.offset = false;//(params[OFFSET_PARAM].value > 0.0f);
+		oscillatorLfo.invert = false;//(params[INVERT_PARAM].value <= 0.0f);
 	}
 	
 
@@ -343,7 +352,6 @@ struct SemiModularSynth : Module {
 		tiedWarning = 0ul;
 		revertDisplay = 0l;
 		resetOnRun = false;
-		//editGateLengthTimeInitMult = 1l;
 		editingGateLength = 0l;
 		lastGateEdit = 1l;
 		editingPpqn = 0l;
@@ -1042,14 +1050,12 @@ struct SemiModularSynth : Module {
 									setGate1Mode(sequence, stepIndexEdit, newMode);
 								else
 									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-								//editingGateLength = ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
 							}
 							else {
 								if (newMode != -1)
 									setGate2Mode(sequence, stepIndexEdit, newMode);
 								else
 									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-								//editingGateLength = -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
 							}
 						}
 						else if (getTied(sequence,stepIndexEdit)) {
@@ -1421,7 +1427,6 @@ struct SemiModularSynth : Module {
 		
 		// VCO
 		oscillatorVco.analog = params[VCO_MODE_PARAM].value > 0.0f;
-		oscillatorVco.soft = false;//params[VCO_SYNC_PARAM].value <= 0.0f;
 		float pitchFine = 3.0f * quadraticBipolar(params[VCO_FINE_PARAM].value);
 		float pitchCv = 12.0f * (inputs[VCO_PITCH_INPUT].active ? inputs[VCO_PITCH_INPUT].value : outputs[CV_OUTPUT].value);// Pre-patching
 		float pitchOctOffset = 12.0f * params[VCO_OCT_PARAM].value;
@@ -1443,10 +1448,10 @@ struct SemiModularSynth : Module {
 			
 			
 		// CLK
-		oscillatorClk.setPitch(params[CLK_FREQ_PARAM].value + log2f(pulsesPerStep));
-		oscillatorClk.setPulseWidth(params[CLK_PW_PARAM].value);
-		oscillatorClk.offset = true;//(params[OFFSET_PARAM].value > 0.0f);
-		oscillatorClk.invert = false;//(params[INVERT_PARAM].value <= 0.0f);
+		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
+			oscillatorClk.setPitch(params[CLK_FREQ_PARAM].value + log2f(pulsesPerStep));
+			oscillatorClk.setPulseWidth(params[CLK_PW_PARAM].value);
+		}	
 		oscillatorClk.step(engineGetSampleTime());
 		oscillatorClk.setReset(inputs[RESET_INPUT].value + params[RESET_PARAM].value + params[RUN_PARAM].value + inputs[RUNCV_INPUT].value);//inputs[RESET_INPUT].value);
 		clkValue = 5.0f * oscillatorClk.sqr();	
@@ -1541,10 +1546,9 @@ struct SemiModularSynth : Module {
 		
 		// LFO
 		if (outputs[LFO_SIN_OUTPUT].active || outputs[LFO_TRI_OUTPUT].active) {
-			oscillatorLfo.setPitch(params[LFO_FREQ_PARAM].value);
-			oscillatorLfo.setPulseWidth(0.5f);//params[PW_PARAM].value + params[PWM_PARAM].value * inputs[PW_INPUT].value / 10.0f);
-			oscillatorLfo.offset = false;//(params[OFFSET_PARAM].value > 0.0f);
-			oscillatorLfo.invert = false;//(params[INVERT_PARAM].value <= 0.0f);
+			if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
+				oscillatorLfo.setPitch(params[LFO_FREQ_PARAM].value);
+			}
 			oscillatorLfo.step(engineGetSampleTime());
 			oscillatorLfo.setReset(inputs[LFO_RESET_INPUT].value + inputs[RESET_INPUT].value + params[RESET_PARAM].value + params[RUN_PARAM].value + inputs[RUNCV_INPUT].value);
 			float lfoGain = params[LFO_GAIN_PARAM].value;

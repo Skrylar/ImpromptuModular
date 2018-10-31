@@ -151,7 +151,6 @@ struct PhraseSeq16 : Module {
 	long revertDisplay;
 	long editingGateLength;// 0 when no info, positive when gate1, negative when gate2
 	long lastGateEdit;
-	//long editGateLengthTimeInitMult;// multiplier for extended setting of advanced gates
 	long editingPpqn;// 0 when no info, positive downward step counter timer when editing ppqn
 	int ppqnCount;
 
@@ -183,8 +182,6 @@ struct PhraseSeq16 : Module {
 	SchmittTrigger keyNoteTrigger;
 	SchmittTrigger keyGateTrigger;
 	HoldDetect modeHoldDetect;
-	//HoldDetect gate1HoldDetect;
-	//HoldDetect gate2HoldDetect;
 
 	
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
@@ -244,7 +241,6 @@ struct PhraseSeq16 : Module {
 		tiedWarning = 0ul;
 		revertDisplay = 0l;
 		resetOnRun = false;
-		//editGateLengthTimeInitMult = 1l;
 		editingGateLength = 0l;
 		lastGateEdit = 1l;
 		editingPpqn = 0l;
@@ -252,7 +248,6 @@ struct PhraseSeq16 : Module {
 
 	
 	void onRandomize() override {
-		//running = false;
 		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
@@ -1016,14 +1011,12 @@ struct PhraseSeq16 : Module {
 									setGate1Mode(sequence, stepIndexEdit, newMode);
 								else
 									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-								//editingGateLength = ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
 							}
 							else {
 								if (newMode != -1)
 									setGate2Mode(sequence, stepIndexEdit, newMode);
 								else
 									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-								//editingGateLength = -1l * ((long) (editGateLengthTime * sampleRate / displayRefreshStepSkips) * editGateLengthTimeInitMult);
 							}
 						}
 						else if (getTied(sequence,stepIndexEdit)) {
