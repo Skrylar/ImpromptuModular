@@ -1112,8 +1112,10 @@ struct GateSeq64Widget : ModuleWidget {
 				int prob = module->getGatePVal(module->sequence, module->stepIndexEdit);
 				if ( prob>= 100)
 					snprintf(displayStr, 4, "1,0");
-				else if (prob >= 1)
+				else if (prob >= 10)
 					snprintf(displayStr, 4, ",%2u", (unsigned) prob);
+				else if (prob >= 1)
+					snprintf(displayStr, 4, " ,%1u", (unsigned) prob);
 				else
 					snprintf(displayStr, 4, "  0");
 			}
