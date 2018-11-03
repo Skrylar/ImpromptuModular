@@ -83,7 +83,7 @@ struct PhraseSeq32Ex : Module {
 	};
 	
 	// Constants
-	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_LENGTH, DISP_TRANSPOSE, DISP_ROTATE};
+	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_LENGTH, DISP_TRANSPOSE, DISP_ROTATE, DISP_REPS};
 
 	// Need to save
 	int panelTheme = 0;
@@ -96,6 +96,7 @@ struct PhraseSeq32Ex : Module {
 	int sequence;
 	int lengths[32];//1 to 32
 	int phrase[32];// This is the song (series of phases; a phrase is a patten number)
+	int phraseReps[32];
 	int phrases;//1 to 32
 	float cv[32][32];// [-3.0 : 3.917]. First index is patten number, 2nd index is step
 	int attributes[32][32];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
@@ -199,6 +200,7 @@ struct PhraseSeq32Ex : Module {
 			}
 			runModeSeq[i] = MODE_FWD;
 			phrase[i] = 0;
+			phraseReps[i] = 1;
 			lengths[i] = 32;
 			cvCPbuffer[i] = 0.0f;
 			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
@@ -239,6 +241,7 @@ struct PhraseSeq32Ex : Module {
 			}
 			runModeSeq[i] = randomu32() % NUM_MODES;
 			phrase[i] = randomu32() % 32;
+			phraseReps[i] = randomu32() % 4 + 1;
 			lengths[i] = 1 + (randomu32() % 32);
 			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
 			transposeOffsets[i] = 0;
@@ -301,6 +304,12 @@ struct PhraseSeq32Ex : Module {
 		for (int i = 0; i < 32; i++)
 			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
 		json_object_set_new(rootJ, "phrase", phraseJ);
+
+		// phraseReps 
+		json_t *phraseRepsJ = json_array();
+		for (int i = 0; i < 32; i++)
+			json_array_insert_new(phraseRepsJ, i, json_integer(phraseReps[i]));
+		json_object_set_new(rootJ, "phraseReps", phraseRepsJ);
 
 		// phrases
 		json_object_set_new(rootJ, "phrases", json_integer(phrases));
@@ -408,6 +417,16 @@ struct PhraseSeq32Ex : Module {
 				json_t *phraseArrayJ = json_array_get(phraseJ, i);
 				if (phraseArrayJ)
 					phrase[i] = json_integer_value(phraseArrayJ);
+			}
+		
+		// phraseReps
+		json_t *phraseRepsJ = json_object_get(rootJ, "phraseReps");
+		if (phraseRepsJ)
+			for (int i = 0; i < 32; i++)
+			{
+				json_t *phraseRepsArrayJ = json_array_get(phraseRepsJ, i);
+				if (phraseRepsArrayJ)
+					phraseReps[i] = json_integer_value(phraseRepsArrayJ);
 			}
 		
 		// phrases
@@ -745,7 +764,7 @@ struct PhraseSeq32Ex : Module {
 			if (modeTrigger.process(params[RUNMODE_PARAM].value)) {
 				if (editingPpqn != 0l)
 					editingPpqn = 0l;			
-				if (displayState == DISP_NORMAL || displayState == DISP_TRANSPOSE || displayState == DISP_ROTATE)
+				if (displayState != DISP_LENGTH && displayState != DISP_MODE)
 					displayState = DISP_LENGTH;
 				else if (displayState == DISP_LENGTH)
 					displayState = DISP_MODE;
@@ -754,17 +773,22 @@ struct PhraseSeq32Ex : Module {
 				modeHoldDetect.start((long) (holdDetectTime * sampleRate / displayRefreshStepSkips));
 			}
 			
-			// Transpose/Rotate button
+			// Transpose/Rotate/Reps button
 			if (transposeTrigger.process(params[TRAN_ROT_PARAM].value)) {
 				if (editingSequence) {
-					if (displayState == DISP_NORMAL || displayState == DISP_MODE || displayState == DISP_LENGTH) {
+					if (displayState != DISP_TRANSPOSE && displayState != DISP_ROTATE) {
 						displayState = DISP_TRANSPOSE;
-						//transposeOffset = 0;
 					}
 					else if (displayState == DISP_TRANSPOSE) {
 						displayState = DISP_ROTATE;
 						rotateOffset = 0;
 					}
+					else 
+						displayState = DISP_NORMAL;
+				}
+				else {
+					if (displayState != DISP_REPS)
+						displayState = DISP_REPS;
 					else 
 						displayState = DISP_NORMAL;
 				}
@@ -834,6 +858,15 @@ struct PhraseSeq32Ex : Module {
 								for (int i = deltaKnob; i < 0; i++)
 									rotateSeq(sequence, false, lengths[sequence]);
 							}
+						}						
+					}
+					else if (displayState == DISP_REPS) {
+						if (!editingSequence) {
+							int newPhraseReps = phraseReps[phraseIndexEdit] + deltaKnob - 1;
+							if (newPhraseReps < 0)
+								newPhraseReps += (1 - newPhraseReps / 64) * 64;// newPhraseReps now positive
+							newPhraseReps = newPhraseReps % 64;
+							phraseReps[phraseIndexEdit] = newPhraseReps + 1;
 						}						
 					}
 					else {// DISP_NORMAL
@@ -1150,32 +1183,8 @@ struct PhraseSeq32Ex : Module {
 				}
 			}		
 
-			// Key mode light (note or gate type)
-			lights[KEYNOTE_LIGHT].value = !keyboardEditingGates ? 10.0f : 0.0f;
-			if (!keyboardEditingGates)
-				setGreenRed(KEYGATE_LIGHT, 0.0f, 0.0f);
-			else
-				setGreenRed(KEYGATE_LIGHT, 1.0f, 1.0f);
-			
-			// Clk Res light
-			long editingPpqnInit = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-			if ( ((editingPpqn > 0l) && (editingPpqn < (editingPpqnInit / 6l))) ||
-				 ((editingPpqn > (editingPpqnInit * 2l / 6l)) && (editingPpqn < (editingPpqnInit * 3l / 6l))) ||
-				 ((editingPpqn > (editingPpqnInit * 4l / 6l)) && (editingPpqn < (editingPpqnInit * 5l / 6l))) )
-				lights[RES_LIGHT].value = 1.0f;
-			else 
-				lights[RES_LIGHT].value = 0.0f;
-
 			// Gate1, Gate1Prob, Slide and Tied lights 
-			if (!editingSequence && (!attached || !running)) {// no oct lights when song mode and either (detached [1] or stopped [2])
-											// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
-											// [2] CV is set to 0V when not running and in song mode, so cv[][] makes no sense to display
-				setGreenRed(GATE1_LIGHT, 0.0f, 0.0f);
-				lights[GATE1_PROB_LIGHT].value = 0.0f;
-				lights[SLIDE_LIGHT].value = 0.0f;
-				lights[TIE_LIGHT].value = 0.0f;
-			}
-			else {
+			if (editingSequence  || running) {
 				int attributesVal = attributes[sequence][stepIndexEdit];
 				if (!editingSequence)
 					attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
@@ -1193,9 +1202,31 @@ struct PhraseSeq32Ex : Module {
 					lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
 				}
 				else
-					lights[TIE_LIGHT].value = getTiedA(attributesVal) ? 1.0f : 0.0f;
+					lights[TIE_LIGHT].value = getTiedA(attributesVal) ? 1.0f : 0.0f;			
+			}
+			else {
+				setGreenRed(GATE1_LIGHT, 0.0f, 0.0f);
+				lights[GATE1_PROB_LIGHT].value = 0.0f;
+				lights[SLIDE_LIGHT].value = 0.0f;
+				lights[TIE_LIGHT].value = 0.0f;
 			}
 			
+			// Key mode light (note or gate type)
+			lights[KEYNOTE_LIGHT].value = !keyboardEditingGates ? 10.0f : 0.0f;
+			if (!keyboardEditingGates)
+				setGreenRed(KEYGATE_LIGHT, 0.0f, 0.0f);
+			else
+				setGreenRed(KEYGATE_LIGHT, 1.0f, 1.0f);
+			
+			// Clk Res light
+			long editingPpqnInit = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+			if ( ((editingPpqn > 0l) && (editingPpqn < (editingPpqnInit / 6l))) ||
+				 ((editingPpqn > (editingPpqnInit * 2l / 6l)) && (editingPpqn < (editingPpqnInit * 3l / 6l))) ||
+				 ((editingPpqn > (editingPpqnInit * 4l / 6l)) && (editingPpqn < (editingPpqnInit * 5l / 6l))) )
+				lights[RES_LIGHT].value = 1.0f;
+			else 
+				lights[RES_LIGHT].value = 0.0f;
+
 			// Attach light
 			lights[ATTACH_LIGHT].value = (attached ? 1.0f : 0.0f);
 			
@@ -1340,6 +1371,9 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				snprintf(displayStr, 4, ")%2u", (unsigned) abs(module->rotateOffset));
 				if (module->rotateOffset < 0)
 					displayStr[0] = '(';
+			}
+			else if (module->displayState == PhraseSeq32Ex::DISP_REPS) {
+				snprintf(displayStr, 4, "R%2u", (unsigned) abs(module->phraseReps[module->phraseIndexEdit]));
 			}
 			else {// DISP_NORMAL
 				snprintf(displayStr, 4, " %2u", (unsigned) (editingSequence ? 

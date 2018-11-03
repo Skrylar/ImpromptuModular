@@ -18,15 +18,13 @@ static const uint32_t advGateHitMask[NUM_GATES] =
 {0x00003F, 0x0F0F0F, 0x000FFF, 0x0F0F00, 0x03FFFF, 0xFFFFFF, 0x00000F, 0x03F03F, 0x000F00, 0x03F000, 0x0F0000, 0};
 //	  25%		TRI		  50%		T23		  75%		FUL		  TR1 		DUO		  TR2 	     D2		  TR3  TRIG		
 
-enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_SLIDE = 0x08, ATT_MSK_TIED = 0x10};// 5 bits
-static const int ATT_MSK_GATE1MODE = 0x01E0;// 4 bits
-static const int gate1ModeShift = 5;
+enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_SLIDE = 0x04, ATT_MSK_TIED = 0x08};// 4 bits
+static const int ATT_MSK_GATE1MODE = 0x00F0;// 4 bits
+static const int gate1ModeShift = 4;
 
 							
 				
 // Inline methods
-inline int calcNewGateMode(int currentGateMode, int deltaKnob) {return clamp(currentGateMode + deltaKnob, 0, NUM_GATES - 1);}
-
 inline bool getGate1a(int attribute) {return (attribute & ATT_MSK_GATE1) != 0;}
 inline bool getGate1Pa(int attribute) {return (attribute & ATT_MSK_GATE1P) != 0;}
 inline bool getSlideA(int attribute) {return (attribute & ATT_MSK_SLIDE) != 0;}
