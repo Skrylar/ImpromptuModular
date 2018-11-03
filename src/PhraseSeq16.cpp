@@ -1386,7 +1386,8 @@ struct PhraseSeq16 : Module {
 
 	}// step()
 	
-	void setGreenRed(int id, float green, float red) {
+
+	inline void setGreenRed(int id, float green, float red) {
 		lights[id + 0].value = green;
 		lights[id + 1].value = red;
 	}

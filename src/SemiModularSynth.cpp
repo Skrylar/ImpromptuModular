@@ -1563,11 +1563,12 @@ struct SemiModularSynth : Module {
 		
 	}// step()
 	
-	void setGreenRed(int id, float green, float red) {
+
+	inline void setGreenRed(int id, float green, float red) {
 		lights[id + 0].value = green;
 		lights[id + 1].value = red;
 	}
-
+	
 	void applyTiedStep(int seqNum, int indexTied, int seqLength) {
 		// Start on indexTied and loop until seqLength
 		// Called because either:
