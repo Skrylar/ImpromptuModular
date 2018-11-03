@@ -241,7 +241,6 @@ struct GateSeq64 : Module {
 	
 	void onRandomize() override {
 		stepConfig = getStepConfig(params[CONFIG_PARAM].value);
-		//running = (randomUniform() > 0.5f);
 		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
@@ -257,22 +256,19 @@ struct GateSeq64 : Module {
 		for (int i = 0; i < 64; i++)
 			phrase[i] = randomu32() % 16;
 		initRun(true);
-		//displayState = DISP_GATE;
-		// displayProbInfo = 0l;
-		// infoCopyPaste = 0l;
-		// revertDisplay = 0l;
-		// editingPpqn = 0l;
-		// editingPhraseSongRunning = 0l;
 	}
 
 
 	void initRun(bool hard) {// run button activated or run edge in run input jack
-		if (hard)	
+		if (hard) {
 			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+			phraseIndexRunHistory = 0;
+		}
 		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
 		if (hard) {	
 			stepIndexRun[0] = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
 			fillStepIndexRunVector(runModeSeq[seq], lengths[seq]);
+			stepIndexRunHistory = 0;
 		}
 		ppqnCount = 0;
 		for (int i = 0; i < 4; i += stepConfig)
@@ -1396,6 +1392,9 @@ struct GateSeq64Widget : ModuleWidget {
 Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Modular", "Gate-Seq-64", "SEQ - Gate-Seq-64", SEQUENCER_TAG);
 
 /*CHANGE LOG
+
+0.6.13:
+fix run mode bug (history not reset when hard reset)
 
 0.6.12:
 input refresh optimization

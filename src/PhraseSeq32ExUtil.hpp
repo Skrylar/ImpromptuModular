@@ -10,8 +10,8 @@ using namespace rack;
 // General constants
 
 static constexpr float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
-enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, MODE_FW2, NUM_MODES};
-static const std::string modeLabels[NUM_MODES]={"FWD","REV","PPG","PEN","BRN","RND","FW2"};
+enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, NUM_MODES};
+static const std::string modeLabels[NUM_MODES]={"FWD","REV","PPG","PEN","BRN","RND"};
 
 static const int NUM_GATES = 12;												
 static const uint32_t advGateHitMask[NUM_GATES] = 
@@ -110,70 +110,80 @@ int moveIndexEx(int index, int indexNext, int numSteps) {
 }
 
 
-bool moveIndexRunModeEx(int* index, int numSteps, int runMode, int* history) {		
+bool moveIndexRunModeEx(int* index, int numSteps, int runMode, unsigned int* history, int reps) {	
+	// assert((reps * numSteps) <= 0xFFF); // for BRN and RND run modes, history is not a span count but a step count
+	
 	bool crossBoundary = false;
-	int numRuns;// for FWx
 	
 	switch (runMode) {
 	
-		case MODE_REV :// reverse; history base is 1000 (not needed)
-			(*history) = 1000;
+		// history 0x0000 is reserved for reset
+		
+		case MODE_REV :// reverse; history base is 0x2000
+			if ((*history) < 0x2001 || (*history) > 0x2FFF)
+				(*history) = 0x2000 + reps;
 			(*index)--;
 			if ((*index) < 0) {
 				(*index) = numSteps - 1;
-				crossBoundary = true;
+				(*history)--;
+				if ((*history) <= 0x2000)
+					crossBoundary = true;
 			}
 		break;
 		
 
-		case MODE_PPG :// forward-reverse; history base is 2000
-			if ((*history) != 2000 && (*history) != 2001) // 2000 means going forward, 2001 means going reverse
-				(*history) = 2000;
-			if ((*history) == 2000) {// forward phase
+		case MODE_PPG :// forward-reverse; history base is 0x3000
+			if ((*history) < 0x3001 || (*history) > 0x3FFF) // even means going forward, odd means going reverse
+				(*history) = 0x3000 + reps * 2;
+			if (((*history) & 0x1) == 0) {// even so forward phase
 				(*index)++;
 				if ((*index) >= numSteps) {
-					(*index) = numSteps - 1 ;//- (numSteps > 1 ? 1 : 0);// last term was absent in former PPG method
-					(*history) = 2001;
+					(*index) = numSteps - 1 ;
+					(*history)--;
 				}
 			}
-			else {// it is 2001; reverse phase
+			else {// odd so reverse phase
 				(*index)--;
-				if ((*index) < 0) {// was 0 in former PPG method
+				if ((*index) < 0) {
 					(*index) = 0;
-					(*history) = 2000;
-					crossBoundary = true;
+					(*history)--;
+					if ((*history) <= 0x3000)
+						crossBoundary = true;
 				}
 			}
 		break;
 
-		case MODE_PEN :// forward-reverse; history base is 6000
-			if ((*history) != 6000 && (*history) != 6001) // 6000 means going forward, 6001 means going reverse
-				(*history) = 6000;
-			if ((*history) == 6000) {// forward phase
+
+		case MODE_PEN :// forward-reverse; history base is 0x4000
+			if ((*history) < 0x4001 || (*history) > 0x4FFF) // even means going forward, odd means going reverse
+				(*history) = 0x4000 + reps * 2;
+			if (((*history) & 0x1) == 0) {// even so forward phase
 				(*index)++;
 				if ((*index) >= numSteps) {
 					(*index) = numSteps - 2;
+					(*history)--;
 					if ((*index) < 1) {// if back at 0 after turnaround, then no reverse phase needed
-						crossBoundary = true;
 						(*index) = 0;
+						(*history)--;
+						if ((*history) <= 0x4000)
+							crossBoundary = true;
 					}
-					else
-						(*history) = 6001;
 				}
 			}
-			else {// it is 6001; reverse phase
+			else {// odd so reverse phase
 				(*index)--;
-				if ((*index) < 1) {// was 0 in former PPG method
+				if ((*index) < 1) {
 					(*index) = 0;
-					(*history) = 6000;
-					crossBoundary = true;
+					(*history)--;
+					if ((*history) <= 0x4000)
+						crossBoundary = true;
 				}
 			}
 		break;
 		
-		case MODE_BRN :// brownian random; history base is 3000
-			if ( (*history) < 3000 || ((*history) > (3000 + numSteps)) ) 
-				(*history) = 3000 + numSteps;
+		case MODE_BRN :// brownian random; history base is 0x5000
+			if ((*history) < 0x5001 || (*history) > 0x5FFF) 
+				(*history) = 0x5000 + numSteps * reps;
 			(*index) += (randomu32() % 3) - 1;
 			if ((*index) >= numSteps) {
 				(*index) = 0;
@@ -182,44 +192,30 @@ bool moveIndexRunModeEx(int* index, int numSteps, int runMode, int* history) {
 				(*index) = numSteps - 1;
 			}
 			(*history)--;
-			if ((*history) <= 3000) {
-				(*history) = 3000 + numSteps;
+			if ((*history) <= 0x5000) {
 				crossBoundary = true;
 			}
 		break;
 		
-		case MODE_RND :// random; history base is 4000
-			if ( (*history) < 4000 || ((*history) > (4000 + numSteps)) ) 
-				(*history) = 4000 + numSteps;
+		case MODE_RND :// random; history base is 0x6000
+			if ((*history) < 0x6001 || (*history) > 0x6FFF) 
+				(*history) = 0x6000 + numSteps * reps;
 			(*index) = (randomu32() % numSteps) ;
 			(*history)--;
-			if ((*history) <= 4000) {
-				(*history) = 4000 + numSteps;
+			if ((*history) <= 0x6000) {
 				crossBoundary = true;
 			}
 		break;
 		
-		case MODE_FW2 :// forward twice
-			numRuns = 5002 + runMode - MODE_FW2;
-			if ( (*history) < 5000 || (*history) >= numRuns ) // 5000 means first pass, 5001 means 2nd pass, etc...
-				(*history) = 5000;
+		default :// MODE_FWD  forward; history base is 0x1000
+			if ((*history) < 0x1001 || (*history) > 0x1FFF)
+				(*history) = 0x1000 + reps;
 			(*index)++;
 			if ((*index) >= numSteps) {
 				(*index) = 0;
-				(*history)++;
-				if ((*history) >= numRuns) {
-					(*history) = 5000;
+				(*history)--;
+				if ((*history) <= 0x1000)
 					crossBoundary = true;
-				}				
-			}
-		break;
-
-		default :// MODE_FWD  forward; history base is 0 (not needed)
-			(*history) = 0;
-			(*index)++;
-			if ((*index) >= numSteps) {
-				(*index) = 0;
-				crossBoundary = true;
 			}
 	}
 

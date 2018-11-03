@@ -94,10 +94,10 @@ struct PhraseSeq32Ex : Module {
 	int runModeSeq[32];
 	int runModeSong;
 	int sequence;
-	int lengths[32];//1 to 32
+	int lengths[32];// 1 to 32
 	int phrase[32];// This is the song (series of phases; a phrase is a patten number)
-	int phraseReps[32];
-	int phrases;//1 to 32
+	int phraseReps[32];// 1 to 64
+	int phrases;// number of phrases (song steps) 1 to 32
 	float cv[32][32];// [-3.0 : 3.917]. First index is patten number, 2nd index is step
 	int attributes[32][32];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
 	bool resetOnRun;
@@ -111,20 +111,20 @@ struct PhraseSeq32Ex : Module {
 	int phraseIndexRun;
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
-	float editingGateCV;// no need to initialize, this is a companion to editingGate (output this only when editingGate > 0)
-	int editingGateKeyLight;// no need to initialize, this is a companion to editingGate (use this only when editingGate > 0)
-	int stepIndexRunHistory;// no need to initialize
-	int phraseIndexRunHistory;// no need to initialize
+	float editingGateCV;// no need to initialize, this goes with editingGate (output this only when editingGate > 0)
+	int editingGateKeyLight;// no need to initialize, this goes with editingGate (use this only when editingGate > 0)
+	unsigned int stepIndexRunHistory;
+	unsigned int phraseIndexRunHistory;
 	int displayState;
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
-	float slideCVdelta;// no need to initialize, this is a companion to slideStepsRemain
+	float slideCVdelta;// no need to initialize, this goes with slideStepsRemain
 	float cvCPbuffer[32];// copy paste buffer for CVs
 	int attribOrPhraseCPbuffer[32];
 	int lengthCPbuffer;
 	int modeCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
 	int startCP;
-	int rotateOffset;// no need to initialize, this is companion to displayMode = DISP_ROTATE
+	int rotateOffset;// no need to initialize, this goes with displayMode = DISP_ROTATE
 	long clockIgnoreOnReset;
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
@@ -251,11 +251,14 @@ struct PhraseSeq32Ex : Module {
 	
 	
 	void initRun(bool hard) {// run button activated or run edge in run input jack
-		if (hard)
+		if (hard) {
 			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+			phraseIndexRunHistory = 0;
+		}
 		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
 		if (hard) {
 			stepIndexRun = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
+			stepIndexRunHistory = 0;
 		}
 		ppqnCount = 0;
 		gate1Code = calcGate1Code(attributes[seq][stepIndexRun], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
@@ -1016,12 +1019,12 @@ struct PhraseSeq32Ex : Module {
 					float slideFromCV = 0.0f;
 					if (editingSequence) {
 						slideFromCV = cv[sequence][stepIndexRun];
-						moveIndexRunModeEx(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory);
+						moveIndexRunModeEx(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory, 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the same seq continually)
 					}
 					else {
 						slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
-						if (moveIndexRunModeEx(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory)) {
-							moveIndexRunModeEx(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory);
+						if (moveIndexRunModeEx(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory, phraseReps[phrase[phraseIndexRun]])) {
+							moveIndexRunModeEx(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory, 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the song continually)
 							stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
 						}
 						newSeq = phrase[phraseIndexRun];

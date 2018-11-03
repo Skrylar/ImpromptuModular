@@ -272,11 +272,15 @@ struct PhraseSeq16 : Module {
 	
 	
 	void initRun(bool hard) {// run button activated or run edge in run input jack
-		if (hard) 
+		if (hard) {
 			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+			phraseIndexRunHistory = 0;
+		}
 		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
-		if (hard)	
+		if (hard) {
 			stepIndexRun = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
+			stepIndexRunHistory = 0;
+		}
 		ppqnCount = 0;
 		gate1Code = calcGate1Code(attributes[seq][stepIndexRun], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
 		gate2Code = calcGate2Code(attributes[seq][stepIndexRun], 0, pulsesPerStep);
@@ -1838,6 +1842,7 @@ Model *modelPhraseSeq16 = Model::create<PhraseSeq16, PhraseSeq16Widget>("Impromp
 /*CHANGE LOG
 
 0.6.13:
+fix run mode bug (history not reset when hard reset)
 add live mute on Gate1 and Gate2 buttons in song mode
 
 0.6.12:
