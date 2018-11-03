@@ -29,6 +29,7 @@ extern Model *modelClockedLFO;
 extern Model *modelMidiFile;
 extern Model *modelPhraseSeq16;
 extern Model *modelPhraseSeq32;
+extern Model *modelPhraseSeq32Ex;
 extern Model *modelGateSeq64;
 extern Model *modelSemiModularSynth;
 extern Model *modelWriteSeq32;
