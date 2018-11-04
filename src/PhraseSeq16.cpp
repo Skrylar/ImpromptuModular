@@ -131,8 +131,8 @@ struct PhraseSeq16 : Module {
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
 	float editingGateCV;// no need to initialize, this is a companion to editingGate (output this only when editingGate > 0)
 	int editingGateKeyLight;// no need to initialize, this is a companion to editingGate (use this only when editingGate > 0)
-	int stepIndexRunHistory;// no need to initialize
-	int phraseIndexRunHistory;// no need to initialize
+	unsigned long stepIndexRunHistory;
+	unsigned long phraseIndexRunHistory;
 	int displayState;
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta;// no need to initialize, this is a companion to slideStepsRemain
@@ -254,6 +254,10 @@ struct PhraseSeq16 : Module {
 		sequence = randomu32() % 16;
 		phrases = 1 + (randomu32() % 16);
 		for (int i = 0; i < 16; i++) {
+			runModeSeq[i] = randomu32() % (NUM_MODES - 1);
+			phrase[i] = randomu32() % 16;
+			lengths[i] = 1 + (randomu32() % 16);
+			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
 			for (int s = 0; s < 16; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 				attributes[i][s] = randomu32() & 0x1FFF;// 5 bit for normal attributes + 2 * 4 bits for advanced gate modes
@@ -262,10 +266,6 @@ struct PhraseSeq16 : Module {
 					applyTiedStep(i, s, lengths[i]);
 				}
 			}
-			runModeSeq[i] = randomu32() % (NUM_MODES - 1);
-			phrase[i] = randomu32() % 16;
-			lengths[i] = 1 + (randomu32() % 16);
-			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
 		}
 		initRun(true);
 	}
@@ -1100,6 +1100,7 @@ struct PhraseSeq16 : Module {
 					toggleTiedA(&attributes[sequence][stepIndexEdit]);
 					if (getTied(sequence,stepIndexEdit)) {
 						setGate1a(&attributes[sequence][stepIndexEdit], false);
+						setGate1Pa(&attributes[sequence][stepIndexEdit], false);
 						setGate2a(&attributes[sequence][stepIndexEdit], false);
 						setSlideA(&attributes[sequence][stepIndexEdit], false);
 						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);

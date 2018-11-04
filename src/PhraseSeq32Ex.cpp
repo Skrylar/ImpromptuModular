@@ -29,13 +29,11 @@ struct PhraseSeq32Ex : Module {
 		ENUMS(OCTAVE_PARAM, 7),
 		GATE1_PARAM,
 		SLIDE_BTN_PARAM,
-		SLIDE_KNOB_PARAM,
 		ATTACH_PARAM,
 		AUTOSTEP_PARAM,
 		ENUMS(KEY_PARAMS, 12),
 		RUNMODE_PARAM,
 		TRAN_ROT_PARAM,
-		GATE1_KNOB_PARAM,
 		GATE1_PROB_PARAM,
 		TIE_PARAM,// Legato
 		CPMODE_PARAM,
@@ -83,7 +81,7 @@ struct PhraseSeq32Ex : Module {
 	};
 	
 	// Constants
-	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_LENGTH, DISP_TRANSPOSE, DISP_ROTATE, DISP_REPS};
+	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_LENGTH, DISP_TRANSPOSE, DISP_ROTATE, DISP_PROBVAL, DISP_SLIDEVAL, DISP_REPS};
 
 	// Need to save
 	int panelTheme = 0;
@@ -96,10 +94,10 @@ struct PhraseSeq32Ex : Module {
 	int sequence;
 	int lengths[32];// 1 to 32
 	int phrase[32];// This is the song (series of phases; a phrase is a patten number)
-	int phraseReps[32];// 1 to 64
+	int phraseReps[32];// a rep is 1 to 99
 	int phrases;// number of phrases (song steps) 1 to 32
 	float cv[32][32];// [-3.0 : 3.917]. First index is patten number, 2nd index is step
-	int attributes[32][32];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
+	unsigned long attributes[32][32];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
 	bool resetOnRun;
 	bool attached;
 	int transposeOffsets[32];
@@ -113,8 +111,8 @@ struct PhraseSeq32Ex : Module {
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
 	float editingGateCV;// no need to initialize, this goes with editingGate (output this only when editingGate > 0)
 	int editingGateKeyLight;// no need to initialize, this goes with editingGate (use this only when editingGate > 0)
-	unsigned int stepIndexRunHistory;
-	unsigned int phraseIndexRunHistory;
+	unsigned long stepIndexRunHistory;
+	unsigned long phraseIndexRunHistory;
 	int displayState;
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta;// no need to initialize, this goes with slideStepsRemain
@@ -165,17 +163,29 @@ struct PhraseSeq32Ex : Module {
 
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
 
-	inline void initAttrib(int seq, int step) {attributes[seq][step] = ATT_MSK_GATE1;}
+	inline void initAttrib(int seq, int step) {attributes[seq][step] = (ATT_MSK_GATE1 | (50 << gate1PValShift) | (10 << slideValShift));}
 	inline bool getGate1(int seq, int step) {return getGate1a(attributes[seq][step]);}
 	inline bool getGate1P(int seq, int step) {return getGate1Pa(attributes[seq][step]);}
+	inline int getGate1PVal(int seq, int step) {return getGate1PValA(attributes[seq][step]);}
 	inline bool getSlide(int seq, int step) {return getSlideA(attributes[seq][step]);}
+	inline int getSlideVal(int seq, int step) {return getSlideValA(attributes[seq][step]);}
 	inline bool getTied(int seq, int step) {return getTiedA(attributes[seq][step]);}
 	inline int getGate1Mode(int seq, int step) {return getGate1aMode(attributes[seq][step]);}
 	
-	inline void setGate1Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE1MODE; attributes[seq][step] |= (gateMode << gate1ModeShift);}
+	inline void setGate1Mode(int seq, int step, unsigned long gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE1MODE; attributes[seq][step] |= (gateMode << gate1ModeShift);}
 	inline void setGate1P(int seq, int step, bool gate1Pstate) {setGate1Pa(&attributes[seq][step], gate1Pstate);}
+	inline void setGate1PVal(int seq, int step, int gatePval) {setGate1PValA(&attributes[seq][step], gatePval);}
+	inline void setSlideVal(int seq, int step, int slideVal) {setSlideValA(&attributes[seq][step], slideVal);}
 	inline void toggleGate1(int seq, int step) {toggleGate1a(&attributes[seq][step]);}
-	
+	inline void randomizeAttribute(int seq, int step, int length) {
+		attributes[seq][step] = ((randomu32() & 0xF) & ((randomu32() % NUM_GATES) << gate1ModeShift) & ((randomu32() % 101) << gate1PValShift) & ((randomu32() % 101) << slideValShift));
+		if (getTied(seq,step)) {
+			attributes[seq][step] &= 0xF;// clear other attributes if tied
+			attributes[seq][step] |= ATT_MSK_TIED;
+			applyTiedStep(seq, step, length);
+		}
+	}
+
 		
 	PhraseSeq32Ex() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		onReset();
@@ -204,6 +214,7 @@ struct PhraseSeq32Ex : Module {
 			lengths[i] = 32;
 			cvCPbuffer[i] = 0.0f;
 			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
+			transposeOffsets[i] = 0;
 		}
 		initRun(true);
 		lengthCPbuffer = 32;
@@ -231,20 +242,16 @@ struct PhraseSeq32Ex : Module {
 		sequence = randomu32() % 32;
 		phrases = 1 + (randomu32() % 32);
 		for (int i = 0; i < 32; i++) {
-			for (int s = 0; s < 32; s++) {
-				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
-				attributes[i][s] = randomu32() & 0x1FFF;// 5 bit for normal attributes + 2 * 4 bits for advanced gate modes
-				if (getTied(i,s)) {
-					attributes[i][s] = ATT_MSK_TIED;// clear other attributes if tied
-					applyTiedStep(i, s, lengths[i]);
-				}
-			}
 			runModeSeq[i] = randomu32() % NUM_MODES;
 			phrase[i] = randomu32() % 32;
 			phraseReps[i] = randomu32() % 4 + 1;
 			lengths[i] = 1 + (randomu32() % 32);
 			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
 			transposeOffsets[i] = 0;
+			for (int s = 0; s < 32; s++) {
+				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
+				randomizeAttribute(i, s, lengths[i]);
+			}
 		}
 		initRun(true);
 	}
@@ -261,7 +268,7 @@ struct PhraseSeq32Ex : Module {
 			stepIndexRunHistory = 0;
 		}
 		ppqnCount = 0;
-		gate1Code = calcGate1Code(attributes[seq][stepIndexRun], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
+		gate1Code = calcGate1Code(attributes[seq][stepIndexRun], 0, pulsesPerStep);
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}	
 
@@ -862,13 +869,31 @@ struct PhraseSeq32Ex : Module {
 									rotateSeq(sequence, false, lengths[sequence]);
 							}
 						}						
+					}					
+					else if (displayState == DISP_PROBVAL) {
+						if (editingSequence) {
+							int pVal = getGate1PVal(sequence, stepIndexEdit);
+							pVal += deltaKnob * 2;
+							if (pVal > 100) pVal = 100;
+							if (pVal < 0) pVal = 0;
+							setGate1PVal(sequence, stepIndexEdit, pVal);						
+						}
+					}
+					else if (displayState == DISP_SLIDEVAL) {
+						if (editingSequence) {
+							int sVal = getSlideVal(sequence, stepIndexEdit);
+							sVal += deltaKnob * 2;
+							if (sVal > 100) sVal = 100;
+							if (sVal < 0) sVal = 0;
+							setSlideVal(sequence, stepIndexEdit, sVal);						
+						}
 					}
 					else if (displayState == DISP_REPS) {
 						if (!editingSequence) {
 							int newPhraseReps = phraseReps[phraseIndexEdit] + deltaKnob - 1;
 							if (newPhraseReps < 0)
-								newPhraseReps += (1 - newPhraseReps / 64) * 64;// newPhraseReps now positive
-							newPhraseReps = newPhraseReps % 64;
+								newPhraseReps += (1 - newPhraseReps / 99) * 99;// newPhraseReps now positive
+							newPhraseReps = newPhraseReps % 99;
 							phraseReps[phraseIndexEdit] = newPhraseReps + 1;
 						}						
 					}
@@ -972,28 +997,35 @@ struct PhraseSeq32Ex : Module {
 				displayState = DISP_NORMAL;
 			}		
 			if (gate1ProbTrigger.process(params[GATE1_PROB_PARAM].value + inputs[GATEPCV_INPUT].value)) {
+				displayState = DISP_NORMAL;
 				if (editingSequence) {
 					if (getTied(sequence,stepIndexEdit))
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
-					else
+					else {
 						toggleGate1Pa(&attributes[sequence][stepIndexEdit]);
+						if (getGate1P(sequence,stepIndexEdit))
+							displayState = DISP_PROBVAL;
+					}
 				}
-				displayState = DISP_NORMAL;
 			}		
 			if (slideTrigger.process(params[SLIDE_BTN_PARAM].value + inputs[SLIDECV_INPUT].value)) {
+				displayState = DISP_NORMAL;
 				if (editingSequence) {
 					if (getTied(sequence,stepIndexEdit))
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
-					else
+					else {
 						toggleSlideA(&attributes[sequence][stepIndexEdit]);
+						if (getSlide(sequence,stepIndexEdit))
+							displayState = DISP_SLIDEVAL;
+					}
 				}
-				displayState = DISP_NORMAL;
 			}		
 			if (tiedTrigger.process(params[TIE_PARAM].value + inputs[TIEDCV_INPUT].value)) {
 				if (editingSequence) {
 					toggleTiedA(&attributes[sequence][stepIndexEdit]);
 					if (getTied(sequence,stepIndexEdit)) {
 						setGate1a(&attributes[sequence][stepIndexEdit], false);
+						setGate1Pa(&attributes[sequence][stepIndexEdit], false);
 						setSlideA(&attributes[sequence][stepIndexEdit], false);
 						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
 					}
@@ -1033,7 +1065,7 @@ struct PhraseSeq32Ex : Module {
 					// Slide
 					if (getSlide(newSeq, stepIndexRun)) {
 						// activate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
-						slideStepsRemain =   (unsigned long) (((float)clockPeriod  * pulsesPerStep) * params[SLIDE_KNOB_PARAM].value / 2.0f);
+						slideStepsRemain =   (unsigned long) (((float)clockPeriod  * pulsesPerStep) * ((float)getSlideVal(newSeq, stepIndexRun) / 100.0f));
 						float slideToCV = cv[newSeq][stepIndexRun];
 						slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
 					}
@@ -1043,7 +1075,7 @@ struct PhraseSeq32Ex : Module {
 						newSeq = phrase[phraseIndexRun];
 				}
 				if (gate1Code != -1 || ppqnCount == 0)
-					gate1Code = calcGate1Code(attributes[newSeq][stepIndexRun], ppqnCount, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
+					gate1Code = calcGate1Code(attributes[newSeq][stepIndexRun], ppqnCount, pulsesPerStep);
 			}
 			clockPeriod = 0ul;
 		}
@@ -1158,7 +1190,7 @@ struct PhraseSeq32Ex : Module {
 				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
 			int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
 			if (keyboardEditingGates && editingSequence) {
-				int modeLightIndex = getGate1aMode(attributes[sequence][stepIndexEdit]);
+				int modeLightIndex = getGate1Mode(sequence, stepIndexEdit);
 				for (int i = 0; i < 12; i++) {
 					if (i == modeLightIndex)
 						setGreenRed(KEY_LIGHTS + i * 2, 1.0f, 1.0f);
@@ -1374,6 +1406,28 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				snprintf(displayStr, 4, ")%2u", (unsigned) abs(module->rotateOffset));
 				if (module->rotateOffset < 0)
 					displayStr[0] = '(';
+			}
+			else if (module->displayState == PhraseSeq32Ex::DISP_PROBVAL) {
+				int prob = module->getGate1PVal(module->sequence, module->stepIndexEdit);
+				if ( prob>= 100)
+					snprintf(displayStr, 4, "1,0");
+				else if (prob >= 10)
+					snprintf(displayStr, 4, ",%2u", (unsigned) prob);
+				else if (prob >= 1)
+					snprintf(displayStr, 4, " ,%1u", (unsigned) prob);
+				else
+					snprintf(displayStr, 4, "  0");
+			}
+			else if (module->displayState == PhraseSeq32Ex::DISP_SLIDEVAL) {
+				int slide = module->getSlideVal(module->sequence, module->stepIndexEdit);
+				if ( slide>= 100)
+					snprintf(displayStr, 4, "1,0");
+				else if (slide >= 10)
+					snprintf(displayStr, 4, ",%2u", (unsigned) slide);
+				else if (slide >= 1)
+					snprintf(displayStr, 4, " ,%1u", (unsigned) slide);
+				else
+					snprintf(displayStr, 4, "  0");
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_REPS) {
 				snprintf(displayStr, 4, "R%2u", (unsigned) abs(module->phraseReps[module->phraseIndexEdit]));
@@ -1661,13 +1715,9 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		// Gate 1 probability light and button
 		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerB0 + posLEDvsButton + offsetMediumLight, rowRulerB1 + offsetMediumLight), module, PhraseSeq32Ex::GATE1_PROB_LIGHT));		
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerB0 + offsetCKD6b, rowRulerB1 + offsetCKD6b), module, PhraseSeq32Ex::GATE1_PROB_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		// Gate 1 probability knob
-		addParam(createDynamicParam<IMSmallKnob>(Vec(columnRulerB1 + offsetIMSmallKnob, rowRulerB1 + offsetIMSmallKnob), module, PhraseSeq32Ex::GATE1_KNOB_PARAM, 0.0f, 1.0f, 1.0f, &module->panelTheme));
 		// Slide light and button
 		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerB2 + posLEDvsButton + offsetMediumLight, rowRulerB1 + offsetMediumLight), module, PhraseSeq32Ex::SLIDE_LIGHT));		
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerB2 + offsetCKD6b, rowRulerB1 + offsetCKD6b), module, PhraseSeq32Ex::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		// Slide knob
-		addParam(createDynamicParam<IMSmallKnob>(Vec(columnRulerB3 + offsetIMSmallKnob, rowRulerB1 + offsetIMSmallKnob), module, PhraseSeq32Ex::SLIDE_KNOB_PARAM, 0.0f, 2.0f, 0.2f, &module->panelTheme));
 		// CV in
 		addInput(createDynamicPort<IMPort>(Vec(columnRulerB4, rowRulerB1), Port::INPUT, module, PhraseSeq32Ex::CV_INPUT, &module->panelTheme));
 		// Clock input

@@ -107,7 +107,7 @@ inline int gateModeToKeyLightIndex(int attribute, bool isGate1) {// keyLight ind
 // Other methods (code in PhraseSeqUtil.cpp)	
 												
 int moveIndex(int index, int indexNext, int numSteps);
-bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history);
+bool moveIndexRunMode(int* index, int numSteps, int runMode, unsigned long* history);
 int keyIndexToGateMode(int keyIndex, int pulsesPerStep);
 
 

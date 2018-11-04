@@ -96,8 +96,8 @@ struct GateSeq64 : Module {
 	int stepIndexRun[4];
 	int phraseIndexEdit;	
 	int phraseIndexRun;
-	int stepIndexRunHistory;// no need to initialize
-	int phraseIndexRunHistory;// no need to initialize
+	unsigned long stepIndexRunHistory;
+	unsigned long phraseIndexRunHistory;
 	int attribOrPhraseCPbuffer[64];
 	int lengthCPbuffer;
 	int modeCPbuffer;
