@@ -13,10 +13,10 @@ static constexpr float clockIgnoreOnResetDuration = 0.001f;// disable clock on p
 enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, NUM_MODES};
 static const std::string modeLabels[NUM_MODES]={"FWD","REV","PPG","PEN","BRN","RND"};
 
-static const int NUM_GATES = 12;												
-static const uint32_t advGateHitMask[NUM_GATES] = 
-{0x00003F, 0x0F0F0F, 0x000FFF, 0x0F0F00, 0x03FFFF, 0xFFFFFF, 0x00000F, 0x03F03F, 0x000F00, 0x03F000, 0x0F0000, 0};
-//	  25%		TRI		  50%		T23		  75%		FUL		  TR1 		DUO		  TR2 	     D2		  TR3  TRIG		
+static const int NUM_GATES = 12;	
+											
+static const int NUM_PPS_VALUES = 33;
+static const int ppsValues[NUM_PPS_VALUES] = {1, 4, 6, 8, 12, 16, 18, 20, 24, 28, 30, 32, 36, 40, 42, 44, 48, 52, 54, 56, 60, 64, 66, 68, 72, 76, 78, 80, 84, 88, 90, 92, 96};
 
 enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_SLIDE = 0x04, ATT_MSK_TIED = 0x08};// 4 bits
 static const unsigned long ATT_MSK_GATE1MODE = 0xF0;// 4 bits
@@ -50,22 +50,6 @@ inline void toggleSlideA(unsigned long *attribute) {(*attribute) ^= ATT_MSK_SLID
 inline void toggleTiedA(unsigned long *attribute) {(*attribute) ^= ATT_MSK_TIED;}
 
 
-inline int ppsToIndex(int pulsesPerStep) {// map 1,4,6,12,24, to 0,1,2,3,4
-	if (pulsesPerStep == 1) return 0;
-	if (pulsesPerStep == 4) return 1; 
-	if (pulsesPerStep == 6) return 2;
-	if (pulsesPerStep == 12) return 3; 
-	return 4; 
-}
-inline int indexToPps(int index) {// inverse map of ppsToIndex()
-	index = clamp(index, 0, 4); 
-	if (index == 0) return 1;
-	if (index == 1) return 4; 
-	if (index == 2) return 6;
-	if (index == 3) return 12; 
-	return 24; 
-}
-
 inline bool calcGate(int gateCode, SchmittTrigger clockTrigger, unsigned long clockStep, float sampleRate) {
 	if (gateCode < 2) 
 		return gateCode == 1;
@@ -74,25 +58,43 @@ inline bool calcGate(int gateCode, SchmittTrigger clockTrigger, unsigned long cl
 	return clockStep < (unsigned long) (sampleRate * 0.001f);
 }
 
-inline int getAdvGate(int ppqnCount, int pulsesPerStep, int gateMode) { 
-	if (gateMode == 11)
-		return ppqnCount == 0 ? 3 : 0;
-	uint32_t shiftAmt = ppqnCount * (24 / pulsesPerStep);
-	return (int)((advGateHitMask[gateMode] >> shiftAmt) & (uint32_t)0x1);
-}
 
-inline int calcGate1Code(unsigned long attribute, int ppqnCount, int pulsesPerStep) {
+int calcGate1CodeEx(unsigned long attribute, int ppqnCount, int pulsesPerStepIndex) {
+	static const uint64_t advGateHitMaskLow[NUM_GATES] = 
+	{0x0000000000FFFFFF, 0x0000FFFF0000FFFF, 0x0000FFFFFFFFFFFF, 0x0000FFFF00000000, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 
+	//				25%					TRI		  			50%					T23		  			75%					FUL		
+	 0x000000000000FFFF, 0xFFFF000000FFFFFF, 0x0000FFFF00000000, 0xFFFF000000000000, 0x0000000000000000, 0};
+	//  			TR1 				DUO		  			TR2 	     		D2		  			TR3  TRIG		
+	static const uint64_t advGateHitMaskHigh[NUM_GATES] = 
+	{0x0000000000000000, 0x000000000000FFFF, 0x0000000000000000, 0x000000000000FFFF, 0x00000000000000FF, 0x00000000FFFFFFFF, 
+	//				25%					TRI		  			50%					T23		  			75%					FUL		
+	 0x0000000000000000, 0x00000000000000FF, 0x0000000000000000, 0x00000000000000FF, 0x000000000000FFFF, 0};
+	//  			TR1 				DUO		  			TR2 	     		D2		  			TR3  TRIG		
+
 	// -1 = gate off for whole step, 0 = gate off for current ppqn, 1 = gate on, 2 = clock high, 3 = trigger
 	if ( ppqnCount == 0 && getGate1Pa(attribute) && !(randomUniform() < ((float)getGate1PValA(attribute) / 100.0f)) )// randomUniform is [0.0, 1.0), see include/util/common.hpp
 		return -1;// must do this first in this method since it will kill rest of step if prob turns off the step
 	if (!getGate1a(attribute))
 		return 0;
-	if (pulsesPerStep == 1)
-		return 2;// clock high
-	return getAdvGate(ppqnCount, pulsesPerStep, getGate1aMode(attribute));
+	if (pulsesPerStepIndex == 0)
+		return 2;// clock high pulse
+	int gateMode = getGate1aMode(attribute);
+	if (gateMode == 11)
+		return ppqnCount == 0 ? 3 : 0;
+	uint64_t shiftAmt = ppqnCount * (96 / ppsValues[pulsesPerStepIndex]);
+	if (shiftAmt >= 64)
+		return (int)((advGateHitMaskHigh[gateMode] >> (shiftAmt - (uint64_t)64)) & (uint64_t)0x1);
+	return (int)((advGateHitMaskLow[gateMode] >> shiftAmt) & (uint64_t)0x1);
 }
 
-
+int keyIndexToGateModeEx(int keyIndex, int pulsesPerStepIndex) {
+	int pulsesPerStep = ppsValues[pulsesPerStepIndex];
+	if (((pulsesPerStep % 6) != 0) && (keyIndex == 1 || keyIndex == 3 || keyIndex == 6 || keyIndex == 8 || keyIndex == 10))// TRIs
+		return -1;
+	if (((pulsesPerStep % 4) != 0) && (keyIndex == 0 || keyIndex == 4 || keyIndex == 7 || keyIndex == 9))// DOUBLEs
+		return -1;
+	return keyIndex;// keyLight index now matches gate modes, so no mapping table needed anymore
+}
 
 // Other methods 
 
@@ -229,12 +231,6 @@ bool moveIndexRunModeEx(int* index, int numSteps, int runMode, unsigned long* hi
 }
 
 
-int keyIndexToGateModeEx(int keyIndex, int pulsesPerStep) {
-	if (pulsesPerStep == 4 && (keyIndex == 1 || keyIndex == 3 || keyIndex == 6 || keyIndex == 8 || keyIndex == 10))
-		return -1;
-	if (pulsesPerStep == 6 && (keyIndex == 0 || keyIndex == 4 || keyIndex == 7 || keyIndex == 9))
-		return -1;
-	return keyIndex;// keyLight index now matches gate modes, so no mapping table needed anymore
-}
+
 
 

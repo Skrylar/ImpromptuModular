@@ -87,7 +87,7 @@ struct PhraseSeq32Ex : Module {
 	int panelTheme = 0;
 	int expansion = 0;
 	bool autoseq;
-	int pulsesPerStep;// 1 means normal gate mode, alt choices are 4, 6, 12, 24 PPS (Pulses per step)
+	int pulsesPerStepIndex;// 0 to NUM_PPS_VALUES-1; 0 means normal gate mode of 1 pps; this is an index into ppsValues[]
 	bool running;
 	int runModeSeq[32];
 	int runModeSong;
@@ -196,7 +196,7 @@ struct PhraseSeq32Ex : Module {
 	// onReset() is also called when right-click initialization of module
 	void onReset() override {
 		autoseq = false;
-		pulsesPerStep = 1;
+		pulsesPerStepIndex = 0;
 		running = false;
 		runModeSong = MODE_FWD;
 		stepIndexEdit = 0;
@@ -268,7 +268,7 @@ struct PhraseSeq32Ex : Module {
 			stepIndexRunHistory = 0;
 		}
 		ppqnCount = 0;
-		gate1Code = calcGate1Code(attributes[seq][stepIndexRun], 0, pulsesPerStep);
+		gate1Code = calcGate1CodeEx(attributes[seq][stepIndexRun], 0, pulsesPerStepIndex);
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}	
 
@@ -285,8 +285,8 @@ struct PhraseSeq32Ex : Module {
 		// autoseq
 		json_object_set_new(rootJ, "autoseq", json_boolean(autoseq));
 		
-		// pulsesPerStep
-		json_object_set_new(rootJ, "pulsesPerStep", json_integer(pulsesPerStep));
+		// pulsesPerStepIndex
+		json_object_set_new(rootJ, "pulsesPerStepIndex", json_integer(pulsesPerStepIndex));
 
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
@@ -378,10 +378,10 @@ struct PhraseSeq32Ex : Module {
 		if (autoseqJ)
 			autoseq = json_is_true(autoseqJ);
 
-		// pulsesPerStep
-		json_t *pulsesPerStepJ = json_object_get(rootJ, "pulsesPerStep");
-		if (pulsesPerStepJ)
-			pulsesPerStep = json_integer_value(pulsesPerStepJ);
+		// pulsesPerStepIndex
+		json_t *pulsesPerStepIndexJ = json_object_get(rootJ, "pulsesPerStepIndex");
+		if (pulsesPerStepIndexJ)
+			pulsesPerStepIndex = json_integer_value(pulsesPerStepIndexJ);
 
 		// running
 		json_t *runningJ = json_object_get(rootJ, "running");
@@ -496,6 +496,9 @@ struct PhraseSeq32Ex : Module {
 					transposeOffsets[i] = json_integer_value(transposeOffsetsArrayJ);
 			}			
 		}
+		
+		// Initialize dependants after everything loaded
+		initRun(true);
 	}
 
 	void rotateSeq(int seqNum, bool directionRight, int seqLength) {
@@ -813,8 +816,10 @@ struct PhraseSeq32Ex : Module {
 			if (deltaKnob != 0) {
 				if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (editingPpqn != 0) {
-						pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
-						if (pulsesPerStep < 2)
+						pulsesPerStepIndex += deltaKnob;
+						if (pulsesPerStepIndex < 0) pulsesPerStepIndex = 0;
+						if (pulsesPerStepIndex >= NUM_PPS_VALUES) pulsesPerStepIndex = NUM_PPS_VALUES - 1;
+						if (pulsesPerStepIndex == 0)
 							keyboardEditingGates = false;
 						editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 					}
@@ -948,7 +953,7 @@ struct PhraseSeq32Ex : Module {
 				if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 					if (editingSequence) {
 						if (keyboardEditingGates) {
-							int newMode = keyIndexToGateModeEx(i, pulsesPerStep);
+							int newMode = keyIndexToGateModeEx(i, pulsesPerStepIndex);
 							if (newMode != -1)
 								setGate1Mode(sequence, stepIndexEdit, newMode);
 							else
@@ -981,7 +986,7 @@ struct PhraseSeq32Ex : Module {
 				keyboardEditingGates = false;
 			}
 			if (keyGateTrigger.process(params[KEYGATE_PARAM].value)) {
-				if (pulsesPerStep < 2) {
+				if (pulsesPerStepIndex == 0) {
 					editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 				}
 				else {
@@ -1043,7 +1048,7 @@ struct PhraseSeq32Ex : Module {
 		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
 			if (running && clockIgnoreOnReset == 0l) {
 				ppqnCount++;
-				if (ppqnCount >= pulsesPerStep)
+				if (ppqnCount >= ppsValues[pulsesPerStepIndex])
 					ppqnCount = 0;
 
 				int newSeq = sequence;// good value when editingSequence, overwrite if not editingSequence
@@ -1065,7 +1070,7 @@ struct PhraseSeq32Ex : Module {
 					// Slide
 					if (getSlide(newSeq, stepIndexRun)) {
 						// activate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
-						slideStepsRemain =   (unsigned long) (((float)clockPeriod  * pulsesPerStep) * ((float)getSlideVal(newSeq, stepIndexRun) / 100.0f));
+						slideStepsRemain =   (unsigned long) (((float)clockPeriod  * ppsValues[pulsesPerStepIndex]) * ((float)getSlideVal(newSeq, stepIndexRun) / 100.0f));
 						float slideToCV = cv[newSeq][stepIndexRun];
 						slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
 					}
@@ -1075,7 +1080,7 @@ struct PhraseSeq32Ex : Module {
 						newSeq = phrase[phraseIndexRun];
 				}
 				if (gate1Code != -1 || ppqnCount == 0)
-					gate1Code = calcGate1Code(attributes[newSeq][stepIndexRun], ppqnCount, pulsesPerStep);
+					gate1Code = calcGate1CodeEx(attributes[newSeq][stepIndexRun], ppqnCount, pulsesPerStepIndex);
 			}
 			clockPeriod = 0ul;
 		}
@@ -1226,7 +1231,7 @@ struct PhraseSeq32Ex : Module {
 				//
 				if (!getGate1a(attributesVal)) 
 					setGreenRed(GATE1_LIGHT, 0.0f, 0.0f);
-				else if (pulsesPerStep == 1) 
+				else if (pulsesPerStepIndex == 0) 
 					setGreenRed(GATE1_LIGHT, 0.0f, 1.0f);
 				else 
 					setGreenRed(GATE1_LIGHT, 1.0f, 1.0f);
@@ -1383,7 +1388,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				}
 			}
 			else if (module->editingPpqn != 0ul) {
-				snprintf(displayStr, 4, "x%2u", (unsigned) module->pulsesPerStep);
+				snprintf(displayStr, 4, "x%2u", (unsigned) ppsValues[module->pulsesPerStepIndex]);
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_MODE) {
 				if (editingSequence)
