@@ -40,6 +40,7 @@ extern Model *modelBlankPanel;
 
 
 // General constants
+static constexpr float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 static const float lightLambda = 0.075f;
 static const std::string lightPanelID = "Classic";
 static const std::string darkPanelID = "Dark-valor";

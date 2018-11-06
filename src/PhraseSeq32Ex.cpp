@@ -100,10 +100,11 @@ int phrase[32];// This is the song (series of phases; a phrase is a patten numbe
 int phraseReps[32];// a rep is 1 to 99
 int phrases;// number of phrases (song steps) 1 to 32
 float cv[32][32];// [-3.0 : 3.917]. First index is patten number, 2nd index is step
-TAttribute attributes[32][32];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
+Attribute attributes[32][32];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
 	bool resetOnRun;
 	bool attached;
 int transposeOffsets[32];
+	SequencerKernel seq[4];
 
 	// No need to save
 	int stepIndexEdit;
@@ -120,7 +121,7 @@ unsigned long phraseIndexRunHistory;
 unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 float slideCVdelta;// no need to initialize, this goes with slideStepsRemain
 	float cvCPbuffer[32];// copy paste buffer for CVs
-	TAttribute attribCPbuffer[32];
+	Attribute attribCPbuffer[32];
 	int phraseCPbuffer[32];
 	int lengthCPbuffer;
 	int modeCPbuffer;
@@ -201,6 +202,7 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 
 		
 	PhraseSeq32Ex() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
+		seq[0].setId(0);
 		onReset();
 	}
 
@@ -246,6 +248,8 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 		resetOnRun = false;
 		keyboardEditingGates = false;
 		editingPpqn = 0l;
+		
+		seq[0].onReset();
 	}
 	
 	
@@ -266,6 +270,8 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 				randomizeAttribute(i, s, lengths[i]);
 			}
 		}
+		seq[0].onRandomize();
+		
 		initRun(true);
 	}
 	
@@ -371,6 +377,8 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 			json_array_insert_new(transposeOffsetsJ, i, json_integer(transposeOffsets[i]));
 		json_object_set_new(rootJ, "transposeOffsets", transposeOffsetsJ);
 
+		seq[0].toJson(rootJ);
+		
 		return rootJ;
 	}
 
@@ -510,13 +518,15 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 			}			
 		}
 		
+		seq[0].fromJson(rootJ);
+		
 		// Initialize dependants after everything loaded
 		initRun(true);
 	}
 
 	void rotateSeq(int seqNum, bool directionRight, int seqLength) {
 		float rotCV;
-		TAttribute rotAttributes;
+		Attribute rotAttributes;
 		int iStart = 0;
 		int iEnd = seqLength - 1;
 		int iRot = iStart;
@@ -1109,6 +1119,8 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 		
 		//********** Outputs and lights **********
 				
+		
+		
 		// CV and gates outputs
 		int seq = editingSequence ? (sequence) : (running ? phrase[phraseIndexRun] : phrase[phraseIndexEdit]);
 		int step0 = editingSequence ? (running ? stepIndexRun : stepIndexEdit) : (stepIndexRun);
@@ -1238,7 +1250,7 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 
 			// Gate, GateProb, Slide and Tied lights 
 			if (editingSequence  || running) {
-				TAttribute attributesVal = attributes[sequence][stepIndexEdit];
+				Attribute attributesVal = attributes[sequence][stepIndexEdit];
 				if (!editingSequence)
 					attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
 				//
