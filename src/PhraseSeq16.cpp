@@ -257,7 +257,6 @@ struct PhraseSeq16 : Module {
 			runModeSeq[i] = randomu32() % (NUM_MODES - 1);
 			phrase[i] = randomu32() % 16;
 			lengths[i] = 1 + (randomu32() % 16);
-			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
 			for (int s = 0; s < 16; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 				attributes[i][s] = randomu32() & 0x1FFF;// 5 bit for normal attributes + 2 * 4 bits for advanced gate modes

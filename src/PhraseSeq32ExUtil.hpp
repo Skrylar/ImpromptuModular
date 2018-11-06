@@ -7,47 +7,60 @@
 using namespace rack;
 
 
+
 // General constants
 
 static constexpr float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
+
+// Run modes
 enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, NUM_MODES};
 static const std::string modeLabels[NUM_MODES]={"FWD","REV","PPG","PEN","BRN","RND"};
 
+// Gate types
 static const int NUM_GATES = 12;	
-											
+
+// Clock resolution										
 static const int NUM_PPS_VALUES = 33;
 static const int ppsValues[NUM_PPS_VALUES] = {1, 4, 6, 8, 12, 16, 18, 20, 24, 28, 30, 32, 36, 40, 42, 44, 48, 52, 54, 56, 60, 64, 66, 68, 72, 76, 78, 80, 84, 88, 90, 92, 96};
 
-enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_SLIDE = 0x04, ATT_MSK_TIED = 0x08};// 4 bits
-static const unsigned long ATT_MSK_GATE1MODE = 0xF0;// 4 bits
-static const unsigned long gate1ModeShift = 4;
-static const unsigned long ATT_MSK_GATE1P_VAL = 0xFF00;// 8 bits
-static const unsigned long gate1PValShift = 8;
-static const unsigned long ATT_MSK_SLIDE_VAL = 0xFF0000;// 8 bits
-static const unsigned long slideValShift = 16;
+// Attributes of a step
+typedef unsigned long TAttribute;
+static const TAttribute ATT_MSK_GATE = 0x01;
+static const TAttribute ATT_MSK_GATEP = 0x02;
+static const TAttribute ATT_MSK_SLIDE = 0x04;
+static const TAttribute ATT_MSK_TIED = 0x08;
+static const TAttribute ATT_MSK_GATETYPE = 0xF0;
+static const TAttribute gate1TypeShift = 4;
+static const TAttribute ATT_MSK_GATEP_VAL = 0xFF00;
+static const TAttribute GatePValShift = 8;
+static const TAttribute ATT_MSK_SLIDE_VAL = 0xFF0000;
+static const TAttribute slideValShift = 16;
+static const TAttribute ATT_MSK_INITSTATE = (ATT_MSK_GATE | (0 << gate1TypeShift) | (50 << GatePValShift) | (10 << slideValShift));
 
 							
 				
 // Inline methods
-inline bool getGate1a(unsigned long attribute) {return (attribute & ATT_MSK_GATE1) != 0;}
-inline bool getGate1Pa(unsigned long attribute) {return (attribute & ATT_MSK_GATE1P) != 0;}
-inline int getGate1PValA(unsigned long attribute) {return (attribute & ATT_MSK_GATE1P_VAL) >> gate1PValShift;}
-inline bool getSlideA(unsigned long attribute) {return (attribute & ATT_MSK_SLIDE) != 0;}
-inline int getSlideValA(unsigned long attribute) {return (attribute & ATT_MSK_SLIDE_VAL) >> slideValShift;}
-inline bool getTiedA(unsigned long attribute) {return (attribute & ATT_MSK_TIED) != 0;}
-inline int getGate1aMode(unsigned long attribute) {return ((int)(attribute & ATT_MSK_GATE1MODE) >> gate1ModeShift);}
 
-inline void setGate1a(unsigned long *attribute, bool gate1State) {(*attribute) &= ~ATT_MSK_GATE1; if (gate1State) (*attribute) |= ATT_MSK_GATE1;}
-inline void setGate1Pa(unsigned long *attribute, bool gate1PState) {(*attribute) &= ~ATT_MSK_GATE1P; if (gate1PState) (*attribute) |= ATT_MSK_GATE1P;}
-inline void setGate1PValA(unsigned long *attribute, int gatePval) {(*attribute) &= ~ATT_MSK_GATE1P_VAL; (*attribute) |= (gatePval << gate1PValShift);}
-inline void setSlideA(unsigned long *attribute, bool slideState) {(*attribute) &= ~ATT_MSK_SLIDE; if (slideState) (*attribute) |= ATT_MSK_SLIDE;}
-inline void setSlideValA(unsigned long *attribute, int slideVal) {(*attribute) &= ~ATT_MSK_SLIDE_VAL; (*attribute) |= (slideVal << slideValShift);}
-inline void setTiedA(unsigned long *attribute, bool tiedState) {(*attribute) &= ~ATT_MSK_TIED; if (tiedState) (*attribute) |= ATT_MSK_TIED;}
+inline bool getGateA(TAttribute attribute) {return (attribute & ATT_MSK_GATE) != 0;}
+inline bool getTiedA(TAttribute attribute) {return (attribute & ATT_MSK_TIED) != 0;}
+inline bool getGatePa(TAttribute attribute) {return (attribute & ATT_MSK_GATEP) != 0;}
+inline int getGatePValA(TAttribute attribute) {return (int)((attribute & ATT_MSK_GATEP_VAL) >> GatePValShift);}
+inline bool getSlideA(TAttribute attribute) {return (attribute & ATT_MSK_SLIDE) != 0;}
+inline int getSlideValA(TAttribute attribute) {return (int)((attribute & ATT_MSK_SLIDE_VAL) >> slideValShift);}
+inline int getGateAType(TAttribute attribute) {return ((int)(attribute & ATT_MSK_GATETYPE) >> gate1TypeShift);}
 
-inline void toggleGate1a(unsigned long *attribute) {(*attribute) ^= ATT_MSK_GATE1;}
-inline void toggleGate1Pa(unsigned long *attribute) {(*attribute) ^= ATT_MSK_GATE1P;}
-inline void toggleSlideA(unsigned long *attribute) {(*attribute) ^= ATT_MSK_SLIDE;}
-inline void toggleTiedA(unsigned long *attribute) {(*attribute) ^= ATT_MSK_TIED;}
+inline void setGateA(TAttribute *attribute, bool gate1State) {(*attribute) &= ~ATT_MSK_GATE; if (gate1State) (*attribute) |= ATT_MSK_GATE;}
+inline void setTiedA(TAttribute *attribute, bool tiedState) {(*attribute) &= ~ATT_MSK_TIED; if (tiedState) (*attribute) |= ATT_MSK_TIED;}
+inline void setGatePa(TAttribute *attribute, bool GatePState) {(*attribute) &= ~ATT_MSK_GATEP; if (GatePState) (*attribute) |= ATT_MSK_GATEP;}
+inline void setGatePValA(TAttribute *attribute, int gatePval) {(*attribute) &= ~ATT_MSK_GATEP_VAL; (*attribute) |= (((TAttribute)gatePval) << GatePValShift);}
+inline void setSlideA(TAttribute *attribute, bool slideState) {(*attribute) &= ~ATT_MSK_SLIDE; if (slideState) (*attribute) |= ATT_MSK_SLIDE;}
+inline void setSlideValA(TAttribute *attribute, int slideVal) {(*attribute) &= ~ATT_MSK_SLIDE_VAL; (*attribute) |= (((TAttribute)slideVal) << slideValShift);}
+inline void setGateTypeA(TAttribute *attribute, int gate1Type) {(*attribute) &= ~ATT_MSK_GATETYPE; (*attribute) |= (((TAttribute)gate1Type) << gate1TypeShift);}
+
+inline void toggleGateA(TAttribute *attribute) {(*attribute) ^= ATT_MSK_GATE;}
+inline void toggleTiedA(TAttribute *attribute) {(*attribute) ^= ATT_MSK_TIED;}
+inline void toggleGatePa(TAttribute *attribute) {(*attribute) ^= ATT_MSK_GATEP;}
+inline void toggleSlideA(TAttribute *attribute) {(*attribute) ^= ATT_MSK_SLIDE;}
 
 
 inline bool calcGate(int gateCode, SchmittTrigger clockTrigger, unsigned long clockStep, float sampleRate) {
@@ -59,7 +72,10 @@ inline bool calcGate(int gateCode, SchmittTrigger clockTrigger, unsigned long cl
 }
 
 
-int calcGate1CodeEx(unsigned long attribute, int ppqnCount, int pulsesPerStepIndex) {
+
+// Other methods 
+
+int calcGateCodeEx(TAttribute attribute, int ppqnCount, int pulsesPerStepIndex) {
 	static const uint64_t advGateHitMaskLow[NUM_GATES] = 
 	{0x0000000000FFFFFF, 0x0000FFFF0000FFFF, 0x0000FFFFFFFFFFFF, 0x0000FFFF00000000, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 
 	//				25%					TRI		  			50%					T23		  			75%					FUL		
@@ -72,31 +88,29 @@ int calcGate1CodeEx(unsigned long attribute, int ppqnCount, int pulsesPerStepInd
 	//  			TR1 				DUO		  			TR2 	     		D2		  			TR3  TRIG		
 
 	// -1 = gate off for whole step, 0 = gate off for current ppqn, 1 = gate on, 2 = clock high, 3 = trigger
-	if ( ppqnCount == 0 && getGate1Pa(attribute) && !(randomUniform() < ((float)getGate1PValA(attribute) / 100.0f)) )// randomUniform is [0.0, 1.0), see include/util/common.hpp
+	if ( ppqnCount == 0 && getGatePa(attribute) && !(randomUniform() < ((float)getGatePValA(attribute) / 100.0f)) )// randomUniform is [0.0, 1.0), see include/util/common.hpp
 		return -1;// must do this first in this method since it will kill rest of step if prob turns off the step
-	if (!getGate1a(attribute))
+	if (!getGateA(attribute))
 		return 0;
 	if (pulsesPerStepIndex == 0)
 		return 2;// clock high pulse
-	int gateMode = getGate1aMode(attribute);
-	if (gateMode == 11)
+	int gateType = getGateAType(attribute);
+	if (gateType == 11)
 		return ppqnCount == 0 ? 3 : 0;
 	uint64_t shiftAmt = ppqnCount * (96 / ppsValues[pulsesPerStepIndex]);
 	if (shiftAmt >= 64)
-		return (int)((advGateHitMaskHigh[gateMode] >> (shiftAmt - (uint64_t)64)) & (uint64_t)0x1);
-	return (int)((advGateHitMaskLow[gateMode] >> shiftAmt) & (uint64_t)0x1);
+		return (int)((advGateHitMaskHigh[gateType] >> (shiftAmt - (uint64_t)64)) & (uint64_t)0x1);
+	return (int)((advGateHitMaskLow[gateType] >> shiftAmt) & (uint64_t)0x1);
 }
 
-int keyIndexToGateModeEx(int keyIndex, int pulsesPerStepIndex) {
+int keyIndexToGateTypeEx(int keyIndex, int pulsesPerStepIndex) {
 	int pulsesPerStep = ppsValues[pulsesPerStepIndex];
 	if (((pulsesPerStep % 6) != 0) && (keyIndex == 1 || keyIndex == 3 || keyIndex == 6 || keyIndex == 8 || keyIndex == 10))// TRIs
 		return -1;
 	if (((pulsesPerStep % 4) != 0) && (keyIndex == 0 || keyIndex == 4 || keyIndex == 7 || keyIndex == 9))// DOUBLEs
 		return -1;
-	return keyIndex;// keyLight index now matches gate modes, so no mapping table needed anymore
+	return keyIndex;// keyLight index now matches gate types, so no mapping table needed anymore
 }
-
-// Other methods 
 
 int moveIndexEx(int index, int indexNext, int numSteps) {
 	if (indexNext < 0)

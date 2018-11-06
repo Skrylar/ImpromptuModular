@@ -272,7 +272,6 @@ struct PhraseSeq32 : Module {
 			runModeSeq[i] = randomu32() % NUM_MODES;
 			phrase[i] = randomu32() % 32;
 			lengths[i] = 1 + (randomu32() % (16 * stepConfig));
-			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
 			transposeOffsets[i] = 0;
 			for (int s = 0; s < 32; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
