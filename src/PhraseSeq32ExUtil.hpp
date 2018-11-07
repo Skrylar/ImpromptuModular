@@ -73,7 +73,21 @@ inline bool calcGate(int gateCode, SchmittTrigger clockTrigger, unsigned long cl
 struct SequencerKernel {
 	int id;
 	std::string ids;
-	int phrases;
+	int phrases;// number of phrases (song steps), min value is 1
+	int lengths[32];// number of steps in each sequence, min value is 1
+
+	// get
+	inline int getPhrases() {return phrases;}
+	inline int getLength(int seqn) {return lengths[seqn];}
+	
+	// set
+	inline void setPhrases(int _phrases) {phrases = _phrases;}
+	inline void setLength(int seqn, int _length) {lengths[seqn] = _length;}
+	
+	// mod
+	inline void modPhrases(int delta) {phrases += delta; if (phrases > 32) phrases = 32; if (phrases < 1 ) phrases = 1;}
+	inline void modLength(int seqn, int delta) {lengths[seqn] += delta; if (lengths[seqn] > 32) lengths[seqn] = 32; if (lengths[seqn] < 1 ) lengths[seqn] = 1;}
+
 	
 	void setId(int _id) {
 		id = _id;
@@ -82,23 +96,47 @@ struct SequencerKernel {
 	
 	void onReset() {
 		phrases = 4;
+		for (int i = 0; i < 32; i++) {
+			lengths[i] = 32;			
+		}
 	}
 	
 	void onRandomize() {
 		phrases = 1 + (randomu32() % 32);
+		for (int i = 0; i < 32; i++) {
+			lengths[i] = 1 + (randomu32() % 32);
+		}
 	}
 	
 	void toJson(json_t *rootJ) {
+		// phrases
 		json_object_set_new(rootJ, (ids + "phrases").c_str(), json_integer(phrases));
+		
+		// lengths
+		json_t *lengthsJ = json_array();
+		for (int i = 0; i < 32; i++)
+			json_array_insert_new(lengthsJ, i, json_integer(lengths[i]));
+		json_object_set_new(rootJ, (ids + "lengths").c_str(), lengthsJ);
 	}
 	
 	void fromJson(json_t *rootJ) {
+		// phrases	
 		json_t *phrasesJ = json_object_get(rootJ, (ids + "phrases").c_str());
 		if (phrasesJ)
 			phrases = json_integer_value(phrasesJ);
+		
+		// lengths
+		json_t *lengthsJ = json_object_get(rootJ, (ids + "lengths").c_str());
+		if (lengthsJ)
+			for (int i = 0; i < 32; i++)
+			{
+				json_t *lengthsArrayJ = json_array_get(lengthsJ, i);
+				if (lengthsArrayJ)
+					lengths[i] = json_integer_value(lengthsArrayJ);
+			}
 	}
 		
-};
+};// struct SequencerKernel 
 
 
 // Other methods 

@@ -95,12 +95,12 @@ int pulsesPerStepIndex;// 0 to NUM_PPS_VALUES-1; 0 means normal gate mode of 1 p
 int runModeSeq[32];
 int runModeSong;
 	int sequence;
-int lengths[32];// 1 to 32
-int phrase[32];// This is the song (series of phases; a phrase is a patten number)
+//int lengths[32];// 1 to 32
+int phrase[32];// This is the song (series of phases; a phrase is a sequence number)
 int phraseReps[32];// a rep is 1 to 99
-int phrases;// number of phrases (song steps) 1 to 32
-float cv[32][32];// [-3.0 : 3.917]. First index is patten number, 2nd index is step
-Attribute attributes[32][32];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
+//int phrases;// number of phrases (song steps) 1 to 32
+float cv[32][32];// [-3.0 : 3.917]. First index is sequence number, 2nd index is step
+Attribute attributes[32][32];// First index is sequence number, 2nd index is step
 	bool resetOnRun;
 	bool attached;
 int transposeOffsets[32];
@@ -168,35 +168,35 @@ int ppqnCount;
 
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
 
-inline void initAttrib(int seq, int step) {attributes[seq][step] = ATT_MSK_INITSTATE;}
-inline void randomizeAttribute(int seq, int step, int length) {
-	attributes[seq][step] = ((randomu32() & 0xF) & ((randomu32() % NUM_GATES) << gate1TypeShift) & ((randomu32() % 101) << GatePValShift) & ((randomu32() % 101) << slideValShift));
-	if (getTied(seq,step)) {
-		attributes[seq][step] &= 0xF;// clear other attributes if tied
-		attributes[seq][step] |= ATT_MSK_TIED;
-		applyTiedStep(seq, step, length);
+inline void initAttrib(int seqn, int step) {attributes[seqn][step] = ATT_MSK_INITSTATE;}
+inline void randomizeAttribute(int seqn, int step, int length) {
+	attributes[seqn][step] = ((randomu32() & 0xF) & ((randomu32() % NUM_GATES) << gate1TypeShift) & ((randomu32() % 101) << GatePValShift) & ((randomu32() % 101) << slideValShift));
+	if (getTied(seqn,step)) {
+		attributes[seqn][step] &= 0xF;// clear other attributes if tied
+		attributes[seqn][step] |= ATT_MSK_TIED;
+		applyTiedStep(seqn, step, length);
 	}
 }
 
-inline bool getGate(int seq, int step) {return getGateA(attributes[seq][step]);}
-inline bool getTied(int seq, int step) {return getTiedA(attributes[seq][step]);}
-inline bool getGateP(int seq, int step) {return getGatePa(attributes[seq][step]);}
-inline int getGatePVal(int seq, int step) {return getGatePValA(attributes[seq][step]);}
-inline bool getSlide(int seq, int step) {return getSlideA(attributes[seq][step]);}
-inline int getSlideVal(int seq, int step) {return getSlideValA(attributes[seq][step]);}
-inline int getGateType(int seq, int step) {return getGateAType(attributes[seq][step]);}
+inline bool getGate(int seqn, int step) {return getGateA(attributes[seqn][step]);}
+inline bool getTied(int seqn, int step) {return getTiedA(attributes[seqn][step]);}
+inline bool getGateP(int seqn, int step) {return getGatePa(attributes[seqn][step]);}
+inline int getGatePVal(int seqn, int step) {return getGatePValA(attributes[seqn][step]);}
+inline bool getSlide(int seqn, int step) {return getSlideA(attributes[seqn][step]);}
+inline int getSlideVal(int seqn, int step) {return getSlideValA(attributes[seqn][step]);}
+inline int getGateType(int seqn, int step) {return getGateAType(attributes[seqn][step]);}
 
-inline void setGate(int seq, int step, bool gateState) {setGateA(&attributes[seq][step], gateState);}
-inline void setGateP(int seq, int step, bool GatePstate) {setGatePa(&attributes[seq][step], GatePstate);}
-inline void setGatePVal(int seq, int step, int gatePval) {setGatePValA(&attributes[seq][step], gatePval);}
-inline void setSlide(int seq, int step, bool slideState) {setSlideA(&attributes[seq][step], slideState);}
-inline void setSlideVal(int seq, int step, int slideVal) {setSlideValA(&attributes[seq][step], slideVal);}
-inline void setGateType(int seq, int step, int gateType) {setGateTypeA(&attributes[seq][step], gateType);}
+inline void setGate(int seqn, int step, bool gateState) {setGateA(&attributes[seqn][step], gateState);}
+inline void setGateP(int seqn, int step, bool GatePstate) {setGatePa(&attributes[seqn][step], GatePstate);}
+inline void setGatePVal(int seqn, int step, int gatePval) {setGatePValA(&attributes[seqn][step], gatePval);}
+inline void setSlide(int seqn, int step, bool slideState) {setSlideA(&attributes[seqn][step], slideState);}
+inline void setSlideVal(int seqn, int step, int slideVal) {setSlideValA(&attributes[seqn][step], slideVal);}
+inline void setGateType(int seqn, int step, int gateType) {setGateTypeA(&attributes[seqn][step], gateType);}
 
-inline void toggleGate(int seq, int step) {toggleGateA(&attributes[seq][step]);}
-inline void toggleTied(int seq, int step) {toggleTiedA(&attributes[seq][step]);}
-inline void toggleGateP(int seq, int step) {toggleGatePa(&attributes[seq][step]);}
-inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step]);}
+inline void toggleGate(int seqn, int step) {toggleGateA(&attributes[seqn][step]);}
+inline void toggleTied(int seqn, int step) {toggleTiedA(&attributes[seqn][step]);}
+inline void toggleGateP(int seqn, int step) {toggleGatePa(&attributes[seqn][step]);}
+inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step]);}
 
 
 
@@ -217,7 +217,7 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
 		sequence = 0;
-		phrases = 4;
+		//phrases = 4;
 		for (int i = 0; i < 32; i++) {
 			for (int s = 0; s < 32; s++) {
 				cv[i][s] = 0.0f;
@@ -226,7 +226,7 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 			runModeSeq[i] = MODE_FWD;
 			phrase[i] = 0;
 			phraseReps[i] = 1;
-			lengths[i] = 32;
+			//lengths[i] = 32;
 			cvCPbuffer[i] = 0.0f;
 			attribCPbuffer[i] = ATT_MSK_INITSTATE;// lengthCPbuffer non negative will mean buf is for attribs not phrases
 			phraseCPbuffer[i] = 0;
@@ -258,16 +258,16 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
 		sequence = randomu32() % 32;
-		phrases = 1 + (randomu32() % 32);
+		//phrases = 1 + (randomu32() % 32);
 		for (int i = 0; i < 32; i++) {
 			runModeSeq[i] = randomu32() % NUM_MODES;
 			phrase[i] = randomu32() % 32;
 			phraseReps[i] = randomu32() % 4 + 1;
-			lengths[i] = 1 + (randomu32() % 32);
+			//lengths[i] = 1 + (randomu32() % 32);
 			transposeOffsets[i] = 0;
 			for (int s = 0; s < 32; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
-				randomizeAttribute(i, s, lengths[i]);
+				randomizeAttribute(i, s, seq[0].getLength(i));
 			}
 		}
 		seq[0].onRandomize();
@@ -278,16 +278,16 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 	
 	void initRun(bool hard) {// run button activated or run edge in run input jack
 		if (hard) {
-			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+			phraseIndexRun = (runModeSong == MODE_REV ? seq[0].getPhrases() - 1 : 0);
 			phraseIndexRunHistory = 0;
 		}
-		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
+		int seqn = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
 		if (hard) {
-			stepIndexRun = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
+			stepIndexRun = (runModeSeq[seqn] == MODE_REV ? seq[0].getLength(seqn) - 1 : 0);
 			stepIndexRunHistory = 0;
 		}
 		ppqnCount = 0;
-		gateCode = calcGateCodeEx(attributes[seq][stepIndexRun], 0, pulsesPerStepIndex);
+		gateCode = calcGateCodeEx(attributes[seqn][stepIndexRun], 0, pulsesPerStepIndex);
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}	
 
@@ -323,10 +323,10 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 		json_object_set_new(rootJ, "sequence", json_integer(sequence));
 
 		// lengths
-		json_t *lengthsJ = json_array();
-		for (int i = 0; i < 32; i++)
-			json_array_insert_new(lengthsJ, i, json_integer(lengths[i]));
-		json_object_set_new(rootJ, "lengths", lengthsJ);
+		//json_t *lengthsJ = json_array();
+		//for (int i = 0; i < 32; i++)
+			//json_array_insert_new(lengthsJ, i, json_integer(lengths[i]));
+		//json_object_set_new(rootJ, "lengths", lengthsJ);
 
 		// phrase 
 		json_t *phraseJ = json_array();
@@ -341,7 +341,7 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 		json_object_set_new(rootJ, "phraseReps", phraseRepsJ);
 
 		// phrases
-		json_object_set_new(rootJ, "phrases", json_integer(phrases));
+		//json_object_set_new(rootJ, "phrases", json_integer(phrases));
 
 		// CV
 		json_t *cvJ = json_array();
@@ -431,14 +431,14 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 			sequence = json_integer_value(sequenceJ);
 		
 		// lengths
-		json_t *lengthsJ = json_object_get(rootJ, "lengths");
-		if (lengthsJ)
-			for (int i = 0; i < 32; i++)
-			{
-				json_t *lengthsArrayJ = json_array_get(lengthsJ, i);
-				if (lengthsArrayJ)
-					lengths[i] = json_integer_value(lengthsArrayJ);
-			}
+		// json_t *lengthsJ = json_object_get(rootJ, "lengths");
+		// if (lengthsJ)
+			// for (int i = 0; i < 32; i++)
+			// {
+				// json_t *lengthsArrayJ = json_array_get(lengthsJ, i);
+				// if (lengthsArrayJ)
+					// lengths[i] = json_integer_value(lengthsArrayJ);
+			// }
 			
 		// phrase
 		json_t *phraseJ = json_object_get(rootJ, "phrase");
@@ -461,9 +461,9 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 			}
 		
 		// phrases
-		json_t *phrasesJ = json_object_get(rootJ, "phrases");
-		if (phrasesJ)
-			phrases = json_integer_value(phrasesJ);
+		//json_t *phrasesJ = json_object_get(rootJ, "phrases");
+		//if (phrasesJ)
+			//phrases = json_integer_value(phrasesJ);
 		
 		// CV
 		json_t *cvJ = json_object_get(rootJ, "cv");
@@ -611,7 +611,7 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 						cvCPbuffer[i] = cv[sequence][s];
 						attribCPbuffer[i] = attributes[sequence][s];
 					}
-					lengthCPbuffer = lengths[sequence];
+					lengthCPbuffer = seq[0].getLength(sequence);
 					modeCPbuffer = runModeSeq[sequence];
 				}
 				else {
@@ -639,7 +639,7 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 							attributes[sequence][s] = attribCPbuffer[i];
 						}
 						if (params[CPMODE_PARAM].value > 1.5f) {// all
-							lengths[sequence] = lengthCPbuffer;
+							seq[0].setLength(sequence, lengthCPbuffer);
 							runModeSeq[sequence] = modeCPbuffer;
 							transposeOffsets[sequence] = 0;
 						}
@@ -699,7 +699,7 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 			if (writeTrig) {
 				if (editingSequence) {
 					cv[sequence][stepIndexEdit] = inputs[CV_INPUTS + 0].value;
-					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+					applyTiedStep(sequence, stepIndexEdit, seq[0].getLength(sequence));
 					editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 					editingGateCV = cv[sequence][stepIndexEdit];
 					editingGateKeyLight = -1;
@@ -727,14 +727,10 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 			if (delta != 0) {
 				if (displayState == DISP_LENGTH) {
 					if (editingSequence) {
-						lengths[sequence] += delta;
-						if (lengths[sequence] > 32) lengths[sequence] = 32;
-						if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+						seq[0].modLength(sequence, delta);
 					}
 					else {
-						phrases += delta;
-						if (phrases > 32) phrases = 32;
-						if (phrases < 1 ) phrases = 1;
+						seq[0].modPhrases(delta);
 					}
 				}
 				else {
@@ -742,7 +738,7 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 						if (editingSequence) {
 							stepIndexEdit += delta;
 							if (stepIndexEdit < 0)
-								stepIndexEdit = lengths[sequence] - 1;
+								stepIndexEdit = seq[0].getLength(sequence) - 1;
 							if (stepIndexEdit >= 32)
 								stepIndexEdit = 0;
 							if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
@@ -771,9 +767,9 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 			if (stepPressed != -1) {
 				if (displayState == DISP_LENGTH) {
 					if (editingSequence)
-						lengths[sequence] = stepPressed + 1;
+						seq[0].setLength(sequence, stepPressed + 1);
 					else
-						phrases = stepPressed + 1;
+						seq[0].setPhrases(stepPressed + 1);
 					revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 				}
 				else {
@@ -862,14 +858,10 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 					}
 					else if (displayState == DISP_LENGTH) {
 						if (editingSequence) {
-							lengths[sequence] += deltaKnob;
-							if (lengths[sequence] > 32) lengths[sequence] = 32;
-							if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+							seq[0].modLength(sequence, deltaKnob);
 						}
 						else {
-							phrases += deltaKnob;
-							if (phrases > 32) phrases = 32;
-							if (phrases < 1 ) phrases = 1;
+							seq[0].modPhrases(deltaKnob);
 						}
 					}
 					else if (displayState == DISP_TRANSPOSE) {
@@ -890,11 +882,11 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 							if (rotateOffset < -99) rotateOffset = -99;	
 							if (deltaKnob > 0 && deltaKnob < 99) {// Rotate right, 99 is safety
 								for (int i = deltaKnob; i > 0; i--)
-									rotateSeq(sequence, true, lengths[sequence]);
+									rotateSeq(sequence, true, seq[0].getLength(sequence));
 							}
 							if (deltaKnob < 0 && deltaKnob > -99) {// Rotate left, 99 is safety
 								for (int i = deltaKnob; i < 0; i++)
-									rotateSeq(sequence, false, lengths[sequence]);
+									rotateSeq(sequence, false, seq[0].getLength(sequence));
 							}
 						}						
 					}					
@@ -962,7 +954,7 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 						newCV = newCV - floor(newCV) + (float) (newOct - 3);
 						if (newCV >= -3.0f && newCV < 4.0f) {
 							cv[sequence][stepIndexEdit] = newCV;
-							applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+							applyTiedStep(sequence, stepIndexEdit, seq[0].getLength(sequence));
 						}
 						editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 						editingGateCV = cv[sequence][stepIndexEdit];
@@ -990,7 +982,7 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 						}
 						else {			
 							cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
-							applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+							applyTiedStep(sequence, stepIndexEdit, seq[0].getLength(sequence));
 							editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 							editingGateCV = cv[sequence][stepIndexEdit];
 							editingGateKeyLight = -1;
@@ -1055,7 +1047,7 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 						setGate(sequence, stepIndexEdit, false);
 						setGateP(sequence, stepIndexEdit, false);
 						setSlide(sequence, stepIndexEdit, false);
-						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+						applyTiedStep(sequence, stepIndexEdit, seq[0].getLength(sequence));
 					}
 				}
 				displayState = DISP_NORMAL;
@@ -1079,13 +1071,13 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 					float slideFromCV = 0.0f;
 					if (editingSequence) {
 						slideFromCV = cv[sequence][stepIndexRun];
-						moveIndexRunModeEx(&stepIndexRun, lengths[sequence], runModeSeq[sequence], &stepIndexRunHistory, 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the same seq continually)
+						moveIndexRunModeEx(&stepIndexRun, seq[0].getLength(sequence), runModeSeq[sequence], &stepIndexRunHistory, 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the same seq continually)
 					}
 					else {
 						slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
-						if (moveIndexRunModeEx(&stepIndexRun, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory, phraseReps[phrase[phraseIndexRun]])) {
-							moveIndexRunModeEx(&phraseIndexRun, phrases, runModeSong, &phraseIndexRunHistory, 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the song continually)
-							stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
+						if (moveIndexRunModeEx(&stepIndexRun, seq[0].getLength(phrase[phraseIndexRun]), runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory, phraseReps[phrase[phraseIndexRun]])) {
+							moveIndexRunModeEx(&phraseIndexRun, seq[0].getPhrases(), runModeSong, &phraseIndexRunHistory, 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the song continually)
+							stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? seq[0].getLength(phrase[phraseIndexRun]) - 1 : 0);// must always refresh after phraseIndexRun has changed
 						}
 						newSeq = phrase[phraseIndexRun];
 					}
@@ -1122,16 +1114,16 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 		
 		
 		// CV and gates outputs
-		int seq = editingSequence ? (sequence) : (running ? phrase[phraseIndexRun] : phrase[phraseIndexEdit]);
+		int seqn = editingSequence ? (sequence) : (running ? phrase[phraseIndexRun] : phrase[phraseIndexEdit]);
 		int step0 = editingSequence ? (running ? stepIndexRun : stepIndexEdit) : (stepIndexRun);
 		if (running) {
 			bool muteGateA = !editingSequence && ((params[GATE_PARAM].value + inputs[GATECV_INPUT].value) > 0.5f);// live mute
 			float slideOffset = (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);
-			outputs[CV_OUTPUTS + 0].value = cv[seq][step0] - slideOffset;
+			outputs[CV_OUTPUTS + 0].value = cv[seqn][step0] - slideOffset;
 			outputs[GATE_OUTPUTS + 0].value = (calcGate(gateCode, clockTrigger, clockPeriod, sampleRate) && !muteGateA) ? 10.0f : 0.0f;
 		}
 		else {// not running 
-			outputs[CV_OUTPUTS + 0].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step0];
+			outputs[CV_OUTPUTS + 0].value = (editingGate > 0ul) ? editingGateCV : cv[seqn][step0];
 			outputs[GATE_OUTPUTS + 0].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 		}
 		if (slideStepsRemain > 0ul)
@@ -1156,18 +1148,20 @@ inline void toggleSlide(int seq, int step) {toggleSlideA(&attributes[seq][step])
 				for (int i = 0; i < 32; i++) {
 					if (displayState == DISP_LENGTH) {
 						if (editingSequence) {
-							if (i < (lengths[sequence] - 1))
+							int seqEnd = seq[0].getLength(sequence) - 1;
+							if (i < seqEnd)
 								setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.1f, 0.0f);
-							else if (i == (lengths[sequence] - 1))
+							else if (i == seqEnd)
 								setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 1.0f, 0.0f);
 							else 
 								setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.0f, 0.0f);
 						}
 						else {
-							if (i < phrases - 1)
+							int phrasesEnd = seq[0].getPhrases() - 1;
+							if (i < phrasesEnd)
 								setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.1f, 0.0f);
 							else
-								setGreenRed(STEP_PHRASE_LIGHTS + i * 2, (i == phrases - 1) ? 1.0f : 0.0f, 0.0f);
+								setGreenRed(STEP_PHRASE_LIGHTS + i * 2, (i == phrasesEnd) ? 1.0f : 0.0f, 0.0f);
 						}
 					}
 					else {// normal led display (i.e. not length)
@@ -1423,9 +1417,9 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_LENGTH) {
 				if (editingSequence)
-					snprintf(displayStr, 4, "L%2u", (unsigned) module->lengths[module->sequence]);
+					snprintf(displayStr, 4, "L%2u", (unsigned) module->seq[0].getLength(module->sequence));
 				else
-					snprintf(displayStr, 4, "L%2u", (unsigned) module->phrases);
+					snprintf(displayStr, 4, "L%2u", (unsigned) module->seq[0].getPhrases());
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_TRANSPOSE) {
 				snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffsets[module->sequence]));
