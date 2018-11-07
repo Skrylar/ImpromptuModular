@@ -16,6 +16,140 @@
 #include "PhraseSeq32ExUtil.hpp"
 
 
+int moveIndexEx(int index, int indexNext, int numSteps) {
+	if (indexNext < 0)
+		index = numSteps - 1;
+	else
+	{
+		if (indexNext - index >= 0) { // if moving right or same place
+			if (indexNext >= numSteps)
+				index = 0;
+			else
+				index = indexNext;
+		}
+		else { // moving left 
+			if (indexNext >= numSteps)
+				index = numSteps - 1;
+			else
+				index = indexNext;
+		}
+	}
+	return index;
+}
+
+
+bool moveIndexRunModeEx(int* index, int numSteps, int runMode, unsigned long* history, int reps) {	
+	// assert((reps * numSteps) <= 0xFFF); // for BRN and RND run modes, history is not a span count but a step count
+	
+	bool crossBoundary = false;
+	
+	switch (runMode) {
+	
+		// history 0x0000 is reserved for reset
+		
+		case MODE_REV :// reverse; history base is 0x2000
+			if ((*history) < 0x2001 || (*history) > 0x2FFF)
+				(*history) = 0x2000 + reps;
+			(*index)--;
+			if ((*index) < 0) {
+				(*index) = numSteps - 1;
+				(*history)--;
+				if ((*history) <= 0x2000)
+					crossBoundary = true;
+			}
+		break;
+		
+		case MODE_PPG :// forward-reverse; history base is 0x3000
+			if ((*history) < 0x3001 || (*history) > 0x3FFF) // even means going forward, odd means going reverse
+				(*history) = 0x3000 + reps * 2;
+			if (((*history) & 0x1) == 0) {// even so forward phase
+				(*index)++;
+				if ((*index) >= numSteps) {
+					(*index) = numSteps - 1 ;
+					(*history)--;
+				}
+			}
+			else {// odd so reverse phase
+				(*index)--;
+				if ((*index) < 0) {
+					(*index) = 0;
+					(*history)--;
+					if ((*history) <= 0x3000)
+						crossBoundary = true;
+				}
+			}
+		break;
+
+		case MODE_PEN :// forward-reverse; history base is 0x4000
+			if ((*history) < 0x4001 || (*history) > 0x4FFF) // even means going forward, odd means going reverse
+				(*history) = 0x4000 + reps * 2;
+			if (((*history) & 0x1) == 0) {// even so forward phase
+				(*index)++;
+				if ((*index) >= numSteps) {
+					(*index) = numSteps - 2;
+					(*history)--;
+					if ((*index) < 1) {// if back at 0 after turnaround, then no reverse phase needed
+						(*index) = 0;
+						(*history)--;
+						if ((*history) <= 0x4000)
+							crossBoundary = true;
+					}
+				}
+			}
+			else {// odd so reverse phase
+				(*index)--;
+				if ((*index) < 1) {
+					(*index) = 0;
+					(*history)--;
+					if ((*history) <= 0x4000)
+						crossBoundary = true;
+				}
+			}
+		break;
+		
+		case MODE_BRN :// brownian random; history base is 0x5000
+			if ((*history) < 0x5001 || (*history) > 0x5FFF) 
+				(*history) = 0x5000 + numSteps * reps;
+			(*index) += (randomu32() % 3) - 1;
+			if ((*index) >= numSteps) {
+				(*index) = 0;
+			}
+			if ((*index) < 0) {
+				(*index) = numSteps - 1;
+			}
+			(*history)--;
+			if ((*history) <= 0x5000) {
+				crossBoundary = true;
+			}
+		break;
+		
+		case MODE_RND :// random; history base is 0x6000
+			if ((*history) < 0x6001 || (*history) > 0x6FFF) 
+				(*history) = 0x6000 + numSteps * reps;
+			(*index) = (randomu32() % numSteps) ;
+			(*history)--;
+			if ((*history) <= 0x6000) {
+				crossBoundary = true;
+			}
+		break;
+		
+		default :// MODE_FWD  forward; history base is 0x1000
+			if ((*history) < 0x1001 || (*history) > 0x1FFF)
+				(*history) = 0x1000 + reps;
+			(*index)++;
+			if ((*index) >= numSteps) {
+				(*index) = 0;
+				(*history)--;
+				if ((*history) <= 0x1000)
+					crossBoundary = true;
+			}
+	}
+
+	return crossBoundary;
+}
+
+
+
 struct PhraseSeq32Ex : Module {
 	enum ParamIds {
 		LEFT_PARAM,
@@ -90,20 +224,20 @@ struct PhraseSeq32Ex : Module {
 	int panelTheme = 0;
 	int expansion = 0;
 	bool autoseq;
-int pulsesPerStepIndex;// 0 to NUM_PPS_VALUES-1; 0 means normal gate mode of 1 pps; this is an index into ppsValues[]
+//int pulsesPerStepIndex;// 0 to NUM_PPS_VALUES-1; 0 means normal gate mode of 1 pps; this is an index into ppsValues[]
 	bool running;
-int runModeSeq[32];
-int runModeSong;
+//int runModeSeq[32];
+//int runModeSong;
 	int sequence;
 //int lengths[32];// 1 to 32
-int phrase[32];// This is the song (series of phases; a phrase is a sequence number)
-int phraseReps[32];// a rep is 1 to 99
+//int phrase[32];// This is the song (series of phases; a phrase is a sequence number)
+//int phraseReps[32];// a rep is 1 to 99
 //int phrases;// number of phrases (song steps) 1 to 32
 float cv[32][32];// [-3.0 : 3.917]. First index is sequence number, 2nd index is step
 Attribute attributes[32][32];// First index is sequence number, 2nd index is step
 	bool resetOnRun;
 	bool attached;
-int transposeOffsets[32];
+//int transposeOffsets[32];
 	SequencerKernel seq[4];
 
 	// No need to save
@@ -211,9 +345,9 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 	// onReset() is also called when right-click initialization of module
 	void onReset() override {
 		autoseq = false;
-		pulsesPerStepIndex = 0;
+		//pulsesPerStepIndex = 0;
 		running = false;
-		runModeSong = MODE_FWD;
+		// runModeSong = MODE_FWD;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
 		sequence = 0;
@@ -223,14 +357,14 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 				cv[i][s] = 0.0f;
 				initAttrib(i, s);
 			}
-			runModeSeq[i] = MODE_FWD;
-			phrase[i] = 0;
-			phraseReps[i] = 1;
+			//runModeSeq[i] = MODE_FWD;
+			//phrase[i] = 0;
+			//phraseReps[i] = 1;
 			//lengths[i] = 32;
 			cvCPbuffer[i] = 0.0f;
 			attribCPbuffer[i] = ATT_MSK_INITSTATE;// lengthCPbuffer non negative will mean buf is for attribs not phrases
 			phraseCPbuffer[i] = 0;
-			transposeOffsets[i] = 0;
+			//transposeOffsets[i] = 0;
 		}
 		initRun(true);
 		lengthCPbuffer = 32;
@@ -254,17 +388,17 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 	
 	
 	void onRandomize() override {
-		runModeSong = randomu32() % 5;
+		// runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
 		sequence = randomu32() % 32;
 		//phrases = 1 + (randomu32() % 32);
 		for (int i = 0; i < 32; i++) {
-			runModeSeq[i] = randomu32() % NUM_MODES;
-			phrase[i] = randomu32() % 32;
-			phraseReps[i] = randomu32() % 4 + 1;
+			//runModeSeq[i] = randomu32() % NUM_MODES;
+			//phrase[i] = randomu32() % 32;
+			//phraseReps[i] = randomu32() % 4 + 1;
 			//lengths[i] = 1 + (randomu32() % 32);
-			transposeOffsets[i] = 0;
+			//transposeOffsets[i] = 0;
 			for (int s = 0; s < 32; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 				randomizeAttribute(i, s, seq[0].getLength(i));
@@ -278,16 +412,16 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 	
 	void initRun(bool hard) {// run button activated or run edge in run input jack
 		if (hard) {
-			phraseIndexRun = (runModeSong == MODE_REV ? seq[0].getPhrases() - 1 : 0);
+			phraseIndexRun = (seq[0].getRunModeSong() == MODE_REV ? seq[0].getPhrases() - 1 : 0);
 			phraseIndexRunHistory = 0;
 		}
-		int seqn = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
+		int seqn = (isEditingSequence() ? sequence : seq[0].getPhrase(phraseIndexRun));
 		if (hard) {
-			stepIndexRun = (runModeSeq[seqn] == MODE_REV ? seq[0].getLength(seqn) - 1 : 0);
+			stepIndexRun = (seq[0].getRunModeSeq(seqn) == MODE_REV ? seq[0].getLength(seqn) - 1 : 0);
 			stepIndexRunHistory = 0;
 		}
 		ppqnCount = 0;
-		gateCode = calcGateCodeEx(attributes[seqn][stepIndexRun], 0, pulsesPerStepIndex);
+		gateCode = seq[0].calcGateCodeEx(attributes[seqn][stepIndexRun], 0);
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}	
 
@@ -305,19 +439,19 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 		json_object_set_new(rootJ, "autoseq", json_boolean(autoseq));
 		
 		// pulsesPerStepIndex
-		json_object_set_new(rootJ, "pulsesPerStepIndex", json_integer(pulsesPerStepIndex));
+		//json_object_set_new(rootJ, "pulsesPerStepIndex", json_integer(pulsesPerStepIndex));
 
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
 		
 		// runModeSeq
-		json_t *runModeSeqJ = json_array();
-		for (int i = 0; i < 32; i++)
-			json_array_insert_new(runModeSeqJ, i, json_integer(runModeSeq[i]));
-		json_object_set_new(rootJ, "runModeSeq", runModeSeqJ);
+		// json_t *runModeSeqJ = json_array();
+		// for (int i = 0; i < 32; i++)
+			// json_array_insert_new(runModeSeqJ, i, json_integer(runModeSeq[i]));
+		// json_object_set_new(rootJ, "runModeSeq", runModeSeqJ);
 
 		// runModeSong
-		json_object_set_new(rootJ, "runModeSong", json_integer(runModeSong));
+		// json_object_set_new(rootJ, "runModeSong", json_integer(runModeSong));
 
 		// sequence
 		json_object_set_new(rootJ, "sequence", json_integer(sequence));
@@ -329,16 +463,16 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 		//json_object_set_new(rootJ, "lengths", lengthsJ);
 
 		// phrase 
-		json_t *phraseJ = json_array();
-		for (int i = 0; i < 32; i++)
-			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
-		json_object_set_new(rootJ, "phrase", phraseJ);
+		// json_t *phraseJ = json_array();
+		// for (int i = 0; i < 32; i++)
+			// json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
+		// json_object_set_new(rootJ, "phrase", phraseJ);
 
 		// phraseReps 
-		json_t *phraseRepsJ = json_array();
-		for (int i = 0; i < 32; i++)
-			json_array_insert_new(phraseRepsJ, i, json_integer(phraseReps[i]));
-		json_object_set_new(rootJ, "phraseReps", phraseRepsJ);
+		// json_t *phraseRepsJ = json_array();
+		// for (int i = 0; i < 32; i++)
+			// json_array_insert_new(phraseRepsJ, i, json_integer(phraseReps[i]));
+		// json_object_set_new(rootJ, "phraseReps", phraseRepsJ);
 
 		// phrases
 		//json_object_set_new(rootJ, "phrases", json_integer(phrases));
@@ -372,10 +506,10 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 		json_object_set_new(rootJ, "phraseIndexEdit", json_integer(phraseIndexEdit));
 
 		// transposeOffsets
-		json_t *transposeOffsetsJ = json_array();
-		for (int i = 0; i < 32; i++)
-			json_array_insert_new(transposeOffsetsJ, i, json_integer(transposeOffsets[i]));
-		json_object_set_new(rootJ, "transposeOffsets", transposeOffsetsJ);
+		// json_t *transposeOffsetsJ = json_array();
+		// for (int i = 0; i < 32; i++)
+			// json_array_insert_new(transposeOffsetsJ, i, json_integer(transposeOffsets[i]));
+		// json_object_set_new(rootJ, "transposeOffsets", transposeOffsetsJ);
 
 		seq[0].toJson(rootJ);
 		
@@ -400,9 +534,9 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 			autoseq = json_is_true(autoseqJ);
 
 		// pulsesPerStepIndex
-		json_t *pulsesPerStepIndexJ = json_object_get(rootJ, "pulsesPerStepIndex");
-		if (pulsesPerStepIndexJ)
-			pulsesPerStepIndex = json_integer_value(pulsesPerStepIndexJ);
+		//json_t *pulsesPerStepIndexJ = json_object_get(rootJ, "pulsesPerStepIndex");
+		//if (pulsesPerStepIndexJ)
+			//pulsesPerStepIndex = json_integer_value(pulsesPerStepIndexJ);
 
 		// running
 		json_t *runningJ = json_object_get(rootJ, "running");
@@ -410,20 +544,20 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 			running = json_is_true(runningJ);
 
 		// runModeSeq
-		json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq");
-		if (runModeSeqJ) {
-			for (int i = 0; i < 32; i++)
-			{
-				json_t *runModeSeqArrayJ = json_array_get(runModeSeqJ, i);
-				if (runModeSeqArrayJ)
-					runModeSeq[i] = json_integer_value(runModeSeqArrayJ);
-			}			
-		}		
+		// json_t *runModeSeqJ = json_object_get(rootJ, "runModeSeq");
+		// if (runModeSeqJ) {
+			// for (int i = 0; i < 32; i++)
+			// {
+				// json_t *runModeSeqArrayJ = json_array_get(runModeSeqJ, i);
+				// if (runModeSeqArrayJ)
+					// runModeSeq[i] = json_integer_value(runModeSeqArrayJ);
+			// }			
+		// }		
 		
 		// runModeSong
-		json_t *runModeSongJ = json_object_get(rootJ, "runModeSong");
-		if (runModeSongJ)
-			runModeSong = json_integer_value(runModeSongJ);
+		// json_t *runModeSongJ = json_object_get(rootJ, "runModeSong");
+		// if (runModeSongJ)
+			// runModeSong = json_integer_value(runModeSongJ);
 		
 		// sequence
 		json_t *sequenceJ = json_object_get(rootJ, "sequence");
@@ -441,24 +575,24 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 			// }
 			
 		// phrase
-		json_t *phraseJ = json_object_get(rootJ, "phrase");
-		if (phraseJ)
-			for (int i = 0; i < 32; i++)
-			{
-				json_t *phraseArrayJ = json_array_get(phraseJ, i);
-				if (phraseArrayJ)
-					phrase[i] = json_integer_value(phraseArrayJ);
-			}
+		// json_t *phraseJ = json_object_get(rootJ, "phrase");
+		// if (phraseJ)
+			// for (int i = 0; i < 32; i++)
+			// {
+				// json_t *phraseArrayJ = json_array_get(phraseJ, i);
+				// if (phraseArrayJ)
+					// phrase[i] = json_integer_value(phraseArrayJ);
+			// }
 		
 		// phraseReps
-		json_t *phraseRepsJ = json_object_get(rootJ, "phraseReps");
-		if (phraseRepsJ)
-			for (int i = 0; i < 32; i++)
-			{
-				json_t *phraseRepsArrayJ = json_array_get(phraseRepsJ, i);
-				if (phraseRepsArrayJ)
-					phraseReps[i] = json_integer_value(phraseRepsArrayJ);
-			}
+		// json_t *phraseRepsJ = json_object_get(rootJ, "phraseReps");
+		// if (phraseRepsJ)
+			// for (int i = 0; i < 32; i++)
+			// {
+				// json_t *phraseRepsArrayJ = json_array_get(phraseRepsJ, i);
+				// if (phraseRepsArrayJ)
+					// phraseReps[i] = json_integer_value(phraseRepsArrayJ);
+			// }
 		
 		// phrases
 		//json_t *phrasesJ = json_object_get(rootJ, "phrases");
@@ -508,15 +642,15 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 			phraseIndexEdit = json_integer_value(phraseIndexEditJ);
 		
 		// transposeOffsets
-		json_t *transposeOffsetsJ = json_object_get(rootJ, "transposeOffsets");
-		if (transposeOffsetsJ) {
-			for (int i = 0; i < 32; i++)
-			{
-				json_t *transposeOffsetsArrayJ = json_array_get(transposeOffsetsJ, i);
-				if (transposeOffsetsArrayJ)
-					transposeOffsets[i] = json_integer_value(transposeOffsetsArrayJ);
-			}			
-		}
+		// json_t *transposeOffsetsJ = json_object_get(rootJ, "transposeOffsets");
+		// if (transposeOffsetsJ) {
+			// for (int i = 0; i < 32; i++)
+			// {
+				// json_t *transposeOffsetsArrayJ = json_array_get(transposeOffsetsJ, i);
+				// if (transposeOffsetsArrayJ)
+					// transposeOffsets[i] = json_integer_value(transposeOffsetsArrayJ);
+			// }			
+		// }
 		
 		seq[0].fromJson(rootJ);
 		
@@ -581,7 +715,7 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 			// Mode CV input
 			if (inputs[MODECV_INPUT].active) {
 				if (editingSequence)
-					runModeSeq[sequence] = (int) clamp( round(inputs[MODECV_INPUT].value * ((float)NUM_MODES - 1.0f) / 10.0f), 0.0f, (float)NUM_MODES - 1.0f );
+					seq[0].setRunModeSeq(sequence, (int) clamp( round(inputs[MODECV_INPUT].value * ((float)NUM_MODES - 1.0f) / 10.0f), 0.0f, (float)NUM_MODES - 1.0f ));
 			}
 			
 			// Attach button
@@ -612,11 +746,11 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 						attribCPbuffer[i] = attributes[sequence][s];
 					}
 					lengthCPbuffer = seq[0].getLength(sequence);
-					modeCPbuffer = runModeSeq[sequence];
+					modeCPbuffer = seq[0].getRunModeSeq(sequence);
 				}
 				else {
 					for (int i = 0, p = startCP; i < countCP; i++, p++)
-						phraseCPbuffer[i] = phrase[p];
+						phraseCPbuffer[i] = seq[0].getPhrase(p);
 					lengthCPbuffer = -1;// so that a cross paste can be detected
 				}
 				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
@@ -640,8 +774,8 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 						}
 						if (params[CPMODE_PARAM].value > 1.5f) {// all
 							seq[0].setLength(sequence, lengthCPbuffer);
-							runModeSeq[sequence] = modeCPbuffer;
-							transposeOffsets[sequence] = 0;
+							seq[0].setRunModeSeq(sequence, modeCPbuffer);
+							seq[0].resetTransposeOffset(sequence);
 						}
 					}
 					else {// crossed paste to seq (seq vs song)
@@ -650,12 +784,12 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 								cv[sequence][s] = 0.0f;
 								initAttrib(sequence, s);
 							}
-							transposeOffsets[sequence] = 0;
+							seq[0].resetTransposeOffset(sequence);
 						}
 						else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (randomize CVs)
 							for (int s = 0; s < 32; s++)
 								cv[sequence][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
-							transposeOffsets[sequence] = 0;
+							seq[0].resetTransposeOffset(sequence);
 						}
 						else {// 8 (randomize gate 1)
 							for (int s = 0; s < 32; s++)
@@ -670,20 +804,20 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 				else {
 					if (lengthCPbuffer < 0) {// non-crossed paste (seq vs song)
 						for (int i = 0, p = startCP; i < countCP; i++, p++)
-							phrase[p] = phraseCPbuffer[i];
+							seq[0].setPhrase(p, phraseCPbuffer[i]);
 					}
 					else {// crossed paste to song (seq vs song)
 						if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init phrases)
 							for (int p = 0; p < 32; p++)
-								phrase[p] = 0;
+								seq[0].setPhrase(p, 0);
 						}
 						else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (phrases increase from 1 to 32)
 							for (int p = 0; p < 32; p++)
-								phrase[p] = p;						
+								seq[0].setPhrase(p, p);						
 						}
 						else {// 8 (randomize phrases)
 							for (int p = 0; p < 32; p++)
-								phrase[p] = randomu32() % 32;
+								seq[0].setPhrase(p, randomu32() % 32);
 						}
 						startCP = 0;
 						countCP = 32;
@@ -835,25 +969,19 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 			if (deltaKnob != 0) {
 				if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (editingPpqn != 0) {
-						pulsesPerStepIndex += deltaKnob;
-						if (pulsesPerStepIndex < 0) pulsesPerStepIndex = 0;
-						if (pulsesPerStepIndex >= NUM_PPS_VALUES) pulsesPerStepIndex = NUM_PPS_VALUES - 1;
-						if (pulsesPerStepIndex == 0)
+						seq[0].modPulsesPerStepIndex(deltaKnob);
+						if (seq[0].getPulsesPerStep() == 1)
 							keyboardEditingGates = false;
 						editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 					}
 					else if (displayState == DISP_MODE) {
 						if (editingSequence) {
 							if (!inputs[MODECV_INPUT].active) {
-								runModeSeq[sequence] += deltaKnob;
-								if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
-								if (runModeSeq[sequence] >= NUM_MODES) runModeSeq[sequence] = NUM_MODES - 1;
+								seq[0].modRunModeSeq(sequence, deltaKnob);
 							}
 						}
 						else {
-							runModeSong += deltaKnob;
-							if (runModeSong < 0) runModeSong = 0;
-							if (runModeSong >= 6) runModeSong = 6 - 1;
+							seq[0].modRunModeSong(deltaKnob);
 						}
 					}
 					else if (displayState == DISP_LENGTH) {
@@ -866,9 +994,7 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 					}
 					else if (displayState == DISP_TRANSPOSE) {
 						if (editingSequence) {
-							transposeOffsets[sequence] += deltaKnob;
-							if (transposeOffsets[sequence] > 99) transposeOffsets[sequence] = 99;
-							if (transposeOffsets[sequence] < -99) transposeOffsets[sequence] = -99;						
+							seq[0].modTransposeOffset(sequence, deltaKnob);
 							// Tranpose by this number of semi-tones: deltaKnob
 							float transposeOffsetCV = ((float)(deltaKnob))/12.0f;
 							for (int s = 0; s < 32; s++) 
@@ -910,11 +1036,7 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 					}
 					else if (displayState == DISP_REPS) {
 						if (!editingSequence) {
-							int newPhraseReps = phraseReps[phraseIndexEdit] + deltaKnob - 1;
-							if (newPhraseReps < 0)
-								newPhraseReps += (1 - newPhraseReps / 99) * 99;// newPhraseReps now positive
-							newPhraseReps = newPhraseReps % 99;
-							phraseReps[phraseIndexEdit] = newPhraseReps + 1;
+							seq[0].modPhraseReps(phraseIndexEdit, deltaKnob);
 						}						
 					}
 					else {// DISP_NORMAL
@@ -926,11 +1048,7 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 							}
 						}
 						else {
-							int newPhrase = phrase[phraseIndexEdit] + deltaKnob;
-							if (newPhrase < 0)
-								newPhrase += (1 - newPhrase / 32) * 32;// newPhrase now positive
-							newPhrase = newPhrase % 32;
-							phrase[phraseIndexEdit] = newPhrase;
+							seq[0].modPhrase(phraseIndexEdit, deltaKnob);
 						}
 					}
 				}
@@ -968,7 +1086,7 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 				if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 					if (editingSequence) {
 						if (keyboardEditingGates) {
-							int newMode = keyIndexToGateTypeEx(i, pulsesPerStepIndex);
+							int newMode = seq[0].keyIndexToGateTypeEx(i);
 							if (newMode != -1)
 								setGateType(sequence, stepIndexEdit, newMode);
 							else
@@ -1001,7 +1119,7 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 				keyboardEditingGates = false;
 			}
 			if (keyGateTrigger.process(params[KEYGATE_PARAM].value)) {
-				if (pulsesPerStepIndex == 0) {
+				if (seq[0].getPulsesPerStep() == 1) {
 					editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 				}
 				else {
@@ -1063,7 +1181,7 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
 			if (running && clockIgnoreOnReset == 0l) {
 				ppqnCount++;
-				if (ppqnCount >= ppsValues[pulsesPerStepIndex])
+				if (ppqnCount >= seq[0].getPulsesPerStep())
 					ppqnCount = 0;
 
 				int newSeq = sequence;// good value when editingSequence, overwrite if not editingSequence
@@ -1071,31 +1189,31 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 					float slideFromCV = 0.0f;
 					if (editingSequence) {
 						slideFromCV = cv[sequence][stepIndexRun];
-						moveIndexRunModeEx(&stepIndexRun, seq[0].getLength(sequence), runModeSeq[sequence], &stepIndexRunHistory, 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the same seq continually)
+						moveIndexRunModeEx(&stepIndexRun, seq[0].getLength(sequence), seq[0].getRunModeSeq(sequence), &stepIndexRunHistory, 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the same seq continually)
 					}
 					else {
-						slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
-						if (moveIndexRunModeEx(&stepIndexRun, seq[0].getLength(phrase[phraseIndexRun]), runModeSeq[phrase[phraseIndexRun]], &stepIndexRunHistory, phraseReps[phrase[phraseIndexRun]])) {
-							moveIndexRunModeEx(&phraseIndexRun, seq[0].getPhrases(), runModeSong, &phraseIndexRunHistory, 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the song continually)
-							stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? seq[0].getLength(phrase[phraseIndexRun]) - 1 : 0);// must always refresh after phraseIndexRun has changed
+						slideFromCV = cv[seq[0].getPhrase(phraseIndexRun)][stepIndexRun];
+						if (moveIndexRunModeEx(&stepIndexRun, seq[0].getLength(seq[0].getPhrase(phraseIndexRun)), seq[0].getRunModeSeq(seq[0].getPhrase(phraseIndexRun)), &stepIndexRunHistory, seq[0].getPhraseReps(phraseIndexRun))) {
+							moveIndexRunModeEx(&phraseIndexRun, seq[0].getPhrases(), seq[0].getRunModeSong(), &phraseIndexRunHistory, 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the song continually)
+							stepIndexRun = (seq[0].getRunModeSeq(seq[0].getPhrase(phraseIndexRun)) == MODE_REV ? seq[0].getLength(seq[0].getPhrase(phraseIndexRun)) - 1 : 0);// must always refresh after phraseIndexRun has changed
 						}
-						newSeq = phrase[phraseIndexRun];
+						newSeq = seq[0].getPhrase(phraseIndexRun);
 					}
 
 					// Slide
 					if (getSlide(newSeq, stepIndexRun)) {
 						// activate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
-						slideStepsRemain =   (unsigned long) (((float)clockPeriod  * ppsValues[pulsesPerStepIndex]) * ((float)getSlideVal(newSeq, stepIndexRun) / 100.0f));
+						slideStepsRemain =   (unsigned long) (((float)clockPeriod  * seq[0].getPulsesPerStep()) * ((float)getSlideVal(newSeq, stepIndexRun) / 100.0f));
 						float slideToCV = cv[newSeq][stepIndexRun];
 						slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
 					}
 				}
 				else {
 					if (!editingSequence)
-						newSeq = phrase[phraseIndexRun];
+						newSeq = seq[0].getPhrase(phraseIndexRun);
 				}
 				if (gateCode != -1 || ppqnCount == 0)
-					gateCode = calcGateCodeEx(attributes[newSeq][stepIndexRun], ppqnCount, pulsesPerStepIndex);
+					gateCode = seq[0].calcGateCodeEx(attributes[newSeq][stepIndexRun], ppqnCount);
 			}
 			clockPeriod = 0ul;
 		}
@@ -1114,7 +1232,7 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 		
 		
 		// CV and gates outputs
-		int seqn = editingSequence ? (sequence) : (running ? phrase[phraseIndexRun] : phrase[phraseIndexEdit]);
+		int seqn = editingSequence ? (sequence) : (seq[0].getPhrase(running ? phraseIndexRun : phraseIndexEdit));
 		int step0 = editingSequence ? (running ? stepIndexRun : stepIndexEdit) : (stepIndexRun);
 		if (running) {
 			bool muteGateA = !editingSequence && ((params[GATE_PARAM].value + inputs[GATECV_INPUT].value) > 0.5f);// live mute
@@ -1191,7 +1309,7 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 			if (editingSequence)
 				octCV = cv[sequence][stepIndexEdit];
 			else
-				octCV = cv[phrase[phraseIndexEdit]][stepIndexRun];
+				octCV = cv[seq[0].getPhrase(phraseIndexEdit)][stepIndexRun];
 			int octLightIndex = (int) floor(octCV + 3.0f);
 			for (int i = 0; i < 7; i++) {
 				float red = 0.0f;
@@ -1211,7 +1329,7 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 			if (editingSequence) 
 				cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
 			else	
-				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
+				cvValOffset = cv[seq[0].getPhrase(phraseIndexEdit)][stepIndexRun] + 10.0f;//to properly handle negative note voltages
 			int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
 			if (keyboardEditingGates && editingSequence) {
 				int modeLightIndex = getGateType(sequence, stepIndexEdit);
@@ -1246,11 +1364,11 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 			if (editingSequence  || running) {
 				Attribute attributesVal = attributes[sequence][stepIndexEdit];
 				if (!editingSequence)
-					attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun];
+					attributesVal = attributes[seq[0].getPhrase(phraseIndexEdit)][stepIndexRun];
 				//
 				if (!getGateA(attributesVal)) 
 					setGreenRed(GATE_LIGHT, 0.0f, 0.0f);
-				else if (pulsesPerStepIndex == 0) 
+				else if (seq[0].getPulsesPerStep() == 1) 
 					setGreenRed(GATE_LIGHT, 0.0f, 1.0f);
 				else 
 					setGreenRed(GATE_LIGHT, 1.0f, 1.0f);
@@ -1407,13 +1525,13 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				}
 			}
 			else if (module->editingPpqn != 0ul) {
-				snprintf(displayStr, 4, "x%2u", (unsigned) ppsValues[module->pulsesPerStepIndex]);
+				snprintf(displayStr, 4, "x%2u", (unsigned) module->seq[0].getPulsesPerStep());
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_MODE) {
 				if (editingSequence)
-					runModeToStr(module->runModeSeq[module->sequence]);
+					runModeToStr(module->seq[0].getRunModeSeq(module->sequence));
 				else
-					runModeToStr(module->runModeSong);
+					runModeToStr(module->seq[0].getRunModeSong());
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_LENGTH) {
 				if (editingSequence)
@@ -1422,8 +1540,9 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->seq[0].getPhrases());
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_TRANSPOSE) {
-				snprintf(displayStr, 4, "+%2u", (unsigned) abs(module->transposeOffsets[module->sequence]));
-				if (module->transposeOffsets[module->sequence] < 0)
+				int tranOffset = module->seq[0].getTransposeOffset(module->sequence);
+				snprintf(displayStr, 4, "+%2u", (unsigned) abs(tranOffset));
+				if (tranOffset < 0)
 					displayStr[0] = '-';
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_ROTATE) {
@@ -1454,11 +1573,11 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 					snprintf(displayStr, 4, "  0");
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_REPS) {
-				snprintf(displayStr, 4, "R%2u", (unsigned) abs(module->phraseReps[module->phraseIndexEdit]));
+				snprintf(displayStr, 4, "R%2u", (unsigned) abs(module->seq[0].getPhraseReps(module->phraseIndexEdit)));
 			}
 			else {// DISP_NORMAL
 				snprintf(displayStr, 4, " %2u", (unsigned) (editingSequence ? 
-					module->sequence : module->phrase[module->phraseIndexEdit]) + 1 );
+					module->sequence : module->seq[0].getPhrase(module->phraseIndexEdit)) + 1 );
 			}
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
 		}
