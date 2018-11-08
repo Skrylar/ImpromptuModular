@@ -14,4 +14,25 @@ const int SequencerKernel::ppsValues[NUM_PPS_VALUES] = {1, 4, 6, 8, 12, 16, 18, 
 
 
 
+int moveIndexEx(int index, int indexNext, int numSteps) {
+	if (indexNext < 0)
+		index = numSteps - 1;
+	else
+	{
+		if (indexNext - index >= 0) { // if moving right or same place
+			if (indexNext >= numSteps)
+				index = 0;
+			else
+				index = indexNext;
+		}
+		else { // moving left 
+			if (indexNext >= numSteps)
+				index = numSteps - 1;
+			else
+				index = indexNext;
+		}
+	}
+	return index;
+}
+
 

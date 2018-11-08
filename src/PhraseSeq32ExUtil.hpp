@@ -34,7 +34,7 @@ static const Attribute ATT_MSK_INITSTATE = (ATT_MSK_GATE | (0 << gate1TypeShift)
 
 							
 				
-// Inline methods
+// Inline functions
 
 inline bool getGateA(Attribute attribute) {return (attribute & ATT_MSK_GATE) != 0;}
 inline bool getTiedA(Attribute attribute) {return (attribute & ATT_MSK_TIED) != 0;}
@@ -57,18 +57,15 @@ inline void toggleTiedA(Attribute *attribute) {(*attribute) ^= ATT_MSK_TIED;}
 inline void toggleGatePa(Attribute *attribute) {(*attribute) ^= ATT_MSK_GATEP;}
 inline void toggleSlideA(Attribute *attribute) {(*attribute) ^= ATT_MSK_SLIDE;}
 
+// Other functions
 
-inline bool calcGate(int gateCode, SchmittTrigger clockTrigger, unsigned long clockStep, float sampleRate) {
-	if (gateCode < 2) 
-		return gateCode == 1;
-	if (gateCode == 2)
-		return clockTrigger.isHigh();
-	return clockStep < (unsigned long) (sampleRate * 0.001f);
-}
-
+int moveIndexEx(int index, int indexNext, int numSteps);
+	
+	
 
 struct SequencerKernel {
 	// General constants
+	// ----------------
 
 	// Clock resolution										
 	static const int NUM_PPS_VALUES = 33;
@@ -76,9 +73,12 @@ struct SequencerKernel {
 
 	
 	// Member data
+	// ----------------
 	
 	int id;
 	std::string ids;
+	
+	// need to save
 	int runModeSong;	
 	int runModeSeq[32];
 	int pulsesPerStepIndex;// 0 to NUM_PPS_VALUES-1; 0 means normal gate mode of 1 pps; this is an index into ppsValues[]
@@ -87,6 +87,21 @@ struct SequencerKernel {
 	int phrase[32];// This is the song (series of phases; a phrase is a sequence number)	
 	int lengths[32];// number of steps in each sequence, min value is 1
 	int transposeOffsets[32];
+	
+	// no need to save
+	int stepIndexRun;
+	unsigned long stepIndexRunHistory;
+	int phraseIndexRun;
+	unsigned long phraseIndexRunHistory;
+	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
+	float slideCVdelta;// no need to initialize, this is only used when slideStepsRemain is not 0
+	int gateCode;
+	int ppqnCount;
+	
+	
+	// Get, set, mod
+	// ----------------
+
 	
 	// get
 	inline int getRunModeSong() {return runModeSong;}
@@ -97,6 +112,8 @@ struct SequencerKernel {
 	inline int getPhraseReps(int phrn) {return phraseReps[phrn];}
 	inline int getPulsesPerStep() {return ppsValues[pulsesPerStepIndex];}
 	inline int getTransposeOffset(int seqn) {return transposeOffsets[seqn];}
+	inline int getStepIndexRun() {return stepIndexRun;}
+	inline int getPhraseIndexRun() {return phraseIndexRun;}
 	
 	// set
 	inline void setRunModeSeq(int seqn, int runmode) {runModeSeq[seqn] = runmode;}
@@ -104,6 +121,9 @@ struct SequencerKernel {
 	inline void setLength(int seqn, int _length) {lengths[seqn] = _length;}
 	inline void setPhrase(int phrn, int seqn) {phrase[phrn] = seqn;}
 	inline void resetTransposeOffset(int seqn) {transposeOffsets[seqn] = 0;}
+	inline void setSlideStepsRemainAndCVdelta(unsigned long _slideStepsRemain, float cvdelta) {slideStepsRemain = _slideStepsRemain; slideCVdelta = cvdelta/(float)slideStepsRemain;}
+	inline void setStepIndexRun(int _stepIndexRun) {stepIndexRun = _stepIndexRun;}
+	inline void setPhraseIndexRun(int _phraseIndexRun) {phraseIndexRun = _phraseIndexRun;}
 	
 	// mod
 	inline void modRunModeSong(int delta) {runModeSong += delta; if (runModeSong < 0) runModeSong = 0; if (runModeSong >= NUM_MODES) runModeSong = NUM_MODES - 1;}
@@ -138,8 +158,12 @@ struct SequencerKernel {
 		if (transposeOffsets[seqn] > 99) transposeOffsets[seqn] = 99;
 		if (transposeOffsets[seqn] < -99) transposeOffsets[seqn] = -99;						
 	}
+	inline void decSlideStepsRemain() {if (slideStepsRemain > 0ul) slideStepsRemain--;}
 	
-	// main
+	
+	// Main methods
+	// ----------------
+	
 	void setId(int _id) {
 		id = _id;
 		ids = "id" + std::to_string(id) + "_";
@@ -157,6 +181,7 @@ struct SequencerKernel {
 			lengths[i] = 32;			
 			resetTransposeOffset(i);
 		}
+		slideStepsRemain = 0ul;
 	}
 	
 	
@@ -170,6 +195,24 @@ struct SequencerKernel {
 			lengths[i] = 1 + (randomu32() % 32);
 			resetTransposeOffset(i);
 		}
+	}
+	
+	
+	void initRun(bool hard, bool isEditingSequence, int sequence) {
+		// NOTE when importing, keep same order as in module's initRun()
+	
+		if (hard) {
+			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+			phraseIndexRunHistory = 0;
+		}
+		int seqn = (isEditingSequence ? sequence : phrase[phraseIndexRun]);
+		if (hard) {
+			stepIndexRun = (runModeSeq[seqn] == MODE_REV ? lengths[seqn] - 1 : 0);
+			stepIndexRunHistory = 0;
+		}
+		ppqnCount = 0;
+		//seq[0].calcGateCodeEx(attributes[seqn][stepIndexRun]);
+		slideStepsRemain = 0ul;
 	}
 	
 	
@@ -282,10 +325,28 @@ struct SequencerKernel {
 				if (transposeOffsetsArrayJ)
 					transposeOffsets[i] = json_integer_value(transposeOffsetsArrayJ);
 			}			
-		}
-			
+		}		
 	}
 	
+	
+	inline float calcSlideOffset() {return (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);}
+	
+
+	inline bool incPpqnCountAndCmpWithZero() {
+		ppqnCount++;
+		if (ppqnCount >= ppsValues[pulsesPerStepIndex])
+			ppqnCount = 0;
+		return ppqnCount == 0;
+	}
+
+	
+	inline bool calcGate(SchmittTrigger clockTrigger, unsigned long clockStep, float sampleRate) {
+		if (gateCode < 2) 
+			return gateCode == 1;
+		if (gateCode == 2)
+			return clockTrigger.isHigh();
+		return clockStep < (unsigned long) (sampleRate * 0.001f);
+	}
 	
 	int keyIndexToGateTypeEx(int keyIndex) {
 		int pulsesPerStep = ppsValues[pulsesPerStepIndex];
@@ -297,7 +358,8 @@ struct SequencerKernel {
 	}
 	
 
-	int calcGateCodeEx(Attribute attribute, int ppqnCount) {
+	void calcGateCodeEx(Attribute attribute) {
+		int gateType;
 		static const uint64_t advGateHitMaskLow[NUM_GATES] = 
 		{0x0000000000FFFFFF, 0x0000FFFF0000FFFF, 0x0000FFFFFFFFFFFF, 0x0000FFFF00000000, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 
 		//				25%					TRI		  			50%					T23		  			75%					FUL		
@@ -309,35 +371,158 @@ struct SequencerKernel {
 		 0x0000000000000000, 0x00000000000000FF, 0x0000000000000000, 0x00000000000000FF, 0x000000000000FFFF, 0};
 		//  			TR1 				DUO		  			TR2 	     		D2		  			TR3  TRIG		
 
-		// -1 = gate off for whole step, 0 = gate off for current ppqn, 1 = gate on, 2 = clock high, 3 = trigger
-		if ( ppqnCount == 0 && getGatePa(attribute) && !(randomUniform() < ((float)getGatePValA(attribute) / 100.0f)) )// randomUniform is [0.0, 1.0), see include/util/common.hpp
-			return -1;// must do this first in this method since it will kill rest of step if prob turns off the step
-		if (!getGateA(attribute))
-			return 0;
-		if (pulsesPerStepIndex == 0)
-			return 2;// clock high pulse
-		int gateType = getGateAType(attribute);
-		if (gateType == 11)
-			return ppqnCount == 0 ? 3 : 0;
-		uint64_t shiftAmt = ppqnCount * (96 / ppsValues[pulsesPerStepIndex]);
-		if (shiftAmt >= 64)
-			return (int)((advGateHitMaskHigh[gateType] >> (shiftAmt - (uint64_t)64)) & (uint64_t)0x1);
-		return (int)((advGateHitMaskLow[gateType] >> shiftAmt) & (uint64_t)0x1);
+		if (gateCode != -1 || ppqnCount == 0) {// always calc on first ppqnCount, avoid thereafter if gate will be off for whole step
+			// -1 = gate off for whole step, 0 = gate off for current ppqn, 1 = gate on, 2 = clock high, 3 = trigger
+			if ( ppqnCount == 0 && getGatePa(attribute) && !(randomUniform() < ((float)getGatePValA(attribute) / 100.0f)) ) {// randomUniform is [0.0, 1.0), see include/util/common.hpp
+				gateCode = -1;// must do this first in this method since it will kill rest of step if prob turns off the step
+			}
+			else if (!getGateA(attribute)) {
+				gateCode = 0;
+			}
+			else if (pulsesPerStepIndex == 0) {
+				gateCode = 2;// clock high pulse
+			}
+			else {
+				gateType = getGateAType(attribute);
+				if (gateType == 11) {
+					gateCode = (ppqnCount == 0 ? 3 : 0);
+				}
+				else {
+					uint64_t shiftAmt = ppqnCount * (96 / ppsValues[pulsesPerStepIndex]);
+					if (shiftAmt >= 64)
+						gateCode = (int)((advGateHitMaskHigh[gateType] >> (shiftAmt - (uint64_t)64)) & (uint64_t)0x1);
+					else
+						gateCode = (int)((advGateHitMaskLow[gateType] >> shiftAmt) & (uint64_t)0x1);
+				}
+			}
+		}
+	}
+	
+	
+	bool moveIndexRunMode(bool stepPhraseN, int numSteps, int runMode, int reps) {	
+		// assert((reps * numSteps) <= 0xFFF); // for BRN and RND run modes, history is not a span count but a step count
+		
+		int* index;
+		unsigned long* history;
+		
+		if (stepPhraseN) {// true when moving sequence, false when moving song
+			index = &stepIndexRun;
+			history = &stepIndexRunHistory;
+		}
+		else {
+			index = &phraseIndexRun;
+			history = &phraseIndexRunHistory;
+		}
+		
+		bool crossBoundary = false;
+		
+		switch (runMode) {
+		
+			// history 0x0000 is reserved for reset
+			
+			case MODE_REV :// reverse; history base is 0x2000
+				if ((*history) < 0x2001 || (*history) > 0x2FFF)
+					(*history) = 0x2000 + reps;
+				(*index)--;
+				if ((*index) < 0) {
+					(*index) = numSteps - 1;
+					(*history)--;
+					if ((*history) <= 0x2000)
+						crossBoundary = true;
+				}
+			break;
+			
+			case MODE_PPG :// forward-reverse; history base is 0x3000
+				if ((*history) < 0x3001 || (*history) > 0x3FFF) // even means going forward, odd means going reverse
+					(*history) = 0x3000 + reps * 2;
+				if (((*history) & 0x1) == 0) {// even so forward phase
+					(*index)++;
+					if ((*index) >= numSteps) {
+						(*index) = numSteps - 1 ;
+						(*history)--;
+					}
+				}
+				else {// odd so reverse phase
+					(*index)--;
+					if ((*index) < 0) {
+						(*index) = 0;
+						(*history)--;
+						if ((*history) <= 0x3000)
+							crossBoundary = true;
+					}
+				}
+			break;
+
+			case MODE_PEN :// forward-reverse; history base is 0x4000
+				if ((*history) < 0x4001 || (*history) > 0x4FFF) // even means going forward, odd means going reverse
+					(*history) = 0x4000 + reps * 2;
+				if (((*history) & 0x1) == 0) {// even so forward phase
+					(*index)++;
+					if ((*index) >= numSteps) {
+						(*index) = numSteps - 2;
+						(*history)--;
+						if ((*index) < 1) {// if back at 0 after turnaround, then no reverse phase needed
+							(*index) = 0;
+							(*history)--;
+							if ((*history) <= 0x4000)
+								crossBoundary = true;
+						}
+					}
+				}
+				else {// odd so reverse phase
+					(*index)--;
+					if ((*index) < 1) {
+						(*index) = 0;
+						(*history)--;
+						if ((*history) <= 0x4000)
+							crossBoundary = true;
+					}
+				}
+			break;
+			
+			case MODE_BRN :// brownian random; history base is 0x5000
+				if ((*history) < 0x5001 || (*history) > 0x5FFF) 
+					(*history) = 0x5000 + numSteps * reps;
+				(*index) += (randomu32() % 3) - 1;
+				if ((*index) >= numSteps) {
+					(*index) = 0;
+				}
+				if ((*index) < 0) {
+					(*index) = numSteps - 1;
+				}
+				(*history)--;
+				if ((*history) <= 0x5000) {
+					crossBoundary = true;
+				}
+			break;
+			
+			case MODE_RND :// random; history base is 0x6000
+				if ((*history) < 0x6001 || (*history) > 0x6FFF) 
+					(*history) = 0x6000 + numSteps * reps;
+				(*index) = (randomu32() % numSteps) ;
+				(*history)--;
+				if ((*history) <= 0x6000) {
+					crossBoundary = true;
+				}
+			break;
+			
+			default :// MODE_FWD  forward; history base is 0x1000
+				if ((*history) < 0x1001 || (*history) > 0x1FFF)
+					(*history) = 0x1000 + reps;
+				(*index)++;
+				if ((*index) >= numSteps) {
+					(*index) = 0;
+					(*history)--;
+					if ((*history) <= 0x1000)
+						crossBoundary = true;
+				}
+		}
+
+		return crossBoundary;
 	}
 		
 };// struct SequencerKernel 
 
 
-// Other methods 
-
-	
-
-
-
-
-
-
-
-//#endif
 
 
