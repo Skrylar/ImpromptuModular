@@ -687,7 +687,7 @@ struct PhraseSeq32 : Module {
 					}
 					else {// crossed paste to seq (seq vs song)
 						if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init steps)
-							for (int s = 0; s < 16; s++) {
+							for (int s = 0; s < 32; s++) {
 								cv[sequence][s] = 0.0f;
 								initAttrib(sequence, s);
 							}

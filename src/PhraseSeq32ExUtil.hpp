@@ -9,59 +9,9 @@ using namespace rack;
 
 
 
-// General constants
-
-// Run modes
-enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, NUM_MODES};
-static const std::string modeLabels[NUM_MODES]={"FWD","REV","PPG","PEN","BRN","RND"};
-
-// Gate types
-static const int NUM_GATES = 12;	
-
-// Attributes of a step
-typedef unsigned long Attribute;
-static const Attribute ATT_MSK_GATE = 0x01;
-static const Attribute ATT_MSK_GATEP = 0x02;
-static const Attribute ATT_MSK_SLIDE = 0x04;
-static const Attribute ATT_MSK_TIED = 0x08;
-static const Attribute ATT_MSK_GATETYPE = 0xF0;
-static const Attribute gate1TypeShift = 4;
-static const Attribute ATT_MSK_GATEP_VAL = 0xFF00;
-static const Attribute GatePValShift = 8;
-static const Attribute ATT_MSK_SLIDE_VAL = 0xFF0000;
-static const Attribute slideValShift = 16;
-static const Attribute ATT_MSK_INITSTATE = (ATT_MSK_GATE | (0 << gate1TypeShift) | (50 << GatePValShift) | (10 << slideValShift));
-
-							
-				
-// Inline functions
-
-inline bool getGateA(Attribute attribute) {return (attribute & ATT_MSK_GATE) != 0;}
-inline bool getTiedA(Attribute attribute) {return (attribute & ATT_MSK_TIED) != 0;}
-inline bool getGatePa(Attribute attribute) {return (attribute & ATT_MSK_GATEP) != 0;}
-inline int getGatePValA(Attribute attribute) {return (int)((attribute & ATT_MSK_GATEP_VAL) >> GatePValShift);}
-inline bool getSlideA(Attribute attribute) {return (attribute & ATT_MSK_SLIDE) != 0;}
-inline int getSlideValA(Attribute attribute) {return (int)((attribute & ATT_MSK_SLIDE_VAL) >> slideValShift);}
-inline int getGateAType(Attribute attribute) {return ((int)(attribute & ATT_MSK_GATETYPE) >> gate1TypeShift);}
-
-inline void setGateA(Attribute *attribute, bool gate1State) {(*attribute) &= ~ATT_MSK_GATE; if (gate1State) (*attribute) |= ATT_MSK_GATE;}
-inline void setTiedA(Attribute *attribute, bool tiedState) {(*attribute) &= ~ATT_MSK_TIED; if (tiedState) (*attribute) |= ATT_MSK_TIED;}
-inline void setGatePa(Attribute *attribute, bool GatePState) {(*attribute) &= ~ATT_MSK_GATEP; if (GatePState) (*attribute) |= ATT_MSK_GATEP;}
-inline void setGatePValA(Attribute *attribute, int gatePval) {(*attribute) &= ~ATT_MSK_GATEP_VAL; (*attribute) |= (((Attribute)gatePval) << GatePValShift);}
-inline void setSlideA(Attribute *attribute, bool slideState) {(*attribute) &= ~ATT_MSK_SLIDE; if (slideState) (*attribute) |= ATT_MSK_SLIDE;}
-inline void setSlideValA(Attribute *attribute, int slideVal) {(*attribute) &= ~ATT_MSK_SLIDE_VAL; (*attribute) |= (((Attribute)slideVal) << slideValShift);}
-inline void setGateTypeA(Attribute *attribute, int gate1Type) {(*attribute) &= ~ATT_MSK_GATETYPE; (*attribute) |= (((Attribute)gate1Type) << gate1TypeShift);}
-
-inline void toggleGateA(Attribute *attribute) {(*attribute) ^= ATT_MSK_GATE;}
-inline void toggleTiedA(Attribute *attribute) {(*attribute) ^= ATT_MSK_TIED;}
-inline void toggleGatePa(Attribute *attribute) {(*attribute) ^= ATT_MSK_GATEP;}
-inline void toggleSlideA(Attribute *attribute) {(*attribute) ^= ATT_MSK_SLIDE;}
-
-// Other functions
-
 int moveIndexEx(int index, int indexNext, int numSteps);
 	
-	
+
 
 struct SequencerKernel {
 	// General constants
@@ -71,6 +21,30 @@ struct SequencerKernel {
 	static const int NUM_PPS_VALUES = 33;
 	static const int ppsValues[NUM_PPS_VALUES];
 
+	// Run modes
+	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, NUM_MODES};
+	static const std::string modeLabels[NUM_MODES];
+	
+	// Gate types
+	static const int NUM_GATES = 12;	
+	static const uint64_t advGateHitMaskLow[NUM_GATES];		
+	static const uint64_t advGateHitMaskHigh[NUM_GATES];		
+
+	// Attributes of a step
+	typedef unsigned long Attribute;
+	static const Attribute ATT_MSK_GATE = 0x01;
+	static const Attribute ATT_MSK_GATEP = 0x02;
+	static const Attribute ATT_MSK_SLIDE = 0x04;
+	static const Attribute ATT_MSK_TIED = 0x08;
+	static const Attribute ATT_MSK_GATETYPE = 0xF0;
+	static const Attribute gate1TypeShift = 4;
+	static const Attribute ATT_MSK_GATEP_VAL = 0xFF00;
+	static const Attribute GatePValShift = 8;
+	static const Attribute ATT_MSK_SLIDE_VAL = 0xFF0000;
+	static const Attribute slideValShift = 16;
+	static const Attribute ATT_MSK_INITSTATE = (ATT_MSK_GATE | (0 << gate1TypeShift) | (50 << GatePValShift) | (10 << slideValShift));		
+	
+	
 	
 	// Member data
 	// ----------------
@@ -86,6 +60,8 @@ struct SequencerKernel {
 	int phraseReps[32];// a rep is 1 to 99
 	int phrase[32];// This is the song (series of phases; a phrase is a sequence number)	
 	int lengths[32];// number of steps in each sequence, min value is 1
+	float cv[32][32];// [-3.0 : 3.917]. First index is sequence number, 2nd index is step
+	Attribute attributes[32][32];// First index is sequence number, 2nd index is step
 	int transposeOffsets[32];
 	
 	// no need to save
@@ -99,9 +75,9 @@ struct SequencerKernel {
 	int ppqnCount;
 	
 	
+	
 	// Get, set, mod
 	// ----------------
-
 	
 	// get
 	inline int getRunModeSong() {return runModeSong;}
@@ -114,6 +90,8 @@ struct SequencerKernel {
 	inline int getTransposeOffset(int seqn) {return transposeOffsets[seqn];}
 	inline int getStepIndexRun() {return stepIndexRun;}
 	inline int getPhraseIndexRun() {return phraseIndexRun;}
+	inline float getCV(int seqn, int stepn) {return cv[seqn][stepn];}
+	inline Attribute getAttribute(int seqn, int stepn) {return attributes[seqn][stepn];}
 	
 	// set
 	inline void setRunModeSeq(int seqn, int runmode) {runModeSeq[seqn] = runmode;}
@@ -124,6 +102,8 @@ struct SequencerKernel {
 	inline void setSlideStepsRemainAndCVdelta(unsigned long _slideStepsRemain, float cvdelta) {slideStepsRemain = _slideStepsRemain; slideCVdelta = cvdelta/(float)slideStepsRemain;}
 	inline void setStepIndexRun(int _stepIndexRun) {stepIndexRun = _stepIndexRun;}
 	inline void setPhraseIndexRun(int _phraseIndexRun) {phraseIndexRun = _phraseIndexRun;}
+	inline void setCV(int seqn, int stepn, float _cv) {cv[seqn][stepn] = _cv;}
+	inline void setAttribute(int seqn, int stepn, Attribute _attribute) {attributes[seqn][stepn] = _attribute;}
 	
 	// mod
 	inline void modRunModeSong(int delta) {runModeSong += delta; if (runModeSong < 0) runModeSong = 0; if (runModeSong >= NUM_MODES) runModeSong = NUM_MODES - 1;}
@@ -158,7 +138,87 @@ struct SequencerKernel {
 		if (transposeOffsets[seqn] > 99) transposeOffsets[seqn] = 99;
 		if (transposeOffsets[seqn] < -99) transposeOffsets[seqn] = -99;						
 	}
+	inline void modGatePVal(int seqn, int stepn, int delta) {
+		int pVal = getGatePVal(seqn, stepn);
+		pVal += delta;
+		if (pVal > 100) pVal = 100;
+		if (pVal < 0) pVal = 0;
+		setGatePVal(seqn, stepn, pVal);						
+	}		
+	inline void modSlideVal(int seqn, int stepn, int delta) {
+		int sVal = getSlideVal(seqn, stepn);
+		sVal += delta;
+		if (sVal > 100) sVal = 100;
+		if (sVal < 0) sVal = 0;
+		setSlideVal(seqn, stepn, sVal);						
+	}		
 	inline void decSlideStepsRemain() {if (slideStepsRemain > 0ul) slideStepsRemain--;}
+	inline void initCV(int seqn, int step) {cv[seqn][step] = 0.0f;}
+	inline void randomizeCV(int seqn, int step) {cv[seqn][step] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;}
+	
+	
+	// attributes all here
+
+	inline bool getGateA(Attribute attribute) {return (attribute & ATT_MSK_GATE) != 0;}
+	inline bool getTiedA(Attribute attribute) {return (attribute & ATT_MSK_TIED) != 0;}
+	inline bool getGatePa(Attribute attribute) {return (attribute & ATT_MSK_GATEP) != 0;}
+	inline int getGatePValA(Attribute attribute) {return (int)((attribute & ATT_MSK_GATEP_VAL) >> GatePValShift);}
+	inline bool getSlideA(Attribute attribute) {return (attribute & ATT_MSK_SLIDE) != 0;}
+	inline int getSlideValA(Attribute attribute) {return (int)((attribute & ATT_MSK_SLIDE_VAL) >> slideValShift);}
+	inline int getGateAType(Attribute attribute) {return ((int)(attribute & ATT_MSK_GATETYPE) >> gate1TypeShift);}
+
+	inline void setGateA(Attribute *attribute, bool gate1State) {(*attribute) &= ~ATT_MSK_GATE; if (gate1State) (*attribute) |= ATT_MSK_GATE;}
+	inline void setTiedA(Attribute *attribute, bool tiedState) {(*attribute) &= ~ATT_MSK_TIED; if (tiedState) (*attribute) |= ATT_MSK_TIED;}
+	inline void setGatePa(Attribute *attribute, bool GatePState) {(*attribute) &= ~ATT_MSK_GATEP; if (GatePState) (*attribute) |= ATT_MSK_GATEP;}
+	inline void setGatePValA(Attribute *attribute, int gatePval) {(*attribute) &= ~ATT_MSK_GATEP_VAL; (*attribute) |= (((Attribute)gatePval) << GatePValShift);}
+	inline void setSlideA(Attribute *attribute, bool slideState) {(*attribute) &= ~ATT_MSK_SLIDE; if (slideState) (*attribute) |= ATT_MSK_SLIDE;}
+	inline void setSlideValA(Attribute *attribute, int slideVal) {(*attribute) &= ~ATT_MSK_SLIDE_VAL; (*attribute) |= (((Attribute)slideVal) << slideValShift);}
+	inline void setGateTypeA(Attribute *attribute, int gate1Type) {(*attribute) &= ~ATT_MSK_GATETYPE; (*attribute) |= (((Attribute)gate1Type) << gate1TypeShift);}
+
+	inline void toggleGateA(Attribute *attribute) {(*attribute) ^= ATT_MSK_GATE;}
+	inline void toggleTiedA(Attribute *attribute) {(*attribute) ^= ATT_MSK_TIED;}
+	inline void toggleGatePa(Attribute *attribute) {(*attribute) ^= ATT_MSK_GATEP;}
+	inline void toggleSlideA(Attribute *attribute) {(*attribute) ^= ATT_MSK_SLIDE;}
+
+	// TODO replace "step" by "stepn" below
+	
+	inline void initAttribute(int seqn, int step) {attributes[seqn][step] = ATT_MSK_INITSTATE;}
+	inline void randomizeAttribute(int seqn, int step) {// uses lengths[] so make sure that is set up first
+		attributes[seqn][step] = ((randomu32() & 0xF) & ((randomu32() % SequencerKernel::NUM_GATES) << gate1TypeShift) & ((randomu32() % 101) << GatePValShift) & ((randomu32() % 101) << slideValShift));
+		if (getTied(seqn,step)) {
+			attributes[seqn][step] &= 0xF;// clear other attributes if tied
+			attributes[seqn][step] |= ATT_MSK_TIED;
+			applyTiedStep(seqn, step);
+		}
+	}
+
+	inline bool getGate(int seqn, int step) {return getGateA(attributes[seqn][step]);}
+	inline bool getTied(int seqn, int step) {return getTiedA(attributes[seqn][step]);}
+	inline bool getGateP(int seqn, int step) {return getGatePa(attributes[seqn][step]);}
+	inline int getGatePVal(int seqn, int step) {return getGatePValA(attributes[seqn][step]);}
+	inline bool getSlide(int seqn, int step) {return getSlideA(attributes[seqn][step]);}
+	inline int getSlideVal(int seqn, int step) {return getSlideValA(attributes[seqn][step]);}
+	inline int getGateType(int seqn, int step) {return getGateAType(attributes[seqn][step]);}
+
+	inline void setGate(int seqn, int step, bool gateState) {setGateA(&attributes[seqn][step], gateState);}
+	inline void setGateP(int seqn, int step, bool GatePstate) {setGatePa(&attributes[seqn][step], GatePstate);}
+	inline void setGatePVal(int seqn, int step, int gatePval) {setGatePValA(&attributes[seqn][step], gatePval);}
+	inline void setSlide(int seqn, int step, bool slideState) {setSlideA(&attributes[seqn][step], slideState);}
+	inline void setSlideVal(int seqn, int step, int slideVal) {setSlideValA(&attributes[seqn][step], slideVal);}
+	inline void setGateType(int seqn, int step, int gateType) {setGateTypeA(&attributes[seqn][step], gateType);}
+
+	inline void toggleGate(int seqn, int step) {toggleGateA(&attributes[seqn][step]);}
+	inline void toggleTied(int seqn, int stepn) {// will clear other attribs if new state is on
+		toggleTiedA(&attributes[seqn][stepn]);
+		if (getTied(seqn,stepn)) {
+			setGate(seqn, stepn, false);
+			setGateP(seqn, stepn, false);
+			setSlide(seqn, stepn, false);
+			applyTiedStep(seqn, stepn);
+		}
+	}
+	inline void toggleGateP(int seqn, int step) {toggleGatePa(&attributes[seqn][step]);}
+	inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step]);}	
 	
 	
 	// Main methods
@@ -175,6 +235,10 @@ struct SequencerKernel {
 		runModeSong = MODE_FWD;
 		phrases = 4;
 		for (int i = 0; i < 32; i++) {
+			for (int s = 0; s < 32; s++) {
+				initCV(i, s);
+				initAttribute(i, s);
+			}
 			runModeSeq[i] = MODE_FWD;
 			phrase[i] = 0;
 			phraseReps[i] = 1;
@@ -194,6 +258,10 @@ struct SequencerKernel {
 			phraseReps[i] = randomu32() % 4 + 1;
 			lengths[i] = 1 + (randomu32() % 32);
 			resetTransposeOffset(i);
+			for (int s = 0; s < 32; s++) {
+				randomizeCV(i, s);
+				randomizeAttribute(i, s);// must be after lengths[i] randomized
+			}
 		}
 	}
 	
@@ -211,7 +279,7 @@ struct SequencerKernel {
 			stepIndexRunHistory = 0;
 		}
 		ppqnCount = 0;
-		//seq[0].calcGateCodeEx(attributes[seqn][stepIndexRun]);
+		calcGateCodeEx(seqn);// uses stepIndexRun as the step
 		slideStepsRemain = 0ul;
 	}
 	
@@ -243,6 +311,22 @@ struct SequencerKernel {
 		for (int i = 0; i < 32; i++)
 			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
 		json_object_set_new(rootJ, (ids + "phrase").c_str(), phraseJ);
+
+		// CV
+		json_t *cvJ = json_array();
+		for (int i = 0; i < 32; i++)
+			for (int s = 0; s < 32; s++) {
+				json_array_insert_new(cvJ, s + (i * 32), json_real(cv[i][s]));
+			}
+		json_object_set_new(rootJ, (ids + "cv").c_str(), cvJ);
+
+		// attributes
+		json_t *attributesJ = json_array();
+		for (int i = 0; i < 32; i++)
+			for (int s = 0; s < 32; s++) {
+				json_array_insert_new(attributesJ, s + (i * 32), json_integer(attributes[i][s]));
+			}
+		json_object_set_new(rootJ, (ids + "attributes").c_str(), attributesJ);
 
 		// lengths
 		json_t *lengthsJ = json_array();
@@ -306,6 +390,28 @@ struct SequencerKernel {
 					phrase[i] = json_integer_value(phraseArrayJ);
 			}
 		
+		// CV
+		json_t *cvJ = json_object_get(rootJ, (ids + "cv").c_str());
+		if (cvJ) {
+			for (int i = 0; i < 32; i++)
+				for (int s = 0; s < 32; s++) {
+					json_t *cvArrayJ = json_array_get(cvJ, s + (i * 32));
+					if (cvArrayJ)
+						cv[i][s] = json_number_value(cvArrayJ);
+				}
+		}
+
+		// attributes
+		json_t *attributesJ = json_object_get(rootJ, (ids + "attributes").c_str());
+		if (attributesJ) {
+			for (int i = 0; i < 32; i++)
+				for (int s = 0; s < 32; s++) {
+					json_t *attributesArrayJ = json_array_get(attributesJ, s + (i * 32));
+					if (attributesArrayJ)
+						attributes[i][s] = json_integer_value(attributesArrayJ);
+				}
+		}
+
 		// lengths
 		json_t *lengthsJ = json_object_get(rootJ, (ids + "lengths").c_str());
 		if (lengthsJ)
@@ -328,6 +434,50 @@ struct SequencerKernel {
 		}		
 	}
 	
+	
+	inline void transposeSeq(int seqNum, float offsetCV) {for (int s = 0; s < 32; s++) cv[seqNum][s] += offsetCV;}
+
+	
+	void rotateSeq(int seqNum, bool directionRight) {
+		int seqLength = lengths[seqNum];
+		float rotCV;
+		Attribute rotAttributes;
+		int iStart = 0;
+		int iEnd = seqLength - 1;
+		int iRot = iStart;
+		int iDelta = 1;
+		if (directionRight) {
+			iRot = iEnd;
+			iDelta = -1;
+		}
+		rotCV = cv[seqNum][iRot];
+		rotAttributes = attributes[seqNum][iRot];
+		for ( ; ; iRot += iDelta) {
+			if (iDelta == 1 && iRot >= iEnd) break;
+			if (iDelta == -1 && iRot <= iStart) break;
+			cv[seqNum][iRot] = cv[seqNum][iRot + iDelta];
+			attributes[seqNum][iRot] = attributes[seqNum][iRot + iDelta];
+		}
+		cv[seqNum][iRot] = rotCV;
+		attributes[seqNum][iRot] = rotAttributes;
+	}
+
+	void applyTiedStep(int seqNum, int indexTied) {
+		int seqLength = lengths[seqNum];
+		// Start on indexTied and loop until seqLength
+		// Called because either:
+		//   case A: tied was activated for given step
+		//   case B: the given step's CV was modified
+		// These cases are mutually exclusive
+		
+		// copy previous CV over to current step if tied
+		if (getTied(seqNum,indexTied) && (indexTied > 0))
+			cv[seqNum][indexTied] = cv[seqNum][indexTied - 1];
+		
+		// Affect downstream CVs of subsequent tied note chain (can be 0 length if next note is not tied)
+		for (int i = indexTied + 1; i < seqLength && getTied(seqNum,i); i++) 
+			cv[seqNum][i] = cv[seqNum][indexTied];
+	}	
 	
 	inline float calcSlideOffset() {return (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);}
 	
@@ -358,18 +508,9 @@ struct SequencerKernel {
 	}
 	
 
-	void calcGateCodeEx(Attribute attribute) {
+	void calcGateCodeEx(int seqn) {// uses stepIndexRun as the step
+		Attribute attribute = attributes[seqn][stepIndexRun];
 		int gateType;
-		static const uint64_t advGateHitMaskLow[NUM_GATES] = 
-		{0x0000000000FFFFFF, 0x0000FFFF0000FFFF, 0x0000FFFFFFFFFFFF, 0x0000FFFF00000000, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 
-		//				25%					TRI		  			50%					T23		  			75%					FUL		
-		 0x000000000000FFFF, 0xFFFF000000FFFFFF, 0x0000FFFF00000000, 0xFFFF000000000000, 0x0000000000000000, 0};
-		//  			TR1 				DUO		  			TR2 	     		D2		  			TR3  TRIG		
-		static const uint64_t advGateHitMaskHigh[NUM_GATES] = 
-		{0x0000000000000000, 0x000000000000FFFF, 0x0000000000000000, 0x000000000000FFFF, 0x00000000000000FF, 0x00000000FFFFFFFF, 
-		//				25%					TRI		  			50%					T23		  			75%					FUL		
-		 0x0000000000000000, 0x00000000000000FF, 0x0000000000000000, 0x00000000000000FF, 0x000000000000FFFF, 0};
-		//  			TR1 				DUO		  			TR2 	     		D2		  			TR3  TRIG		
 
 		if (gateCode != -1 || ppqnCount == 0) {// always calc on first ppqnCount, avoid thereafter if gate will be off for whole step
 			// -1 = gate off for whole step, 0 = gate off for current ppqn, 1 = gate on, 2 = clock high, 3 = trigger
