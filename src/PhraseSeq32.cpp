@@ -302,6 +302,8 @@ struct PhraseSeq32 : Module {
 			gate1Code[i] = calcGate1Code(attributes[seq][(i * 16) + stepIndexRun[i]], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
 			gate2Code[i] = calcGate2Code(attributes[seq][(i * 16) + stepIndexRun[i]], 0, pulsesPerStep);
 		}
+		slideStepsRemain[0] = 0ul;
+		slideStepsRemain[1] = 0ul;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}	
 
@@ -1137,7 +1139,6 @@ struct PhraseSeq32 : Module {
 					// Slide
 					for (int i = 0; i < 2; i += stepConfig) {
 						if (getSlide(newSeq, (i * 16) + stepIndexRun[i])) {
-							// activate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
 							slideStepsRemain[i] =   (unsigned long) (((float)clockPeriod  * pulsesPerStep) * params[SLIDE_KNOB_PARAM].value / 2.0f);
 							float slideToCV = cv[newSeq][(i * 16) + stepIndexRun[i]];
 							slideCVdelta[i] = (slideToCV - slideFromCV[i])/(float)slideStepsRemain[i];
@@ -1903,6 +1904,7 @@ Model *modelPhraseSeq32 = Model::create<PhraseSeq32, PhraseSeq32Widget>("Impromp
 
 0.6.13:
 fix run mode bug (history not reset when hard reset)
+fix slide bug when reset happens during a slide and run stays on
 fix transposeOffset not initialized bug
 add live mute on Gate1 and Gate2 buttons in song mode
 

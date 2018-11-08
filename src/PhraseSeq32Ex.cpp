@@ -243,14 +243,14 @@ Attribute attributes[32][32];// First index is sequence number, 2nd index is ste
 	// No need to save
 	int stepIndexEdit;
 int stepIndexRun;
+unsigned long stepIndexRunHistory;
 	int phraseIndexEdit;
 int phraseIndexRun;
+unsigned long phraseIndexRunHistory;
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
 	float editingGateCV;// no need to initialize, this goes with editingGate (output this only when editingGate > 0)
 	int editingGateKeyLight;// no need to initialize, this goes with editingGate (use this only when editingGate > 0)
-unsigned long stepIndexRunHistory;
-unsigned long phraseIndexRunHistory;
 	int displayState;
 unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 float slideCVdelta;// no need to initialize, this goes with slideStepsRemain
@@ -422,6 +422,7 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 		}
 		ppqnCount = 0;
 		gateCode = seq[0].calcGateCodeEx(attributes[seqn][stepIndexRun], 0);
+		slideStepsRemain = 0ul;
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}	
 
@@ -1202,8 +1203,7 @@ inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step
 
 					// Slide
 					if (getSlide(newSeq, stepIndexRun)) {
-						// activate sliding (slideStepsRemain can be reset, else runs down to 0, either way, no need to reinit)
-						slideStepsRemain =   (unsigned long) (((float)clockPeriod  * seq[0].getPulsesPerStep()) * ((float)getSlideVal(newSeq, stepIndexRun) / 100.0f));
+						slideStepsRemain = (unsigned long) (((float)clockPeriod  * seq[0].getPulsesPerStep()) * ((float)getSlideVal(newSeq, stepIndexRun) / 100.0f));
 						float slideToCV = cv[newSeq][stepIndexRun];
 						slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
 					}
