@@ -121,7 +121,7 @@ struct PhraseSeq32Ex : Module {
 // unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 // float slideCVdelta;// no need to initialize, this goes with slideStepsRemain
 	float cvCPbuffer[32];// copy paste buffer for CVs
-	SequencerKernel::Attribute attribCPbuffer[32];
+	Attribute attribCPbuffer[32];
 	int phraseCPbuffer[32];
 	int lengthCPbuffer;
 	int modeCPbuffer;
@@ -196,7 +196,7 @@ struct PhraseSeq32Ex : Module {
 			//phraseReps[i] = 1;
 			//lengths[i] = 32;
 			cvCPbuffer[i] = 0.0f;
-			attribCPbuffer[i] = SequencerKernel::ATT_MSK_INITSTATE;// lengthCPbuffer non negative will mean buf is for attribs not phrases
+			attribCPbuffer[i].init();// lengthCPbuffer non negative will mean buf is for attribs not phrases
 			phraseCPbuffer[i] = 0;
 			//transposeOffsets[i] = 0;
 		}
@@ -1160,24 +1160,24 @@ struct PhraseSeq32Ex : Module {
 			// Gate, GateProb, Slide and Tied lights 
 			if (editingSequence  || running) {
 				// TODO move next three lines to kernel?
-				SequencerKernel::Attribute attributesVal = seq[0].getAttribute(sequence, stepIndexEdit);
+				Attribute attributesVal = seq[0].getAttribute(sequence, stepIndexEdit);
 				if (!editingSequence)
 					attributesVal = seq[0].getAttribute(seq[0].getPhrase(phraseIndexEdit), seq[0].getStepIndexRun());
 				//
-				if (!seq[0].getGateA(attributesVal)) 
+				if (!attributesVal.getGate()) 
 					setGreenRed(GATE_LIGHT, 0.0f, 0.0f);
 				else if (seq[0].getPulsesPerStep() == 1) 
 					setGreenRed(GATE_LIGHT, 0.0f, 1.0f);
 				else 
 					setGreenRed(GATE_LIGHT, 1.0f, 1.0f);
-				lights[GATE_PROB_LIGHT].value = seq[0].getGatePa(attributesVal) ? 1.0f : 0.0f;
-				lights[SLIDE_LIGHT].value = seq[0].getSlideA(attributesVal) ? 1.0f : 0.0f;
+				lights[GATE_PROB_LIGHT].value = attributesVal.getGateP() ? 1.0f : 0.0f;
+				lights[SLIDE_LIGHT].value = attributesVal.getSlide() ? 1.0f : 0.0f;
 				if (tiedWarning > 0l) {
 					bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
 					lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
 				}
 				else
-					lights[TIE_LIGHT].value = seq[0].getTiedA(attributesVal) ? 1.0f : 0.0f;			
+					lights[TIE_LIGHT].value = attributesVal.getTied() ? 1.0f : 0.0f;			
 			}
 			else {
 				setGreenRed(GATE_LIGHT, 0.0f, 0.0f);

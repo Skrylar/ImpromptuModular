@@ -8,15 +8,63 @@
 using namespace rack;
 
 
-
 int moveIndexEx(int index, int indexNext, int numSteps);
 	
+	
+struct Attribute {
+	// Attributes of a step
+	unsigned long attribute;
+	
+	static const unsigned long ATT_MSK_GATE = 0x01;
+	static const unsigned long ATT_MSK_GATEP = 0x02;
+	static const unsigned long ATT_MSK_SLIDE = 0x04;
+	static const unsigned long ATT_MSK_TIED = 0x08;
+	static const unsigned long ATT_MSK_GATETYPE = 0xF0;
+	static const unsigned long gate1TypeShift = 4;
+	static const unsigned long ATT_MSK_GATEP_VAL = 0xFF00;
+	static const unsigned long GatePValShift = 8;
+	static const unsigned long ATT_MSK_SLIDE_VAL = 0xFF0000;
+	static const unsigned long slideValShift = 16;
+	static const unsigned long ATT_MSK_INITSTATE = (ATT_MSK_GATE | (0 << gate1TypeShift) | (50 << GatePValShift) | (10 << slideValShift));
+
+	inline void init() {attribute = ATT_MSK_INITSTATE;}
+	inline void randomize(int numGateTypes) {attribute =  ((randomu32() & 0xF) & ((randomu32() % numGateTypes) << gate1TypeShift) & ((randomu32() % 101) << GatePValShift) & ((randomu32() % 101) << slideValShift));}
+	
+	inline bool getGate() {return (attribute & ATT_MSK_GATE) != 0;}
+	inline bool getTied() {return (attribute & ATT_MSK_TIED) != 0;}
+	inline bool getGateP() {return (attribute & ATT_MSK_GATEP) != 0;}
+	inline int getGatePVal() {return (int)((attribute & ATT_MSK_GATEP_VAL) >> GatePValShift);}
+	inline bool getSlide() {return (attribute & ATT_MSK_SLIDE) != 0;}
+	inline int getSlideVal() {return (int)((attribute & ATT_MSK_SLIDE_VAL) >> slideValShift);}
+	inline int getGateType() {return ((int)(attribute & ATT_MSK_GATETYPE) >> gate1TypeShift);}
+
+	inline void setGate(bool gate1State) {attribute &= ~ATT_MSK_GATE; if (gate1State) attribute |= ATT_MSK_GATE;}
+	inline void setTied(bool tiedState) {attribute &= ~ATT_MSK_TIED; if (tiedState) attribute |= ATT_MSK_TIED;}
+	inline void setGateP(bool GatePState) {attribute &= ~ATT_MSK_GATEP; if (GatePState) attribute |= ATT_MSK_GATEP;}
+	inline void setGatePVal(int gatePval) {attribute &= ~ATT_MSK_GATEP_VAL; attribute |= (((unsigned long)gatePval) << GatePValShift);}
+	inline void setSlide(bool slideState) {attribute &= ~ATT_MSK_SLIDE; if (slideState) attribute |= ATT_MSK_SLIDE;}
+	inline void setSlideVal(int slideVal) {attribute &= ~ATT_MSK_SLIDE_VAL; attribute |= (((unsigned long)slideVal) << slideValShift);}
+	inline void setGateType(int gate1Type) {attribute &= ~ATT_MSK_GATETYPE; attribute |= (((unsigned long)gate1Type) << gate1TypeShift);}
+
+	inline void toggleGate() {attribute ^= ATT_MSK_GATE;}
+	inline void toggleTied() {attribute ^= ATT_MSK_TIED;}
+	inline void toggleGateP() {attribute ^= ATT_MSK_GATEP;}
+	inline void toggleSlide() {attribute ^= ATT_MSK_SLIDE;}	
+	
+	inline void applyTied() {attribute &= 0xF; attribute |= ATT_MSK_TIED;}// clear other attributes if tied
+};
+
 
 
 struct SequencerKernel {
 	// General constants
 	// ----------------
 
+	static const int NUM_STEPS = 32;
+	static const int NUM_SEQS = 32;
+	static const int NUM_PHRASES = 32;
+
+	
 	// Clock resolution										
 	static const int NUM_PPS_VALUES = 33;
 	static const int ppsValues[NUM_PPS_VALUES];
@@ -30,27 +78,15 @@ struct SequencerKernel {
 	static const uint64_t advGateHitMaskLow[NUM_GATES];		
 	static const uint64_t advGateHitMaskHigh[NUM_GATES];		
 
-	// Attributes of a step
-	typedef unsigned long Attribute;
-	static const Attribute ATT_MSK_GATE = 0x01;
-	static const Attribute ATT_MSK_GATEP = 0x02;
-	static const Attribute ATT_MSK_SLIDE = 0x04;
-	static const Attribute ATT_MSK_TIED = 0x08;
-	static const Attribute ATT_MSK_GATETYPE = 0xF0;
-	static const Attribute gate1TypeShift = 4;
-	static const Attribute ATT_MSK_GATEP_VAL = 0xFF00;
-	static const Attribute GatePValShift = 8;
-	static const Attribute ATT_MSK_SLIDE_VAL = 0xFF0000;
-	static const Attribute slideValShift = 16;
-	static const Attribute ATT_MSK_INITSTATE = (ATT_MSK_GATE | (0 << gate1TypeShift) | (50 << GatePValShift) | (10 << slideValShift));		
-	
-	
+
 	
 	// Member data
 	// ----------------
 	
 	int id;
 	std::string ids;
+	
+	// TODO use constants for array sizes (here and in module)
 	
 	// need to save
 	int runModeSong;	
@@ -153,72 +189,47 @@ struct SequencerKernel {
 		setSlideVal(seqn, stepn, sVal);						
 	}		
 	inline void decSlideStepsRemain() {if (slideStepsRemain > 0ul) slideStepsRemain--;}
+	
+	
 	inline void initCV(int seqn, int step) {cv[seqn][step] = 0.0f;}
 	inline void randomizeCV(int seqn, int step) {cv[seqn][step] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;}
 	
-	
-	// attributes all here
-
-	inline bool getGateA(Attribute attribute) {return (attribute & ATT_MSK_GATE) != 0;}
-	inline bool getTiedA(Attribute attribute) {return (attribute & ATT_MSK_TIED) != 0;}
-	inline bool getGatePa(Attribute attribute) {return (attribute & ATT_MSK_GATEP) != 0;}
-	inline int getGatePValA(Attribute attribute) {return (int)((attribute & ATT_MSK_GATEP_VAL) >> GatePValShift);}
-	inline bool getSlideA(Attribute attribute) {return (attribute & ATT_MSK_SLIDE) != 0;}
-	inline int getSlideValA(Attribute attribute) {return (int)((attribute & ATT_MSK_SLIDE_VAL) >> slideValShift);}
-	inline int getGateAType(Attribute attribute) {return ((int)(attribute & ATT_MSK_GATETYPE) >> gate1TypeShift);}
-
-	inline void setGateA(Attribute *attribute, bool gate1State) {(*attribute) &= ~ATT_MSK_GATE; if (gate1State) (*attribute) |= ATT_MSK_GATE;}
-	inline void setTiedA(Attribute *attribute, bool tiedState) {(*attribute) &= ~ATT_MSK_TIED; if (tiedState) (*attribute) |= ATT_MSK_TIED;}
-	inline void setGatePa(Attribute *attribute, bool GatePState) {(*attribute) &= ~ATT_MSK_GATEP; if (GatePState) (*attribute) |= ATT_MSK_GATEP;}
-	inline void setGatePValA(Attribute *attribute, int gatePval) {(*attribute) &= ~ATT_MSK_GATEP_VAL; (*attribute) |= (((Attribute)gatePval) << GatePValShift);}
-	inline void setSlideA(Attribute *attribute, bool slideState) {(*attribute) &= ~ATT_MSK_SLIDE; if (slideState) (*attribute) |= ATT_MSK_SLIDE;}
-	inline void setSlideValA(Attribute *attribute, int slideVal) {(*attribute) &= ~ATT_MSK_SLIDE_VAL; (*attribute) |= (((Attribute)slideVal) << slideValShift);}
-	inline void setGateTypeA(Attribute *attribute, int gate1Type) {(*attribute) &= ~ATT_MSK_GATETYPE; (*attribute) |= (((Attribute)gate1Type) << gate1TypeShift);}
-
-	inline void toggleGateA(Attribute *attribute) {(*attribute) ^= ATT_MSK_GATE;}
-	inline void toggleTiedA(Attribute *attribute) {(*attribute) ^= ATT_MSK_TIED;}
-	inline void toggleGatePa(Attribute *attribute) {(*attribute) ^= ATT_MSK_GATEP;}
-	inline void toggleSlideA(Attribute *attribute) {(*attribute) ^= ATT_MSK_SLIDE;}
-
-	// TODO replace "step" by "stepn" below
-	
-	inline void initAttribute(int seqn, int step) {attributes[seqn][step] = ATT_MSK_INITSTATE;}
-	inline void randomizeAttribute(int seqn, int step) {// uses lengths[] so make sure that is set up first
-		attributes[seqn][step] = ((randomu32() & 0xF) & ((randomu32() % SequencerKernel::NUM_GATES) << gate1TypeShift) & ((randomu32() % 101) << GatePValShift) & ((randomu32() % 101) << slideValShift));
-		if (getTied(seqn,step)) {
-			attributes[seqn][step] &= 0xF;// clear other attributes if tied
-			attributes[seqn][step] |= ATT_MSK_TIED;
-			applyTiedStep(seqn, step);
-		}
-	}
-
-	inline bool getGate(int seqn, int step) {return getGateA(attributes[seqn][step]);}
-	inline bool getTied(int seqn, int step) {return getTiedA(attributes[seqn][step]);}
-	inline bool getGateP(int seqn, int step) {return getGatePa(attributes[seqn][step]);}
-	inline int getGatePVal(int seqn, int step) {return getGatePValA(attributes[seqn][step]);}
-	inline bool getSlide(int seqn, int step) {return getSlideA(attributes[seqn][step]);}
-	inline int getSlideVal(int seqn, int step) {return getSlideValA(attributes[seqn][step]);}
-	inline int getGateType(int seqn, int step) {return getGateAType(attributes[seqn][step]);}
-
-	inline void setGate(int seqn, int step, bool gateState) {setGateA(&attributes[seqn][step], gateState);}
-	inline void setGateP(int seqn, int step, bool GatePstate) {setGatePa(&attributes[seqn][step], GatePstate);}
-	inline void setGatePVal(int seqn, int step, int gatePval) {setGatePValA(&attributes[seqn][step], gatePval);}
-	inline void setSlide(int seqn, int step, bool slideState) {setSlideA(&attributes[seqn][step], slideState);}
-	inline void setSlideVal(int seqn, int step, int slideVal) {setSlideValA(&attributes[seqn][step], slideVal);}
-	inline void setGateType(int seqn, int step, int gateType) {setGateTypeA(&attributes[seqn][step], gateType);}
-
-	inline void toggleGate(int seqn, int step) {toggleGateA(&attributes[seqn][step]);}
-	inline void toggleTied(int seqn, int stepn) {// will clear other attribs if new state is on
-		toggleTiedA(&attributes[seqn][stepn]);
+	inline void initAttribute(int seqn, int stepn) {attributes[seqn][stepn].init();}
+	inline void randomizeAttribute(int seqn, int stepn) {// uses lengths[] so make sure that is set up first
+		attributes[seqn][stepn].randomize(NUM_GATES);
 		if (getTied(seqn,stepn)) {
-			setGate(seqn, stepn, false);
-			setGateP(seqn, stepn, false);
-			setSlide(seqn, stepn, false);
+			attributes[seqn][stepn].applyTied();
 			applyTiedStep(seqn, stepn);
 		}
 	}
-	inline void toggleGateP(int seqn, int step) {toggleGatePa(&attributes[seqn][step]);}
-	inline void toggleSlide(int seqn, int step) {toggleSlideA(&attributes[seqn][step]);}	
+
+	inline bool getGate(int seqn, int stepn) {return attributes[seqn][stepn].getGate();}
+	inline bool getTied(int seqn, int stepn) {return attributes[seqn][stepn].getTied();}
+	inline bool getGateP(int seqn, int stepn) {return attributes[seqn][stepn].getGateP();}
+	inline int getGatePVal(int seqn, int stepn) {return attributes[seqn][stepn].getGatePVal();}
+	inline bool getSlide(int seqn, int stepn) {return attributes[seqn][stepn].getSlide();}
+	inline int getSlideVal(int seqn, int stepn) {return attributes[seqn][stepn].getSlideVal();}
+	inline int getGateType(int seqn, int stepn) {return attributes[seqn][stepn].getGateType();}
+
+	inline void setGate(int seqn, int stepn, bool gateState) {attributes[seqn][stepn].setGate(gateState);}
+	inline void setGateP(int seqn, int stepn, bool GatePstate) {attributes[seqn][stepn].setGateP(GatePstate);}
+	inline void setGatePVal(int seqn, int stepn, int gatePval) {attributes[seqn][stepn].setGatePVal(gatePval);}
+	inline void setSlide(int seqn, int stepn, bool slideState) {attributes[seqn][stepn].setSlide(slideState);}
+	inline void setSlideVal(int seqn, int stepn, int slideVal) {attributes[seqn][stepn].setSlideVal(slideVal);}
+	inline void setGateType(int seqn, int stepn, int gateType) {attributes[seqn][stepn].setGateType(gateType);}
+
+	inline void toggleGate(int seqn, int stepn) {attributes[seqn][stepn].toggleGate();}
+	inline void toggleTied(int seqn, int stepn) {// will clear other attribs if new state is on
+		attributes[seqn][stepn].toggleTied();
+		if (attributes[seqn][stepn].getTied()) {
+			attributes[seqn][stepn].setGate(false);
+			attributes[seqn][stepn].setGateP(false);
+			attributes[seqn][stepn].setSlide(false);
+			applyTiedStep(seqn, stepn);
+		}
+	}
+	inline void toggleGateP(int seqn, int step) {attributes[seqn][step].toggleGateP();}
+	inline void toggleSlide(int seqn, int step) {attributes[seqn][step].toggleSlide();}	
 	
 	
 	// Main methods
@@ -324,7 +335,7 @@ struct SequencerKernel {
 		json_t *attributesJ = json_array();
 		for (int i = 0; i < 32; i++)
 			for (int s = 0; s < 32; s++) {
-				json_array_insert_new(attributesJ, s + (i * 32), json_integer(attributes[i][s]));
+				json_array_insert_new(attributesJ, s + (i * 32), json_integer(attributes[i][s].attribute));
 			}
 		json_object_set_new(rootJ, (ids + "attributes").c_str(), attributesJ);
 
@@ -408,7 +419,7 @@ struct SequencerKernel {
 				for (int s = 0; s < 32; s++) {
 					json_t *attributesArrayJ = json_array_get(attributesJ, s + (i * 32));
 					if (attributesArrayJ)
-						attributes[i][s] = json_integer_value(attributesArrayJ);
+						attributes[i][s].attribute = json_integer_value(attributesArrayJ);
 				}
 		}
 
@@ -514,17 +525,17 @@ struct SequencerKernel {
 
 		if (gateCode != -1 || ppqnCount == 0) {// always calc on first ppqnCount, avoid thereafter if gate will be off for whole step
 			// -1 = gate off for whole step, 0 = gate off for current ppqn, 1 = gate on, 2 = clock high, 3 = trigger
-			if ( ppqnCount == 0 && getGatePa(attribute) && !(randomUniform() < ((float)getGatePValA(attribute) / 100.0f)) ) {// randomUniform is [0.0, 1.0), see include/util/common.hpp
+			if ( ppqnCount == 0 && attribute.getGateP() && !(randomUniform() < ((float)attribute.getGatePVal() / 100.0f)) ) {// randomUniform is [0.0, 1.0), see include/util/common.hpp
 				gateCode = -1;// must do this first in this method since it will kill rest of step if prob turns off the step
 			}
-			else if (!getGateA(attribute)) {
+			else if (!attribute.getGate()) {
 				gateCode = 0;
 			}
 			else if (pulsesPerStepIndex == 0) {
 				gateCode = 2;// clock high pulse
 			}
 			else {
-				gateType = getGateAType(attribute);
+				gateType = attribute.getGateType();
 				if (gateType == 11) {
 					gateCode = (ppqnCount == 0 ? 3 : 0);
 				}
