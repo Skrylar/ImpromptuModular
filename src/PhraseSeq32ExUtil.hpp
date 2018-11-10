@@ -223,75 +223,82 @@ struct SequencerKernel {
 	
 	
 	// init
-	inline void initCV(int seqn, int step) {cv[seqn][step] = 0.0f;}
-	inline void initAttribute(int seqn, int stepn) {attributes[seqn][stepn].init();}
 	inline void initSequence(int seqn) {
 		for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
-			initCV(seqn, stepn);
-			initAttribute(seqn, stepn);
+			cv[seqn][stepn] = 0.0f;
+			attributes[seqn][stepn].init();
 		}
+		transposeOffsets[seqn] = 0;
 	}
-	inline void initTransposeOffset(int seqn) {transposeOffsets[seqn] = 0;}
-	inline void initPhraseRep(int phrn) {phraseReps[phrn] = 1;}
 	inline void initSong() {
-		for (int phrn = 0; phrn < MAX_PHRASES; phrn++)
-			setPhrase(phrn, 0);
-	}
-	inline void initPhraseReps() {
-		for (int phrn = 0; phrn < MAX_PHRASES; phrn++)
-			initPhraseRep(phrn);
+		for (int phrn = 0; phrn < MAX_PHRASES; phrn++) {
+			phrase[phrn] = 0;
+			phraseReps[phrn] = 1;
+		}
 	}
 
 	// randomize and staircase
-	inline void randomizeCV(int seqn, int step) {cv[seqn][step] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;}
-	inline void randomizeAttribute(int seqn, int stepn) {// uses lengths[] so make sure that is set up first
-		attributes[seqn][stepn].randomize(NUM_GATES);
-		if (getTied(seqn,stepn)) {
-			attributes[seqn][stepn].applyTied();
-			applyTiedStep(seqn, stepn);
-		}
-	}
-	inline void randomizeSequence(int seqn) {
-		for (int stepn = 0; stepn < MAX_STEPS; stepn++)
-			randomizeCV(seqn, stepn);
-	}
-	inline void randomizeGate(int seqn) {
+	inline void randomizeGates(int seqn) {
 		for (int stepn = 0; stepn < MAX_STEPS; stepn++)
 			if ( (randomu32() & 0x1) != 0)
 				toggleGate(seqn, stepn);
 	}
-	inline void randomizePhrase(int phrn) {phrase[phrn] = randomu32() % MAX_PHRASES;}
-	inline void randomizeSong() {
-		for (int phrn = 0; phrn < MAX_PHRASES; phrn++)
-			randomizePhrase(phrn);
+	inline void randomizeAttributes(int seqn) {// uses lengths[] so make sure that is set up first
+		for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
+			attributes[seqn][stepn].randomize(NUM_GATES);
+			if (getTied(seqn,stepn)) {
+				attributes[seqn][stepn].applyTied();
+				applyTiedStep(seqn, stepn);
+			}
+		}
 	}
-	inline void randomizePhraseRep(int phrn) {phraseReps[phrn] = randomu32() % 4 + 1;}
-	inline void randomizePhraseReps() {	
-		for (int phrn = 0; phrn < MAX_PHRASES; phrn++)
-			randomizePhraseRep(phrn);
+	inline void randomizeCVs(int seqn) {
+		for (int stepn = 0; stepn < MAX_STEPS; stepn++)
+			cv[seqn][stepn] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
+		transposeOffsets[seqn] = 0;
+	}
+	inline void randomizeSequence(int seqn) {
+		randomizeCVs(seqn);
+		randomizeAttributes(seqn);
+	}
+	inline void randomizeSong() {
+		for (int phrn = 0; phrn < MAX_PHRASES; phrn++) {
+			phrase[phrn] = randomu32() % MAX_PHRASES;
+			phraseReps[phrn] = randomu32() % 4 + 1;
+		}
 	}
 	inline void staircaseSong() {
-		for (int phrn = 0; phrn < MAX_PHRASES; phrn++)
-			phrase[phrn] = phrn;	
+		for (int phrn = 0; phrn < MAX_PHRASES; phrn++) {
+			phrase[phrn] = phrn;
+			phraseReps[phrn] = 1;	
+		}			
 	}		
 
 	// copy-paste sequence or song
-	inline void copySequence(float* cvCPbuffer, Attribute* attribCPbuffer, int seqn, int startCP, int countCP) {
+	inline void copySequence(float* cvCPbuffer, Attribute* attribCPbuffer, int* lengthCPbuffer, int* modeCPbuffer, int seqn, int startCP, int countCP) {
 		for (int i = 0, stepn = startCP; i < countCP; i++, stepn++) {
 			cvCPbuffer[i] = cv[seqn][stepn];
 			attribCPbuffer[i] = attributes[seqn][stepn];
 		}
+		*lengthCPbuffer = lengths[seqn];
+		*modeCPbuffer = runModeSeq[seqn];
 	}
-	inline void copyPhrase(int* phraseCPbuffer, int* repCPbuffer, int startCP, int countCP) {				
+	inline void copyPhrase(int* phraseCPbuffer, int* repCPbuffer, int* lengthCPbuffer, int startCP, int countCP) {				
 		for (int i = 0, phrn = startCP; i < countCP; i++, phrn++) {
 			phraseCPbuffer[i] = phrase[phrn];
 			repCPbuffer[i] = phraseReps[phrn];
 		}
+		*lengthCPbuffer = -1;// so that a cross paste can be detected
 	}
-	inline void pasteSequence(float* cvCPbuffer, Attribute* attribCPbuffer, int seqn, int startCP, int countCP) {
+	inline void pasteSequence(float* cvCPbuffer, Attribute* attribCPbuffer, int* lengthCPbuffer, int* modeCPbuffer, int seqn, int startCP, int countCP) {
 		for (int i = 0, stepn = startCP; i < countCP; i++, stepn++) {
 			cv[seqn][stepn] = cvCPbuffer[i];
 			attributes[seqn][stepn] = attribCPbuffer[i];
+		}
+		if (countCP == MAX_STEPS) {// all
+			lengths[seqn] = *lengthCPbuffer;
+			runModeSeq[seqn] = *modeCPbuffer;
+			transposeOffsets[seqn] = 0;
 		}
 	}
 	inline void pastePhrase(int* phraseCPbuffer, int* repCPbuffer, int startCP, int countCP) {	
@@ -316,11 +323,9 @@ struct SequencerKernel {
 		runModeSong = MODE_FWD;
 		phrases = 4;
 		initSong();
-		initPhraseReps();
 		for (int seqn = 0; seqn < MAX_SEQS; seqn++) {
 			runModeSeq[seqn] = MODE_FWD;
 			lengths[seqn] = MAX_SEQS;			
-			initTransposeOffset(seqn);
 			initSequence(seqn);		
 		}
 		slideStepsRemain = 0ul;
@@ -332,12 +337,10 @@ struct SequencerKernel {
 		runModeSong = randomu32() % 5;
 		phrases = 1 + (randomu32() % MAX_PHRASES);
 		randomizeSong();
-		randomizePhraseReps();
 		for (int seqn = 0; seqn < MAX_SEQS; seqn++) {
 			runModeSeq[seqn] = randomu32() % NUM_MODES;
 			lengths[seqn] = 1 + (randomu32() % MAX_SEQS);
-			initTransposeOffset(seqn);
-			randomizeSequence(seqn);
+			randomizeSequence(seqn);// uses lengths[] so must be after lengths[] randomized
 		}
 		// no need to call initRun() here since user of the kernel does it in its onRandomize() via its initRun()
 	}

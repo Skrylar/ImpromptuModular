@@ -171,7 +171,7 @@ struct PhraseSeq32Ex : Module {
 			
 		for (int stepn = 0; stepn < SequencerKernel::MAX_STEPS; stepn++) {
 			cvCPbuffer[stepn] = 0.0f;
-			attribCPbuffer[stepn].init();// lengthCPbuffer non negative will mean buf is for attribs not phrases
+			attribCPbuffer[stepn].init();
 		}
 		lengthCPbuffer = SequencerKernel::MAX_STEPS;
 		modeCPbuffer = SequencerKernel::MODE_FWD;
@@ -360,13 +360,10 @@ struct PhraseSeq32Ex : Module {
 				else// 8
 					countCP = min(8, countCP - startCP);
 				if (editingSequence) {
-					seq[0].copySequence(cvCPbuffer, attribCPbuffer, sequence, startCP, countCP);
-					lengthCPbuffer = seq[0].getLength(sequence);
-					modeCPbuffer = seq[0].getRunModeSeq(sequence);
+					seq[0].copySequence(cvCPbuffer, attribCPbuffer, &lengthCPbuffer, &modeCPbuffer, sequence, startCP, countCP);
 				}
 				else {
-					seq[0].copyPhrase(phraseCPbuffer, repCPbuffer, startCP, countCP);
-					lengthCPbuffer = -1;// so that a cross paste can be detected
+					seq[0].copyPhrase(phraseCPbuffer, repCPbuffer, &lengthCPbuffer, startCP, countCP);
 				}
 				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 				displayState = DISP_NORMAL;
@@ -379,28 +376,19 @@ struct PhraseSeq32Ex : Module {
 					startCP = editingSequence ? stepIndexEdit : phraseIndexEdit;
 					countCP = min(countCP, (editingSequence ? SequencerKernel::MAX_STEPS : SequencerKernel::MAX_PHRASES) - startCP);
 				}
-				// else nothing to do for ALL
-
 				if (editingSequence) {
 					if (lengthCPbuffer >= 0) {// non-crossed paste (seq vs song)
-						seq[0].pasteSequence(cvCPbuffer, attribCPbuffer, sequence, startCP, countCP);
-						if (params[CPMODE_PARAM].value > 1.5f) {// all
-							seq[0].setLength(sequence, lengthCPbuffer);
-							seq[0].setRunModeSeq(sequence, modeCPbuffer);
-							seq[0].initTransposeOffset(sequence);
-						}
+						seq[0].pasteSequence(cvCPbuffer, attribCPbuffer, &lengthCPbuffer, &modeCPbuffer, sequence, startCP, countCP);
 					}
 					else {// crossed paste to seq (seq vs song)
-						if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init steps)
+						if (params[CPMODE_PARAM].value > 1.5f) { // ALL
 							seq[0].initSequence(sequence);
-							seq[0].initTransposeOffset(sequence);
 						}
-						else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (randomize CVs)
-							seq[0].randomizeSequence(sequence);
-							seq[0].initTransposeOffset(sequence);
+						else if (params[CPMODE_PARAM].value < 0.5f) {// 4
+							seq[0].randomizeCVs(sequence);
 						}
-						else {// 8 (randomize gate)
-							seq[0].randomizeGate(sequence);
+						else {// 8
+							seq[0].randomizeGates(sequence);
 						}
 						startCP = 0;// light everything when cross paste
 						countCP = SequencerKernel::MAX_STEPS;
@@ -412,16 +400,14 @@ struct PhraseSeq32Ex : Module {
 						seq[0].pastePhrase(phraseCPbuffer, repCPbuffer, startCP, countCP);
 					}
 					else {// crossed paste to song (seq vs song)
-						if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init phrases)
+						if (params[CPMODE_PARAM].value > 1.5f) { // ALL
 							seq[0].initSong();
-							seq[0].initPhraseReps();
 						}
-						else if (params[CPMODE_PARAM].value < 0.5f) {// 4 (phrases increase from 1 to MAX_PHRASES)
+						else if (params[CPMODE_PARAM].value < 0.5f) {// 4 
 							seq[0].staircaseSong();
 						}
-						else {// 8 (randomize phrases)
+						else {// 8
 							seq[0].randomizeSong();
-							seq[0].randomizePhraseReps();
 						}
 						startCP = 0;// light everything when cross paste
 						countCP = SequencerKernel::MAX_PHRASES;// could be MAX_STEPS also since lights used for both
@@ -474,11 +460,7 @@ struct PhraseSeq32Ex : Module {
 				else {
 					if (!running || !attached) {// don't move heads when attach and running
 						if (editingSequence) {
-							stepIndexEdit += delta;
-							if (stepIndexEdit < 0)
-								stepIndexEdit = seq[0].getLength(sequence) - 1;
-							if (stepIndexEdit >= SequencerKernel::MAX_STEPS)
-								stepIndexEdit = 0;
+							stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + delta, SequencerKernel::MAX_STEPS);
 							if (!seq[0].getTied(sequence,stepIndexEdit)) {// play if non-tied step
 								if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
 									editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);

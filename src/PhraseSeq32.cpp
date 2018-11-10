@@ -783,11 +783,7 @@ struct PhraseSeq32 : Module {
 				else {
 					if (!running || !attached) {// don't move heads when attach and running
 						if (editingSequence) {
-							stepIndexEdit += delta;
-							if (stepIndexEdit < 0)
-								stepIndexEdit = ((stepConfig == 1) ? 16 : 0) + lengths[sequence] - 1;
-							if (stepIndexEdit >= 32)
-								stepIndexEdit = 0;
+							stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, 32);
 							if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
 								if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
 									editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
