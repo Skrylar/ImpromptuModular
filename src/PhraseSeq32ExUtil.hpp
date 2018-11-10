@@ -156,7 +156,7 @@ struct SequencerKernel {
 	inline void setGateType(int seqn, int stepn, int gateType) {attributes[seqn][stepn].setGateType(gateType);}
 
 	
-	// mod, dec, toggle
+	// mod, dec, toggle etc
 	inline void modRunModeSong(int delta) {runModeSong += delta; if (runModeSong < 0) runModeSong = 0; if (runModeSong >= NUM_MODES) runModeSong = NUM_MODES - 1;}
 	inline void modRunModeSeq(int seqn, int delta) {
 		runModeSeq[seqn] += delta;
@@ -188,11 +188,6 @@ struct SequencerKernel {
 		if (pulsesPerStepIndex < 0) pulsesPerStepIndex = 0;
 		if (pulsesPerStepIndex >= NUM_PPS_VALUES) pulsesPerStepIndex = NUM_PPS_VALUES - 1;
 	}
-	inline void modTransposeOffset(int seqn, int delta) {
-		transposeOffsets[seqn] += delta;
-		if (transposeOffsets[seqn] > 99) transposeOffsets[seqn] = 99;
-		if (transposeOffsets[seqn] < -99) transposeOffsets[seqn] = -99;						
-	}
 	inline void modGatePVal(int seqn, int stepn, int delta) {
 		int pVal = getGatePVal(seqn, stepn);
 		pVal += delta;
@@ -220,8 +215,27 @@ struct SequencerKernel {
 	}
 	inline void toggleGateP(int seqn, int step) {attributes[seqn][step].toggleGateP();}
 	inline void toggleSlide(int seqn, int step) {attributes[seqn][step].toggleSlide();}	
-	
-	
+	inline float applyNewOctave(int seqn, int stepn, int newOct) {
+		float newCV = cv[seqn][stepn] + 10.0f;//to properly handle negative note voltages
+		newCV = newCV - floor(newCV) + (float) (newOct - 3);
+		if (newCV >= -3.0f && newCV < 4.0f) {
+			cv[seqn][stepn] = newCV;
+			applyTiedStep(seqn, stepn);
+		}
+		return newCV;
+	}
+	inline float applyNewKey(int seqn, int stepn, int newKeyIndex) {
+		float newCV = floor(cv[seqn][stepn]) + ((float) newKeyIndex) / 12.0f;
+		cv[seqn][stepn] = newCV;
+		applyTiedStep(seqn, stepn);
+		return newCV;
+	}
+	inline float writeCV(int seqn, int stepn, float newCV) {
+		cv[seqn][stepn] = newCV;
+		applyTiedStep(seqn, stepn);// TODO this is weird since the step may be tied ??
+		return cv[seqn][stepn];// may have changed with the applyTiedStep?? so must return
+	}
+
 	// init
 	inline void initSequence(int seqn) {
 		for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
@@ -513,38 +527,69 @@ struct SequencerKernel {
 	}
 	
 	
-	inline void transposeSeq(int seqNum, float offsetCV) {
+	inline void transposeSeq(int seqn, int delta) {
+		int oldTransposeOffset = transposeOffsets[seqn];
+		transposeOffsets[seqn] += delta;
+		if (transposeOffsets[seqn] > 99) transposeOffsets[seqn] = 99;
+		if (transposeOffsets[seqn] < -99) transposeOffsets[seqn] = -99;						
+
+		delta = transposeOffsets[seqn] - oldTransposeOffset;
+		if (delta == 0) 
+			return;// if end of range, no transpose to do
+		float offsetCV = ((float)(delta))/12.0f;
 		for (int stepn = 0; stepn < MAX_STEPS; stepn++) 
-			cv[seqNum][stepn] += offsetCV;
+			cv[seqn][stepn] += offsetCV;
 	}
 
 	
-	void rotateSeq(int seqNum, bool directionRight) {
+	void rotateSeq(int* rotateOffset, int seqn, int delta) {
+		int oldRotateOffset = *rotateOffset;
+		*rotateOffset += delta;
+		if (*rotateOffset > 99) *rotateOffset = 99;
+		if (*rotateOffset < -99) *rotateOffset = -99;	
+		
+		delta = *rotateOffset - oldRotateOffset;
+		if (delta == 0) 
+			return;// if end of range, no transpose to do
+		
+		if (delta > 0 && delta < 201) {// Rotate right, 201 is safety
+			for (int i = delta; i > 0; i--) {
+				rotateSeqByOne(seqn, true);
+			}
+		}
+		if (delta < 0 && delta > -201) {// Rotate left, 201 is safety
+			for (int i = delta; i < 0; i++) {
+				rotateSeqByOne(seqn, false);
+			}
+		}
+	}		
+	
+	void rotateSeqByOne(int seqn, bool directionRight) {
 		float rotCV;
 		Attribute rotAttributes;
 		int iStart = 0;
-		int iEnd = lengths[seqNum] - 1;
+		int iEnd = lengths[seqn] - 1;
 		int iRot = iStart;
 		int iDelta = 1;
 		if (directionRight) {
 			iRot = iEnd;
 			iDelta = -1;
 		}
-		rotCV = cv[seqNum][iRot];
-		rotAttributes = attributes[seqNum][iRot];
+		rotCV = cv[seqn][iRot];
+		rotAttributes = attributes[seqn][iRot];
 		for ( ; ; iRot += iDelta) {
 			if (iDelta == 1 && iRot >= iEnd) break;
 			if (iDelta == -1 && iRot <= iStart) break;
-			cv[seqNum][iRot] = cv[seqNum][iRot + iDelta];
-			attributes[seqNum][iRot] = attributes[seqNum][iRot + iDelta];
+			cv[seqn][iRot] = cv[seqn][iRot + iDelta];
+			attributes[seqn][iRot] = attributes[seqn][iRot + iDelta];
 		}
-		cv[seqNum][iRot] = rotCV;
-		attributes[seqNum][iRot] = rotAttributes;
+		cv[seqn][iRot] = rotCV;
+		attributes[seqn][iRot] = rotAttributes;
 	}
 
 	
-	void applyTiedStep(int seqNum, int indexTied) {
-		int seqLength = lengths[seqNum];
+	void applyTiedStep(int seqn, int indexTied) {
+		int seqLength = lengths[seqn];
 		// Start on indexTied and loop until seqLength
 		// Called because either:
 		//   case A: tied was activated for given step
@@ -552,12 +597,12 @@ struct SequencerKernel {
 		// These cases are mutually exclusive
 		
 		// copy previous CV over to current step if tied
-		if (getTied(seqNum,indexTied) && (indexTied > 0))
-			cv[seqNum][indexTied] = cv[seqNum][indexTied - 1];
+		if (getTied(seqn,indexTied) && (indexTied > 0))
+			cv[seqn][indexTied] = cv[seqn][indexTied - 1];
 		
 		// Affect downstream CVs of subsequent tied note chain (can be 0 length if next note is not tied)
-		for (int i = indexTied + 1; i < seqLength && getTied(seqNum,i); i++) 
-			cv[seqNum][i] = cv[seqNum][indexTied];
+		for (int i = indexTied + 1; i < seqLength && getTied(seqn,i); i++) 
+			cv[seqn][i] = cv[seqn][indexTied];
 	}	
 	
 	
