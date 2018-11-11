@@ -61,6 +61,7 @@ struct PhraseSeq32Ex : Module {
 	};
 	enum OutputIds {
 		ENUMS(CV_OUTPUTS, 4),
+		ENUMS(VEL_OUTPUTS, 4),
 		ENUMS(GATE_OUTPUTS, 4),
 		NUM_OUTPUTS
 	};
@@ -728,34 +729,7 @@ struct PhraseSeq32Ex : Module {
 		// Clock
 		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
 			if (running && clockIgnoreOnReset == 0l) {
-				int newSeq = sequence;// good value when editingSequence, overwrite if not editingSequence
-				if (sek[0].incPpqnCountAndCmpWithZero()) {
-					float slideFromCV = 0.0f;
-					if (editingSequence) {
-						slideFromCV = sek[0].getCV(sequence, sek[0].getStepIndexRun());
-						sek[0].moveIndexRunMode(true, sek[0].getLength(sequence), sek[0].getRunModeSeq(sequence),  1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the same seq continually)
-					}
-					else {
-						slideFromCV = sek[0].getCV(sek[0].getPhrase(sek[0].getPhraseIndexRun()), sek[0].getStepIndexRun());
-						if (sek[0].moveIndexRunMode(true, sek[0].getLength(sek[0].getPhrase(sek[0].getPhraseIndexRun())), sek[0].getRunModeSeq(sek[0].getPhrase(sek[0].getPhraseIndexRun())), sek[0].getPhraseReps(sek[0].getPhraseIndexRun()))) {
-							sek[0].moveIndexRunMode(false, sek[0].getPhrases(), sek[0].getRunModeSong(), 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the song continually)
-							sek[0].setStepIndexRun(sek[0].getRunModeSeq(sek[0].getPhrase(sek[0].getPhraseIndexRun())) == SequencerKernel::MODE_REV ? sek[0].getLength(sek[0].getPhrase(sek[0].getPhraseIndexRun())) - 1 : 0);// must always refresh after phraseIndexRun has changed
-						}
-						newSeq = sek[0].getPhrase(sek[0].getPhraseIndexRun());
-					}
-
-					// Slide
-					if (sek[0].getSlide(newSeq, sek[0].getStepIndexRun())) {
-						float slideToCV = sek[0].getCV(newSeq, sek[0].getStepIndexRun());
-						unsigned long slideStepsRemaining = (unsigned long) (((float)clockPeriod * sek[0].getPulsesPerStep()) * ((float)sek[0].getSlideVal(newSeq, sek[0].getStepIndexRun()) / 100.0f));
-						sek[0].setSlideStepsRemainAndCVdelta(slideStepsRemaining, slideToCV - slideFromCV);
-					}
-				}
-				else {
-					if (!editingSequence)
-						newSeq = sek[0].getPhrase(sek[0].getPhraseIndexRun());
-				}
-				sek[0].calcGateCodeEx(newSeq);// uses stepIndexRun as the step
+				sek[0].clockStep(editingSequence, sequence, clockPeriod);
 			}
 			clockPeriod = 0ul;
 		}

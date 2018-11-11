@@ -27,27 +27,31 @@ class Attribute {
 	static const unsigned long GatePValShift = 8;
 	static const unsigned long ATT_MSK_SLIDE_VAL = 0xFF0000;
 	static const unsigned long slideValShift = 16;
-	static const unsigned long ATT_MSK_INITSTATE = (ATT_MSK_GATE | (0 << gate1TypeShift) | (50 << GatePValShift) | (10 << slideValShift));
+	static const unsigned long ATT_MSK_VELOCITY = 0x7F000000;
+	static const unsigned long velocityShift = 24;
+	static const unsigned long ATT_MSK_INITSTATE = (ATT_MSK_GATE | (0 << gate1TypeShift) | (50 << GatePValShift) | (10 << slideValShift) | (100 << velocityShift));
 
 	inline void init() {attribute = ATT_MSK_INITSTATE;}
 	inline void randomize(int numGateTypes) {attribute =  ((randomu32() & 0xF) & ((randomu32() % numGateTypes) << gate1TypeShift) & ((randomu32() % 101) << GatePValShift) & ((randomu32() % 101) << slideValShift));}
 	
 	inline bool getGate() {return (attribute & ATT_MSK_GATE) != 0;}
+	inline int getGateType() {return ((int)(attribute & ATT_MSK_GATETYPE) >> gate1TypeShift);}
 	inline bool getTied() {return (attribute & ATT_MSK_TIED) != 0;}
 	inline bool getGateP() {return (attribute & ATT_MSK_GATEP) != 0;}
 	inline int getGatePVal() {return (int)((attribute & ATT_MSK_GATEP_VAL) >> GatePValShift);}
 	inline bool getSlide() {return (attribute & ATT_MSK_SLIDE) != 0;}
 	inline int getSlideVal() {return (int)((attribute & ATT_MSK_SLIDE_VAL) >> slideValShift);}
-	inline int getGateType() {return ((int)(attribute & ATT_MSK_GATETYPE) >> gate1TypeShift);}
+	inline int getVelocity() {return (int)((attribute & ATT_MSK_VELOCITY) >> velocityShift);}
 	inline unsigned long getAttribute() {return attribute;}
 
 	inline void setGate(bool gate1State) {attribute &= ~ATT_MSK_GATE; if (gate1State) attribute |= ATT_MSK_GATE;}
+	inline void setGateType(int gate1Type) {attribute &= ~ATT_MSK_GATETYPE; attribute |= (((unsigned long)gate1Type) << gate1TypeShift);}
 	inline void setTied(bool tiedState) {attribute &= ~ATT_MSK_TIED; if (tiedState) attribute |= ATT_MSK_TIED;}
 	inline void setGateP(bool GatePState) {attribute &= ~ATT_MSK_GATEP; if (GatePState) attribute |= ATT_MSK_GATEP;}
 	inline void setGatePVal(int gatePval) {attribute &= ~ATT_MSK_GATEP_VAL; attribute |= (((unsigned long)gatePval) << GatePValShift);}
 	inline void setSlide(bool slideState) {attribute &= ~ATT_MSK_SLIDE; if (slideState) attribute |= ATT_MSK_SLIDE;}
 	inline void setSlideVal(int slideVal) {attribute &= ~ATT_MSK_SLIDE_VAL; attribute |= (((unsigned long)slideVal) << slideValShift);}
-	inline void setGateType(int gate1Type) {attribute &= ~ATT_MSK_GATETYPE; attribute |= (((unsigned long)gate1Type) << gate1TypeShift);}
+	inline void setVelocity(int _velocity) {attribute &= ~ATT_MSK_VELOCITY; attribute |= (((unsigned long)_velocity) << velocityShift);}
 	inline void setAttribute(unsigned long _attribute) {attribute = _attribute;}
 
 	inline void toggleGate() {attribute ^= ATT_MSK_GATE;}
@@ -137,6 +141,7 @@ class SequencerKernel {
 	inline int getGatePVal(int seqn, int stepn) {return attributes[seqn][stepn].getGatePVal();}
 	inline bool getSlide(int seqn, int stepn) {return attributes[seqn][stepn].getSlide();}
 	inline int getSlideVal(int seqn, int stepn) {return attributes[seqn][stepn].getSlideVal();}
+	inline int getVelocity(int seqn, int stepn) {return attributes[seqn][stepn].getVelocity();}
 	inline int getGateType(int seqn, int stepn) {return attributes[seqn][stepn].getGateType();}
 	inline float getCurrentCV(bool editingSequence, int sequence, int stepIndexEdit, int phraseIndexEdit) {
 		if (editingSequence)
@@ -156,10 +161,6 @@ class SequencerKernel {
 	inline void setPhrases(int _phrases) {phrases = _phrases;}
 	inline void setLength(int seqn, int _length) {lengths[seqn] = _length;}
 	inline void setPhrase(int phrn, int seqn) {phrase[phrn] = seqn;}
-	inline void setSlideStepsRemainAndCVdelta(unsigned long _slideStepsRemain, float cvdelta) {
-		slideStepsRemain = _slideStepsRemain; 
-		slideCVdelta = cvdelta/(float)slideStepsRemain;
-	}
 	inline void setStepIndexRun(int _stepIndexRun) {stepIndexRun = _stepIndexRun;}
 	inline void setPhraseIndexRun(int _phraseIndexRun) {phraseIndexRun = _phraseIndexRun;}
 	inline void setCV(int seqn, int stepn, float _cv) {cv[seqn][stepn] = _cv;}
@@ -169,10 +170,11 @@ class SequencerKernel {
 	inline void setGatePVal(int seqn, int stepn, int gatePval) {attributes[seqn][stepn].setGatePVal(gatePval);}
 	inline void setSlide(int seqn, int stepn, bool slideState) {attributes[seqn][stepn].setSlide(slideState);}
 	inline void setSlideVal(int seqn, int stepn, int slideVal) {attributes[seqn][stepn].setSlideVal(slideVal);}
+	inline void setVelocity(int seqn, int stepn, int velocity) {attributes[seqn][stepn].setVelocity(velocity);}
 	inline void setGateType(int seqn, int stepn, int gateType) {attributes[seqn][stepn].setGateType(gateType);}
 
 	
-	// Mod, inc, dec, toggle etc
+	// Mod, inc, dec, toggle, etc
 	// ----------------
 	inline void modRunModeSong(int delta) {runModeSong += delta; if (runModeSong < 0) runModeSong = 0; if (runModeSong >= NUM_MODES) runModeSong = NUM_MODES - 1;}
 	inline void modRunModeSeq(int seqn, int delta) {
@@ -219,12 +221,6 @@ class SequencerKernel {
 		if (sVal < 0) sVal = 0;
 		setSlideVal(seqn, stepn, sVal);						
 	}		
-	inline bool incPpqnCountAndCmpWithZero() {
-		ppqnCount++;
-		if (ppqnCount >= ppsValues[pulsesPerStepIndex])
-			ppqnCount = 0;
-		return ppqnCount == 0;
-	}
 	inline void decSlideStepsRemain() {if (slideStepsRemain > 0ul) slideStepsRemain--;}	
 	inline void toggleGate(int seqn, int stepn) {attributes[seqn][stepn].toggleGate();}
 	inline void toggleTied(int seqn, int stepn) {// will clear other attribs if new state is on
@@ -565,6 +561,41 @@ class SequencerKernel {
 					transposeOffsets[i] = json_integer_value(transposeOffsetsArrayJ);
 			}			
 		}		
+	}
+	
+	
+	void clockStep(bool editingSequence, int sequence, unsigned long clockPeriod) {
+		int newSeq = sequence;// good value when editingSequence, overwrite if not editingSequence
+		ppqnCount++;
+		if (ppqnCount >= ppsValues[pulsesPerStepIndex])
+			ppqnCount = 0;
+		if (ppqnCount == 0) {
+			float slideFromCV = 0.0f;
+			if (editingSequence) {
+				slideFromCV = cv[sequence][stepIndexRun];
+				moveIndexRunMode(true, lengths[sequence], runModeSeq[sequence], 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the same seq continually)
+			}
+			else {
+				slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
+				if (moveIndexRunMode(true, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], phraseReps[phraseIndexRun])) {
+					moveIndexRunMode(false, phrases, runModeSong, 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the song continually)
+					stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
+				}
+				newSeq = phrase[phraseIndexRun];
+			}
+
+			// Slide
+			if (attributes[newSeq][stepIndexRun].getSlide()) {
+				slideStepsRemain = (unsigned long) (((float)clockPeriod * ppsValues[pulsesPerStepIndex]) * ((float)attributes[newSeq][stepIndexRun].getSlideVal() / 100.0f));
+				float slideToCV = cv[newSeq][stepIndexRun];
+				slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
+			}
+		}
+		else {
+			if (!editingSequence)
+				newSeq = phrase[phraseIndexRun];
+		}
+		calcGateCodeEx(newSeq);// uses stepIndexRun as the step		
 	}
 	
 	
