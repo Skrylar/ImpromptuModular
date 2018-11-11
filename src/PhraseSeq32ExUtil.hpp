@@ -11,10 +11,12 @@ using namespace rack;
 int moveIndexEx(int index, int indexNext, int numSteps);
 	
 	
-struct Attribute {
+class Attribute {
 	// Attributes of a step
 	unsigned long attribute;
 	
+	public:
+
 	static const unsigned long ATT_MSK_GATE = 0x01;
 	static const unsigned long ATT_MSK_GATEP = 0x02;
 	static const unsigned long ATT_MSK_SLIDE = 0x04;
@@ -37,6 +39,7 @@ struct Attribute {
 	inline bool getSlide() {return (attribute & ATT_MSK_SLIDE) != 0;}
 	inline int getSlideVal() {return (int)((attribute & ATT_MSK_SLIDE_VAL) >> slideValShift);}
 	inline int getGateType() {return ((int)(attribute & ATT_MSK_GATETYPE) >> gate1TypeShift);}
+	inline unsigned long getAttribute() {return attribute;}
 
 	inline void setGate(bool gate1State) {attribute &= ~ATT_MSK_GATE; if (gate1State) attribute |= ATT_MSK_GATE;}
 	inline void setTied(bool tiedState) {attribute &= ~ATT_MSK_TIED; if (tiedState) attribute |= ATT_MSK_TIED;}
@@ -45,6 +48,7 @@ struct Attribute {
 	inline void setSlide(bool slideState) {attribute &= ~ATT_MSK_SLIDE; if (slideState) attribute |= ATT_MSK_SLIDE;}
 	inline void setSlideVal(int slideVal) {attribute &= ~ATT_MSK_SLIDE_VAL; attribute |= (((unsigned long)slideVal) << slideValShift);}
 	inline void setGateType(int gate1Type) {attribute &= ~ATT_MSK_GATETYPE; attribute |= (((unsigned long)gate1Type) << gate1TypeShift);}
+	inline void setAttribute(unsigned long _attribute) {attribute = _attribute;}
 
 	inline void toggleGate() {attribute ^= ATT_MSK_GATE;}
 	inline void toggleTied() {attribute ^= ATT_MSK_TIED;}
@@ -56,7 +60,9 @@ struct Attribute {
 
 
 
-struct SequencerKernel {
+class SequencerKernel {
+	public: 
+	
 	// General constants
 	// ----------------
 
@@ -79,10 +85,10 @@ struct SequencerKernel {
 	static const uint64_t advGateHitMaskHigh[NUM_GATES];		
 
 
-	
+	private:
+
 	// Member data
-	// ----------------
-	
+	// ----------------	
 	int id;
 	std::string ids;
 	
@@ -109,11 +115,10 @@ struct SequencerKernel {
 	float slideCVdelta;// no need to initialize, this is only used when slideStepsRemain is not 0
 	
 	
-	
-	// Get, set, mod
-	// ----------------
+	public: 
 	
 	// get
+	// ----------------
 	inline int getRunModeSong() {return runModeSong;}
 	inline int getRunModeSeq(int seqn) {return runModeSeq[seqn];}
 	inline int getPhrases() {return phrases;}
@@ -133,9 +138,20 @@ struct SequencerKernel {
 	inline bool getSlide(int seqn, int stepn) {return attributes[seqn][stepn].getSlide();}
 	inline int getSlideVal(int seqn, int stepn) {return attributes[seqn][stepn].getSlideVal();}
 	inline int getGateType(int seqn, int stepn) {return attributes[seqn][stepn].getGateType();}
+	inline float getCurrentCV(bool editingSequence, int sequence, int stepIndexEdit, int phraseIndexEdit) {
+		if (editingSequence)
+			return cv[sequence][stepIndexEdit];
+		return cv[phrase[phraseIndexEdit]][stepIndexRun];
+	}
+	inline Attribute getCurrentAttribute(bool editingSequence, int sequence, int stepIndexEdit, int phraseIndexEdit) {
+		if (editingSequence)
+			return attributes[sequence][stepIndexEdit];
+		return attributes[phrase[phraseIndexEdit]][stepIndexRun];
+	}
 	
 	
-	// set
+	// Set
+	// ----------------
 	inline void setRunModeSeq(int seqn, int runmode) {runModeSeq[seqn] = runmode;}
 	inline void setPhrases(int _phrases) {phrases = _phrases;}
 	inline void setLength(int seqn, int _length) {lengths[seqn] = _length;}
@@ -156,7 +172,8 @@ struct SequencerKernel {
 	inline void setGateType(int seqn, int stepn, int gateType) {attributes[seqn][stepn].setGateType(gateType);}
 
 	
-	// mod, dec, toggle etc
+	// Mod, inc, dec, toggle etc
+	// ----------------
 	inline void modRunModeSong(int delta) {runModeSong += delta; if (runModeSong < 0) runModeSong = 0; if (runModeSong >= NUM_MODES) runModeSong = NUM_MODES - 1;}
 	inline void modRunModeSeq(int seqn, int delta) {
 		runModeSeq[seqn] += delta;
@@ -202,6 +219,12 @@ struct SequencerKernel {
 		if (sVal < 0) sVal = 0;
 		setSlideVal(seqn, stepn, sVal);						
 	}		
+	inline bool incPpqnCountAndCmpWithZero() {
+		ppqnCount++;
+		if (ppqnCount >= ppsValues[pulsesPerStepIndex])
+			ppqnCount = 0;
+		return ppqnCount == 0;
+	}
 	inline void decSlideStepsRemain() {if (slideStepsRemain > 0ul) slideStepsRemain--;}	
 	inline void toggleGate(int seqn, int stepn) {attributes[seqn][stepn].toggleGate();}
 	inline void toggleTied(int seqn, int stepn) {// will clear other attribs if new state is on
@@ -232,11 +255,25 @@ struct SequencerKernel {
 	}
 	inline float writeCV(int seqn, int stepn, float newCV) {
 		cv[seqn][stepn] = newCV;
-		applyTiedStep(seqn, stepn);// TODO this is weird since the step may be tied ??
-		return cv[seqn][stepn];// may have changed with the applyTiedStep?? so must return
+		applyTiedStep(seqn, stepn);
+		return cv[seqn][stepn];// may have changed with the applyTiedStep so must return
 	}
 
-	// init
+	
+	// Calc
+	// ----------------
+	inline float calcSlideOffset() {return (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);}
+	inline bool calcGate(SchmittTrigger clockTrigger, unsigned long clockStep, float sampleRate) {
+		if (gateCode < 2) 
+			return gateCode == 1;
+		if (gateCode == 2)
+			return clockTrigger.isHigh();
+		return clockStep < (unsigned long) (sampleRate * 0.001f);
+	}
+	
+	
+	// Init
+	// ----------------
 	inline void initSequence(int seqn) {
 		for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
 			cv[seqn][stepn] = 0.0f;
@@ -251,7 +288,9 @@ struct SequencerKernel {
 		}
 	}
 
-	// randomize and staircase
+	
+	// Randomize and staircase
+	// ----------------
 	inline void randomizeGates(int seqn) {
 		for (int stepn = 0; stepn < MAX_STEPS; stepn++)
 			if ( (randomu32() & 0x1) != 0)
@@ -288,7 +327,9 @@ struct SequencerKernel {
 		}			
 	}		
 
-	// copy-paste sequence or song
+	
+	// Copy-paste sequence or song
+	// ----------------
 	inline void copySequence(float* cvCPbuffer, Attribute* attribCPbuffer, int* lengthCPbuffer, int* modeCPbuffer, int seqn, int startCP, int countCP) {
 		for (int i = 0, stepn = startCP; i < countCP; i++, stepn++) {
 			cvCPbuffer[i] = cv[seqn][stepn];
@@ -416,7 +457,7 @@ struct SequencerKernel {
 		json_t *attributesJ = json_array();
 		for (int seqn = 0; seqn < MAX_SEQS; seqn++)
 			for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
-				json_array_insert_new(attributesJ, stepn + (seqn * MAX_STEPS), json_integer(attributes[seqn][stepn].attribute));
+				json_array_insert_new(attributesJ, stepn + (seqn * MAX_STEPS), json_integer(attributes[seqn][stepn].getAttribute()));
 			}
 		json_object_set_new(rootJ, (ids + "attributes").c_str(), attributesJ);
 
@@ -500,7 +541,7 @@ struct SequencerKernel {
 				for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
 					json_t *attributesArrayJ = json_array_get(attributesJ, stepn + (seqn * MAX_STEPS));
 					if (attributesArrayJ)
-						attributes[seqn][stepn].attribute = json_integer_value(attributesArrayJ);
+						attributes[seqn][stepn].setAttribute(json_integer_value(attributesArrayJ));
 				}
 		}
 
@@ -527,7 +568,7 @@ struct SequencerKernel {
 	}
 	
 	
-	inline void transposeSeq(int seqn, int delta) {
+	void transposeSeq(int seqn, int delta) {
 		int oldTransposeOffset = transposeOffsets[seqn];
 		transposeOffsets[seqn] += delta;
 		if (transposeOffsets[seqn] > 99) transposeOffsets[seqn] = 99;
@@ -604,26 +645,6 @@ struct SequencerKernel {
 		for (int i = indexTied + 1; i < seqLength && getTied(seqn,i); i++) 
 			cv[seqn][i] = cv[seqn][indexTied];
 	}	
-	
-	
-	inline float calcSlideOffset() {return (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);}
-	
-
-	inline bool incPpqnCountAndCmpWithZero() {
-		ppqnCount++;
-		if (ppqnCount >= ppsValues[pulsesPerStepIndex])
-			ppqnCount = 0;
-		return ppqnCount == 0;
-	}
-
-	
-	inline bool calcGate(SchmittTrigger clockTrigger, unsigned long clockStep, float sampleRate) {
-		if (gateCode < 2) 
-			return gateCode == 1;
-		if (gateCode == 2)
-			return clockTrigger.isHigh();
-		return clockStep < (unsigned long) (sampleRate * 0.001f);
-	}
 	
 	
 	int keyIndexToGateTypeEx(int keyIndex) {

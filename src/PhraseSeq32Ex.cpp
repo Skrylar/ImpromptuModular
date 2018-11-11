@@ -763,7 +763,7 @@ struct PhraseSeq32Ex : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			initRun(true);// must be after sequence reset
+			initRun(true);
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
 		}
@@ -774,6 +774,7 @@ struct PhraseSeq32Ex : Module {
 		
 		
 		// CV and gates outputs
+		// TODO remove redundancy between getCV here and the one for keyboard/oct lights
 		int seqn = editingSequence ? (sequence) : (sek[0].getPhrase(running ? sek[0].getPhraseIndexRun() : phraseIndexEdit));
 		int step0 = editingSequence ? (running ? sek[0].getStepIndexRun() : stepIndexEdit) : (sek[0].getStepIndexRun());
 		if (running) {
@@ -845,11 +846,7 @@ struct PhraseSeq32Ex : Module {
 			}
 		
 			// Octave lights
-			float octKeyCV = 0.0f;// used for keyboard lights also
-			if (editingSequence)
-				octKeyCV = sek[0].getCV(sequence, stepIndexEdit);
-			else
-				octKeyCV = sek[0].getCV(sek[0].getPhrase(phraseIndexEdit), sek[0].getStepIndexRun());
+			float octKeyCV = sek[0].getCurrentCV(editingSequence, sequence, stepIndexEdit, phraseIndexEdit);// used for keyboard lights also
 			int octLightIndex = (int) floor(octKeyCV + 3.0f);
 			for (int i = 0; i < 7; i++) {
 				float red = 0.0f;
@@ -898,11 +895,7 @@ struct PhraseSeq32Ex : Module {
 
 			// Gate, GateProb, Slide and Tied lights 
 			if (editingSequence  || running) {
-				// TODO move next three lines to kernel?
-				Attribute attributesVal = sek[0].getAttribute(sequence, stepIndexEdit);
-				if (!editingSequence)
-					attributesVal = sek[0].getAttribute(sek[0].getPhrase(phraseIndexEdit), sek[0].getStepIndexRun());
-				//
+				Attribute attributesVal = sek[0].getCurrentAttribute(editingSequence, sequence, stepIndexEdit, phraseIndexEdit);
 				if (!attributesVal.getGate()) 
 					setGreenRed(GATE_LIGHT, 0.0f, 0.0f);
 				else if (sek[0].getPulsesPerStep() == 1) 
@@ -1354,12 +1347,12 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		// Gate 1 light and button
 		addChild(createLight<MediumLight<GreenRedLight>>(Vec(columnRulerMB1 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + offsetMediumLight), module, PhraseSeq32Ex::GATE_LIGHT));		
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB1 + offsetCKD6b, rowRulerMB0 + offsetCKD6b), module, PhraseSeq32Ex::GATE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		// Tie light and button
-		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerMB2 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + offsetMediumLight), module, PhraseSeq32Ex::TIE_LIGHT));		
-		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB2 + offsetCKD6b, rowRulerMB0 + offsetCKD6b), module, PhraseSeq32Ex::TIE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Gate 1 probability light and button
-		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerMB3 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + offsetMediumLight), module, PhraseSeq32Ex::GATE_PROB_LIGHT));		
-		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB3 + offsetCKD6b, rowRulerMB0 + offsetCKD6b), module, PhraseSeq32Ex::GATE_PROB_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerMB2 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + offsetMediumLight), module, PhraseSeq32Ex::GATE_PROB_LIGHT));		
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB2 + offsetCKD6b, rowRulerMB0 + offsetCKD6b), module, PhraseSeq32Ex::GATE_PROB_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		// Tie light and button
+		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerMB3 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + offsetMediumLight), module, PhraseSeq32Ex::TIE_LIGHT));		
+		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB3 + offsetCKD6b, rowRulerMB0 + offsetCKD6b), module, PhraseSeq32Ex::TIE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Slide light and button
 		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerMB4 + posLEDvsButton + offsetMediumLight, rowRulerMB0 + offsetMediumLight), module, PhraseSeq32Ex::SLIDE_LIGHT));		
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMB4 + offsetCKD6b, rowRulerMB0 + offsetCKD6b), module, PhraseSeq32Ex::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
