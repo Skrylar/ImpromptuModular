@@ -41,7 +41,8 @@ class Attribute {
 	inline int getGatePVal() {return (int)((attribute & ATT_MSK_GATEP_VAL) >> GatePValShift);}
 	inline bool getSlide() {return (attribute & ATT_MSK_SLIDE) != 0;}
 	inline int getSlideVal() {return (int)((attribute & ATT_MSK_SLIDE_VAL) >> slideValShift);}
-	inline int getVelocity() {return (int)((attribute & ATT_MSK_VELOCITY) >> velocityShift);}
+	inline int getVelocityVal() {return (int)((attribute & ATT_MSK_VELOCITY) >> velocityShift);}
+	inline float getVelocity() {return ((float)getVelocityVal()) / 12.7f;}
 	inline unsigned long getAttribute() {return attribute;}
 
 	inline void setGate(bool gate1State) {attribute &= ~ATT_MSK_GATE; if (gate1State) attribute |= ATT_MSK_GATE;}
@@ -51,7 +52,7 @@ class Attribute {
 	inline void setGatePVal(int gatePval) {attribute &= ~ATT_MSK_GATEP_VAL; attribute |= (((unsigned long)gatePval) << GatePValShift);}
 	inline void setSlide(bool slideState) {attribute &= ~ATT_MSK_SLIDE; if (slideState) attribute |= ATT_MSK_SLIDE;}
 	inline void setSlideVal(int slideVal) {attribute &= ~ATT_MSK_SLIDE_VAL; attribute |= (((unsigned long)slideVal) << slideValShift);}
-	inline void setVelocity(int _velocity) {attribute &= ~ATT_MSK_VELOCITY; attribute |= (((unsigned long)_velocity) << velocityShift);}
+	inline void setVelocityVal(int _velocity) {attribute &= ~ATT_MSK_VELOCITY; attribute |= (((unsigned long)_velocity) << velocityShift);}
 	inline void setAttribute(unsigned long _attribute) {attribute = _attribute;}
 
 	inline void toggleGate() {attribute ^= ATT_MSK_GATE;}
@@ -141,7 +142,8 @@ class SequencerKernel {
 	inline int getGatePVal(int seqn, int stepn) {return attributes[seqn][stepn].getGatePVal();}
 	inline bool getSlide(int seqn, int stepn) {return attributes[seqn][stepn].getSlide();}
 	inline int getSlideVal(int seqn, int stepn) {return attributes[seqn][stepn].getSlideVal();}
-	inline int getVelocity(int seqn, int stepn) {return attributes[seqn][stepn].getVelocity();}
+	inline int getVelocityVal(int seqn, int stepn) {return attributes[seqn][stepn].getVelocityVal();}
+	inline float getVelocity(int seqn, int stepn) {return attributes[seqn][stepn].getVelocity();}
 	inline int getGateType(int seqn, int stepn) {return attributes[seqn][stepn].getGateType();}
 	inline float getCurrentCV(bool editingSequence, int sequence, int stepIndexEdit, int phraseIndexEdit) {
 		if (editingSequence)
@@ -170,7 +172,7 @@ class SequencerKernel {
 	inline void setGatePVal(int seqn, int stepn, int gatePval) {attributes[seqn][stepn].setGatePVal(gatePval);}
 	inline void setSlide(int seqn, int stepn, bool slideState) {attributes[seqn][stepn].setSlide(slideState);}
 	inline void setSlideVal(int seqn, int stepn, int slideVal) {attributes[seqn][stepn].setSlideVal(slideVal);}
-	inline void setVelocity(int seqn, int stepn, int velocity) {attributes[seqn][stepn].setVelocity(velocity);}
+	inline void setVelocityVal(int seqn, int stepn, int velocity) {attributes[seqn][stepn].setVelocityVal(velocity);}
 	inline void setGateType(int seqn, int stepn, int gateType) {attributes[seqn][stepn].setGateType(gateType);}
 
 	
@@ -220,6 +222,13 @@ class SequencerKernel {
 		if (sVal > 100) sVal = 100;
 		if (sVal < 0) sVal = 0;
 		setSlideVal(seqn, stepn, sVal);						
+	}		
+	inline void modVelocityVal(int seqn, int stepn, int delta) {
+		int vVal = getVelocityVal(seqn, stepn);
+		vVal += delta;
+		if (vVal > 127) vVal = 127;
+		if (vVal < 0) vVal = 0;
+		setVelocityVal(seqn, stepn, vVal);						
 	}		
 	inline void decSlideStepsRemain() {if (slideStepsRemain > 0ul) slideStepsRemain--;}	
 	inline void toggleGate(int seqn, int stepn) {attributes[seqn][stepn].toggleGate();}
