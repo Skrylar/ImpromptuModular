@@ -1013,12 +1013,12 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		}
 		
 		void draw(NVGcontext *vg) override {
-			NVGcolor textColor = prepareDisplay(vg, &box, 12);
+			NVGcolor textColor = prepareDisplay(vg, &box, 13);
 			nvgFontFaceId(vg, font->handle);
 			nvgTextLetterSpacing(vg, -0.5);
 			bool editingSequence = module->isEditingSequence();
 
-			Vec textPos = Vec(5, 17);
+			Vec textPos = Vec(4.5f, 17.5f);
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
@@ -1047,7 +1047,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			nvgFontFaceId(vg, font->handle);
 			bool editingSequence = module->isEditingSequence();
 
-			Vec textPos = Vec(6, 24);
+			Vec textPos = Vec(5, 23);
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
@@ -1336,7 +1336,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int rowRulerVel = 130;
 		VelocityDisplayWidget *displayVelocity = new VelocityDisplayWidget();
 		displayVelocity->box.pos = Vec(colRulerKM + 1, rowRulerVel + 10);
-		displayVelocity->box.size = Vec(40.5f, 21.5f);// 3 characters
+		displayVelocity->box.size = Vec(41, 22);// 3 characters
 		displayVelocity->module = module;
 		addChild(displayVelocity);
 		// Velocity knob
@@ -1359,7 +1359,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		// Sequence display
 		SequenceDisplayWidget *displaySequence = new SequenceDisplayWidget();
 		displaySequence->box.pos = Vec(columnRulerMK1-15, rowRulerMK0 + 3 + vOffsetDisplay);
-		displaySequence->box.size = Vec(55, 30);// 3 characters
+		displaySequence->box.size = Vec(53, 28);// 3 characters
 		displaySequence->module = module;
 		addChild(displaySequence);
 		// Len/mode button
