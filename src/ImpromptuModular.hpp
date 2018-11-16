@@ -199,11 +199,11 @@ struct IMSmallSnapKnob : IMSmallKnob {
 	}
 };
 
-struct IMSmallKnobInf : IMKnob {
-	IMSmallKnobInf() {
-		addFrameAll(SVG::load(assetPlugin(plugin, "res/light/comp/RoundSmallBlackKnobNoMark.svg")));
-		addFrameAll(SVG::load(assetPlugin(plugin, "res/dark/comp/RoundSmallBlackKnobNoMark.svg")));
-		//addEffect(SVG::load(assetPlugin(plugin, "res/dark/comp/BlackKnobLargeEffects.svg")));
+struct IMMediumKnobInf : IMKnob {
+	IMMediumKnobInf() {
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/light/comp/RoundMediumBlackKnobNoMark.svg")));
+		addFrameAll(SVG::load(assetPlugin(plugin, "res/dark/comp/RoundMediumBlackKnobNoMark.svg")));
+		//addEffect(SVG::load(assetPlugin(plugin, "res/dark/comp/BlackKnobMediumEffects.svg")));
 		shadow->box.pos = Vec(0.0, box.size.y * 0.15);
 		speed = 0.9f;				
 		//smooth = false;

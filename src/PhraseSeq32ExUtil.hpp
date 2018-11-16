@@ -198,11 +198,9 @@ class SequencerKernel {
 		phrase[phrn] = newPhrase;
 	}
 	inline void modPhraseReps(int phrn, int delta) {
-		int newPhraseReps = phraseReps[phrn] + delta - 1;
-		if (newPhraseReps < 0)
-			newPhraseReps += (1 - newPhraseReps / 99) * 99;// newPhraseReps now positive
-		newPhraseReps = newPhraseReps % 99;
-		phraseReps[phrn] = newPhraseReps + 1;
+		phraseReps[phrn] += delta; 
+		if (phraseReps[phrn] > 99) phraseReps[phrn] = 99; 
+		if (phraseReps[phrn] < 1 ) phraseReps[phrn] = 1;
 	}		
 	inline void modPulsesPerStepIndex(int delta) {
 		pulsesPerStepIndex += delta;
@@ -221,7 +219,7 @@ class SequencerKernel {
 		sVal += delta;
 		if (sVal > 100) sVal = 100;
 		if (sVal < 0) sVal = 0;
-		setSlideVal(seqn, stepn, sVal);						
+		setSlideVal(seqn, stepn, sVal);
 	}		
 	inline void modVelocityVal(int seqn, int stepn, int delta) {
 		int vVal = getVelocityVal(seqn, stepn);
