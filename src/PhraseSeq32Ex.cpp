@@ -43,10 +43,10 @@ struct PhraseSeq32Ex : Module {
 		ENUMS(STEP_PHRASE_PARAMS, SequencerKernel::MAX_STEPS),
 		KEYNOTE_PARAM,
 		KEYGATE_PARAM,
-		TRACK_PARAM,
+		TRACKDOWN_PARAM,
+		TRACKUP_PARAM,
 		VEL_KNOB_PARAM,
 		ALLSTEPS_PARAM,
-		ALLSEQS_PARAM,
 		ALLTRACKS_PARAM,
 		REPS_PARAM,
 		SEQUENCE_PLAY_PARAM,
@@ -104,8 +104,8 @@ struct PhraseSeq32Ex : Module {
 	bool attached;
 	int stepIndexEdit;
 	int seqIndexEdit;
-	int phraseIndexEdit;
-	int seqIndexRun;
+	int phraseIndexEdit;// used only when !editingSequence
+	int seqIndexRun;// used only when playingSequence
 	SequencerKernel sek[4];
 
 	// No need to save
@@ -361,10 +361,13 @@ struct PhraseSeq32Ex : Module {
 				displayVState = DISPV_NORMAL;
 			}
 			if (running && attached) {
-				if (editingSequence)
-					stepIndexEdit = sek[0].getStepIndexRun();
-				else
+				stepIndexEdit = sek[0].getStepIndexRun();
+				if (playingSequence) {
+					seqIndexEdit = seqIndexRun;
+				}
+				else {
 					phraseIndexEdit = sek[0].getPhraseIndexRun();
+				}
 			}
 			
 			// Copy button
@@ -641,7 +644,7 @@ struct PhraseSeq32Ex : Module {
 			
 			// Velocity knob 
 			float velParamValue = params[VEL_KNOB_PARAM].value;
-			int newVelocityKnob = (int)roundf(velParamValue * 20.0f);
+			int newVelocityKnob = (int)roundf(velParamValue * 30.0f);
 			if (velParamValue == 0.0f)// true when constructor or fromJson() occured
 				velocityKnob = newVelocityKnob;
 			int deltaVelKnob = newVelocityKnob - velocityKnob;
@@ -649,12 +652,12 @@ struct PhraseSeq32Ex : Module {
 				if (abs(deltaVelKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (displayVState == DISPV_PROBVAL) {
 						if (editingSequence) {
-							sek[0].modGatePVal(seqIndexEdit, stepIndexEdit, deltaVelKnob * 2);
+							sek[0].modGatePVal(seqIndexEdit, stepIndexEdit, deltaVelKnob);
 						}
 					}
 					else if (displayVState == DISPV_SLIDEVAL) {
 						if (editingSequence) {
-							sek[0].modSlideVal(seqIndexEdit, stepIndexEdit, deltaVelKnob * 2);
+							sek[0].modSlideVal(seqIndexEdit, stepIndexEdit, deltaVelKnob);
 						}
 					}
 					else {// DISPV_NORMAL
@@ -1435,28 +1438,18 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 
 		// Velocity display
 		static const int colRulerKM = 285;
+		static const int kmButtonOffsetX = 13;
 		addChild(new VelocityDisplayWidget(Vec(colRulerKM, rowRulerDisp), Vec(46, displayHeights), module));// 3 characters
 		// Velocity knob
 		addParam(createDynamicParamCentered<IMMediumKnobInf>(Vec(colRulerKM, rowRulerKnobs), module, PhraseSeq32Ex::VEL_KNOB_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));	
 		// Key mode LED buttons	
-		addParam(createParamCentered<LEDButton>(Vec(colRulerKM - 13, rowRulerSmallButtons), module, PhraseSeq32Ex::KEYNOTE_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(createLightCentered<MediumLight<RedLight>>(Vec(colRulerKM - 13, rowRulerSmallButtons), module, PhraseSeq32Ex::KEYNOTE_LIGHT));
-		addParam(createParamCentered<LEDButton>(Vec(colRulerKM + 13, rowRulerSmallButtons), module, PhraseSeq32Ex::KEYGATE_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(colRulerKM + 13, rowRulerSmallButtons), module, PhraseSeq32Ex::KEYGATE_LIGHT));
+		addParam(createParamCentered<LEDButton>(Vec(colRulerKM - kmButtonOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::KEYNOTE_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLightCentered<MediumLight<RedLight>>(Vec(colRulerKM - kmButtonOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::KEYNOTE_LIGHT));
+		addParam(createParamCentered<LEDButton>(Vec(colRulerKM + kmButtonOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::KEYGATE_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(colRulerKM + kmButtonOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::KEYGATE_LIGHT));
 		
-		// Track display
-		static const int colRulerTrk = 343;
-		addChild(new TrackDisplayWidget(Vec(colRulerTrk, rowRulerDisp), Vec(32, displayHeights), module));// 2 characters
-		// Track knob
-		addParam(createDynamicParamCentered<IMMediumKnobInf>(Vec(colRulerTrk, rowRulerKnobs), module, PhraseSeq32Ex::TRACK_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));	
-		// AllTracks button
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk, rowRulerSmallButtons), module, PhraseSeq32Ex::ALLTRACKS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		// Transpose/rotate button
-		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(colRulerTrk, rowRulerMB0), module, PhraseSeq32Ex::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		
-
 		// PhraseSeq edit display 
-		static const int colRulerEditPS = 413;
+		static const int colRulerEditPS = 363;
 		addChild(new PSEditDisplayWidget(Vec(colRulerEditPS, rowRulerDisp), Vec(71, displayHeights), module));// 5 characters
 		// Sequence-edit knob
 		static const int psKnobOffsetX = 22;
@@ -1464,13 +1457,24 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		// Phrase knob
 		addParam(createDynamicParamCentered<IMMediumKnobInf>(Vec(colRulerEditPS - psKnobOffsetX, rowRulerKnobs), module, PhraseSeq32Ex::PHRASE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
 		// Reps button
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditPS - psKnobOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::REPS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		// AllSeqs button
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditPS + psKnobOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::ALLSEQS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditPS + psKnobOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::REPS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		// Transpose/rotate button
+		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB4 + columnRulerMBspacing, rowRulerMB0), module, PhraseSeq32Ex::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Len/mode button
-		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(colRulerEditPS, rowRulerMB0), module, PhraseSeq32Ex::LENMODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB4 + 2 * columnRulerMBspacing, rowRulerMB0), module, PhraseSeq32Ex::LENMODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 
 			
+		// Track display
+		static const int colRulerTrk = 433;
+		static const int trkButtonsOffsetX = 12;
+		addChild(new TrackDisplayWidget(Vec(colRulerTrk, rowRulerDisp), Vec(32, displayHeights), module));// 2 characters
+		// Track buttons
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk + trkButtonsOffsetX, rowRulerKnobs), module, PhraseSeq32Ex::TRACKUP_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk - trkButtonsOffsetX, rowRulerKnobs), module, PhraseSeq32Ex::TRACKDOWN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		// AllTracks button
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk, rowRulerSmallButtons), module, PhraseSeq32Ex::ALLTRACKS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		
+
 		// PhraseSeq play display 
 		static const int colRulerPlayPS = 510;
 		addChild(new PSPlayDisplayWidget(Vec(colRulerPlayPS, rowRulerDisp), Vec(71, displayHeights), module));// 5 characters

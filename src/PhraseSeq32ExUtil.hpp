@@ -27,9 +27,9 @@ class Attribute {
 	static const unsigned long GatePValShift = 8;
 	static const unsigned long ATT_MSK_SLIDE_VAL = 0xFF0000;
 	static const unsigned long slideValShift = 16;
-	static const unsigned long ATT_MSK_VELOCITY = 0x7F000000;
+	static const unsigned long ATT_MSK_VELOCITY = 0xFF000000;
 	static const unsigned long velocityShift = 24;
-	static const unsigned long ATT_MSK_INITSTATE = (ATT_MSK_GATE | (0 << gate1TypeShift) | (50 << GatePValShift) | (10 << slideValShift) | (100 << velocityShift));
+	static const unsigned long ATT_MSK_INITSTATE = (ATT_MSK_GATE | (0 << gate1TypeShift) | (50 << GatePValShift) | (10 << slideValShift) | (128 << velocityShift));
 
 	inline void init() {attribute = ATT_MSK_INITSTATE;}
 	inline void randomize(int numGateTypes) {attribute =  ((randomu32() & 0xF) & ((randomu32() % numGateTypes) << gate1TypeShift) & ((randomu32() % 101) << GatePValShift) & ((randomu32() % 101) << slideValShift));}
@@ -42,7 +42,7 @@ class Attribute {
 	inline bool getSlide() {return (attribute & ATT_MSK_SLIDE) != 0;}
 	inline int getSlideVal() {return (int)((attribute & ATT_MSK_SLIDE_VAL) >> slideValShift);}
 	inline int getVelocityVal() {return (int)((attribute & ATT_MSK_VELOCITY) >> velocityShift);}
-	inline float getVelocity() {return ((float)getVelocityVal()) / 12.7f;}
+	inline float getVelocity() {return ((float)getVelocityVal()) / 25.5f;}
 	inline unsigned long getAttribute() {return attribute;}
 
 	inline void setGate(bool gate1State) {attribute &= ~ATT_MSK_GATE; if (gate1State) attribute |= ATT_MSK_GATE;}
@@ -214,7 +214,7 @@ class SequencerKernel {
 	inline void modVelocityVal(int seqn, int stepn, int delta) {
 		int vVal = getVelocityVal(seqn, stepn);
 		vVal += delta;
-		if (vVal > 127) vVal = 127;
+		if (vVal > 255) vVal = 255;
 		if (vVal < 0) vVal = 0;
 		setVelocityVal(seqn, stepn, vVal);						
 	}		
