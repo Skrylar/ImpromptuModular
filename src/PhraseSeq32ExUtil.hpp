@@ -145,16 +145,6 @@ class SequencerKernel {
 	inline int getVelocityVal(int seqn, int stepn) {return attributes[seqn][stepn].getVelocityVal();}
 	inline float getVelocity(int seqn, int stepn) {return attributes[seqn][stepn].getVelocity();}
 	inline int getGateType(int seqn, int stepn) {return attributes[seqn][stepn].getGateType();}
-	inline float getCurrentCV(bool editingSequence, int sequence, int stepIndexEdit, int phraseIndexEdit) {
-		if (editingSequence)
-			return cv[sequence][stepIndexEdit];
-		return cv[phrase[phraseIndexEdit]][stepIndexRun];
-	}
-	inline Attribute getCurrentAttribute(bool editingSequence, int sequence, int stepIndexEdit, int phraseIndexEdit) {
-		if (editingSequence)
-			return attributes[sequence][stepIndexEdit];
-		return attributes[phrase[phraseIndexEdit]][stepIndexRun];
-	}
 	
 	
 	// Set
@@ -404,12 +394,12 @@ class SequencerKernel {
 	}
 	
 	
-	void initRun(bool hard, bool isEditingSequence, int sequence) {
+	void initRun(bool hard, bool isPlayingSequence, int seqIndexRun) {
 		if (hard) {
 			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
 			phraseIndexRunHistory = 0;
 		}
-		int seqn = (isEditingSequence ? sequence : phrase[phraseIndexRun]);
+		int seqn = (isPlayingSequence ? seqIndexRun : phrase[phraseIndexRun]);
 		if (hard) {
 			stepIndexRun = (runModeSeq[seqn] == MODE_REV ? lengths[seqn] - 1 : 0);
 			stepIndexRunHistory = 0;
@@ -571,16 +561,16 @@ class SequencerKernel {
 	}
 	
 	
-	void clockStep(bool editingSequence, int sequence, unsigned long clockPeriod) {
-		int newSeq = sequence;// good value when editingSequence, overwrite if not editingSequence
+	void clockStep(bool playgingSequence, int seqIndexRun, unsigned long clockPeriod) {
+		int newSeq = seqIndexRun;// good value when playgingSequence, overwrite if not playgingSequence
 		ppqnCount++;
 		if (ppqnCount >= ppsValues[pulsesPerStepIndex])
 			ppqnCount = 0;
 		if (ppqnCount == 0) {
 			float slideFromCV = 0.0f;
-			if (editingSequence) {
-				slideFromCV = cv[sequence][stepIndexRun];
-				moveIndexRunMode(true, lengths[sequence], runModeSeq[sequence], 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the same seq continually)
+			if (playgingSequence) {
+				slideFromCV = cv[seqIndexRun][stepIndexRun];
+				moveIndexRunMode(true, lengths[seqIndexRun], runModeSeq[seqIndexRun], 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the same seq continually)
 			}
 			else {
 				slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
@@ -599,7 +589,7 @@ class SequencerKernel {
 			}
 		}
 		else {
-			if (!editingSequence)
+			if (!playgingSequence)
 				newSeq = phrase[phraseIndexRun];
 		}
 		calcGateCodeEx(newSeq);// uses stepIndexRun as the step		
