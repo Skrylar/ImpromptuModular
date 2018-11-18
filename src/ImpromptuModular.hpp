@@ -116,6 +116,16 @@ struct CKSSH : SVGSwitch, ToggleSwitch {
 	}
 };
 
+struct CKSSHThree : SVGSwitch, ToggleSwitch {
+	CKSSHThree() {
+		addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKSSHThree_0.svg")));
+		addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKSSHThree_1.svg")));
+		addFrame(SVG::load(assetPlugin(plugin, "res/comp/CKSSHThree_2.svg")));
+		sw->wrap();
+		box.size = sw->box.size;
+	}
+};
+
 struct CKSSThreeInv : SVGSwitch, ToggleSwitch {
 	CKSSThreeInv() {
 		addFrame(SVG::load(assetGlobal("res/ComponentLibrary/CKSSThree_2.svg")));
