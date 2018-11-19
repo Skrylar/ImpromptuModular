@@ -32,7 +32,7 @@ class Attribute {
 	static const unsigned long ATT_MSK_INITSTATE = (ATT_MSK_GATE | (0 << gate1TypeShift) | (50 << GatePValShift) | (10 << slideValShift) | (128 << velocityShift));
 
 	inline void init() {attribute = ATT_MSK_INITSTATE;}
-	inline void randomize(int numGateTypes) {attribute =  ((randomu32() & 0xF) & ((randomu32() % numGateTypes) << gate1TypeShift) & ((randomu32() % 101) << GatePValShift) & ((randomu32() % 101) << slideValShift));}
+	inline void randomize() {attribute = ((randomu32() & 0xF) | ((randomu32() % 101) << GatePValShift) | ((randomu32() % 101) << slideValShift) | ((randomu32() & 0xFF) << velocityShift));}
 	
 	inline bool getGate() {return (attribute & ATT_MSK_GATE) != 0;}
 	inline int getGateType() {return ((int)(attribute & ATT_MSK_GATETYPE) >> gate1TypeShift);}
@@ -60,7 +60,7 @@ class Attribute {
 	inline void toggleGateP() {attribute ^= ATT_MSK_GATEP;}
 	inline void toggleSlide() {attribute ^= ATT_MSK_SLIDE;}	
 	
-	inline void applyTied() {attribute &= 0xF; attribute |= ATT_MSK_TIED;}// clear other attributes if tied
+	inline void applyTied() {attribute &= ~(ATT_MSK_GATE | ATT_MSK_GATEP | ATT_MSK_SLIDE);}// clear other attributes if tied
 };
 
 
@@ -291,7 +291,7 @@ class SequencerKernel {
 	}
 	inline void randomizeAttributes(int seqn) {// uses lengths[] so make sure that is set up first
 		for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
-			attributes[seqn][stepn].randomize(NUM_GATES);
+			attributes[seqn][stepn].randomize();
 			if (getTied(seqn,stepn)) {
 				attributes[seqn][stepn].applyTied();
 				applyTiedStep(seqn, stepn);
@@ -665,13 +665,18 @@ class SequencerKernel {
 		//   case B: the given step's CV was modified
 		// These cases are mutually exclusive
 		
-		// copy previous CV over to current step if tied
-		if (getTied(seqn,indexTied) && (indexTied > 0))
+		// copy previous CV and attribute over to current step if tied
+		if (getTied(seqn,indexTied) && (indexTied > 0)) {
 			cv[seqn][indexTied] = cv[seqn][indexTied - 1];
+			attributes[seqn][indexTied] = attributes[seqn][indexTied - 1];
+			attributes[seqn][indexTied].setTied(true);
+		}
 		
-		// Affect downstream CVs of subsequent tied note chain (can be 0 length if next note is not tied)
-		for (int i = indexTied + 1; i < seqLength && getTied(seqn,i); i++) 
+		// Affect downstream CVs and attributes of subsequent tied note chain (can be 0 length if next note is not tied)
+		for (int i = indexTied + 1; i < seqLength && getTied(seqn,i); i++) {
 			cv[seqn][i] = cv[seqn][indexTied];
+			attributes[seqn][i] = attributes[seqn][indexTied];
+		}
 	}	
 	
 	
