@@ -209,7 +209,7 @@ struct PhraseSeq32Ex : Module {
 		editingGate = 0ul;
 		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
-		attached = true;
+		attached = false;
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 		revertDisplay = 0l;
@@ -889,16 +889,23 @@ struct PhraseSeq32Ex : Module {
 							else 
 								setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.0f, 0.0f);
 						}
+						else {
+							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.0f, 0.0f);
+						}
 					}
 					else {// normal led display (i.e. not length)
 						float red = 0.0f;
 						float green = 0.0f;
 						// Run cursor (green)
-						// if (editingSequence)
-							// green = ((running && (i == sek[0].getStepIndexRun())) ? 1.0f : 0.0f);
+						// if (running)
+							// green = (i == sek[0].getStepIndexRun() ? 0.1f : 0.0f);
 						// Edit cursor (red)
-						if (editingSequence)
-							red = (i == stepIndexEdit ? 1.0f : 0.0f);
+						if (editingSequence) {
+							if (i == stepIndexEdit) {
+								red = 1.0f;
+								// green = 0.0f;
+							}
+						}
 						setGreenRed(STEP_PHRASE_LIGHTS + i * 2, green, red);
 					}
 				}
@@ -1428,10 +1435,11 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 
 		// Key mode LED buttons	
 		static const int rowRulerKM = rowRulerOct + 5 * octLightsIntY;
-		addParam(createParamCentered<LEDButton>(Vec(53, rowRulerKM), module, PhraseSeq32Ex::KEYNOTE_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(createLightCentered<MediumLight<RedLight>>(Vec(53, rowRulerKM), module, PhraseSeq32Ex::KEYNOTE_LIGHT));
-		addParam(createParamCentered<LEDButton>(Vec(53, rowRulerKM + 24), module, PhraseSeq32Ex::KEYGATE_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(53, rowRulerKM + 24), module, PhraseSeq32Ex::KEYGATE_LIGHT));
+		static const int colRulerKM = 55;
+		addParam(createParamCentered<LEDButton>(Vec(colRulerKM, rowRulerKM), module, PhraseSeq32Ex::KEYNOTE_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLightCentered<MediumLight<RedLight>>(Vec(colRulerKM, rowRulerKM), module, PhraseSeq32Ex::KEYNOTE_LIGHT));
+		addParam(createParamCentered<LEDButton>(Vec(colRulerKM, rowRulerKM + 24), module, PhraseSeq32Ex::KEYGATE_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(colRulerKM, rowRulerKM + 24), module, PhraseSeq32Ex::KEYGATE_LIGHT));
 		
 		
 		// ****** Gate and slide section ******
