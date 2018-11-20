@@ -53,6 +53,7 @@ class Attribute {
 	inline void setSlide(bool slideState) {attribute &= ~ATT_MSK_SLIDE; if (slideState) attribute |= ATT_MSK_SLIDE;}
 	inline void setSlideVal(int slideVal) {attribute &= ~ATT_MSK_SLIDE_VAL; attribute |= (((unsigned long)slideVal) << slideValShift);}
 	inline void setVelocityVal(int _velocity) {attribute &= ~ATT_MSK_VELOCITY; attribute |= (((unsigned long)_velocity) << velocityShift);}
+	inline void setVelocity(float _velocityf) {setVelocityVal((int)(_velocityf * 25.5f + 0.5f));}
 	inline void setAttribute(unsigned long _attribute) {attribute = _attribute;}
 
 	inline void toggleGate() {attribute ^= ATT_MSK_GATE;}
@@ -73,7 +74,7 @@ class SequencerKernel {
 
 	// Sequencer dimensions
 	static const int MAX_STEPS = 32;
-	static const int MAX_SEQS = 32;
+	static const int MAX_SEQS = 16;
 	static const int MAX_PHRASES = 32;
 
 	// Clock resolution										
@@ -163,6 +164,7 @@ class SequencerKernel {
 	inline void setSlide(int seqn, int stepn, bool slideState) {attributes[seqn][stepn].setSlide(slideState);}
 	inline void setSlideVal(int seqn, int stepn, int slideVal) {attributes[seqn][stepn].setSlideVal(slideVal);}
 	inline void setVelocityVal(int seqn, int stepn, int velocity) {attributes[seqn][stepn].setVelocityVal(velocity);}
+	inline void setVelocity(int seqn, int stepn, float velocity) {attributes[seqn][stepn].setVelocity(velocity);}
 	inline void setGateType(int seqn, int stepn, int gateType) {attributes[seqn][stepn].setGateType(gateType);}
 
 	

@@ -108,12 +108,12 @@ struct PhraseSeq32Ex : Module {
 	int phraseIndexEdit;// used only when !editingSequence
 	int trackIndexEdit;
 	int seqIndexRun;// used only when playingSequence
-	SequencerKernel sek[4];
+	SequencerKernel sek[NUM_TRACKS];
 
 	// No need to save
 	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
-	unsigned long editingGate;// 0 when no edit gate, downward step counter timer when edit gate
-	float editingGateCV;// no need to initialize, this goes with editingGate (output this only when editingGate > 0)
+	unsigned long editingGate[NUM_TRACKS];// 0 when no edit gate, downward step counter timer when edit gate
+	float editingGateCV[NUM_TRACKS];// no need to initialize, this goes with editingGate (output this only when editingGate > 0)
 	int editingGateKeyLight;// no need to initialize, this goes with editingGate (use this only when editingGate > 0)
 	int displayState;
 	int displayVState;
@@ -177,7 +177,8 @@ struct PhraseSeq32Ex : Module {
 
 	
 	PhraseSeq32Ex() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		sek[0].setId(0);
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+			sek[trkn].setId(trkn);
 		onReset();
 	}
 
@@ -206,7 +207,6 @@ struct PhraseSeq32Ex : Module {
 		countCP = SequencerKernel::MAX_STEPS;
 		startCP = 0;
 		pendingCP = false;
-		editingGate = 0ul;
 		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
 		attached = false;
@@ -216,19 +216,24 @@ struct PhraseSeq32Ex : Module {
 		resetOnRun = false;
 		keyboardEditingGates = false;
 		
-		sek[0].reset();
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
+			editingGate[trkn] = 0ul;
+			sek[trkn].reset();
+		}
 		initRun(true);
 	}
 	
 	
 	void onRandomize() override {
-		sek[0].randomize();	
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+			sek[trkn].randomize();	
 		initRun(true);
 	}
 	
 	
 	void initRun(bool hard) {// run button activated or run edge in run input jack
-		sek[0].initRun(hard, isPlayingSequence(), seqIndexRun);
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+			sek[trkn].initRun(hard, isPlayingSequence(), seqIndexRun);
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}	
 
@@ -269,7 +274,8 @@ struct PhraseSeq32Ex : Module {
 		// seqIndexRun
 		json_object_set_new(rootJ, "seqIndexRun", json_integer(seqIndexRun));
 	
-		sek[0].toJson(rootJ);
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+			sek[trkn].toJson(rootJ);
 		
 		return rootJ;
 	}
@@ -331,7 +337,8 @@ struct PhraseSeq32Ex : Module {
 		if (seqIndexRunJ)
 			seqIndexRun = json_integer_value(seqIndexRunJ);
 		
-		sek[0].fromJson(rootJ);
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+			sek[trkn].fromJson(rootJ);
 		
 		// Initialize dependants after everything loaded
 		initRun(true);
@@ -374,9 +381,9 @@ struct PhraseSeq32Ex : Module {
 				displayState = DISP_NORMAL;			
 			}
 			if (attached) {
-				stepIndexEdit = sek[0].getStepIndexRun();
+				stepIndexEdit = sek[trackIndexEdit].getStepIndexRun();
 				seqIndexEdit = seqIndexRun;
-				phraseIndexEdit = sek[0].getPhraseIndexRun();
+				phraseIndexEdit = sek[trackIndexEdit].getPhraseIndexRun();
 			}
 			
 			// Copy paste
@@ -394,10 +401,10 @@ struct PhraseSeq32Ex : Module {
 						else// 8
 							countCP = min(8, countCP - startCP);
 						if (editingSequence) {
-							sek[0].copySequence(cvCPbuffer, attribCPbuffer, &lengthCPbuffer, &modeCPbuffer, seqIndexEdit, startCP, countCP);
+							sek[trackIndexEdit].copySequence(cvCPbuffer, attribCPbuffer, &lengthCPbuffer, &modeCPbuffer, seqIndexEdit, startCP, countCP);
 						}
 						else {
-							sek[0].copyPhrase(phraseCPbuffer, repCPbuffer, &lengthCPbuffer, startCP, countCP);
+							sek[trackIndexEdit].copyPhrase(phraseCPbuffer, repCPbuffer, &lengthCPbuffer, startCP, countCP);
 						}
 						infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 						displayState = DISP_NORMAL;
@@ -413,17 +420,17 @@ struct PhraseSeq32Ex : Module {
 						}
 						if (editingSequence) {
 							if (lengthCPbuffer >= 0) {// non-crossed paste (seq vs song)
-								sek[0].pasteSequence(cvCPbuffer, attribCPbuffer, &lengthCPbuffer, &modeCPbuffer, seqIndexEdit, startCP, countCP);
+								sek[trackIndexEdit].pasteSequence(cvCPbuffer, attribCPbuffer, &lengthCPbuffer, &modeCPbuffer, seqIndexEdit, startCP, countCP);
 							}
 							else {// crossed paste to seq (seq vs song)
 								if (params[CPMODE_PARAM].value > 1.5f) { // ALL
-									sek[0].initSequence(seqIndexEdit);
+									sek[trackIndexEdit].initSequence(seqIndexEdit);
 								}
 								else if (params[CPMODE_PARAM].value < 0.5f) {// 4
-									sek[0].randomizeCVs(seqIndexEdit);
+									sek[trackIndexEdit].randomizeCVs(seqIndexEdit);
 								}
 								else {// 8
-									sek[0].randomizeGates(seqIndexEdit);
+									sek[trackIndexEdit].randomizeGates(seqIndexEdit);
 								}
 								startCP = 0;// light everything when cross paste
 								countCP = SequencerKernel::MAX_STEPS;
@@ -432,17 +439,17 @@ struct PhraseSeq32Ex : Module {
 						}
 						else {// editing song
 							if (lengthCPbuffer < 0) {// non-crossed paste (seq vs song)
-								sek[0].pastePhrase(phraseCPbuffer, repCPbuffer, startCP, countCP);
+								sek[trackIndexEdit].pastePhrase(phraseCPbuffer, repCPbuffer, startCP, countCP);
 							}
 							else {// crossed paste to song (seq vs song)
 								if (params[CPMODE_PARAM].value > 1.5f) { // ALL
-									sek[0].initSong();
+									sek[trackIndexEdit].initSong();
 								}
 								else if (params[CPMODE_PARAM].value < 0.5f) {// 4 
-									sek[0].staircaseSong();
+									sek[trackIndexEdit].staircaseSong();
 								}
 								else {// 8
-									sek[0].randomizeSong();
+									sek[trackIndexEdit].randomizeSong();
 								}
 								startCP = 0;// light everything when cross paste
 								countCP = SequencerKernel::MAX_PHRASES;// could be MAX_STEPS also since lights used for both
@@ -459,8 +466,14 @@ struct PhraseSeq32Ex : Module {
 			bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 			if (writeTrig) {
 				if (!attached && editingSequence) {
-					editingGateCV = sek[0].writeCV(seqIndexEdit, stepIndexEdit, inputs[CV_INPUTS + 0].value);
-					editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+					for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
+						if (inputs[CV_INPUTS + trkn].active) {
+							editingGateCV[trkn] = sek[trkn].writeCV(seqIndexEdit, stepIndexEdit, inputs[CV_INPUTS + trkn].value);
+							editingGate[trkn] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+							if (inputs[VEL_INPUT].active)
+								sek[trkn].setVelocity(seqIndexEdit, stepIndexEdit, (int)(inputs[VEL_INPUT].value));
+						}
+					}
 					editingGateKeyLight = -1;
 					// Autostep (after grab all active inputs)
 					if (params[AUTOSTEP_PARAM].value > 0.5f) {
@@ -484,27 +497,27 @@ struct PhraseSeq32Ex : Module {
 					displayState = DISP_NORMAL;
 				if (displayState == DISP_LENGTH) {
 					if (editingSequence) {
-						sek[0].modLength(seqIndexEdit, delta);
+						sek[trackIndexEdit].modLength(seqIndexEdit, delta);
 					}
 					else {
-						sek[0].modPhrases(delta);
+						sek[trackIndexEdit].modPhrases(delta);
 					}
 				}
 				else {
 					if (editingSequence) {
 						stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + delta, SequencerKernel::MAX_STEPS);
-						if (!sek[0].getTied(seqIndexEdit, stepIndexEdit)) {// play if non-tied step
-							if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
-								editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
-								editingGateCV = sek[0].getCV(seqIndexEdit, stepIndexEdit);
-								editingGateKeyLight = -1;
+						for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
+							if (!sek[trkn].getTied(seqIndexEdit, stepIndexEdit)) {// play if non-tied step
+								if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
+									editingGate[trkn] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+									editingGateCV[trkn] = sek[trkn].getCV(seqIndexEdit, stepIndexEdit);
+									editingGateKeyLight = -1;
+								}
 							}
 						}
 					}
 					else {
 						phraseIndexEdit = moveIndexEx(phraseIndexEdit, phraseIndexEdit + delta, SequencerKernel::MAX_PHRASES);
-						if (!running)
-							sek[0].setPhraseIndexRun(phraseIndexEdit);	
 					}						
 				}
 			}
@@ -518,16 +531,16 @@ struct PhraseSeq32Ex : Module {
 			if (!attached && stepPressed != -1) {
 				if (displayState == DISP_LENGTH) {
 					if (editingSequence) {
-						sek[0].setLength(seqIndexEdit, stepPressed + 1);
+						sek[trackIndexEdit].setLength(seqIndexEdit, stepPressed + 1);
 						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
 				}
 				else {
 					if (editingSequence) {
 						stepIndexEdit = stepPressed;
-						if (!sek[0].getTied(seqIndexEdit,stepIndexEdit)) {// play if non-tied step
-							editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
-							editingGateCV = sek[0].getCV(seqIndexEdit, stepIndexEdit);
+						if (!sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit)) {// play if non-tied step
+							editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+							editingGateCV[trackIndexEdit] = sek[trackIndexEdit].getCV(seqIndexEdit, stepIndexEdit);
 							editingGateKeyLight = -1;
 						}
 					}
@@ -602,13 +615,13 @@ struct PhraseSeq32Ex : Module {
 				if (abs(deltaVelKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (!attached && editingSequence) {
 						if (params[VELMODE_PARAM].value > 1.5f) {
-							sek[0].modSlideVal(seqIndexEdit, stepIndexEdit, deltaVelKnob);
+							sek[trackIndexEdit].modSlideVal(seqIndexEdit, stepIndexEdit, deltaVelKnob);
 						}
 						else if (params[VELMODE_PARAM].value > 0.5f) {
-							sek[0].modGatePVal(seqIndexEdit, stepIndexEdit, deltaVelKnob);
+							sek[trackIndexEdit].modGatePVal(seqIndexEdit, stepIndexEdit, deltaVelKnob);
 						}
 						else {
-							sek[0].modVelocityVal(seqIndexEdit, stepIndexEdit, deltaVelKnob);
+							sek[trackIndexEdit].modVelocityVal(seqIndexEdit, stepIndexEdit, deltaVelKnob);
 						}
 					}
 				}
@@ -626,15 +639,15 @@ struct PhraseSeq32Ex : Module {
 				if (abs(deltaPhrKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (!attached) {
 						if (displayState == DISP_PPQN) {
-							sek[0].modPulsesPerStepIndex(deltaPhrKnob);
-							if (sek[0].getPulsesPerStep() == 1)
+							sek[trackIndexEdit].modPulsesPerStepIndex(deltaPhrKnob);
+							if (sek[trackIndexEdit].getPulsesPerStep() == 1)
 								keyboardEditingGates = false;
 						}
 						else if (displayState == DISP_MODE && !editingSequence) {
-							sek[0].modRunModeSong(deltaPhrKnob);
+							sek[trackIndexEdit].modRunModeSong(deltaPhrKnob);
 						}
 						else if (displayState == DISP_LENGTH && !editingSequence) {
-							sek[0].modPhrases(deltaPhrKnob);
+							sek[trackIndexEdit].modPhrases(deltaPhrKnob);
 						}
 						else {
 							if (!editingSequence) {
@@ -659,24 +672,24 @@ struct PhraseSeq32Ex : Module {
 				if (abs(deltaSeqKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (!attached) {
 						if (displayState == DISP_MODE && editingSequence) {
-							sek[0].modRunModeSeq(seqIndexEdit, deltaSeqKnob);
+							sek[trackIndexEdit].modRunModeSeq(seqIndexEdit, deltaSeqKnob);
 						}
 						else if (displayState == DISP_LENGTH && editingSequence) {
-								sek[0].modLength(seqIndexEdit, deltaSeqKnob);
+								sek[trackIndexEdit].modLength(seqIndexEdit, deltaSeqKnob);
 						}
 						else if (displayState == DISP_TRANSPOSE) {
 							if (editingSequence) {
-								sek[0].transposeSeq(seqIndexEdit, deltaSeqKnob);
+								sek[trackIndexEdit].transposeSeq(seqIndexEdit, deltaSeqKnob);
 							}
 						}
 						else if (displayState == DISP_ROTATE) {
 							if (editingSequence) {
-								sek[0].rotateSeq(&rotateOffset, seqIndexEdit, deltaSeqKnob);
+								sek[trackIndexEdit].rotateSeq(&rotateOffset, seqIndexEdit, deltaSeqKnob);
 							}						
 						}					
 						else if (displayState == DISP_REPS) {
 							if (!editingSequence) {
-								sek[0].modPhraseReps(phraseIndexEdit, deltaSeqKnob);
+								sek[trackIndexEdit].modPhraseReps(phraseIndexEdit, deltaSeqKnob);
 							}						
 						}
 						else {// DISP_NORMAL
@@ -688,7 +701,7 @@ struct PhraseSeq32Ex : Module {
 								}
 							}
 							else {
-								sek[0].modPhrase(phraseIndexEdit, deltaSeqKnob);
+								sek[trackIndexEdit].modPhrase(phraseIndexEdit, deltaSeqKnob);
 							}
 						}
 					}
@@ -723,11 +736,11 @@ struct PhraseSeq32Ex : Module {
 			}
 			if (newOct >= 0 && newOct <= 6) {
 				if (!attached && editingSequence) {
-					if (sek[0].getTied(seqIndexEdit, stepIndexEdit))
+					if (sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit))
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 					else {			
-						editingGateCV = sek[0].applyNewOctave(seqIndexEdit, stepIndexEdit, newOct);
-						editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+						editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewOctave(seqIndexEdit, stepIndexEdit, newOct);
+						editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 						editingGateKeyLight = -1;
 					}
 				}
@@ -739,19 +752,19 @@ struct PhraseSeq32Ex : Module {
 				if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
 					if (!attached && editingSequence) {
 						if (keyboardEditingGates) {
-							int newMode = sek[0].keyIndexToGateTypeEx(i);
+							int newMode = sek[trackIndexEdit].keyIndexToGateTypeEx(i);
 							if (newMode != -1)
-								sek[0].setGateType(seqIndexEdit, stepIndexEdit, newMode);
+								sek[trackIndexEdit].setGateType(seqIndexEdit, stepIndexEdit, newMode);
 						}
-						else if (sek[0].getTied(seqIndexEdit, stepIndexEdit)) {
+						else if (sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit)) {
 							if (params[KEY_PARAMS + i].value > 1.5f)
 								stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
 							else
 								tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 						}
 						else {	
-							editingGateCV = sek[0].applyNewKey(seqIndexEdit, stepIndexEdit, i);
-							editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+							editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewKey(seqIndexEdit, stepIndexEdit, i);
+							editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 							editingGateKeyLight = -1;
 							if (params[KEY_PARAMS + i].value > 1.5f) {// if right-click then move to next step
 								stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
@@ -772,7 +785,7 @@ struct PhraseSeq32Ex : Module {
 			}
 			if (keyGateTrigger.process(params[KEYGATE_PARAM].value)) {
 				if (!attached && editingSequence) {
-					if (sek[0].getPulsesPerStep() != 1) {
+					if (sek[trackIndexEdit].getPulsesPerStep() != 1) {
 						keyboardEditingGates = true;
 					}
 				}
@@ -782,33 +795,33 @@ struct PhraseSeq32Ex : Module {
 			// Gate, GateProb, Slide and Tied buttons
 			if (gate1Trigger.process(params[GATE_PARAM].value + inputs[GATECV_INPUT].value)) {
 				if (!attached && editingSequence) {
-					sek[0].toggleGate(seqIndexEdit, stepIndexEdit);
+					sek[trackIndexEdit].toggleGate(seqIndexEdit, stepIndexEdit);
 				}
 				displayState = DISP_NORMAL;
 			}		
 			if (gateProbTrigger.process(params[GATE_PROB_PARAM].value + inputs[GATEPCV_INPUT].value)) {
 				if (!attached && editingSequence) {
-					if (sek[0].getTied(seqIndexEdit,stepIndexEdit))
+					if (sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit))
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 					else {
-						sek[0].toggleGateP(seqIndexEdit, stepIndexEdit);
+						sek[trackIndexEdit].toggleGateP(seqIndexEdit, stepIndexEdit);
 					}
 				}
 				displayState = DISP_NORMAL;
 			}		
 			if (slideTrigger.process(params[SLIDE_BTN_PARAM].value + inputs[SLIDECV_INPUT].value)) {
 				if (!attached && editingSequence) {
-					if (sek[0].getTied(seqIndexEdit,stepIndexEdit))
+					if (sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit))
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 					else {
-						sek[0].toggleSlide(seqIndexEdit, stepIndexEdit);
+						sek[trackIndexEdit].toggleSlide(seqIndexEdit, stepIndexEdit);
 					}
 				}
 				displayState = DISP_NORMAL;
 			}		
 			if (tiedTrigger.process(params[TIE_PARAM].value + inputs[TIEDCV_INPUT].value)) {
 				if (!attached && editingSequence) {
-					sek[0].toggleTied(seqIndexEdit, stepIndexEdit);// will clear other attribs if new state is on
+					sek[trackIndexEdit].toggleTied(seqIndexEdit, stepIndexEdit);// will clear other attribs if new state is on
 				}
 				displayState = DISP_NORMAL;
 			}		
@@ -822,7 +835,8 @@ struct PhraseSeq32Ex : Module {
 		// Clock
 		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
 			if (running && clockIgnoreOnReset == 0l) {
-				sek[0].clockStep(playingSequence, seqIndexRun, clockPeriod);
+				for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+					sek[trkn].clockStep(playingSequence, seqIndexRun, clockPeriod);
 			}
 			clockPeriod = 0ul;
 		}
@@ -841,26 +855,28 @@ struct PhraseSeq32Ex : Module {
 		
 		
 		// CV and gates outputs
-		if (running) {
-			int seqn = (playingSequence ? seqIndexRun : sek[0].getPhrase(sek[0].getPhraseIndexRun()));
-			int stepn = sek[0].getStepIndexRun();
-			outputs[CV_OUTPUTS + 0].value = sek[0].getCV(seqn, stepn) - sek[0].calcSlideOffset();
-			outputs[GATE_OUTPUTS + 0].value = (sek[0].calcGate(clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f);
-			outputs[VEL_OUTPUTS + 0].value = sek[0].getVelocity(seqn, stepn);
-		}
-		else {// not running 
-			if (editingSequence) {
-				outputs[CV_OUTPUTS + 0].value = (editingGate > 0ul) ? editingGateCV : sek[0].getCV(seqIndexEdit, stepIndexEdit);
-				outputs[GATE_OUTPUTS + 0].value = (editingGate > 0ul) ? 10.0f : 0.0f;
-				outputs[VEL_OUTPUTS + 0].value = (editingGate > 0ul) ? 10.0f : sek[0].getVelocity(seqIndexEdit, stepIndexEdit);
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
+			if (running) {
+				int seqn = (playingSequence ? seqIndexRun : sek[trkn].getPhrase(sek[trkn].getPhraseIndexRun()));
+				int stepn = sek[trkn].getStepIndexRun();
+				outputs[CV_OUTPUTS + trkn].value = sek[trkn].getCV(seqn, stepn) - sek[trkn].calcSlideOffset();
+				outputs[GATE_OUTPUTS + trkn].value = (sek[trkn].calcGate(clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f);
+				outputs[VEL_OUTPUTS + trkn].value = sek[trkn].getVelocity(seqn, stepn);
 			}
-			else {
-				outputs[CV_OUTPUTS + 0].value = 0.0f;;
-				outputs[GATE_OUTPUTS + 0].value = 0.0f;
-				outputs[VEL_OUTPUTS + 0].value = 0.0f;
+			else {// not running 
+				if (editingSequence) {
+					outputs[CV_OUTPUTS + trkn].value = (editingGate[trkn] > 0ul) ? editingGateCV[trkn] : sek[trkn].getCV(seqIndexEdit, stepIndexEdit);
+					outputs[GATE_OUTPUTS + trkn].value = (editingGate[trkn] > 0ul) ? 10.0f : 0.0f;
+					outputs[VEL_OUTPUTS + trkn].value = (editingGate[trkn] > 0ul) ? 10.0f : sek[trkn].getVelocity(seqIndexEdit, stepIndexEdit);
+				}
+				else {
+					outputs[CV_OUTPUTS + trkn].value = 0.0f;;
+					outputs[GATE_OUTPUTS + trkn].value = 0.0f;
+					outputs[VEL_OUTPUTS + trkn].value = 0.0f;
+				}
 			}
+			sek[trkn].decSlideStepsRemain();
 		}
-		sek[0].decSlideStepsRemain();
 
 		
 		lightRefreshCounter++;
@@ -881,7 +897,7 @@ struct PhraseSeq32Ex : Module {
 				for (int i = 0; i < SequencerKernel::MAX_STEPS; i++) {
 					if (displayState == DISP_LENGTH) {
 						if (editingSequence) {
-							int seqEnd = sek[0].getLength(seqIndexEdit) - 1;
+							int seqEnd = sek[trackIndexEdit].getLength(seqIndexEdit) - 1;
 							if (i < seqEnd)
 								setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.1f, 0.0f);
 							else if (i == seqEnd)
@@ -898,7 +914,7 @@ struct PhraseSeq32Ex : Module {
 						float green = 0.0f;
 						// Run cursor (green)
 						// if (running)
-							// green = (i == sek[0].getStepIndexRun() ? 0.1f : 0.0f);
+							// green = (i == sek[trackIndexEdit].getStepIndexRun() ? 0.1f : 0.0f);
 						// Edit cursor (red)
 						if (editingSequence) {
 							if (i == stepIndexEdit) {
@@ -912,7 +928,7 @@ struct PhraseSeq32Ex : Module {
 			}
 		
 			// Octave lights
-			float octKeyCV = sek[0].getCV(seqIndexEdit, stepIndexEdit);// used only if editingSequence. used for keyboard lights also
+			float octKeyCV = sek[trackIndexEdit].getCV(seqIndexEdit, stepIndexEdit);// used only if editingSequence. used for keyboard lights also
 			int octLightIndex = (int) floor(octKeyCV + 3.0f);
 			for (int i = 0; i < 7; i++) {
 				float red = 0.0f;
@@ -931,7 +947,7 @@ struct PhraseSeq32Ex : Module {
 			octKeyCV += 10.0f;// to properly handle negative note voltages
 			int keyLightIndex = (int) clamp(  roundf( (octKeyCV-floor(octKeyCV)) * 12.0f ),  0.0f,  11.0f);
 			if (keyboardEditingGates && editingSequence) {
-				int modeLightIndex = sek[0].getGateType(seqIndexEdit, stepIndexEdit);
+				int modeLightIndex = sek[trackIndexEdit].getGateType(seqIndexEdit, stepIndexEdit);
 				for (int i = 0; i < 12; i++) {
 					if (i == modeLightIndex)
 						setGreenRed(KEY_LIGHTS + i * 2, 1.0f, 1.0f);
@@ -949,8 +965,8 @@ struct PhraseSeq32Ex : Module {
 							red = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
 						}
 						else {
-							if (editingGate > 0ul && editingGateKeyLight != -1)
-								red = (i == editingGateKeyLight ? ((float) editingGate / (float)(gateTime * sampleRate / displayRefreshStepSkips)) : 0.0f);
+							if (editingGate[trackIndexEdit] > 0ul && editingGateKeyLight != -1)
+								red = (i == editingGateKeyLight ? ((float) editingGate[trackIndexEdit] / (float)(gateTime * sampleRate / displayRefreshStepSkips)) : 0.0f);
 							else
 								red = (i == keyLightIndex ? 1.0f : 0.0f);
 						}
@@ -961,10 +977,10 @@ struct PhraseSeq32Ex : Module {
 
 			// Gate, GateProb, Slide and Tied lights 
 			if (editingSequence) {
-				Attribute attributesVal = sek[0].getAttribute(seqIndexEdit, stepIndexEdit);
+				Attribute attributesVal = sek[trackIndexEdit].getAttribute(seqIndexEdit, stepIndexEdit);
 				if (!attributesVal.getGate()) 
 					setGreenRed(GATE_LIGHT, 0.0f, 0.0f);
-				else if (sek[0].getPulsesPerStep() == 1) 
+				else if (sek[trackIndexEdit].getPulsesPerStep() == 1) 
 					setGreenRed(GATE_LIGHT, 0.0f, 1.0f);
 				else 
 					setGreenRed(GATE_LIGHT, 1.0f, 1.0f);
@@ -1004,8 +1020,10 @@ struct PhraseSeq32Ex : Module {
 			// Run light
 			lights[RUN_LIGHT].value = running ? 1.0f : 0.0f;
 
-			if (editingGate > 0ul)
-				editingGate--;
+			for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
+				if (editingGate[trkn] > 0ul)
+					editingGate[trkn]--;
+			}
 			if (infoCopyPaste != 0l) {
 				if (infoCopyPaste > 0l)
 					infoCopyPaste --;
@@ -1085,7 +1103,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			bool editingSequence = module->isEditingSequence();
 			if (editingSequence) {
 				if (module->params[PhraseSeq32Ex::VELMODE_PARAM].value > 1.5f) {
-					int slide = module->sek[0].getSlideVal(module->seqIndexEdit, module->stepIndexEdit);
+					int slide = module->sek[module->trackIndexEdit].getSlideVal(module->seqIndexEdit, module->stepIndexEdit);
 					if ( slide>= 100)
 						snprintf(displayStr, 4, "1,0");
 					else if (slide >= 10)
@@ -1096,7 +1114,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 						snprintf(displayStr, 4, "  0");
 				}
 				else if (module->params[PhraseSeq32Ex::VELMODE_PARAM].value > 0.5f) {
-					int prob = module->sek[0].getGatePVal(module->seqIndexEdit, module->stepIndexEdit);
+					int prob = module->sek[module->trackIndexEdit].getGatePVal(module->seqIndexEdit, module->stepIndexEdit);
 					if ( prob>= 100)
 						snprintf(displayStr, 4, "1,0");
 					else if (prob >= 10)
@@ -1107,7 +1125,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 						snprintf(displayStr, 4, "  0");
 				}
 				else {
-					Attribute attributesVal = module->sek[0].getAttribute(module->seqIndexEdit, module->stepIndexEdit);
+					Attribute attributesVal = module->sek[module->trackIndexEdit].getAttribute(module->seqIndexEdit, module->stepIndexEdit);
 					snprintf(displayStr, 4, "%3u", (unsigned)(attributesVal.getVelocityVal()));
 				}
 			}
@@ -1129,13 +1147,13 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		void printText() override {
 			bool editingSequence = module->isEditingSequence();
 			if (module->displayState == PhraseSeq32Ex::DISP_PPQN) {
-				snprintf(displayStr, 4, "x%2u", (unsigned) module->sek[0].getPulsesPerStep());
+				snprintf(displayStr, 4, "x%2u", (unsigned) module->sek[module->trackIndexEdit].getPulsesPerStep());
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_MODE && !editingSequence) {
-				runModeToStr(module->sek[0].getRunModeSong());
+				runModeToStr(module->sek[module->trackIndexEdit].getRunModeSong());
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_LENGTH && !editingSequence) {
-				snprintf(displayStr, 4, "L%2u", (unsigned) module->sek[0].getPhrases());
+				snprintf(displayStr, 4, "L%2u", (unsigned) module->sek[module->trackIndexEdit].getPhrases());
 			}
 			else {// DISP_NORMAL
 				if (editingSequence)					
@@ -1178,13 +1196,13 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				}
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_MODE && editingSequence) {
-				runModeToStr(module->sek[0].getRunModeSeq(module->seqIndexEdit));
+				runModeToStr(module->sek[module->trackIndexEdit].getRunModeSeq(module->seqIndexEdit));
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_LENGTH && editingSequence) {
-				snprintf(displayStr, 4, "L%2u", (unsigned) module->sek[0].getLength(module->seqIndexEdit));
+				snprintf(displayStr, 4, "L%2u", (unsigned) module->sek[module->trackIndexEdit].getLength(module->seqIndexEdit));
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_TRANSPOSE) {
-				int tranOffset = module->sek[0].getTransposeOffset(module->seqIndexEdit);
+				int tranOffset = module->sek[module->trackIndexEdit].getTransposeOffset(module->seqIndexEdit);
 				snprintf(displayStr, 4, "+%2u", (unsigned) abs(tranOffset));
 				if (tranOffset < 0)
 					displayStr[0] = '-';
@@ -1195,7 +1213,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 					displayStr[0] = '(';
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_REPS) {
-				snprintf(displayStr, 4, "R%2u", (unsigned) abs(module->sek[0].getPhraseReps(module->phraseIndexEdit)));
+				snprintf(displayStr, 4, "R%2u", (unsigned) abs(module->sek[module->trackIndexEdit].getPhraseReps(module->phraseIndexEdit)));
 			}
 			else {// DISP_NORMAL
 				if (module->attached)
@@ -1203,7 +1221,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				else if (editingSequence)
 					snprintf(displayStr, 4, " %2u", (unsigned)(module->seqIndexEdit + 1) );
 				else
-					snprintf(displayStr, 4, " %2u", (unsigned)(module->sek[0].getPhrase(module->phraseIndexEdit) + 1) );
+					snprintf(displayStr, 4, " %2u", (unsigned)(module->sek[module->trackIndexEdit].getPhrase(module->phraseIndexEdit) + 1) );
 			}
 		}
 	};
@@ -1228,7 +1246,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			if (playingSequence)
 				snprintf(displayStr, 5, " -%2u", (unsigned)(module->seqIndexRun + 1));
 			else 
-				snprintf(displayStr, 5, "%2u%2u", (unsigned)(module->sek[0].getPhraseIndexRun() + 1), (unsigned)(module->sek[0].getPhrase(module->sek[0].getPhraseIndexRun()) + 1) );
+				snprintf(displayStr, 5, "%2u%2u", (unsigned)(module->sek[module->trackIndexEdit].getPhraseIndexRun() + 1), (unsigned)(module->sek[module->trackIndexEdit].getPhrase(module->sek[module->trackIndexEdit].getPhraseIndexRun()) + 1) );
 			nvgText(vg, textPos.x + offsetSeqDigits, textPos.y, &(displayStr[2]), NULL);
 			displayStr[2] = 0;
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
@@ -1464,6 +1482,10 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		// Slide light and button
 		addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerMB4 + posLEDvsButton, rowRulerMB0), module, PhraseSeq32Ex::SLIDE_LIGHT));		
 		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB4, rowRulerMB0), module, PhraseSeq32Ex::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		// Len/mode button
+		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB4 + columnRulerMBspacing, rowRulerMB0), module, PhraseSeq32Ex::LENMODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		// Transpose/rotate button
+		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB4 + 2 * columnRulerMBspacing - 8, rowRulerMB0), module, PhraseSeq32Ex::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 
 	
 	
@@ -1485,26 +1507,13 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		addParam(createParamCentered<CKSSHThree>(Vec(colRulerVel, rowRulerSmallButtons), module, PhraseSeq32Ex::VELMODE_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
 		
 
-		// Track display
-		static const int colRulerTrk = colRulerVel + displaySpacingX;
-		static const int trkButtonsOffsetX = 12;
-		addChild(new TrackDisplayWidget(Vec(colRulerTrk, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 2 characters
-		// Track buttons
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk + trkButtonsOffsetX, rowRulerKnobs), module, PhraseSeq32Ex::TRACKUP_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk - trkButtonsOffsetX, rowRulerKnobs), module, PhraseSeq32Ex::TRACKDOWN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		// AllTracks button
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk, rowRulerSmallButtons), module, PhraseSeq32Ex::ALLTRACKS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		
-		
 		// Phrase edit display 
-		static const int colRulerEditPhr = colRulerTrk + displaySpacingX;
+		static const int colRulerEditPhr = colRulerVel + displaySpacingX;
 		addChild(new PhrEditDisplayWidget(Vec(colRulerEditPhr, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 5 characters
 		// Phrase knob
 		addParam(createDynamicParamCentered<IMMediumKnobInf>(Vec(colRulerEditPhr, rowRulerKnobs), module, PhraseSeq32Ex::PHRASE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
 		// Clk res
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditPhr, rowRulerSmallButtons), module, PhraseSeq32Ex::CLKRES_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		// Transpose/rotate button
-		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB4 + columnRulerMBspacing, rowRulerMB0), module, PhraseSeq32Ex::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 
 				
 		// Seq edit display 
@@ -1514,9 +1523,18 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		addParam(createDynamicParamCentered<IMMediumKnobInf>(Vec(colRulerEditSeq, rowRulerKnobs), module, PhraseSeq32Ex::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
 		// Reps button
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditSeq, rowRulerSmallButtons), module, PhraseSeq32Ex::REPS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		// Len/mode button
-		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB4 + 2 * columnRulerMBspacing - 8, rowRulerMB0), module, PhraseSeq32Ex::LENMODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 
+		
+		// Track display
+		static const int colRulerTrk = colRulerEditSeq + displaySpacingX;
+		static const int trkButtonsOffsetX = 12;
+		addChild(new TrackDisplayWidget(Vec(colRulerTrk, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 2 characters
+		// Track buttons
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk + trkButtonsOffsetX, rowRulerKnobs), module, PhraseSeq32Ex::TRACKUP_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk - trkButtonsOffsetX, rowRulerKnobs), module, PhraseSeq32Ex::TRACKDOWN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		// AllTracks button
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk, rowRulerSmallButtons), module, PhraseSeq32Ex::ALLTRACKS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+			
 			
 
 		// PhraseSeq play display 
