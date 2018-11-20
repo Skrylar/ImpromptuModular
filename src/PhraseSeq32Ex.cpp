@@ -584,11 +584,11 @@ struct PhraseSeq32Ex : Module {
 
 			// Track Inc/Dec triggers
 			if (trackIncTrigger.process(params[TRACKUP_PARAM].value)) {
-				if (!attached && trackIndexEdit < (NUM_TRACKS - 1)) 
+				if (trackIndexEdit < (NUM_TRACKS - 1)) 
 					trackIndexEdit++;
 			}
 			if (trackDeccTrigger.process(params[TRACKDOWN_PARAM].value)) {
-				if (!attached && trackIndexEdit > 0) 
+				if (trackIndexEdit > 0) 
 					trackIndexEdit--;
 			}
 			
