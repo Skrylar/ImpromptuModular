@@ -126,44 +126,31 @@ class SequencerKernel {
 	// get
 	// ----------------
 	inline int getRunModeSong() {return runModeSong;}
-	inline int getRunModeSeq(int seqn) {return runModeSeq[seqn];}
+	inline int getRunModeSeq(int phrn) {return runModeSeq[phrase[phrn]];}
 	inline int getPhrases() {return phrases;}
-	inline int getLength(int seqn) {return lengths[seqn];}
+	inline int getLength(int phrn) {return lengths[phrase[phrn]];}
 	inline int getPhrase(int phrn) {return phrase[phrn];}
 	inline int getPhraseReps(int phrn) {return phraseReps[phrn];}
 	inline int getPulsesPerStep() {return ppsValues[pulsesPerStepIndex];}
-	inline int getTransposeOffset(int seqn) {return transposeOffsets[seqn];}
+	inline int getTransposeOffset(int phrn) {return transposeOffsets[phrase[phrn]];}
 	inline int getStepIndexRun() {return stepIndexRun;}
 	inline int getPhraseIndexRun() {return phraseIndexRun;}
 	inline float getCV(int phrn, int stepn) {return cv[phrase[phrn]][stepn];}
 	inline Attribute getAttribute(int phrn, int stepn) {return attributes[phrase[phrn]][stepn];}
-	inline bool getGate(int seqn, int stepn) {return attributes[seqn][stepn].getGate();}
 	inline bool getTied(int phrn, int stepn) {return attributes[phrase[phrn]][stepn].getTied();}
-	inline bool getGateP(int seqn, int stepn) {return attributes[seqn][stepn].getGateP();}
 	inline int getGatePVal(int phrn, int stepn) {return attributes[phrase[phrn]][stepn].getGatePVal();}
-	inline bool getSlide(int seqn, int stepn) {return attributes[seqn][stepn].getSlide();}
 	inline int getSlideVal(int phrn, int stepn) {return attributes[phrase[phrn]][stepn].getSlideVal();}
-	inline int getVelocityVal(int seqn, int stepn) {return attributes[seqn][stepn].getVelocityVal();}
+	inline int getVelocityVal(int phrn, int stepn) {return attributes[phrase[phrn]][stepn].getVelocityVal();}
 	inline float getVelocity(int phrn, int stepn) {return attributes[phrase[phrn]][stepn].getVelocity();}
-	inline int getGateType(int seqn, int stepn) {return attributes[seqn][stepn].getGateType();}
+	inline int getGateType(int phrn, int stepn) {return attributes[phrase[phrn]][stepn].getGateType();}
 	
 	
 	// Set
 	// ----------------
-	inline void setRunModeSeq(int seqn, int runmode) {runModeSeq[seqn] = runmode;}
-	inline void setPhrases(int _phrases) {phrases = _phrases;}
 	inline void setLength(int phrn, int _length) {lengths[phrase[phrn]] = _length;}
-	inline void setPhrase(int phrn, int seqn) {phrase[phrn] = seqn;}
-	inline void setStepIndexRun(int _stepIndexRun) {stepIndexRun = _stepIndexRun;}
-	inline void setPhraseIndexRun(int _phraseIndexRun) {phraseIndexRun = _phraseIndexRun;}
-	inline void setCV(int seqn, int stepn, float _cv) {cv[seqn][stepn] = _cv;}
-	inline void setAttribute(int seqn, int stepn, Attribute _attribute) {attributes[seqn][stepn] = _attribute;}
-	inline void setGate(int seqn, int stepn, bool gateState) {attributes[seqn][stepn].setGate(gateState);}
-	inline void setGateP(int seqn, int stepn, bool GatePstate) {attributes[seqn][stepn].setGateP(GatePstate);}
 	inline void setGatePVal(int phrn, int stepn, int gatePval) {attributes[phrase[phrn]][stepn].setGatePVal(gatePval);}
-	inline void setSlide(int seqn, int stepn, bool slideState) {attributes[seqn][stepn].setSlide(slideState);}
 	inline void setSlideVal(int phrn, int stepn, int slideVal) {attributes[phrase[phrn]][stepn].setSlideVal(slideVal);}
-	inline void setVelocityVal(int seqn, int stepn, int velocity) {attributes[seqn][stepn].setVelocityVal(velocity);}
+	inline void setVelocityVal(int phrn, int stepn, int velocity) {attributes[phrase[phrn]][stepn].setVelocityVal(velocity);}
 	inline void setVelocity(int phrn, int stepn, float velocity) {attributes[phrase[phrn]][stepn].setVelocity(velocity);}
 	inline void setGateType(int phrn, int stepn, int gateType) {attributes[phrase[phrn]][stepn].setGateType(gateType);}
 
@@ -216,12 +203,11 @@ class SequencerKernel {
 		setSlideVal(phrn, stepn, sVal);
 	}		
 	inline void modVelocityVal(int phrn, int stepn, int delta) {
-		int seqn = phrase[phrn];
-		int vVal = getVelocityVal(seqn, stepn);
+		int vVal = getVelocityVal(phrn, stepn);
 		vVal += delta;
 		if (vVal > 255) vVal = 255;
 		if (vVal < 0) vVal = 0;
-		setVelocityVal(seqn, stepn, vVal);						
+		setVelocityVal(phrn, stepn, vVal);						
 	}		
 	inline void decSlideStepsRemain() {if (slideStepsRemain > 0ul) slideStepsRemain--;}	
 	inline void toggleGate(int phrn, int stepn) {attributes[phrase[phrn]][stepn].toggleGate();}
@@ -293,41 +279,23 @@ class SequencerKernel {
 	
 	// Randomize and staircase
 	// ----------------
-	inline void randomizeGates(int seqn) {
-		for (int stepn = 0; stepn < MAX_STEPS; stepn++)
-			if ( (randomu32() & 0x1) != 0)
-				attributes[seqn][stepn].toggleGate();
-	}
-	inline void randomizeAttributes(int seqn) {// uses lengths[] so make sure that is set up first
+	inline void randomizeSequence(int seqn) {
 		for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
+			cv[seqn][stepn] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 			attributes[seqn][stepn].randomize();
 			if (attributes[seqn][stepn].getTied()) {
 				attributes[seqn][stepn].applyTied();
 				applyTiedStep(seqn, stepn);
-			}
+			}	
 		}
-	}
-	inline void randomizeCVs(int seqn) {
-		for (int stepn = 0; stepn < MAX_STEPS; stepn++)
-			cv[seqn][stepn] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 		transposeOffsets[seqn] = 0;
-	}
-	inline void randomizeSequence(int seqn) {
-		randomizeCVs(seqn);
-		randomizeAttributes(seqn);
 	}
 	inline void randomizeSong() {
 		for (int phrn = 0; phrn < MAX_PHRASES; phrn++) {
 			phrase[phrn] = randomu32() % MAX_PHRASES;
 			phraseReps[phrn] = randomu32() % 4 + 1;
 		}
-	}
-	inline void staircaseSong() {
-		for (int phrn = 0; phrn < MAX_PHRASES; phrn++) {
-			phrase[phrn] = phrn;
-			phraseReps[phrn] = 1;	
-		}			
-	}		
+	}	
 
 	
 	// Copy-paste sequence or song
