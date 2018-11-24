@@ -492,34 +492,13 @@ struct WriteSeq32Widget : ModuleWidget {
 			else {
 				int index = (module->indexChannel == 3 ? module->indexStepStage : module->indexStep);
 				if ( ( (index&0x18) |index8) >= (int) clamp(roundf(module->params[WriteSeq32::STEPS_PARAM].value), 1.0f, 32.0f) ) {
-					text[0] = ' ';
-					text[1] = ' ';
-					text[2] = ' ';
+					text[0] = 0;
 				}
 				else {
 					float cvVal = module->cv[module->indexChannel][index8|(index&0x18)];
-					float cvValOffset = cvVal +10.0f;//to properly handle negative note voltages
-					int indexNote = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
-					bool sharp = (module->params[WriteSeq32::SHARP_PARAM].value > 0.5f) ? true : false;
-					
-					// note letter
-					text[0] = sharp ? noteLettersSharp[indexNote] : noteLettersFlat[indexNote];
-					
-					// octave number
-					int octave = (int) roundf(floorf(cvVal)+4.0f);
-					if (octave < 0 || octave > 9)
-						text[1] = (octave > 9) ? ':' : '_';
-					else
-						text[1] = (char) ( 0x30 + octave);
-					
-					// sharp/flat
-					text[2] = ' ';
-					if (isBlackKey[indexNote] == 1)
-						text[2] = (sharp ? '\"' : '^' );
+					printNote(cvVal, text, module->params[WriteSeq32::SHARP_PARAM].value > 0.5f);
 				}
 			}
-			// end of string
-			text[3] = 0;
 		}
 
 		void draw(NVGcontext *vg) override {

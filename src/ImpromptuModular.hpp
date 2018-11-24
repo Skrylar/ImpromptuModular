@@ -50,13 +50,6 @@ static const unsigned int userInputsStepSkipMask = 0xF;// sub interval of displa
 // above value should make it such that inputs are sampled > 1kHz so as to not miss 1ms triggers
 
 
-// Constants for displaying notes
-
-static const char noteLettersSharp[12] = {'C', 'C', 'D', 'D', 'E', 'F', 'F', 'G', 'G', 'A', 'A', 'B'};
-static const char noteLettersFlat [12] = {'C', 'D', 'D', 'E', 'E', 'F', 'G', 'G', 'A', 'A', 'B', 'B'};
-static const char isBlackKey      [12] = { 0,   1,   0,   1,   0,   0,   1,   0,   1,   0,   1,   0 };
-
-
 // Component offset constants
 
 static const int hOffsetCKSS = 5;
@@ -339,5 +332,6 @@ inline bool calcWarningFlash(long count, long countInit) {
 
 
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box, int fontSize);
+void printNote(float cvVal, char* text, bool sharp);
 
 #endif

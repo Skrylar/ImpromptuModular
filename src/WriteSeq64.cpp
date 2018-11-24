@@ -513,29 +513,8 @@ struct WriteSeq64Widget : ModuleWidget {
 			}
 			else {			
 				if (module->params[WriteSeq64::SHARP_PARAM].value > 0.5f) {// show notes
-					float cvValOffset = cvVal +10.0f;// to properly handle negative note voltages
-					int indexNote =  clamp(  (int)roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0,  11);
-					bool sharp = (module->params[WriteSeq64::SHARP_PARAM].value < 1.5f) ? true : false;
-					
 					text[0] = ' ';
-					
-					// note letter
-					text[1] = sharp ? noteLettersSharp[indexNote] : noteLettersFlat[indexNote];
-					
-					// octave number
-					int octave = (int) roundf(floorf(cvVal)+4.0f);
-					if (octave < 0 || octave > 9)
-						text[2] = (octave > 9) ? ':' : '_';
-					else
-						text[2] = (char) ( 0x30 + octave);
-					
-					// sharp/flat
-					text[3] = ' ';
-					if (isBlackKey[indexNote] == 1)
-						text[3] = (sharp ? '\"' : '^' );
-					
-					// end of string
-					text[4] = 0;
+					printNote(cvVal, &text[1], module->params[WriteSeq64::SHARP_PARAM].value < 1.5f);
 				}
 				else  {// show volts
 					float cvValPrint = fabs(cvVal);

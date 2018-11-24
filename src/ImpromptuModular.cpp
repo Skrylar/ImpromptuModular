@@ -135,4 +135,29 @@ NVGcolor prepareDisplay(NVGcontext *vg, Rect *box, int fontSize) {
 	return textColor;
 }
 
+void printNote(float cvVal, char* text, bool sharp) {// text must be at least 4 chars long (three displayed chars plus end of string)
+	static const char noteLettersSharp[12] = {'C', 'C', 'D', 'D', 'E', 'F', 'F', 'G', 'G', 'A', 'A', 'B'};
+	static const char noteLettersFlat [12] = {'C', 'D', 'D', 'E', 'E', 'F', 'G', 'G', 'A', 'A', 'B', 'B'};
+	static const char isBlackKey      [12] = { 0,   1,   0,   1,   0,   0,   1,   0,   1,   0,   1,   0 };
+
+	float cvValOffset = cvVal + 10.0f;// to properly handle negative note voltages
+	int indexNote =  clamp(  (int)( (cvValOffset-floor(cvValOffset)) * 12.0f + 0.5f ),  0,  11);
+	
+	// note letter
+	text[0] = sharp ? noteLettersSharp[indexNote] : noteLettersFlat[indexNote];
+	
+	// octave number
+	int octave = (int) roundf(floorf(cvVal)+4.0f);
+	if (octave < 0 || octave > 9)
+		text[1] = (octave > 9) ? ':' : '_';
+	else
+		text[1] = (char) ( 0x30 + octave);
+	
+	// sharp/flat
+	text[2] = ' ';
+	if (isBlackKey[indexNote] == 1)
+		text[2] = (sharp ? '\"' : 'b' );
+	
+	text[3] = 0;
+}
 

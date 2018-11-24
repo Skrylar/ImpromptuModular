@@ -91,7 +91,7 @@ struct PhraseSeq32Ex : Module {
 	};
 	
 	// Constants
-	enum EditPSDisplayStateIds {DISP_NORMAL, DISP_MODE_SEQ, DISP_MODE_SONG, DISP_LENGTH_SEQ, DISP_REPS, DISP_TRANSPOSE, DISP_ROTATE, DISP_PPQN};
+	enum EditPSDisplayStateIds {DISP_NORMAL, DISP_OVERVIEW, DISP_MODE_SEQ, DISP_MODE_SONG, DISP_LENGTH_SEQ, DISP_REPS, DISP_TRANSPOSE, DISP_ROTATE, DISP_PPQN};
 	static const int NUM_TRACKS = 4;
 
 	// Need to save
@@ -411,7 +411,6 @@ struct PhraseSeq32Ex : Module {
 						stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
 					}
 				}
-				displayState = DISP_NORMAL;
 			}
 			// Left and right CV inputs
 			int delta = 0;
@@ -454,7 +453,6 @@ struct PhraseSeq32Ex : Module {
 						editingGateCV[trackIndexEdit] = sek[trackIndexEdit].getCV(phraseIndexEdit, stepIndexEdit);
 						editingGateKeyLight = -1;
 					}
-					displayState = DISP_NORMAL;
 				}
 			} 
 			
@@ -527,7 +525,7 @@ struct PhraseSeq32Ex : Module {
 				}
 			}	
 
-			// Track Inc/Dec triggers
+			// Track Inc/Dec buttons
 			if (trackIncTrigger.process(params[TRACKUP_PARAM].value)) {
 				if (trackIndexEdit < (NUM_TRACKS - 1)) 
 					trackIndexEdit++;
@@ -535,6 +533,14 @@ struct PhraseSeq32Ex : Module {
 			if (trackDeccTrigger.process(params[TRACKDOWN_PARAM].value)) {
 				if (trackIndexEdit > 0) 
 					trackIndexEdit--;
+			}
+			
+			// Overview button
+			if (overviewTrigger.process(params[OVERVIEW_PARAM].value)) {
+				if (displayState != DISP_OVERVIEW)
+					displayState = DISP_OVERVIEW;
+				else
+					displayState = DISP_NORMAL;
 			}
 			
 			// Velocity knob 
@@ -628,7 +634,6 @@ struct PhraseSeq32Ex : Module {
 			for (int i = 0; i < 7; i++) {
 				if (octTriggers[i].process(params[OCTAVE_PARAM + i].value)) {
 					newOct = 6 - i;
-					displayState = DISP_NORMAL;
 				}
 			}
 			if (newOct >= 0 && newOct <= 6) {
@@ -641,7 +646,6 @@ struct PhraseSeq32Ex : Module {
 						editingGateKeyLight = -1;
 					}
 				}
-				displayState = DISP_NORMAL;
 			}		
 			
 			// Keyboard buttons
@@ -669,7 +673,6 @@ struct PhraseSeq32Ex : Module {
 							}
 						}						
 					}
-					displayState = DISP_NORMAL;
 				}
 			}
 			
@@ -678,7 +681,6 @@ struct PhraseSeq32Ex : Module {
 				if (!attached) {
 					keyboardEditingGates = false;
 				}
-				displayState = DISP_NORMAL;
 			}
 			if (keyGateTrigger.process(params[KEYGATE_PARAM].value)) {
 				if (!attached) {
@@ -686,7 +688,6 @@ struct PhraseSeq32Ex : Module {
 						keyboardEditingGates = true;
 					}
 				}
-				displayState = DISP_NORMAL;
 			}
 
 			// Gate, GateProb, Slide and Tied buttons
@@ -694,7 +695,6 @@ struct PhraseSeq32Ex : Module {
 				if (!attached) {
 					sek[trackIndexEdit].toggleGate(phraseIndexEdit, stepIndexEdit);
 				}
-				displayState = DISP_NORMAL;
 			}		
 			if (gateProbTrigger.process(params[GATE_PROB_PARAM].value + inputs[GATEPCV_INPUT].value)) {
 				if (!attached) {
@@ -704,7 +704,6 @@ struct PhraseSeq32Ex : Module {
 						sek[trackIndexEdit].toggleGateP(phraseIndexEdit, stepIndexEdit);
 					}
 				}
-				displayState = DISP_NORMAL;
 			}		
 			if (slideTrigger.process(params[SLIDE_BTN_PARAM].value + inputs[SLIDECV_INPUT].value)) {
 				if (!attached) {
@@ -714,13 +713,11 @@ struct PhraseSeq32Ex : Module {
 						sek[trackIndexEdit].toggleSlide(phraseIndexEdit, stepIndexEdit);
 					}
 				}
-				displayState = DISP_NORMAL;
 			}		
 			if (tiedTrigger.process(params[TIE_PARAM].value + inputs[TIEDCV_INPUT].value)) {
 				if (!attached) {
 					sek[trackIndexEdit].toggleTied(phraseIndexEdit, stepIndexEdit);// will clear other attribs if new state is on
 				}
-				displayState = DISP_NORMAL;
 			}		
 			
 		}// userInputs refresh
@@ -881,6 +878,9 @@ struct PhraseSeq32Ex : Module {
 			// Attach light
 			lights[ATTACH_LIGHT].value = (attached ? 1.0f : 0.0f);		
 
+			// Overview light
+			lights[OVERVIEW_LIGHT].value = (displayState == DISP_OVERVIEW ? 1.0f : 0.0f);		
+
 			// Reset light
 			lights[RESET_LIGHT].value =	resetLight;
 			resetLight -= (resetLight / lightLambda) * engineGetSampleTime() * displayRefreshStepSkips;
@@ -971,7 +971,10 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	struct VelocityDisplayWidget : DisplayWidget<3> {
 		VelocityDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
 		char printText() override {
-			if (module->params[PhraseSeq32Ex::VELMODE_PARAM].value > 1.5f) {
+			if (module->displayState == PhraseSeq32Ex::DISP_OVERVIEW) {
+				printNote(module->sek[0].getCV(module->phraseIndexEdit, module->stepIndexEdit), displayStr, true);
+			}
+			else if (module->params[PhraseSeq32Ex::VELMODE_PARAM].value > 1.5f) {
 				int slide = module->sek[module->trackIndexEdit].getSlideVal(module->phraseIndexEdit, module->stepIndexEdit);
 				if ( slide>= 100)
 					snprintf(displayStr, 4, "1,0");
@@ -1038,8 +1041,10 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 					if (endHere)
 						overlayChar = '}';
 				}
-				else if (endHere)
+				else if (endHere) {
 					displayStr[0] = '}';
+					overlayChar = '_';
+				}
 			}
 			return overlayChar;
 		}
