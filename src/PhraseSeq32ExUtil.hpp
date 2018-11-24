@@ -295,7 +295,7 @@ class SequencerKernel {
 	}
 	inline void randomizeSong() {
 		for (int phrn = 0; phrn < MAX_PHRASES; phrn++) {
-			phrase[phrn] = randomu32() % MAX_PHRASES;
+			phrase[phrn] = randomu32() % MAX_SEQS;
 			phraseReps[phrn] = randomu32() % 4 + 1;
 		}
 	}	
@@ -364,13 +364,13 @@ class SequencerKernel {
 	
 	
 	void randomize() {
-		runModeSong = randomu32() % 5;
+		runModeSong = randomu32() % NUM_MODES;
 		songBeginIndex = 0;
 		songEndIndex = (randomu32() % MAX_PHRASES);
 		randomizeSong();
 		for (int seqn = 0; seqn < MAX_SEQS; seqn++) {
 			runModeSeq[seqn] = randomu32() % NUM_MODES;
-			lengths[seqn] = 1 + (randomu32() % MAX_SEQS);
+			lengths[seqn] = 1 + (randomu32() % MAX_STEPS);
 			randomizeSequence(seqn);// uses lengths[] so must be after lengths[] randomized
 		}
 		// no need to call initRun() here since user of the kernel does it in its onRandomize() via its initRun()

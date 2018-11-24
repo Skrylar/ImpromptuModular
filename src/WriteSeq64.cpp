@@ -340,7 +340,7 @@ struct WriteSeq64 : Module {
 			// Step knob
 			float stepParamValue = params[STEP_PARAM].value;
 			int newStepKnob = (int)roundf(stepParamValue * 10.0f);
-			if (stepsParamValue == 0.0f)// true when constructor or fromJson() occured
+			if (stepParamValue == 0.0f)// true when constructor or fromJson() occured
 				stepKnob = newStepKnob;
 			if (newStepKnob != stepKnob) {
 				if (canEdit && (abs(newStepKnob - stepKnob) <= 3) ) // avoid discontinuous step (initialize for example)
