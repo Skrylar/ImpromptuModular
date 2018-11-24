@@ -460,17 +460,13 @@ struct PhraseSeq32Ex : Module {
 				}
 			} 
 			
-			// Length/Mode button
+			// Mode button
 			if (modeTrigger.process(params[MODE_PARAM].value)) {
 				if (!attached) {
-					if (displayState != DISP_LENGTH_SEQ && displayState != DISP_LENGTH_SONG && displayState != DISP_MODE_SEQ && displayState != DISP_MODE_SONG)
-						displayState = DISP_LENGTH_SEQ;
-					else if (displayState == DISP_LENGTH_SEQ)
-						displayState = DISP_LENGTH_SONG;
-					else if (displayState == DISP_LENGTH_SONG)
-						displayState = DISP_MODE_SEQ;
-					else if (displayState == DISP_MODE_SEQ)
+					if (displayState != DISP_MODE_SEQ && displayState != DISP_MODE_SONG)
 						displayState = DISP_MODE_SONG;
+					else if (displayState == DISP_MODE_SONG)
+						displayState = DISP_MODE_SEQ;
 					else
 						displayState = DISP_NORMAL;
 				}
@@ -501,12 +497,36 @@ struct PhraseSeq32Ex : Module {
 				}
 			}			
 
+			// Begin button
+			if (beginTrigger.process(params[BEGIN_PARAM].value)) {
+				if (!attached) {
+					sek[trackIndexEdit].setBegin(phraseIndexEdit);
+				}
+			}	
+			// End button
+			if (endTrigger.process(params[END_PARAM].value)) {
+				if (!attached) {
+					sek[trackIndexEdit].setEnd(phraseIndexEdit);
+				}
+			}	
+
 			// Reps button
 			if (repsTrigger.process(params[REPS_PARAM].value)) {
 				if (!attached) {
 					if (displayState != DISP_REPS)
 						displayState = DISP_REPS;
 					else 
+						displayState = DISP_NORMAL;
+				}
+			}	
+			// Len button
+			if (lenTrigger.process(params[LEN_PARAM].value)) {
+				if (!attached) {
+					if (displayState != DISP_LENGTH_SEQ && displayState != DISP_LENGTH_SONG)
+						displayState = DISP_LENGTH_SEQ;
+					else if (displayState == DISP_LENGTH_SEQ)
+						displayState = DISP_LENGTH_SONG;
+					else
 						displayState = DISP_NORMAL;
 				}
 			}	
@@ -994,7 +1014,26 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 
 	struct PhrEditDisplayWidget : DisplayWidget<3> {
 		PhrEditDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
-		void printText() override {
+
+		void draw(NVGcontext *vg) override {
+			NVGcolor textColor = prepareDisplay(vg, &box, textFontSize);
+			nvgFontFaceId(vg, font->handle);
+			nvgTextLetterSpacing(vg, -0.5);
+
+			Vec textPos = Vec(4.5f, textOffsetY);
+			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
+			std::string initString(3,'~');
+			nvgText(vg, textPos.x, textPos.y, initString.c_str(), NULL);
+			nvgFillColor(vg, textColor);
+			bool beginEnd = printTextBE();
+			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
+			if (beginEnd)
+				nvgText(vg, textPos.x, textPos.y, ")", NULL);
+		}
+
+		void printText() override {};
+		bool printTextBE() {
+			bool beginEnd = false;// special return code to print an end symbols overlaped (begin done in here)
 			if (module->infoCopyPasteSong != 0l) {
 				if (module->infoCopyPasteSong > 0l)
 					snprintf(displayStr, 4, "CPY");
@@ -1012,8 +1051,19 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				snprintf(displayStr, 4, "L%2u", (unsigned) module->sek[module->trackIndexEdit].getPhrases());
 			}
 			else {// DISP_NORMAL
-				snprintf(displayStr, 4, " %2u", (unsigned)(module->phraseIndexEdit + 1));
+				int phrn = module->phraseIndexEdit;
+				snprintf(displayStr, 4, " %2u", (unsigned)(phrn + 1));
+				bool begHere = (phrn == module->sek[module->trackIndexEdit].getBegin());
+				bool endHere = (phrn == module->sek[module->trackIndexEdit].getEnd());
+				if (begHere) {
+					displayStr[0] = '(';
+					if (endHere)
+						beginEnd = true;
+				}
+				else if (endHere)
+					displayStr[0] = ')';
 			}
+			return beginEnd;
 		}
 	};
 	
@@ -1167,7 +1217,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int rowRulerT0 = 56;
 		static const int columnRulerT0 = 25;// Step/Phase LED buttons
 		static const int columnRulerT1 = 373;// All 
-		static const int columnRulerT4 = 496;// Copy-paste
+		static const int columnRulerT4 = 492;// Copy-paste
 		static const int columnRulerT5 = 536;// Attach
 		static const int stepsOffsetY = 10;
 
@@ -1337,8 +1387,8 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		// Sequence-edit knob
 		addParam(createDynamicParamCentered<IMMediumKnobInf>(Vec(colRulerEditSeq, rowRulerKnobs), module, PhraseSeq32Ex::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
 		// Len and Reps button
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditSeq - trkButtonsOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::LEN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditSeq + trkButtonsOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::REPS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditSeq - trkButtonsOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::REPS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditSeq + trkButtonsOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::LEN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 	
 			
 		// Reset and run LED buttons

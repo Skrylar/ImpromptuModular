@@ -75,7 +75,7 @@ class SequencerKernel {
 	// Sequencer dimensions
 	static const int MAX_STEPS = 32;
 	static const int MAX_SEQS = 16;
-	static const int MAX_PHRASES = 32;
+	static const int MAX_PHRASES = 32;// maximum value is 100 (disp will be 0 to 99)
 
 	// Clock resolution										
 	static const int NUM_PPS_VALUES = 33;
@@ -109,6 +109,8 @@ class SequencerKernel {
 	float cv[MAX_SEQS][MAX_STEPS];// [-3.0 : 3.917]. First index is sequence number, 2nd index is step
 	Attribute attributes[MAX_SEQS][MAX_STEPS];// First index is sequence number, 2nd index is step
 	int transposeOffsets[MAX_SEQS];
+	int songBeginIndex;
+	int songEndIndex;
 	
 	// No need to save
 	int stepIndexRun;
@@ -128,6 +130,8 @@ class SequencerKernel {
 	inline int getRunModeSong() {return runModeSong;}
 	inline int getRunModeSeq(int phrn) {return runModeSeq[phrase[phrn]];}
 	inline int getPhrases() {return phrases;}
+	inline int getBegin() {return songBeginIndex;}
+	inline int getEnd() {return songEndIndex;}
 	inline int getLength(int phrn) {return lengths[phrase[phrn]];}
 	inline int getPhrase(int phrn) {return phrase[phrn];}
 	inline int getPhraseReps(int phrn) {return phraseReps[phrn];}
@@ -148,6 +152,8 @@ class SequencerKernel {
 	// Set
 	// ----------------
 	inline void setLength(int phrn, int _length) {lengths[phrase[phrn]] = _length;}
+	inline void setBegin(int phrn) {songBeginIndex = phrn; songEndIndex = max(phrn, songEndIndex);}
+	inline void setEnd(int phrn) {songEndIndex = phrn; songBeginIndex = min(phrn, songBeginIndex);}
 	inline void setGatePVal(int phrn, int stepn, int gatePval) {attributes[phrase[phrn]][stepn].setGatePVal(gatePval);}
 	inline void setSlideVal(int phrn, int stepn, int slideVal) {attributes[phrase[phrn]][stepn].setSlideVal(slideVal);}
 	inline void setVelocityVal(int phrn, int stepn, int velocity) {attributes[phrase[phrn]][stepn].setVelocityVal(velocity);}
@@ -347,7 +353,9 @@ class SequencerKernel {
 	void reset() {
 		pulsesPerStepIndex = 0;
 		runModeSong = MODE_FWD;
-		phrases = 4;
+		phrases = 1;
+		songBeginIndex = 0;
+		songEndIndex = 0;
 		initSong();
 		for (int seqn = 0; seqn < MAX_SEQS; seqn++) {
 			runModeSeq[seqn] = MODE_FWD;
@@ -362,6 +370,8 @@ class SequencerKernel {
 	void randomize() {
 		runModeSong = randomu32() % 5;
 		phrases = 1 + (randomu32() % MAX_PHRASES);
+		songBeginIndex = 0;
+		songEndIndex = (randomu32() % MAX_PHRASES);
 		randomizeSong();
 		for (int seqn = 0; seqn < MAX_SEQS; seqn++) {
 			runModeSeq[seqn] = randomu32() % NUM_MODES;
@@ -443,6 +453,12 @@ class SequencerKernel {
 		for (int i = 0; i < MAX_SEQS; i++)
 			json_array_insert_new(transposeOffsetsJ, i, json_integer(transposeOffsets[i]));
 		json_object_set_new(rootJ, (ids + "transposeOffsets").c_str(), transposeOffsetsJ);
+
+		// songBeginIndex
+		json_object_set_new(rootJ, (ids + "songBeginIndex").c_str(), json_integer(songBeginIndex));
+
+		// songEndIndex
+		json_object_set_new(rootJ, (ids + "songEndIndex").c_str(), json_integer(songEndIndex));
 
 	}
 	
@@ -535,7 +551,17 @@ class SequencerKernel {
 				if (transposeOffsetsArrayJ)
 					transposeOffsets[i] = json_integer_value(transposeOffsetsArrayJ);
 			}			
-		}		
+		}	
+
+		// songBeginIndex
+		json_t *songBeginIndexJ = json_object_get(rootJ, (ids + "songBeginIndex").c_str());
+		if (songBeginIndexJ)
+			songBeginIndex = json_integer_value(songBeginIndexJ);
+				
+		// songEndIndex
+		json_t *songEndIndexJ = json_object_get(rootJ, (ids + "songEndIndex").c_str());
+		if (songEndIndexJ)
+			songEndIndex = json_integer_value(songEndIndexJ);
 	}
 	
 	
