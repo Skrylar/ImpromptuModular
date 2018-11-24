@@ -102,7 +102,6 @@ class SequencerKernel {
 	int runModeSong;	
 	int runModeSeq[MAX_SEQS];
 	int pulsesPerStepIndex;// 0 to NUM_PPS_VALUES-1; 0 means normal gate mode of 1 pps; this is an index into ppsValues[]
-	int phrases;// number of phrases (song steps), min value is 1
 	int phraseReps[MAX_PHRASES];// a rep is 1 to 99
 	int phrase[MAX_PHRASES];// This is the song (series of phases; a phrase is a sequence number)	
 	int lengths[MAX_SEQS];// number of steps in each sequence, min value is 1
@@ -129,7 +128,6 @@ class SequencerKernel {
 	// ----------------
 	inline int getRunModeSong() {return runModeSong;}
 	inline int getRunModeSeq(int phrn) {return runModeSeq[phrase[phrn]];}
-	inline int getPhrases() {return phrases;}
 	inline int getBegin() {return songBeginIndex;}
 	inline int getEnd() {return songEndIndex;}
 	inline int getLength(int phrn) {return lengths[phrase[phrn]];}
@@ -170,7 +168,6 @@ class SequencerKernel {
 		if (runModeSeq[seqn] < 0) runModeSeq[seqn] = 0;
 		if (runModeSeq[seqn] >= NUM_MODES) runModeSeq[seqn] = NUM_MODES - 1;
 	}
-	inline void modPhrases(int delta) {phrases += delta; if (phrases > MAX_PHRASES) phrases = MAX_PHRASES; if (phrases < 1 ) phrases = 1;}
 	inline void modLength(int phrn, int delta) {
 		int seqn = phrase[phrn];
 		lengths[seqn] += delta; 
@@ -353,7 +350,6 @@ class SequencerKernel {
 	void reset() {
 		pulsesPerStepIndex = 0;
 		runModeSong = MODE_FWD;
-		phrases = 1;
 		songBeginIndex = 0;
 		songEndIndex = 0;
 		initSong();
@@ -369,7 +365,6 @@ class SequencerKernel {
 	
 	void randomize() {
 		runModeSong = randomu32() % 5;
-		phrases = 1 + (randomu32() % MAX_PHRASES);
 		songBeginIndex = 0;
 		songEndIndex = (randomu32() % MAX_PHRASES);
 		randomizeSong();
@@ -384,7 +379,7 @@ class SequencerKernel {
 	
 	void initRun(bool hard) {
 		if (hard) {
-			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+			phraseIndexRun = (runModeSong == MODE_REV ? songEndIndex : songBeginIndex);
 			phraseIndexRunHistory = 0;
 		}
 		int seqn = phrase[phraseIndexRun];
@@ -411,9 +406,6 @@ class SequencerKernel {
 			json_array_insert_new(runModeSeqJ, i, json_integer(runModeSeq[i]));
 		json_object_set_new(rootJ, (ids + "runModeSeq").c_str(), runModeSeqJ);
 
-		// phrases
-		json_object_set_new(rootJ, (ids + "phrases").c_str(), json_integer(phrases));
-		
 		// phraseReps 
 		json_t *phraseRepsJ = json_array();
 		for (int i = 0; i < MAX_PHRASES; i++)
@@ -484,11 +476,6 @@ class SequencerKernel {
 					runModeSeq[i] = json_integer_value(runModeSeqArrayJ);
 			}			
 		}		
-		
-		// phrases	
-		json_t *phrasesJ = json_object_get(rootJ, (ids + "phrases").c_str());
-		if (phrasesJ)
-			phrases = json_integer_value(phrasesJ);
 		
 		// phraseReps
 		json_t *phraseRepsJ = json_object_get(rootJ, (ids + "phraseReps").c_str());
@@ -571,8 +558,8 @@ class SequencerKernel {
 			ppqnCount = 0;
 		if (ppqnCount == 0) {
 			float slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
-			if (moveIndexRunMode(true, lengths[phrase[phraseIndexRun]], runModeSeq[phrase[phraseIndexRun]], phraseReps[phraseIndexRun])) {
-				moveIndexRunMode(false, phrases, runModeSong, 1);// 1 count is enough, since the return boundaryCross boolean is ignored (it will loop the song continually)
+			if (moveIndexRunMode(true)) {// true means seq
+				moveIndexRunMode(false); // false means song
 				stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
 			}
 
@@ -715,19 +702,31 @@ class SequencerKernel {
 	}
 	
 	
-	bool moveIndexRunMode(bool stepPhraseN, int numSteps, int runMode, int reps) {	
+	bool moveIndexRunMode(bool moveSequence) {	
 		// assert((reps * numSteps) <= 0xFFF); // for BRN and RND run modes, history is not a span count but a step count
 		
 		int* index;
 		unsigned long* history;
+		int reps;
+		int runMode;
+		int endStep;
+		int startStep;
 		
-		if (stepPhraseN) {// true when moving sequence, false when moving song
+		if (moveSequence) {
 			index = &stepIndexRun;
 			history = &stepIndexRunHistory;
+			reps = phraseReps[phraseIndexRun];
+			runMode = runModeSeq[phrase[phraseIndexRun]];
+			endStep = lengths[phrase[phraseIndexRun]] - 1;
+			startStep = 0;
 		}
-		else {
+		else {// move song
 			index = &phraseIndexRun;
 			history = &phraseIndexRunHistory;
+			reps = 1;// 1 count is enough in song, since the return boundaryCross boolean is ignored (it will loop the song continually)
+			runMode = runModeSong;
+			endStep = songEndIndex;
+			startStep = songBeginIndex;
 		}
 		
 		bool crossBoundary = false;
@@ -740,8 +739,8 @@ class SequencerKernel {
 				if ((*history) < 0x2001 || (*history) > 0x2FFF)
 					(*history) = 0x2000 + reps;
 				(*index)--;
-				if ((*index) < 0) {
-					(*index) = numSteps - 1;
+				if ((*index) < startStep) {
+					(*index) = endStep;
 					(*history)--;
 					if ((*history) <= 0x2000)
 						crossBoundary = true;
@@ -753,15 +752,15 @@ class SequencerKernel {
 					(*history) = 0x3000 + reps * 2;
 				if (((*history) & 0x1) == 0) {// even so forward phase
 					(*index)++;
-					if ((*index) >= numSteps) {
-						(*index) = numSteps - 1 ;
+					if ((*index) > endStep) {
+						(*index) = endStep;
 						(*history)--;
 					}
 				}
 				else {// odd so reverse phase
 					(*index)--;
-					if ((*index) < 0) {
-						(*index) = 0;
+					if ((*index) < startStep) {
+						(*index) = startStep;
 						(*history)--;
 						if ((*history) <= 0x3000)
 							crossBoundary = true;
@@ -774,11 +773,11 @@ class SequencerKernel {
 					(*history) = 0x4000 + reps * 2;
 				if (((*history) & 0x1) == 0) {// even so forward phase
 					(*index)++;
-					if ((*index) >= numSteps) {
-						(*index) = numSteps - 2;
+					if ((*index) > endStep) {
+						(*index) = endStep - 1;
 						(*history)--;
-						if ((*index) < 1) {// if back at 0 after turnaround, then no reverse phase needed
-							(*index) = 0;
+						if ((*index) <= startStep) {// if back at start after turnaround, then no reverse phase needed
+							(*index) = startStep;
 							(*history)--;
 							if ((*history) <= 0x4000)
 								crossBoundary = true;
@@ -787,8 +786,8 @@ class SequencerKernel {
 				}
 				else {// odd so reverse phase
 					(*index)--;
-					if ((*index) < 1) {
-						(*index) = 0;
+					if ((*index) <= startStep) {
+						(*index) = startStep;
 						(*history)--;
 						if ((*history) <= 0x4000)
 							crossBoundary = true;
@@ -798,13 +797,13 @@ class SequencerKernel {
 			
 			case MODE_BRN :// brownian random; history base is 0x5000
 				if ((*history) < 0x5001 || (*history) > 0x5FFF) 
-					(*history) = 0x5000 + numSteps * reps;
+					(*history) = 0x5000 + (endStep - startStep + 1) * reps;
 				(*index) += (randomu32() % 3) - 1;
-				if ((*index) >= numSteps) {
-					(*index) = 0;
+				if ((*index) > endStep) {
+					(*index) = startStep;
 				}
-				if ((*index) < 0) {
-					(*index) = numSteps - 1;
+				if ((*index) < startStep) {
+					(*index) = endStep;
 				}
 				(*history)--;
 				if ((*history) <= 0x5000) {
@@ -814,8 +813,8 @@ class SequencerKernel {
 			
 			case MODE_RND :// random; history base is 0x6000
 				if ((*history) < 0x6001 || (*history) > 0x6FFF) 
-					(*history) = 0x6000 + numSteps * reps;
-				(*index) = (randomu32() % numSteps) ;
+					(*history) = 0x6000 + (endStep - startStep + 1) * reps;
+				(*index) = startStep + (randomu32() % (endStep - startStep + 1)) ;
 				(*history)--;
 				if ((*history) <= 0x6000) {
 					crossBoundary = true;
@@ -826,8 +825,8 @@ class SequencerKernel {
 				if ((*history) < 0x1001 || (*history) > 0x1FFF)
 					(*history) = 0x1000 + reps;
 				(*index)++;
-				if ((*index) >= numSteps) {
-					(*index) = 0;
+				if ((*index) > endStep) {
+					(*index) = startStep;
 					(*history)--;
 					if ((*history) <= 0x1000)
 						crossBoundary = true;

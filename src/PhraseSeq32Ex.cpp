@@ -91,7 +91,7 @@ struct PhraseSeq32Ex : Module {
 	};
 	
 	// Constants
-	enum EditPSDisplayStateIds {DISP_NORMAL, DISP_MODE_SEQ, DISP_MODE_SONG, DISP_LENGTH_SEQ, DISP_LENGTH_SONG, DISP_REPS, DISP_TRANSPOSE, DISP_ROTATE, DISP_PPQN};
+	enum EditPSDisplayStateIds {DISP_NORMAL, DISP_MODE_SEQ, DISP_MODE_SONG, DISP_LENGTH_SEQ, DISP_REPS, DISP_TRANSPOSE, DISP_ROTATE, DISP_PPQN};
 	static const int NUM_TRACKS = 4;
 
 	// Need to save
@@ -106,8 +106,7 @@ struct PhraseSeq32Ex : Module {
 	SequencerKernel sek[NUM_TRACKS];
 
 	// No need to save
-	long infoCopyPasteSeq;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
-	long infoCopyPasteSong;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
+	long infoCopyPaste;// 0 when no info, positive downward step counter timer when copy, negative upward when paste
 	unsigned long editingGate[NUM_TRACKS];// 0 when no edit gate, downward step counter timer when edit gate
 	float editingGateCV[NUM_TRACKS];// no need to initialize, this goes with editingGate (output this only when editingGate > 0)
 	int editingGateKeyLight;// no need to initialize, this goes with editingGate (use this only when editingGate > 0)
@@ -195,8 +194,7 @@ struct PhraseSeq32Ex : Module {
 		countCP = SequencerKernel::MAX_STEPS;
 		startCP = 0;
 		seqFocusCP = true;
-		infoCopyPasteSeq = 0l;
-		infoCopyPasteSong = 0l;
+		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
 		attached = false;
 		clockPeriod = 0ul;
@@ -343,7 +341,7 @@ struct PhraseSeq32Ex : Module {
 			// Copy 
 			if (copyTrigger.process(params[COPY_PARAM].value)) {
 				if (!attached) {
-					infoCopyPasteSeq = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
+					infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 					if (seqFocusCP) {// copying sequence steps
 						startCP = stepIndexEdit;
 						countCP = SequencerKernel::MAX_STEPS;
@@ -372,7 +370,7 @@ struct PhraseSeq32Ex : Module {
 			// Paste 
 			if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 				if (!attached) {
-					infoCopyPasteSeq = -1l * (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
+					infoCopyPaste = -1l * (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
 					if (seqFocusCP) {// pasting sequence steps
 						startCP = 0;
 						if (countCP <= 8) {
@@ -522,10 +520,8 @@ struct PhraseSeq32Ex : Module {
 			// Len button
 			if (lenTrigger.process(params[LEN_PARAM].value)) {
 				if (!attached) {
-					if (displayState != DISP_LENGTH_SEQ && displayState != DISP_LENGTH_SONG)
+					if (displayState != DISP_LENGTH_SEQ)
 						displayState = DISP_LENGTH_SEQ;
-					else if (displayState == DISP_LENGTH_SEQ)
-						displayState = DISP_LENGTH_SONG;
 					else
 						displayState = DISP_NORMAL;
 				}
@@ -582,10 +578,8 @@ struct PhraseSeq32Ex : Module {
 						else if (displayState == DISP_MODE_SONG) {
 							sek[trackIndexEdit].modRunModeSong(deltaPhrKnob);
 						}
-						else if (displayState == DISP_LENGTH_SONG) {
-							sek[trackIndexEdit].modPhrases(deltaPhrKnob);
-						}
 						else {
+							seqFocusCP = false;
 							phraseIndexEdit += deltaPhrKnob;
 							if (phraseIndexEdit < 0) phraseIndexEdit = 0;
 							if (phraseIndexEdit >= SequencerKernel::MAX_PHRASES) phraseIndexEdit = (SequencerKernel::MAX_PHRASES - 1);
@@ -621,6 +615,7 @@ struct PhraseSeq32Ex : Module {
 							sek[trackIndexEdit].modPhraseReps(phraseIndexEdit, deltaSeqKnob);
 						}
 						else {// DISP_NORMAL
+							seqFocusCP = true;
 							sek[trackIndexEdit].modPhrase(phraseIndexEdit, deltaSeqKnob);
 						}
 					}
@@ -779,7 +774,7 @@ struct PhraseSeq32Ex : Module {
 			lightRefreshCounter = 0;
 		
 			// Step/phrase lights
-			if (infoCopyPasteSeq != 0l) {
+			if (infoCopyPaste != 0l && seqFocusCP) {
 				for (int i = 0; i < SequencerKernel::MAX_STEPS; i++) {
 					if (i >= startCP && i < (startCP + countCP))
 						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.5f;// Green when copy interval
@@ -897,13 +892,9 @@ struct PhraseSeq32Ex : Module {
 				if (editingGate[trkn] > 0ul)
 					editingGate[trkn]--;
 			}
-			if (infoCopyPasteSeq != 0l) {
-				if (infoCopyPasteSeq > 0l) infoCopyPasteSeq --;
-				if (infoCopyPasteSeq < 0l) infoCopyPasteSeq ++;
-			}
-			if (infoCopyPasteSong != 0l) {
-				if (infoCopyPasteSong > 0l) infoCopyPasteSong --;
-				if (infoCopyPasteSong < 0l) infoCopyPasteSong ++;
+			if (infoCopyPaste != 0l) {
+				if (infoCopyPaste > 0l) infoCopyPaste --;
+				if (infoCopyPaste < 0l) infoCopyPaste ++;
 			}
 			if (tiedWarning > 0l)
 				tiedWarning--;
@@ -965,16 +956,21 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			std::string initString(NUMCHAR,'~');
 			nvgText(vg, textPos.x, textPos.y, initString.c_str(), NULL);
 			nvgFillColor(vg, textColor);
-			printText();
+			char overlayChar = printText();
 			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
+			if (overlayChar != 0) {
+				displayStr[0] = overlayChar;
+				displayStr[1] = 0;
+				nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
+			}
 		}
 		
-		virtual void printText() = 0;
+		virtual char printText() = 0;
 	};
 	
 	struct VelocityDisplayWidget : DisplayWidget<3> {
 		VelocityDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
-		void printText() override {
+		char printText() override {
 			if (module->params[PhraseSeq32Ex::VELMODE_PARAM].value > 1.5f) {
 				int slide = module->sek[module->trackIndexEdit].getSlideVal(module->phraseIndexEdit, module->stepIndexEdit);
 				if ( slide>= 100)
@@ -1001,13 +997,15 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				Attribute attributesVal = module->sek[module->trackIndexEdit].getAttribute(module->phraseIndexEdit, module->stepIndexEdit);
 				snprintf(displayStr, 4, "%3u", (unsigned)(attributesVal.getVelocityVal()));
 			}
+			return 0;
 		}
 	};
 	
 	struct TrackDisplayWidget : DisplayWidget<3> {
 		TrackDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
-		void printText() override {
+		char printText() override {
 			snprintf(displayStr, 4, " %2u", (unsigned)(module->trackIndexEdit + 1));
+			return 0;
 		}
 	};
 	
@@ -1015,27 +1013,10 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	struct PhrEditDisplayWidget : DisplayWidget<3> {
 		PhrEditDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
 
-		void draw(NVGcontext *vg) override {
-			NVGcolor textColor = prepareDisplay(vg, &box, textFontSize);
-			nvgFontFaceId(vg, font->handle);
-			nvgTextLetterSpacing(vg, -0.5);
-
-			Vec textPos = Vec(4.5f, textOffsetY);
-			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
-			std::string initString(3,'~');
-			nvgText(vg, textPos.x, textPos.y, initString.c_str(), NULL);
-			nvgFillColor(vg, textColor);
-			bool beginEnd = printTextBE();
-			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
-			if (beginEnd)
-				nvgText(vg, textPos.x, textPos.y, ")", NULL);
-		}
-
-		void printText() override {};
-		bool printTextBE() {
-			bool beginEnd = false;// special return code to print an end symbols overlaped (begin done in here)
-			if (module->infoCopyPasteSong != 0l) {
-				if (module->infoCopyPasteSong > 0l)
+		char printText() override {
+			char overlayChar = 0;// extra char to print an end symbol overlaped (begin done in here)
+			if (module->infoCopyPaste != 0l && !module->seqFocusCP) {
+				if (module->infoCopyPaste > 0l)
 					snprintf(displayStr, 4, "CPY");
 				else {
 					snprintf(displayStr, 4, "PST");
@@ -1047,32 +1028,29 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			else if (module->displayState == PhraseSeq32Ex::DISP_MODE_SONG) {
 				runModeToStr(module->sek[module->trackIndexEdit].getRunModeSong());
 			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_LENGTH_SONG) {
-				snprintf(displayStr, 4, "L%2u", (unsigned) module->sek[module->trackIndexEdit].getPhrases());
-			}
 			else {// DISP_NORMAL
 				int phrn = module->phraseIndexEdit;
 				snprintf(displayStr, 4, " %2u", (unsigned)(phrn + 1));
 				bool begHere = (phrn == module->sek[module->trackIndexEdit].getBegin());
 				bool endHere = (phrn == module->sek[module->trackIndexEdit].getEnd());
 				if (begHere) {
-					displayStr[0] = '(';
+					displayStr[0] = '{';
 					if (endHere)
-						beginEnd = true;
+						overlayChar = '}';
 				}
 				else if (endHere)
-					displayStr[0] = ')';
+					displayStr[0] = '}';
 			}
-			return beginEnd;
+			return overlayChar;
 		}
 	};
 	
 	
 	struct SeqEditDisplayWidget : DisplayWidget<3> {
 		SeqEditDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
-		void printText() override {
-			if (module->infoCopyPasteSeq != 0l) {
-				if (module->infoCopyPasteSeq > 0l)
+		char printText() override {
+			if (module->infoCopyPaste != 0l && module->seqFocusCP) {
+				if (module->infoCopyPaste > 0l)
 					snprintf(displayStr, 4, "CPY");
 				else {
 					snprintf(displayStr, 4, "PST");
@@ -1102,6 +1080,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				int seqn = module->sek[module->trackIndexEdit].getPhrase(module->phraseIndexEdit);
 				snprintf(displayStr, 4, " %2u", (unsigned)(seqn + 1) );
 			}
+			return 0;
 		}
 	};
 	
