@@ -102,7 +102,8 @@ struct PhraseSeq32Ex : Module {
 	bool resetOnRun;
 	bool attached;
 	int stepIndexEdit;
-	int phraseIndexEdit;
+	int seqIndexEdit;// used in edit Seq mode only
+	int phraseIndexEdit;// used in edit Song mode only
 	int trackIndexEdit;
 	SequencerKernel sek[NUM_TRACKS];
 
@@ -179,6 +180,7 @@ struct PhraseSeq32Ex : Module {
 		running = false;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
+		seqIndexEdit = 0;
 		trackIndexEdit = 0;
 		for (int phrn = 0; phrn < SequencerKernel::MAX_PHRASES; phrn++) {
 			phraseCPbuffer[phrn] = 0;
@@ -248,6 +250,9 @@ struct PhraseSeq32Ex : Module {
 		// stepIndexEdit
 		json_object_set_new(rootJ, "stepIndexEdit", json_integer(stepIndexEdit));
 	
+		// seqIndexEdit
+		json_object_set_new(rootJ, "seqIndexEdit", json_integer(seqIndexEdit));
+
 		// phraseIndexEdit
 		json_object_set_new(rootJ, "phraseIndexEdit", json_integer(phraseIndexEdit));
 
@@ -302,6 +307,11 @@ struct PhraseSeq32Ex : Module {
 		if (phraseIndexEditJ)
 			phraseIndexEdit = json_integer_value(phraseIndexEditJ);
 		
+		// seqIndexEdit
+		json_t *seqIndexEditJ = json_object_get(rootJ, "seqIndexEdit");
+		if (seqIndexEditJ)
+			seqIndexEdit = json_integer_value(seqIndexEditJ);
+		
 		// trackIndexEdit
 		json_t *trackIndexEditJ = json_object_get(rootJ, "trackIndexEdit");
 		if (trackIndexEditJ)
@@ -339,6 +349,7 @@ struct PhraseSeq32Ex : Module {
 			}
 			if (attached) {
 				stepIndexEdit = sek[trackIndexEdit].getStepIndexRun();
+				// seqIndexEdit is irrelevant when attached, song mode is implicit
 				phraseIndexEdit = sek[trackIndexEdit].getPhraseIndexRun();
 			}
 			
@@ -376,7 +387,7 @@ struct PhraseSeq32Ex : Module {
 				if (!attached && displayState != DISP_OVERVIEW) {
 					displayState = DISP_PASTE;
 					revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
-					if (seqFocusCP) {// pasting sequence steps
+					if (seqFocusCP && lengthCPbuffer != -1) {// pasting sequence steps
 						startCP = 0;
 						if (countCP <= 8) {
 							startCP = stepIndexEdit;
@@ -384,7 +395,7 @@ struct PhraseSeq32Ex : Module {
 						}
 						sek[trackIndexEdit].pasteSequence(cvCPbuffer, attribCPbuffer, &lengthCPbuffer, &modeCPbuffer, phraseIndexEdit, startCP, countCP);
 					}
-					else {// pasting song phrases
+					else if (!seqFocusCP && lengthCPbuffer == -1) {// pasting song phrases
 						startCP = 0;
 						if (countCP <= 8) {
 							startCP = phraseIndexEdit;
@@ -599,6 +610,7 @@ struct PhraseSeq32Ex : Module {
 						else {
 							seqFocusCP = false;													
 							phraseIndexEdit = moveIndexEx(phraseIndexEdit, phraseIndexEdit + deltaPhrKnob, SequencerKernel::MAX_PHRASES);
+							displayState = DISP_NORMAL;
 						}
 					}
 				}
@@ -781,7 +793,8 @@ struct PhraseSeq32Ex : Module {
 			lightRefreshCounter = 0;
 		
 			// Step/phrase lights
-			if ((displayState == DISP_COPY || displayState == DISP_PASTE) && seqFocusCP) {
+			if ((displayState == DISP_COPY && seqFocusCP) ||
+			    (displayState == DISP_PASTE && seqFocusCP && lengthCPbuffer != -1)) {
 				for (int i = 0; i < SequencerKernel::MAX_STEPS; i++) {
 					if (i >= startCP && i < (startCP + countCP))
 						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.5f;// Green when copy interval
@@ -1031,10 +1044,10 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			if (module->displayState == PhraseSeq32Ex::DISP_OVERVIEW) {
 				printNote(module->sek[2].getCV(module->phraseIndexEdit, module->stepIndexEdit), displayStr, module->showSharp);
 			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_COPY && !module->seqFocusCP) {
+			else if (module->displayState == PhraseSeq32Ex::DISP_COPY && !module->seqFocusCP && module->lengthCPbuffer == -1) {
 				snprintf(displayStr, 4, "CPY");
 			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_PASTE && !module->seqFocusCP) {
+			else if (module->displayState == PhraseSeq32Ex::DISP_PASTE && !module->seqFocusCP && module->lengthCPbuffer == -1) {
 				snprintf(displayStr, 4, "PST");
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_PPQN) {
@@ -1069,10 +1082,10 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			if (module->displayState == PhraseSeq32Ex::DISP_OVERVIEW) {
 				printNote(module->sek[3].getCV(module->phraseIndexEdit, module->stepIndexEdit), displayStr, module->showSharp);
 			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_COPY && module->seqFocusCP) {
+			else if (module->displayState == PhraseSeq32Ex::DISP_COPY && module->seqFocusCP && module->lengthCPbuffer != -1) {
 				snprintf(displayStr, 4, "CPY");
 			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_PASTE && module->seqFocusCP) {
+			else if (module->displayState == PhraseSeq32Ex::DISP_PASTE && module->seqFocusCP && module->lengthCPbuffer != -1) {
 				snprintf(displayStr, 4, "PST");
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_MODE_SEQ) {

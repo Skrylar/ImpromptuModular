@@ -542,8 +542,6 @@ class SequencerKernel {
 			}
 		}		
 		
-	
-
 		// lengths
 		json_t *lengthsJ = json_object_get(rootJ, (ids + "lengths").c_str());
 		if (lengthsJ)
@@ -675,6 +673,9 @@ class SequencerKernel {
 			cv[seqn][indexTied] = cv[seqn][indexTied - 1];
 			attributes[seqn][indexTied] = attributes[seqn][indexTied - 1];
 			attributes[seqn][indexTied].setTied(true);
+			attributes[seqn][indexTied].setGate(false);
+			attributes[seqn][indexTied].setGateP(false);
+			attributes[seqn][indexTied].setSlide(false);
 		}
 		
 		// Affect downstream CVs and attributes of subsequent tied note chain (can be 0 length if next note is not tied)
