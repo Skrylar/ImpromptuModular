@@ -31,6 +31,7 @@ class Attribute {
 	static const unsigned long velocityShift = 24;
 	static const unsigned long ATT_MSK_INITSTATE = (ATT_MSK_GATE | (0 << gate1TypeShift) | (50 << GatePValShift) | (10 << slideValShift) | (128 << velocityShift));
 
+	inline void clear() {attribute = 0ul;}
 	inline void init() {attribute = ATT_MSK_INITSTATE;}
 	inline void randomize() {attribute = ((randomu32() & 0xF) | ((randomu32() % 101) << GatePValShift) | ((randomu32() % 101) << slideValShift) | ((randomu32() & 0xFF) << velocityShift));}
 	
