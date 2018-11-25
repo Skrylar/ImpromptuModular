@@ -329,7 +329,6 @@ struct PhraseSeq32Ex : Module {
 			running = !running;
 			if (running)
 				initRun(resetOnRun);
-			displayState = DISP_NORMAL;
 		}
 
 		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
@@ -797,7 +796,6 @@ struct PhraseSeq32Ex : Module {
 				for (int i = 0; i < SequencerKernel::MAX_STEPS; i++) {
 					if (displayState == DISP_LENGTH_SEQ) {
 						int seqEnd = sek[trackIndexEdit].getLength(phraseIndexEdit) - 1;
-						info("seqEnd = %i", seqEnd);
 						if (i < seqEnd)
 							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.1f, 0.0f);
 						else if (i == seqEnd)
@@ -1221,7 +1219,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int columnRulerT1 = 373;// All 
 		static const int columnRulerT2 = 432;// Attach
 		static const int columnRulerT4 = 490;// Overview light and button
-		static const int columnRulerT5 = 536;// Overview switch
+		//static const int columnRulerT5 = 536;// Overview switch
 		static const int stepsOffsetY = 10;
 		static const int posLEDvsButton = 26;
 
@@ -1338,7 +1336,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		// Copy/paste buttons
 		static const int cpButtonsOffsetX = 72;
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerMB7, rowRulerMB0), module, PhraseSeq32Ex::COPY_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerMB7 + 30, rowRulerMB0), module, PhraseSeq32Ex::PASTE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerMB7 + 28, rowRulerMB0), module, PhraseSeq32Ex::PASTE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Copy-paste mode switch (3 position)
 		addParam(createParamCentered<CKSSThreeInv>(Vec(columnRulerMB7 + cpButtonsOffsetX, rowRulerMB0 - 5), module, PhraseSeq32Ex::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));	// 0.0f is top position
 		
@@ -1366,7 +1364,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 
 		// Track display
 		static const int colRulerTrk = colRulerVel + displaySpacingX;
-		static const int trkButtonsOffsetX = 12;
+		static const int trkButtonsOffsetX = 14;
 		addChild(new TrackDisplayWidget(Vec(colRulerTrk, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 2 characters
 		// Track buttons
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk + trkButtonsOffsetX, rowRulerKnobs), module, PhraseSeq32Ex::TRACKUP_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
