@@ -597,10 +597,8 @@ struct PhraseSeq32Ex : Module {
 							sek[trackIndexEdit].modRunModeSong(deltaPhrKnob);
 						}
 						else {
-							seqFocusCP = false;
-							phraseIndexEdit += deltaPhrKnob;
-							if (phraseIndexEdit < 0) phraseIndexEdit = 0;
-							if (phraseIndexEdit >= SequencerKernel::MAX_PHRASES) phraseIndexEdit = (SequencerKernel::MAX_PHRASES - 1);
+							seqFocusCP = false;													
+							phraseIndexEdit = moveIndexEx(phraseIndexEdit, phraseIndexEdit + deltaPhrKnob, SequencerKernel::MAX_PHRASES);
 						}
 					}
 				}

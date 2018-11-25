@@ -74,8 +74,8 @@ class SequencerKernel {
 
 	// Sequencer dimensions
 	static const int MAX_STEPS = 32;
-	static const int MAX_SEQS = 16;
-	static const int MAX_PHRASES = 32;// maximum value is 100 (disp will be 0 to 99)
+	static const int MAX_SEQS = 64;
+	static const int MAX_PHRASES = 99;// maximum value is 99 (disp will be 1 to 99)
 
 	// Clock resolution										
 	static const int NUM_PPS_VALUES = 33;
@@ -88,7 +88,9 @@ class SequencerKernel {
 	// Gate types
 	static const int NUM_GATES = 12;	
 	static const uint64_t advGateHitMaskLow[NUM_GATES];		
-	static const uint64_t advGateHitMaskHigh[NUM_GATES];		
+	static const uint64_t advGateHitMaskHigh[NUM_GATES];
+
+	static constexpr float INIT_CV = 0.0f;
 
 
 	private:
@@ -175,11 +177,7 @@ class SequencerKernel {
 		if (lengths[seqn] < 1 ) lengths[seqn] = 1;
 	}
 	inline void modPhrase(int phrn, int delta) {
-		int newPhrase = phrase[phrn] + delta;
-		if (newPhrase < 0)
-			newPhrase += (1 - newPhrase / MAX_SEQS) * MAX_SEQS;// newPhrase now positive
-		newPhrase = newPhrase % MAX_SEQS;
-		phrase[phrn] = newPhrase;
+		phrase[phrn] = moveIndexEx(phrase[phrn], phrase[phrn] + delta, MAX_SEQS);
 	}
 	inline void modPhraseReps(int phrn, int delta) {
 		phraseReps[phrn] += delta; 
@@ -267,7 +265,7 @@ class SequencerKernel {
 	// ----------------
 	inline void initSequence(int seqn) {
 		for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
-			cv[seqn][stepn] = 0.0f;
+			cv[seqn][stepn] = INIT_CV;
 			attributes[seqn][stepn].init();
 		}
 		transposeOffsets[seqn] = 0;
@@ -355,7 +353,7 @@ class SequencerKernel {
 		initSong();
 		for (int seqn = 0; seqn < MAX_SEQS; seqn++) {
 			runModeSeq[seqn] = MODE_FWD;
-			lengths[seqn] = MAX_SEQS;			
+			lengths[seqn] = MAX_STEPS;			
 			initSequence(seqn);		
 		}
 		slideStepsRemain = 0ul;
@@ -418,20 +416,32 @@ class SequencerKernel {
 			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
 		json_object_set_new(rootJ, (ids + "phrase").c_str(), phraseJ);
 
-		// CV
+		// CV and attributes
+		json_t *seqSavedJ = json_array();		
 		json_t *cvJ = json_array();
-		for (int seqn = 0; seqn < MAX_SEQS; seqn++)
-			for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
-				json_array_insert_new(cvJ, stepn + (seqn * MAX_STEPS), json_real(cv[seqn][stepn]));
-			}
-		json_object_set_new(rootJ, (ids + "cv").c_str(), cvJ);
-
-		// attributes
 		json_t *attributesJ = json_array();
-		for (int seqn = 0; seqn < MAX_SEQS; seqn++)
-			for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
-				json_array_insert_new(attributesJ, stepn + (seqn * MAX_STEPS), json_integer(attributes[seqn][stepn].getAttribute()));
+		for (int seqnRead = 0, seqnWrite = 0; seqnRead < MAX_SEQS; seqnRead++) {
+			bool compress = true;
+			for (int stepn = 0; stepn < 4; stepn++) {
+				if (cv[seqnRead][stepn] != INIT_CV || attributes[seqnRead][stepn].getAttribute() != Attribute::ATT_MSK_INITSTATE) {
+					compress = false;
+					break;
+				}
 			}
+			if (compress) {
+				json_array_insert_new(seqSavedJ, seqnRead, json_integer(0));
+			}
+			else {
+				json_array_insert_new(seqSavedJ, seqnRead, json_integer(1));
+				for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
+					json_array_insert_new(cvJ, stepn + (seqnWrite * MAX_STEPS), json_real(cv[seqnRead][stepn]));
+					json_array_insert_new(attributesJ, stepn + (seqnWrite * MAX_STEPS), json_integer(attributes[seqnRead][stepn].getAttribute()));
+				}
+				seqnWrite++;
+			}
+		}
+		json_object_set_new(rootJ, (ids + "seqSaved").c_str(), seqSavedJ);
+		json_object_set_new(rootJ, (ids + "cv").c_str(), cvJ);
 		json_object_set_new(rootJ, (ids + "attributes").c_str(), attributesJ);
 
 		// lengths
@@ -497,27 +507,42 @@ class SequencerKernel {
 					phrase[i] = json_integer_value(phraseArrayJ);
 			}
 		
-		// CV
-		json_t *cvJ = json_object_get(rootJ, (ids + "cv").c_str());
-		if (cvJ) {
-			for (int seqn = 0; seqn < MAX_SEQS; seqn++)
-				for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
-					json_t *cvArrayJ = json_array_get(cvJ, stepn + (seqn * MAX_STEPS));
-					if (cvArrayJ)
-						cv[seqn][stepn] = json_number_value(cvArrayJ);
+		// CV and attributes
+		json_t *seqSavedJ = json_object_get(rootJ, (ids + "seqSaved").c_str());
+		int seqSaved[MAX_SEQS];
+		if (seqSavedJ) {
+			int i;
+			for (i = 0; i < MAX_SEQS; i++)
+			{
+				json_t *seqSavedArrayJ = json_array_get(seqSavedJ, i);
+				if (seqSavedArrayJ)
+					seqSaved[i] = json_integer_value(seqSavedArrayJ);
+				else 
+					break;
+			}	
+			if (i == MAX_SEQS) {			
+				json_t *cvJ = json_object_get(rootJ, (ids + "cv").c_str());
+				json_t *attributesJ = json_object_get(rootJ, (ids + "attributes").c_str());
+				if (cvJ && attributesJ) {
+					for (int seqnFull = 0, seqnComp = 0; seqnFull < MAX_SEQS; seqnFull++) {
+						if (!seqSaved[seqnFull]) {
+							continue;
+						}
+						for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
+							json_t *cvArrayJ = json_array_get(cvJ, stepn + (seqnComp * MAX_STEPS));
+							if (cvArrayJ)
+								cv[seqnFull][stepn] = json_number_value(cvArrayJ);
+							json_t *attributesArrayJ = json_array_get(attributesJ, stepn + (seqnComp * MAX_STEPS));
+							if (attributesArrayJ)
+								attributes[seqnFull][stepn].setAttribute(json_integer_value(attributesArrayJ));
+						}
+						seqnComp++;
+					}
 				}
-		}
-
-		// attributes
-		json_t *attributesJ = json_object_get(rootJ, (ids + "attributes").c_str());
-		if (attributesJ) {
-			for (int seqn = 0; seqn < MAX_SEQS; seqn++)
-				for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
-					json_t *attributesArrayJ = json_array_get(attributesJ, stepn + (seqn * MAX_STEPS));
-					if (attributesArrayJ)
-						attributes[seqn][stepn].setAttribute(json_integer_value(attributesArrayJ));
-				}
-		}
+			}
+		}		
+		
+	
 
 		// lengths
 		json_t *lengthsJ = json_object_get(rootJ, (ids + "lengths").c_str());
