@@ -44,11 +44,10 @@ struct PhraseSeq32Ex : Module {
 		VEL_KNOB_PARAM,
 		ALLSTEPS_PARAM,
 		ALLTRACKS_PARAM,
-		REPS_PARAM,
+		REP_LEN_PARAM,
 		VELMODE_PARAM,
 		BEGIN_PARAM,
 		END_PARAM,
-		LEN_PARAM,
 		OVERVIEW_PARAM,
 		NUM_PARAMS
 	};
@@ -153,13 +152,12 @@ struct PhraseSeq32Ex : Module {
 	SchmittTrigger stepTriggers[SequencerKernel::MAX_STEPS];
 	SchmittTrigger keyNoteTrigger;
 	SchmittTrigger keyGateTrigger;
-	SchmittTrigger repsTrigger;
 	SchmittTrigger clkResTrigger;
 	SchmittTrigger trackIncTrigger;
 	SchmittTrigger trackDeccTrigger;	
 	SchmittTrigger beginTrigger;
 	SchmittTrigger endTrigger;
-	SchmittTrigger lenTrigger;
+	SchmittTrigger repLenTrigger;
 	SchmittTrigger overviewTrigger;	
 
 	
@@ -507,22 +505,21 @@ struct PhraseSeq32Ex : Module {
 				}
 			}	
 
-			// Reps button
-			if (repsTrigger.process(params[REPS_PARAM].value)) {
-				if (displayState != DISP_OVERVIEW && !editingSequence) {
-					if (displayState != DISP_REPS)
-						displayState = DISP_REPS;
-					else 
-						displayState = DISP_NORMAL;
-				}
-			}	
-			// Len button
-			if (lenTrigger.process(params[LEN_PARAM].value)) {
-				if (displayState != DISP_OVERVIEW && editingSequence) {
-					if (displayState != DISP_LENGTH_SEQ)
-						displayState = DISP_LENGTH_SEQ;
-					else
-						displayState = DISP_NORMAL;
+			// Rep/Len button
+			if (repLenTrigger.process(params[REP_LEN_PARAM].value)) {
+				if (displayState != DISP_OVERVIEW) {
+					if (editingSequence) {
+						if (displayState != DISP_LENGTH_SEQ)
+							displayState = DISP_LENGTH_SEQ;
+						else
+							displayState = DISP_NORMAL;
+					}
+					else {
+						if (displayState != DISP_REPS)
+							displayState = DISP_REPS;
+						else 
+							displayState = DISP_NORMAL;
+					}
 				}
 			}	
 
@@ -779,30 +776,22 @@ struct PhraseSeq32Ex : Module {
 			lightRefreshCounter = 0;
 		
 			// Step/phrase lights
-			if ((displayState == DISP_COPY && editingSequence) ||
-			    (displayState == DISP_PASTE && editingSequence && endCPbuffer == -1)) {
-				for (int i = 0; i < SequencerKernel::MAX_STEPS; i++) {
-					if (i >= startCP && i < (startCP + countCP))
-						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.5f;// Green when copy interval
-					else
-						lights[STEP_PHRASE_LIGHTS + (i<<1)].value = 0.0f; // Green (nothing)
-					lights[STEP_PHRASE_LIGHTS + (i<<1) + 1].value = 0.0f;// Red (nothing)
-				}
-			}
-			else {
-				for (int i = 0; i < SequencerKernel::MAX_STEPS; i++) {
-					if (displayState == DISP_LENGTH_SEQ) {
+			for (int i = 0; i < SequencerKernel::MAX_STEPS; i++) {
+				float red = 0.0f;
+				float green = 0.0f;		
+				if (displayState != DISP_OVERVIEW && editingSequence) {
+					if ((displayState == DISP_COPY) || (displayState == DISP_PASTE && endCPbuffer == -1)) {
+						if (i >= startCP && i < (startCP + countCP))
+							green = 0.5f;// Green when copy interval
+					}
+					else if (displayState == DISP_LENGTH_SEQ) {
 						int seqEnd = sek[trackIndexEdit].getLength(seqIndexEdit) - 1;
 						if (i < seqEnd)
-							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.1f, 0.0f);
+							green = 0.1f;
 						else if (i == seqEnd)
-							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 1.0f, 0.0f);
-						else 
-							setGreenRed(STEP_PHRASE_LIGHTS + i * 2, 0.0f, 0.0f);
+							green =  1.0f;
 					}
-					else {// normal led display (i.e. not length)
-						float red = 0.0f;
-						float green = 0.0f;
+					else {
 						// Run cursor (green)
 						// if (running)
 							// green = (i == sek[trackIndexEdit].getStepIndexRun() ? 0.1f : 0.0f);
@@ -811,9 +800,9 @@ struct PhraseSeq32Ex : Module {
 							red = 1.0f;
 							// green = 0.0f;
 						}
-						setGreenRed(STEP_PHRASE_LIGHTS + i * 2, green, red);
 					}
 				}
+				setGreenRed(STEP_PHRASE_LIGHTS + i * 2, green, red);
 			}
 		
 			// Octave lights
@@ -821,44 +810,48 @@ struct PhraseSeq32Ex : Module {
 			int octLightIndex = (int) floor(octKeyCV + 3.0f);
 			for (int i = 0; i < 7; i++) {
 				float red = 0.0f;
-				if (tiedWarning > 0l) {
-					bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
-					red = (warningFlashState && (i == (6 - octLightIndex))) ? 1.0f : 0.0f;
+				if (displayState != DISP_OVERVIEW && editingSequence) {
+					if (tiedWarning > 0l) {
+						bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+						red = (warningFlashState && (i == (6 - octLightIndex))) ? 1.0f : 0.0f;
+					}
+					else				
+						red = (i == (6 - octLightIndex) ? 1.0f : 0.0f);// no lights when outside of range
 				}
-				else				
-					red = (i == (6 - octLightIndex) ? 1.0f : 0.0f);// no lights when outside of range
 				lights[OCTAVE_LIGHTS + i].value = red;
 			}
 			
 			// Keyboard lights
 			octKeyCV += 10.0f;// to properly handle negative note voltages
-			int keyLightIndex = (int) clamp(  roundf( (octKeyCV-floor(octKeyCV)) * 12.0f ),  0.0f,  11.0f);
-			if (keyboardEditingGates) {
-				int modeLightIndex = sek[trackIndexEdit].getGateType(seqIndexEdit, stepIndexEdit);
-				for (int i = 0; i < 12; i++) {
-					if (i == modeLightIndex)
-						setGreenRed(KEY_LIGHTS + i * 2, 1.0f, 1.0f);
-					else
-						setGreenRed(KEY_LIGHTS + i * 2, 0.0f, i == keyLightIndex ? 0.1f : 0.0f);
-				}
-			}
-			else {
-				for (int i = 0; i < 12; i++) {
-					float red = 0.0f;
-					float green = 0.0f;
-					if (tiedWarning > 0l) {
-						bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
-						red = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
-					}
-					else {
-						if (editingGate[trackIndexEdit] > 0ul && editingGateKeyLight != -1)
-							red = (i == editingGateKeyLight ? ((float) editingGate[trackIndexEdit] / (float)(gateTime * sampleRate / displayRefreshStepSkips)) : 0.0f);
+			int keyLightIndex = clamp( (int)((octKeyCV-floor(octKeyCV)) * 12.0f + 0.5f),  0,  11);
+			for (int i = 0; i < 12; i++) {
+				float red = 0.0f;
+				float green = 0.0f;
+				if (displayState != DISP_OVERVIEW && editingSequence) {
+					if (keyboardEditingGates) {
+						int modeLightIndex = sek[trackIndexEdit].getGateType(seqIndexEdit, stepIndexEdit);
+						if (i == modeLightIndex) {
+							red = 1.0f;
+							green =	1.0f;
+						}
 						else
-							red = (i == keyLightIndex ? 1.0f : 0.0f);
+							red = (i == keyLightIndex ? 0.1f : 0.0f);
 					}
-					setGreenRed(KEY_LIGHTS + i * 2, green, red);
+					else {	
+						if (tiedWarning > 0l) {
+							bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+							red = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
+						}
+						else {
+							if (editingGate[trackIndexEdit] > 0ul && editingGateKeyLight != -1)
+								red = (i == editingGateKeyLight ? ((float) editingGate[trackIndexEdit] / (float)(gateTime * sampleRate / displayRefreshStepSkips)) : 0.0f);
+							else
+								red = (i == keyLightIndex ? 1.0f : 0.0f);
+						}
+					}
 				}
-			}		
+				setGreenRed(KEY_LIGHTS + i * 2, green, red);
+			}
 
 			// Gate, GateProb, Slide and Tied lights 
 			Attribute attributesVal;
@@ -1028,7 +1021,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				printNote(module->sek[1].getCV(module->seqIndexEdit, module->stepIndexEdit), displayStr, module->showSharp);
 			}
 			else 
-				snprintf(displayStr, 4, " %2u", (unsigned)(module->trackIndexEdit + 1));
+				snprintf(displayStr, 4, "  %c", (unsigned)(module->trackIndexEdit + 0x41));
 			return 0;
 		}
 	};
@@ -1244,7 +1237,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int rowRulerT0 = 56;
 		static const int columnRulerT0 = 25;// Step/Phase LED buttons
 		static const int columnRulerT1 = 373;// All 
-		static const int columnRulerT2 = 432;// Edit mode switch
+		static const int columnRulerT2 = 412;// Edit mode switch
 		static const int columnRulerT4 = 490;// Overview light and button
 		//static const int columnRulerT5 = 536;// Overview switch
 		static const int stepsOffsetY = 10;
@@ -1416,9 +1409,8 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		addChild(new SeqEditDisplayWidget(Vec(colRulerEditSeq, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 5 characters
 		// Sequence-edit knob
 		addParam(createDynamicParamCentered<IMMediumKnobInf>(Vec(colRulerEditSeq, rowRulerKnobs), module, PhraseSeq32Ex::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
-		// Len and Reps button
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditSeq - trkButtonsOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::REPS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditSeq + trkButtonsOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::LEN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		// Rep/Len button
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditSeq, rowRulerSmallButtons), module, PhraseSeq32Ex::REP_LEN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 	
 			
 		// Reset and run LED buttons

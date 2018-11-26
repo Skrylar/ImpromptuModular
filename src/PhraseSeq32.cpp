@@ -1310,7 +1310,7 @@ struct PhraseSeq32 : Module {
 				cvValOffset = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
 			else	
 				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun[0]] + 10.0f;//to properly handle negative note voltages
-			int keyLightIndex = (int) clamp(  roundf( (cvValOffset-floor(cvValOffset)) * 12.0f ),  0.0f,  11.0f);
+			int keyLightIndex = clamp( (int)((cvValOffset-floor(cvValOffset)) * 12.0f + 0.5f),  0,  11);
 			if (editingGateLength != 0l && editingSequence) {
 				int modeLightIndex = gateModeToKeyLightIndex(attributes[sequence][stepIndexEdit], editingGateLength > 0l);
 				for (int i = 0; i < 12; i++) {

@@ -141,7 +141,7 @@ void printNote(float cvVal, char* text, bool sharp) {// text must be at least 4 
 	static const char isBlackKey      [12] = { 0,   1,   0,   1,   0,   0,   1,   0,   1,   0,   1,   0 };
 
 	float cvValOffset = cvVal + 10.0f;// to properly handle negative note voltages
-	int indexNote =  clamp(  (int)( (cvValOffset-floor(cvValOffset)) * 12.0f + 0.5f ),  0,  11);
+	int indexNote =  clamp( (int)((cvValOffset-floor(cvValOffset)) * 12.0f + 0.5f),  0,  11);
 	
 	// note letter
 	text[0] = sharp ? noteLettersSharp[indexNote] : noteLettersFlat[indexNote];
