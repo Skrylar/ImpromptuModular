@@ -70,6 +70,7 @@ class Attribute {
 class SequencerKernel {
 	public: 
 	
+	
 	// General constants
 	// ----------------
 
@@ -95,6 +96,7 @@ class SequencerKernel {
 
 
 	private:
+	
 
 	// Member data
 	// ----------------	
@@ -120,12 +122,13 @@ class SequencerKernel {
 	int phraseIndexRun;
 	unsigned long phraseIndexRunHistory;
 	int ppqnCount;
-	int gateCode;
+	int gateCode;// -1 = Killed for all pulses of step, 0 = Low for current pulse of step, 1 = High for current pulse of step, 2 = Clk high pulse, 3 = 1ms trig
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta;// no need to initialize, this is only used when slideStepsRemain is not 0
 	
 	
 	public: 
+	
 	
 	// get
 	// ----------------
@@ -601,6 +604,16 @@ class SequencerKernel {
 	}
 	
 	
+	int keyIndexToGateTypeEx(int keyIndex) {// return -1 when invalid gate type given current pps setting
+		int pulsesPerStep = ppsValues[pulsesPerStepIndex];
+		if (((pulsesPerStep % 6) != 0) && (keyIndex == 1 || keyIndex == 3 || keyIndex == 6 || keyIndex == 8 || keyIndex == 10))// TRIs
+			return -1;
+		if (((pulsesPerStep % 4) != 0) && (keyIndex == 0 || keyIndex == 4 || keyIndex == 7 || keyIndex == 9))// DOUBLEs
+			return -1;
+		return keyIndex;// keyLight index now matches gate types, so no mapping table needed anymore
+	}
+
+
 	void transposeSeq(int seqn, int delta) {
 		int oldTransposeOffset = transposeOffsets[seqn];
 		transposeOffsets[seqn] += delta;
@@ -636,7 +649,11 @@ class SequencerKernel {
 				rotateSeqByOne(seqn, false);
 			}
 		}
-	}		
+	}	
+
+	
+	private:
+	
 	
 	void rotateSeqByOne(int seqn, bool directionRight) {
 		float rotCV;
@@ -687,16 +704,6 @@ class SequencerKernel {
 		}
 	}	
 	
-	
-	int keyIndexToGateTypeEx(int keyIndex) {
-		int pulsesPerStep = ppsValues[pulsesPerStepIndex];
-		if (((pulsesPerStep % 6) != 0) && (keyIndex == 1 || keyIndex == 3 || keyIndex == 6 || keyIndex == 8 || keyIndex == 10))// TRIs
-			return -1;
-		if (((pulsesPerStep % 4) != 0) && (keyIndex == 0 || keyIndex == 4 || keyIndex == 7 || keyIndex == 9))// DOUBLEs
-			return -1;
-		return keyIndex;// keyLight index now matches gate types, so no mapping table needed anymore
-	}
-	
 
 	void calcGateCodeEx(int seqn) {// uses stepIndexRun as the step
 		Attribute attribute = attributes[seqn][stepIndexRun];
@@ -705,7 +712,7 @@ class SequencerKernel {
 		if (gateCode != -1 || ppqnCount == 0) {// always calc on first ppqnCount, avoid thereafter if gate will be off for whole step
 			// -1 = gate off for whole step, 0 = gate off for current ppqn, 1 = gate on, 2 = clock high, 3 = trigger
 			if ( ppqnCount == 0 && attribute.getGateP() && !(randomUniform() < ((float)attribute.getGatePVal() / 100.0f)) ) {// randomUniform is [0.0, 1.0), see include/util/common.hpp
-				gateCode = -1;// must do this first in this method since it will kill rest of step if prob turns off the step
+				gateCode = -1;// must do this first in this method since it will kill all remaining pulses of the step if prob turns off the step
 			}
 			else if (!attribute.getGate()) {
 				gateCode = 0;
@@ -729,7 +736,7 @@ class SequencerKernel {
 		}
 	}
 	
-	
+
 	bool moveIndexRunMode(bool moveSequence) {	
 		// assert((reps * numSteps) <= 0xFFF); // for BRN and RND run modes, history is not a span count but a step count
 		
