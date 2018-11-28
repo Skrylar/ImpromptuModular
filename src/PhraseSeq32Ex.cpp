@@ -47,6 +47,7 @@ struct PhraseSeq32Ex : Module {
 		BEGIN_PARAM,
 		END_PARAM,
 		OVERVIEW_PARAM,
+		OVIEW_MODE_PARAM,
 		KEY_GATE_PARAM,
 		NUM_PARAMS
 	};
@@ -1217,9 +1218,9 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int rowRulerT0 = 56;
 		static const int columnRulerT0 = 25;// Step/Phase LED buttons
 		static const int columnRulerT1 = 373;// All 
-		static const int columnRulerT2 = 412;// Edit mode switch
-		static const int columnRulerT4 = 490;// Overview light and button
-		//static const int columnRulerT5 = 536;// Overview switch
+		static const int columnRulerT2 = 422;// Copy paste and select mode switch
+		static const int columnRulerT3 = 464;// Copy paste buttons
+		static const int columnRulerT5 = 543;// Edit mode switch (and overview switch also)
 		static const int stepsOffsetY = 10;
 		static const int posLEDvsButton = 26;
 
@@ -1244,13 +1245,16 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerT1, rowRulerT0 - stepsOffsetY), module, PhraseSeq32Ex::ALLSTEPS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// AllTracks button
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerT1, rowRulerT0 + stepsOffsetY), module, PhraseSeq32Ex::ALLTRACKS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		
+		// Copy-paste and select mode switch (3 position)
+		addParam(createParamCentered<CKSSThreeInv>(Vec(columnRulerT2, rowRulerT0), module, PhraseSeq32Ex::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));	// 0.0f is top position
+		
+		// Copy/paste buttons
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerT3, rowRulerT0 - stepsOffsetY), module, PhraseSeq32Ex::COPY_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerT3, rowRulerT0 + stepsOffsetY), module, PhraseSeq32Ex::PASTE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		
 		// Edit mode switch
-		addParam(createParamCentered<CKSS>(Vec(columnRulerT2, rowRulerT0), module, PhraseSeq32Ex::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
-		// Overview button and light
-		addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerT4 + posLEDvsButton, rowRulerT0), module, PhraseSeq32Ex::OVERVIEW_LIGHT));		
-		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerT4, rowRulerT0), module, PhraseSeq32Ex::OVERVIEW_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		// Overview switch
-		//addParam(createParamCentered<CKSSThreeInv>(Vec(columnRulerT4 + 2 * posLEDvsButton, rowRulerT0), module, PhraseSeq32Ex::_PARAM, 0.0f, 2.0f, 2.0f));// 0.0f is top position
+		addParam(createParamCentered<CKSS>(Vec(columnRulerT5, rowRulerT0), module, PhraseSeq32Ex::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
 		
 		
 		
@@ -1365,10 +1369,9 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int columnRulerMB3 = colRulerVel - displaySpacingX;
 		static const int columnRulerMB2 = colRulerVel - 2 * displaySpacingX;
 		static const int columnRulerMB1 = colRulerVel - 3 * displaySpacingX;
-		static const int columnRulerMB7 = 475;// Copy paste
 		
 		// Key mode LED buttons	
-		static const int colRulerKM = 57;
+		static const int colRulerKM = 61;
 		addParam(createParamCentered<CKSS>(Vec(colRulerKM, rowRulerMB0), module, PhraseSeq32Ex::KEY_GATE_PARAM, 0.0f, 1.0f, 1.0f));
 		
 		// Gate 1 light and button
@@ -1387,15 +1390,13 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(colRulerTrk, rowRulerMB0), module, PhraseSeq32Ex::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Mode button
 		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(colRulerEditPhr, rowRulerMB0), module, PhraseSeq32Ex::MODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		// Copy/paste buttons
-		static const int cpButtonsOffsetX = 72;
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerMB7, rowRulerMB0), module, PhraseSeq32Ex::COPY_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerMB7 + 28, rowRulerMB0), module, PhraseSeq32Ex::PASTE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		// Copy-paste mode switch (3 position)
-		addParam(createParamCentered<CKSSThreeInv>(Vec(columnRulerMB7 + cpButtonsOffsetX, rowRulerMB0 - 5), module, PhraseSeq32Ex::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));	// 0.0f is top position
-		
-		
-						
+		// Overview button and light
+		addChild(createLightCentered<MediumLight<RedLight>>(Vec(colRulerEditSeq + posLEDvsButton, rowRulerMB0), module, PhraseSeq32Ex::OVERVIEW_LIGHT));		
+		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(colRulerEditSeq, rowRulerMB0), module, PhraseSeq32Ex::OVERVIEW_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		// Overview switch
+		addParam(createParamCentered<CKSSThreeInv>(Vec(columnRulerT5, rowRulerMB0), module, PhraseSeq32Ex::OVIEW_MODE_PARAM, 0.0f, 2.0f, 2.0f));// 0.0f is top position
+
+
 		
 		// ****** Bottom two rows ******
 		
