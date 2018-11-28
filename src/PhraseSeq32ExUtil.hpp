@@ -79,10 +79,6 @@ class SequencerKernel {
 	static const int MAX_SEQS = 64;
 	static const int MAX_PHRASES = 99;// maximum value is 99 (disp will be 1 to 99)
 
-	// Clock resolution										
-	static const int NUM_PPS_VALUES = 34;
-	static const int ppsValues[NUM_PPS_VALUES]; // TODO remove this and accept all from 1 and all evens from 2 to 96
-
 	// Run modes
 	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, NUM_MODES};
 	static const std::string modeLabels[NUM_MODES];
@@ -106,7 +102,7 @@ class SequencerKernel {
 	// Need to save
 	int runModeSong;	
 	int runModeSeq[MAX_SEQS];
-	int pulsesPerStepIndex;// 0 to NUM_PPS_VALUES-1; 0 means normal gate mode of 1 pps; this is an index into ppsValues[]
+	int pulsesPerStep;// stored range is [1:49] so must ALWAYS read thgouth getPulsesPerStep(). Must do this because of knob
 	int phraseReps[MAX_PHRASES];// a rep is 1 to 99
 	int phrase[MAX_PHRASES];// This is the song (series of phases; a phrase is a sequence number)	
 	int lengths[MAX_SEQS];// number of steps in each sequence, min value is 1
@@ -139,7 +135,7 @@ class SequencerKernel {
 	inline int getLength(int seqn) {return lengths[seqn];}
 	inline int getPhrase(int phrn) {return phrase[phrn];}
 	inline int getPhraseReps(int phrn) {return phraseReps[phrn];}
-	inline int getPulsesPerStep() {return ppsValues[pulsesPerStepIndex];}
+	inline int getPulsesPerStep() {return (pulsesPerStep > 2 ? ((pulsesPerStep - 1) << 1) : pulsesPerStep);}
 	inline int getTransposeOffset(int seqn) {return transposeOffsets[seqn];}
 	inline int getStepIndexRun() {return stepIndexRun;}
 	inline int getPhraseIndexRun() {return phraseIndexRun;}
@@ -188,10 +184,10 @@ class SequencerKernel {
 		if (phraseReps[phrn] > 99) phraseReps[phrn] = 99; 
 		if (phraseReps[phrn] < 1 ) phraseReps[phrn] = 1;
 	}		
-	inline void modPulsesPerStepIndex(int delta) {
-		pulsesPerStepIndex += delta;
-		if (pulsesPerStepIndex < 0) pulsesPerStepIndex = 0;
-		if (pulsesPerStepIndex >= NUM_PPS_VALUES) pulsesPerStepIndex = NUM_PPS_VALUES - 1;
+	inline void modPulsesPerStep(int delta) {
+		pulsesPerStep += delta;
+		if (pulsesPerStep < 1) pulsesPerStep = 1;
+		if (pulsesPerStep > 49) pulsesPerStep = 49;
 	}
 	inline void modGatePVal(int seqn, int stepn, int delta) {
 		int pVal = getGatePVal(seqn, stepn);
@@ -353,7 +349,7 @@ class SequencerKernel {
 	
 	
 	void reset() {
-		pulsesPerStepIndex = 0;
+		pulsesPerStep = 1;
 		runModeSong = MODE_FWD;
 		songBeginIndex = 0;
 		songEndIndex = 0;
@@ -399,8 +395,8 @@ class SequencerKernel {
 	
 	
 	void toJson(json_t *rootJ) {
-		// pulsesPerStepIndex
-		json_object_set_new(rootJ, (ids + "pulsesPerStepIndex").c_str(), json_integer(pulsesPerStepIndex));
+		// pulsesPerStep
+		json_object_set_new(rootJ, (ids + "pulsesPerStep").c_str(), json_integer(pulsesPerStep));
 
 		// runModeSong
 		json_object_set_new(rootJ, (ids + "runModeSong").c_str(), json_integer(runModeSong));
@@ -473,10 +469,10 @@ class SequencerKernel {
 	
 	
 	void fromJson(json_t *rootJ) {
-		// pulsesPerStepIndex
-		json_t *pulsesPerStepIndexJ = json_object_get(rootJ, (ids + "pulsesPerStepIndex").c_str());
-		if (pulsesPerStepIndexJ)
-			pulsesPerStepIndex = json_integer_value(pulsesPerStepIndexJ);
+		// pulsesPerStep
+		json_t *pulsesPerStepJ = json_object_get(rootJ, (ids + "pulsesPerStep").c_str());
+		if (pulsesPerStepJ)
+			pulsesPerStep = json_integer_value(pulsesPerStepJ);
 
 		// runModeSong
 		json_t *runModeSongJ = json_object_get(rootJ, (ids + "runModeSong").c_str());
@@ -584,7 +580,8 @@ class SequencerKernel {
 	
 	void clockStep(unsigned long clockPeriod) {
 		ppqnCount++;
-		if (ppqnCount >= ppsValues[pulsesPerStepIndex])
+		int ppsFiltered = getPulsesPerStep();// must use method
+		if (ppqnCount >= ppsFiltered)
 			ppqnCount = 0;
 		if (ppqnCount == 0) {
 			float slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
@@ -595,7 +592,7 @@ class SequencerKernel {
 
 			// Slide
 			if (attributes[phrase[phraseIndexRun]][stepIndexRun].getSlide()) {
-				slideStepsRemain = (unsigned long) (((float)clockPeriod * ppsValues[pulsesPerStepIndex]) * ((float)attributes[phrase[phraseIndexRun]][stepIndexRun].getSlideVal() / 100.0f));
+				slideStepsRemain = (unsigned long) (((float)clockPeriod * ppsFiltered) * ((float)attributes[phrase[phraseIndexRun]][stepIndexRun].getSlideVal() / 100.0f));
 				float slideToCV = cv[phrase[phraseIndexRun]][stepIndexRun];
 				slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
 			}
@@ -605,23 +602,23 @@ class SequencerKernel {
 	
 	
 	int keyIndexToGateTypeEx(int keyIndex) {// return -1 when invalid gate type given current pps setting
-		int pulsesPerStep = ppsValues[pulsesPerStepIndex];
+		int ppsFiltered = getPulsesPerStep();// must use method
 		int ret = keyIndex;
 		
 		if (keyIndex == 1 || keyIndex == 3 || keyIndex == 6 || keyIndex == 8 || keyIndex == 10) {// black keys
-			if ((pulsesPerStep % 6) != 0)
+			if ((ppsFiltered % 6) != 0)
 				ret = -1;
 		}
 		else if (keyIndex == 4 || keyIndex == 7 || keyIndex == 9) {// 75%, DUO, DU2 
-			if ((pulsesPerStep % 4) != 0)
+			if ((ppsFiltered % 4) != 0)
 				ret = -1;
 		}
 		else if (keyIndex == 2) {// 50%
-			if ((pulsesPerStep % 2) != 0)
+			if ((ppsFiltered % 2) != 0)
 				ret = -1;
 		}
 		else if (keyIndex == 0) {// 25%
-			if (pulsesPerStep != 1 && (pulsesPerStep % 4) != 0)
+			if (ppsFiltered != 1 && (ppsFiltered % 4) != 0)
 				ret = -1;
 		}
 		//else always good: 5 (full) and 11 (trig)
@@ -723,6 +720,7 @@ class SequencerKernel {
 
 	void calcGateCodeEx(int seqn) {// uses stepIndexRun as the step
 		Attribute attribute = attributes[seqn][stepIndexRun];
+		int ppsFiltered = getPulsesPerStep();// must use method
 		int gateType;
 
 		if (gateCode != -1 || ppqnCount == 0) {// always calc on first ppqnCount, avoid thereafter if gate will be off for whole step
@@ -735,7 +733,7 @@ class SequencerKernel {
 			else if (!attribute.getGate()) {
 				gateCode = 0;
 			}
-			else if (pulsesPerStepIndex == 0 && gateType == 0) {
+			else if (ppsFiltered == 0 && gateType == 0) {
 				gateCode = 2;// clock high pulse
 			}
 			else {
@@ -743,7 +741,7 @@ class SequencerKernel {
 					gateCode = (ppqnCount == 0 ? 3 : 0);// trig on first ppqnCount
 				}
 				else {
-					uint64_t shiftAmt = ppqnCount * (96 / ppsValues[pulsesPerStepIndex]);
+					uint64_t shiftAmt = ppqnCount * (96 / ppsFiltered);
 					if (shiftAmt >= 64)
 						gateCode = (int)((advGateHitMaskHigh[gateType] >> (shiftAmt - (uint64_t)64)) & (uint64_t)0x1);
 					else

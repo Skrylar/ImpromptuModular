@@ -578,7 +578,7 @@ struct PhraseSeq32Ex : Module {
 				if (abs(deltaPhrKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (displayState != DISP_OVERVIEW) {
 						if (displayState == DISP_PPQN) {
-							sek[trackIndexEdit].modPulsesPerStepIndex(deltaPhrKnob);
+							sek[trackIndexEdit].modPulsesPerStep(deltaPhrKnob);
 						}
 						else if (!editingSequence) {
 							if (displayState == DISP_MODE) {
