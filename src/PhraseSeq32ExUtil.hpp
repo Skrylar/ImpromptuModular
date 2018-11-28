@@ -81,7 +81,7 @@ class SequencerKernel {
 
 	// Clock resolution										
 	static const int NUM_PPS_VALUES = 34;
-	static const int ppsValues[NUM_PPS_VALUES]; // TODO remove this and accept all from 1 to 96?; not sure, since it allows 3 which is useless...
+	static const int ppsValues[NUM_PPS_VALUES]; // TODO remove this and accept all from 1 and all evens from 2 to 96
 
 	// Run modes
 	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, NUM_MODES};
@@ -726,6 +726,8 @@ class SequencerKernel {
 		int gateType;
 
 		if (gateCode != -1 || ppqnCount == 0) {// always calc on first ppqnCount, avoid thereafter if gate will be off for whole step
+			gateType = attribute.getGateType();
+			
 			// -1 = gate off for whole step, 0 = gate off for current ppqn, 1 = gate on, 2 = clock high, 3 = trigger
 			if ( ppqnCount == 0 && attribute.getGateP() && !(randomUniform() < ((float)attribute.getGatePVal() / 100.0f)) ) {// randomUniform is [0.0, 1.0), see include/util/common.hpp
 				gateCode = -1;// must do this first in this method since it will kill all remaining pulses of the step if prob turns off the step
@@ -733,13 +735,12 @@ class SequencerKernel {
 			else if (!attribute.getGate()) {
 				gateCode = 0;
 			}
-			else if (pulsesPerStepIndex == 0) {// TODO here check only if gate type is 0. Where are trigs?
+			else if (pulsesPerStepIndex == 0 && gateType == 0) {
 				gateCode = 2;// clock high pulse
 			}
 			else {
-				gateType = attribute.getGateType();
 				if (gateType == 11) {
-					gateCode = (ppqnCount == 0 ? 3 : 0);
+					gateCode = (ppqnCount == 0 ? 3 : 0);// trig on first ppqnCount
 				}
 				else {
 					uint64_t shiftAmt = ppqnCount * (96 / ppsValues[pulsesPerStepIndex]);

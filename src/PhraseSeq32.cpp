@@ -585,8 +585,10 @@ struct PhraseSeq32 : Module {
 		// Run button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
-			if (running)
+			if (running) {
 				initRun(resetOnRun);
+				attachedChanB = stepIndexEdit >= 16;
+			}
 			displayState = DISP_NORMAL;
 		}
 
@@ -1026,7 +1028,7 @@ struct PhraseSeq32 : Module {
 							editingGateCV = cv[sequence][stepIndexEdit];
 							editingGateKeyLight = -1;
 							editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
-							if (params[KEY_PARAMS + i].value > 1.5f) {
+							if (params[KEY_PARAMS + i].value > 1.5f) {// if right-click
 								stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 32);
 								editingGateKeyLight = i;
 							}
@@ -1203,7 +1205,7 @@ struct PhraseSeq32 : Module {
 			}
 		}
 		else {// not running 
-			if (editingChannel == 0) {
+			if (stepConfig > 1) {// 1x32
 				outputs[CVA_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step0];
 				outputs[GATE1A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
 				outputs[GATE2A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
@@ -1211,14 +1213,26 @@ struct PhraseSeq32 : Module {
 				outputs[GATE1B_OUTPUT].value = 0.0f;
 				outputs[GATE2B_OUTPUT].value = 0.0f;
 			}
-			else {
-				outputs[CVA_OUTPUT].value = 0.0f;
-				outputs[GATE1A_OUTPUT].value = 0.0f;
-				outputs[GATE2A_OUTPUT].value = 0.0f;
-				outputs[CVB_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cv[seq][step0];
-				outputs[GATE1B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
-				outputs[GATE2B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
-			}
+			else {// 2x16
+				float cvA = (step0 >= 16 ? cv[seq][step0 - 16] : cv[seq][step0]);
+				float cvB = (step0 >= 16 ? cv[seq][step0] : cv[seq][step0 + 16]);
+				if (editingChannel == 0) {
+					outputs[CVA_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cvA;
+					outputs[GATE1A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+					outputs[GATE2A_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+					outputs[CVB_OUTPUT].value = cvB;
+					outputs[GATE1B_OUTPUT].value = 0.0f;
+					outputs[GATE2B_OUTPUT].value = 0.0f;
+				}
+				else {
+					outputs[CVA_OUTPUT].value = cvA;
+					outputs[GATE1A_OUTPUT].value = 0.0f;
+					outputs[GATE2A_OUTPUT].value = 0.0f;
+					outputs[CVB_OUTPUT].value = (editingGate > 0ul) ? editingGateCV : cvB;
+					outputs[GATE1B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+					outputs[GATE2B_OUTPUT].value = (editingGate > 0ul) ? 10.0f : 0.0f;
+				}
+			}	
 		}
 		for (int i = 0; i < 2; i++)
 			if (slideStepsRemain[i] > 0ul)
