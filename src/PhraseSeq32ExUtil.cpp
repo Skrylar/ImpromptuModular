@@ -32,7 +32,7 @@ int moveIndexEx(int index, int indexNext, int numSteps) {
 
 // TODO: move non trivial methods here
 
-const int SequencerKernel::ppsValues[NUM_PPS_VALUES] = {1, 4, 6, 8, 12, 16, 18, 20, 24, 28, 30, 32, 36, 40, 42, 44, 48, 52, 54, 56, 60, 64, 66, 68, 72, 76, 78, 80, 84, 88, 90, 92, 96};
+const int SequencerKernel::ppsValues[NUM_PPS_VALUES] = {1, 2, 4, 6, 8, 12, 16, 18, 20, 24, 28, 30, 32, 36, 40, 42, 44, 48, 52, 54, 56, 60, 64, 66, 68, 72, 76, 78, 80, 84, 88, 90, 92, 96};
 const std::string SequencerKernel::modeLabels[NUM_MODES] = {"FWD","REV","PPG","PEN","BRN","RND"};
 
 

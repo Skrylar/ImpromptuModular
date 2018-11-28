@@ -80,8 +80,8 @@ class SequencerKernel {
 	static const int MAX_PHRASES = 99;// maximum value is 99 (disp will be 1 to 99)
 
 	// Clock resolution										
-	static const int NUM_PPS_VALUES = 33;
-	static const int ppsValues[NUM_PPS_VALUES];
+	static const int NUM_PPS_VALUES = 34;
+	static const int ppsValues[NUM_PPS_VALUES]; // TODO remove this and accept all from 1 to 96?; not sure, since it allows 3 which is useless...
 
 	// Run modes
 	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, NUM_MODES};
@@ -606,11 +606,27 @@ class SequencerKernel {
 	
 	int keyIndexToGateTypeEx(int keyIndex) {// return -1 when invalid gate type given current pps setting
 		int pulsesPerStep = ppsValues[pulsesPerStepIndex];
-		if (((pulsesPerStep % 6) != 0) && (keyIndex == 1 || keyIndex == 3 || keyIndex == 6 || keyIndex == 8 || keyIndex == 10))// TRIs
-			return -1;
-		if (((pulsesPerStep % 4) != 0) && (keyIndex == 0 || keyIndex == 4 || keyIndex == 7 || keyIndex == 9))// DOUBLEs
-			return -1;
-		return keyIndex;// keyLight index now matches gate types, so no mapping table needed anymore
+		int ret = keyIndex;
+		
+		if (keyIndex == 1 || keyIndex == 3 || keyIndex == 6 || keyIndex == 8 || keyIndex == 10) {// black keys
+			if ((pulsesPerStep % 6) != 0)
+				ret = -1;
+		}
+		else if (keyIndex == 4 || keyIndex == 7 || keyIndex == 9) {// 75%, DUO, DU2 
+			if ((pulsesPerStep % 4) != 0)
+				ret = -1;
+		}
+		else if (keyIndex == 2) {// 50%
+			if ((pulsesPerStep % 2) != 0)
+				ret = -1;
+		}
+		else if (keyIndex == 0) {// 25%
+			if (pulsesPerStep != 1 && (pulsesPerStep % 4) != 0)
+				ret = -1;
+		}
+		//else always good: 5 (full) and 11 (trig)
+		
+		return ret;
 	}
 
 
@@ -621,11 +637,11 @@ class SequencerKernel {
 		if (transposeOffsets[seqn] < -99) transposeOffsets[seqn] = -99;						
 
 		delta = transposeOffsets[seqn] - oldTransposeOffset;
-		if (delta == 0) 
-			return;// if end of range, no transpose to do
-		float offsetCV = ((float)(delta))/12.0f;
-		for (int stepn = 0; stepn < MAX_STEPS; stepn++) 
-			cv[seqn][stepn] += offsetCV;
+		if (delta != 0) { 
+			float offsetCV = ((float)(delta))/12.0f;
+			for (int stepn = 0; stepn < MAX_STEPS; stepn++) 
+				cv[seqn][stepn] += offsetCV;
+		}
 	}
 
 	
@@ -717,7 +733,7 @@ class SequencerKernel {
 			else if (!attribute.getGate()) {
 				gateCode = 0;
 			}
-			else if (pulsesPerStepIndex == 0) {
+			else if (pulsesPerStepIndex == 0) {// TODO here check only if gate type is 0. Where are trigs?
 				gateCode = 2;// clock high pulse
 			}
 			else {
