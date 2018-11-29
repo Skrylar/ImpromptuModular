@@ -727,7 +727,7 @@ struct PhraseSeq32Ex : Module {
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			initRun(true);
 			resetLight = 1.0f;
-			displayState = DISP_NORMAL;
+			//displayState = DISP_NORMAL;
 		}
 		
 		
@@ -953,7 +953,14 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		VelocityDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
 		char printText() override {
 			if (module->displayState == PhraseSeq32Ex::DISP_OVERVIEW) {
-				printNote(module->sek[0].getCV(module->seqIndexEdit, module->stepIndexEdit), displayStr, module->showSharp);
+				if (module->params[PhraseSeq32Ex::OVIEW_MODE_PARAM].value < 0.5f) {
+					float cvDisp = module->isEditingSequence() ? 
+						module->sek[0].getCV(module->seqIndexEdit, module->stepIndexEdit) :
+						module->sek[0].getCV(module->sek[0].getPhrase(module->phraseIndexEdit), module->stepIndexEdit);
+					printNote(cvDisp, displayStr, module->showSharp);	
+				}
+				else
+					printNote(module->sek[0].getCVRun(), displayStr, module->showSharp);
 			}
 			else {
 				if (module->isEditingSequence()) {
@@ -999,7 +1006,14 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		TrackDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
 		char printText() override {
 			if (module->displayState == PhraseSeq32Ex::DISP_OVERVIEW) {
-				printNote(module->sek[1].getCV(module->seqIndexEdit, module->stepIndexEdit), displayStr, module->showSharp);
+				if (module->params[PhraseSeq32Ex::OVIEW_MODE_PARAM].value < 0.5f) {
+					float cvDisp = module->isEditingSequence() ? 
+						module->sek[1].getCV(module->seqIndexEdit, module->stepIndexEdit) :
+						module->sek[1].getCV(module->sek[1].getPhrase(module->phraseIndexEdit), module->stepIndexEdit);
+					printNote(cvDisp, displayStr, module->showSharp);	
+				}
+				else
+					printNote(module->sek[1].getCVRun(), displayStr, module->showSharp);
 			}
 			else 
 				snprintf(displayStr, 4, "  %c", (unsigned)(module->trackIndexEdit + 0x41));
@@ -1014,7 +1028,14 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		char printText() override {
 			char overlayChar = 0;// extra char to print an end symbol overlaped (begin done in here)
 			if (module->displayState == PhraseSeq32Ex::DISP_OVERVIEW) {
-				printNote(module->sek[2].getCV(module->seqIndexEdit, module->stepIndexEdit), displayStr, module->showSharp);
+				if (module->params[PhraseSeq32Ex::OVIEW_MODE_PARAM].value < 0.5f) {
+					float cvDisp = module->isEditingSequence() ? 
+						module->sek[2].getCV(module->seqIndexEdit, module->stepIndexEdit) :
+						module->sek[2].getCV(module->sek[2].getPhrase(module->phraseIndexEdit), module->stepIndexEdit);
+					printNote(cvDisp, displayStr, module->showSharp);	
+				}
+				else
+					printNote(module->sek[2].getCVRun(), displayStr, module->showSharp);
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_PPQN) {
 				snprintf(displayStr, 4, "x%2u", (unsigned) module->sek[module->trackIndexEdit].getPulsesPerStep());
@@ -1059,7 +1080,14 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		SeqEditDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
 		char printText() override {
 			if (module->displayState == PhraseSeq32Ex::DISP_OVERVIEW) {
-				printNote(module->sek[3].getCV(module->seqIndexEdit, module->stepIndexEdit), displayStr, module->showSharp);
+				if (module->params[PhraseSeq32Ex::OVIEW_MODE_PARAM].value < 0.5f) {
+					float cvDisp = module->isEditingSequence() ? 
+						module->sek[3].getCV(module->seqIndexEdit, module->stepIndexEdit) :
+						module->sek[3].getCV(module->sek[3].getPhrase(module->phraseIndexEdit), module->stepIndexEdit);
+					printNote(cvDisp, displayStr, module->showSharp);	
+				}
+				else
+					printNote(module->sek[3].getCVRun(), displayStr, module->showSharp);
 			}
 			else {
 				if (module->isEditingSequence()) {
@@ -1354,11 +1382,11 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		// Reset and run LED buttons
 		static const int colRulerResetRun = 539;
 		// Run LED bezel and light
-		addParam(createParamCentered<LEDBezel>(Vec(colRulerResetRun, rowRulerDisp + 10), module, PhraseSeq32Ex::RUN_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(createLightCentered<MuteLight<GreenLight>>(Vec(colRulerResetRun, rowRulerDisp + 10), module, PhraseSeq32Ex::RUN_LIGHT));
+		addParam(createParamCentered<LEDBezel>(Vec(colRulerResetRun, rowRulerDisp + 19), module, PhraseSeq32Ex::RUN_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLightCentered<MuteLight<GreenLight>>(Vec(colRulerResetRun, rowRulerDisp + 19), module, PhraseSeq32Ex::RUN_LIGHT));
 		// Reset LED bezel and light
-		addParam(createParamCentered<LEDBezel>(Vec(colRulerResetRun, rowRulerKnobs + 23), module, PhraseSeq32Ex::RESET_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(createLightCentered<MuteLight<GreenLight>>(Vec(colRulerResetRun, rowRulerKnobs + 23), module, PhraseSeq32Ex::RESET_LIGHT));
+		addParam(createParamCentered<LEDBezel>(Vec(colRulerResetRun, rowRulerKnobs + 32), module, PhraseSeq32Ex::RESET_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLightCentered<MuteLight<GreenLight>>(Vec(colRulerResetRun, rowRulerKnobs + 32), module, PhraseSeq32Ex::RESET_LIGHT));
 
 	
 	
