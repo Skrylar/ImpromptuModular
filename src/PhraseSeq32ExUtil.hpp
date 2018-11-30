@@ -142,6 +142,7 @@ class SequencerKernel {
 	inline float getCV(int seqn, int stepn) {return cv[seqn][stepn];}
 	inline float getCVRun() {return cv[phrase[phraseIndexRun]][stepIndexRun];}
 	inline Attribute getAttribute(int seqn, int stepn) {return attributes[seqn][stepn];}
+	inline Attribute getAttributeRun() {return attributes[phrase[phraseIndexRun]][stepIndexRun];}
 	inline bool getTied(int seqn, int stepn) {return attributes[seqn][stepn].getTied();}
 	inline int getGatePVal(int seqn, int stepn) {return attributes[seqn][stepn].getGatePVal();}
 	inline int getSlideVal(int seqn, int stepn) {return attributes[seqn][stepn].getSlideVal();}
