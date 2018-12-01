@@ -343,8 +343,8 @@ struct MidiFileModule : Module {
 					releaseNote(msg->getKeyNumber());//note()
 				}
 			} break;
-			// channel aftertouch
-			case 0xa: {
+			// channel aftertouch (0xa is key-aftertouch, 0xd is channel-aftertouch)
+			case 0xd: {
 				noteData[msg->getKeyNumber()].aftertouch = msg->getP2();//note(),  value()
 			} break;
 			// cc
