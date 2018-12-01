@@ -202,7 +202,7 @@ class SequencerKernel {
 		sVal += delta;
 		if (sVal > 100) sVal = 100;
 		if (sVal < 0) sVal = 0;
-		setSlideVal(seqn, seqn, sVal);
+		setSlideVal(seqn, stepn, sVal);
 	}		
 	inline void modVelocityVal(int seqn, int stepn, int delta) {
 		int vVal = getVelocityVal(seqn, stepn);
@@ -712,9 +712,14 @@ class SequencerKernel {
 		}
 		
 		// Affect downstream CVs and attributes of subsequent tied note chain (can be 0 length if next note is not tied)
-		for (int i = indexTied + 1; i < seqLength && attributes[seqn][i].getTied(); i++) {
-			cv[seqn][i] = cv[seqn][indexTied];
-			attributes[seqn][i] = attributes[seqn][indexTied];
+		for (int i = indexTied + 1; i < seqLength; i++) {
+			if (attributes[seqn][i].getTied()) {
+				cv[seqn][i] = cv[seqn][indexTied];
+				//attributes[seqn][i] = attributes[seqn][indexTied];
+				//attributes[seqn][i].setTied(true);
+			}
+			else 
+				break;
 		}
 	}	
 	
@@ -734,7 +739,7 @@ class SequencerKernel {
 			else if (!attribute.getGate()) {
 				gateCode = 0;
 			}
-			else if (ppsFiltered == 0 && gateType == 0) {
+			else if (ppsFiltered == 1 && gateType == 0) {
 				gateCode = 2;// clock high pulse
 			}
 			else {
