@@ -351,7 +351,7 @@ struct PhraseSeq32Ex : Module {
 			}
 			if (running && attached) {
 				phraseIndexEdit = sek[trackIndexEdit].getPhraseIndexRun();
-				seqIndexEdit = sek[trackIndexEdit].getPhrase(phraseIndexEdit);
+				seqIndexEdit = sek[trackIndexEdit].getPhraseSeq(phraseIndexEdit);
 				stepIndexEdit = sek[trackIndexEdit].getStepIndexRun();
 			}
 			
@@ -550,10 +550,14 @@ struct PhraseSeq32Ex : Module {
 			if (trackIncTrigger.process(params[TRACKUP_PARAM].value)) {
 				if (trackIndexEdit < (NUM_TRACKS - 1)) 
 					trackIndexEdit++;
+				else
+					trackIndexEdit = 0;
 			}
 			if (trackDeccTrigger.process(params[TRACKDOWN_PARAM].value)) {
 				if (trackIndexEdit > 0) 
 					trackIndexEdit--;
+				else
+					trackIndexEdit = NUM_TRACKS - 1;
 			}
 			
 		
@@ -816,7 +820,7 @@ struct PhraseSeq32Ex : Module {
 			// Prepare values to visualize
 			Attribute attributesVisual;
 			if (editingSequence || attached)
-				sek[trackIndexEdit].getAttribute(seqIndexEdit, stepIndexEdit);
+				attributesVisual = sek[trackIndexEdit].getAttribute(seqIndexEdit, stepIndexEdit);
 			else
 				attributesVisual.clear();
 							
@@ -1105,10 +1109,11 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 					displayStr[0] = '(';
 			}
 			else {
-				if (editingSequence || attached)
+				// two paths below are equivalent when attached, so no need to check attached
+				if (editingSequence)
 					snprintf(displayStr, 4, " %2u", (unsigned)(module->seqIndexEdit + 1) );
 				else {
-					int seqn = module->sek[trkn].getPhrase(module->phraseIndexEdit);
+					int seqn = module->sek[trkn].getPhraseSeq(module->phraseIndexEdit);
 					snprintf(displayStr, 4, " %2u", (unsigned)(seqn + 1) );
 				}
 			}

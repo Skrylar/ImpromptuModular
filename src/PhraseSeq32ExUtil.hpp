@@ -104,7 +104,7 @@ class SequencerKernel {
 	int runModeSeq[MAX_SEQS];
 	int pulsesPerStep;// stored range is [1:49] so must ALWAYS read thgouth getPulsesPerStep(). Must do this because of knob
 	int phraseReps[MAX_PHRASES];// a rep is 1 to 99
-	int phrase[MAX_PHRASES];// This is the song (series of phases; a phrase is a sequence number)	
+	int phraseSeq[MAX_PHRASES];// This is the song (series of phases; a phrase is a sequence number)	
 	int lengths[MAX_SEQS];// number of steps in each sequence, min value is 1
 	float cv[MAX_SEQS][MAX_STEPS];// [-3.0 : 3.917]. First index is sequence number, 2nd index is step
 	Attribute attributes[MAX_SEQS][MAX_STEPS];// First index is sequence number, 2nd index is step
@@ -133,22 +133,22 @@ class SequencerKernel {
 	inline int getBegin() {return songBeginIndex;}
 	inline int getEnd() {return songEndIndex;}
 	inline int getLength(int seqn) {return lengths[seqn];}
-	inline int getPhrase(int phrn) {return phrase[phrn];}
+	inline int getPhraseSeq(int phrn) {return phraseSeq[phrn];}
 	inline int getPhraseReps(int phrn) {return phraseReps[phrn];}
 	inline int getPulsesPerStep() {return (pulsesPerStep > 2 ? ((pulsesPerStep - 1) << 1) : pulsesPerStep);}
 	inline int getTransposeOffset(int seqn) {return transposeOffsets[seqn];}
 	inline int getStepIndexRun() {return stepIndexRun;}
 	inline int getPhraseIndexRun() {return phraseIndexRun;}
 	inline float getCV(int seqn, int stepn) {return cv[seqn][stepn];}
-	inline float getCVRun() {return cv[phrase[phraseIndexRun]][stepIndexRun];}
+	inline float getCVRun() {return cv[phraseSeq[phraseIndexRun]][stepIndexRun];}
 	inline Attribute getAttribute(int seqn, int stepn) {return attributes[seqn][stepn];}
-	inline Attribute getAttributeRun() {return attributes[phrase[phraseIndexRun]][stepIndexRun];}
+	inline Attribute getAttributeRun() {return attributes[phraseSeq[phraseIndexRun]][stepIndexRun];}
 	inline bool getTied(int seqn, int stepn) {return attributes[seqn][stepn].getTied();}
 	inline int getGatePVal(int seqn, int stepn) {return attributes[seqn][stepn].getGatePVal();}
 	inline int getSlideVal(int seqn, int stepn) {return attributes[seqn][stepn].getSlideVal();}
 	inline int getVelocityVal(int seqn, int stepn) {return attributes[seqn][stepn].getVelocityVal();}
 	inline float getVelocity(int seqn, int stepn) {return attributes[seqn][stepn].getVelocity();}
-	inline float getVelocityRun() {return attributes[phrase[phraseIndexRun]][stepIndexRun].getVelocity();}
+	inline float getVelocityRun() {return attributes[phraseSeq[phraseIndexRun]][stepIndexRun].getVelocity();}
 	inline int getGateType(int seqn, int stepn) {return attributes[seqn][stepn].getGateType();}
 	
 	
@@ -178,7 +178,7 @@ class SequencerKernel {
 		if (lengths[seqn] < 1 ) lengths[seqn] = 1;
 	}
 	inline void modPhrase(int phrn, int delta) {
-		phrase[phrn] = moveIndexEx(phrase[phrn], phrase[phrn] + delta, MAX_SEQS);
+		phraseSeq[phrn] = moveIndexEx(phraseSeq[phrn], phraseSeq[phrn] + delta, MAX_SEQS);
 	}
 	inline void modPhraseReps(int phrn, int delta) {
 		phraseReps[phrn] += delta; 
@@ -269,7 +269,7 @@ class SequencerKernel {
 	}
 	inline void initSong() {
 		for (int phrn = 0; phrn < MAX_PHRASES; phrn++) {
-			phrase[phrn] = 0;
+			phraseSeq[phrn] = 0;
 			phraseReps[phrn] = 1;
 		}
 	}
@@ -290,7 +290,7 @@ class SequencerKernel {
 	}
 	inline void randomizeSong() {
 		for (int phrn = 0; phrn < MAX_PHRASES; phrn++) {
-			phrase[phrn] = randomu32() % MAX_SEQS;
+			phraseSeq[phrn] = randomu32() % MAX_SEQS;
 			phraseReps[phrn] = randomu32() % 4 + 1;
 		}
 	}	
@@ -309,7 +309,7 @@ class SequencerKernel {
 	}
 	inline void copyPhrase(int* phraseCPbuffer, int* repCPbuffer, int* lenBegCPbuffer, int *endCPbuffer, int* modeCPbuffer, int startCP, int countCP) {	
 		for (int i = 0, phrn = startCP; i < countCP; i++, phrn++) {
-			phraseCPbuffer[i] = phrase[phrn];
+			phraseCPbuffer[i] = phraseSeq[phrn];
 			repCPbuffer[i] = phraseReps[phrn];
 		}
 		*lenBegCPbuffer = songBeginIndex;
@@ -329,7 +329,7 @@ class SequencerKernel {
 	}
 	inline void pastePhrase(int* phraseCPbuffer, int* repCPbuffer, int lenBegCPbuffer, int endCPbuffer, int modeCPbuffer, int startCP, int countCP) {	
 		for (int i = 0, phrn = startCP; i < countCP; i++, phrn++) {
-			phrase[phrn] = phraseCPbuffer[i];
+			phraseSeq[phrn] = phraseCPbuffer[i];
 			phraseReps[phrn] = repCPbuffer[i];
 		}
 		if (countCP == MAX_PHRASES) {// all
@@ -384,7 +384,7 @@ class SequencerKernel {
 			phraseIndexRun = (runModeSong == MODE_REV ? songEndIndex : songBeginIndex);
 			phraseIndexRunHistory = 0;
 		}
-		int seqn = phrase[phraseIndexRun];
+		int seqn = phraseSeq[phraseIndexRun];
 		if (hard) {
 			stepIndexRun = (runModeSeq[seqn] == MODE_REV ? lengths[seqn] - 1 : 0);
 			stepIndexRunHistory = 0;
@@ -414,11 +414,11 @@ class SequencerKernel {
 			json_array_insert_new(phraseRepsJ, i, json_integer(phraseReps[i]));
 		json_object_set_new(rootJ, (ids + "phraseReps").c_str(), phraseRepsJ);
 
-		// phrase 
-		json_t *phraseJ = json_array();
+		// phraseSeq 
+		json_t *phraseSeqJ = json_array();
 		for (int i = 0; i < MAX_PHRASES; i++)
-			json_array_insert_new(phraseJ, i, json_integer(phrase[i]));
-		json_object_set_new(rootJ, (ids + "phrase").c_str(), phraseJ);
+			json_array_insert_new(phraseSeqJ, i, json_integer(phraseSeq[i]));
+		json_object_set_new(rootJ, (ids + "phraseSeq").c_str(), phraseSeqJ);
 
 		// CV and attributes
 		json_t *seqSavedJ = json_array();		
@@ -501,14 +501,14 @@ class SequencerKernel {
 					phraseReps[i] = json_integer_value(phraseRepsArrayJ);
 			}
 
-		// phrase
-		json_t *phraseJ = json_object_get(rootJ, (ids + "phrase").c_str());
-		if (phraseJ)
+		// phraseSeq
+		json_t *phraseSeqJ = json_object_get(rootJ, (ids + "phraseSeq").c_str());
+		if (phraseSeqJ)
 			for (int i = 0; i < MAX_PHRASES; i++)
 			{
-				json_t *phraseArrayJ = json_array_get(phraseJ, i);
-				if (phraseArrayJ)
-					phrase[i] = json_integer_value(phraseArrayJ);
+				json_t *phraseSeqArrayJ = json_array_get(phraseSeqJ, i);
+				if (phraseSeqArrayJ)
+					phraseSeq[i] = json_integer_value(phraseSeqArrayJ);
 			}
 		
 		// CV and attributes
@@ -585,20 +585,20 @@ class SequencerKernel {
 		if (ppqnCount >= ppsFiltered)
 			ppqnCount = 0;
 		if (ppqnCount == 0) {
-			float slideFromCV = cv[phrase[phraseIndexRun]][stepIndexRun];
+			float slideFromCV = cv[phraseSeq[phraseIndexRun]][stepIndexRun];
 			if (moveIndexRunMode(true)) {// true means seq
 				moveIndexRunMode(false); // false means song
-				stepIndexRun = (runModeSeq[phrase[phraseIndexRun]] == MODE_REV ? lengths[phrase[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
+				stepIndexRun = (runModeSeq[phraseSeq[phraseIndexRun]] == MODE_REV ? lengths[phraseSeq[phraseIndexRun]] - 1 : 0);// must always refresh after phraseIndexRun has changed
 			}
 
 			// Slide
-			if (attributes[phrase[phraseIndexRun]][stepIndexRun].getSlide()) {
-				slideStepsRemain = (unsigned long) (((float)clockPeriod * ppsFiltered) * ((float)attributes[phrase[phraseIndexRun]][stepIndexRun].getSlideVal() / 100.0f));
-				float slideToCV = cv[phrase[phraseIndexRun]][stepIndexRun];
+			if (attributes[phraseSeq[phraseIndexRun]][stepIndexRun].getSlide()) {
+				slideStepsRemain = (unsigned long) (((float)clockPeriod * ppsFiltered) * ((float)attributes[phraseSeq[phraseIndexRun]][stepIndexRun].getSlideVal() / 100.0f));
+				float slideToCV = cv[phraseSeq[phraseIndexRun]][stepIndexRun];
 				slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
 			}
 		}
-		calcGateCodeEx(phrase[phraseIndexRun]);// uses stepIndexRun as the step		
+		calcGateCodeEx(phraseSeq[phraseIndexRun]);// uses stepIndexRun as the step		
 	}
 	
 	
@@ -772,8 +772,8 @@ class SequencerKernel {
 			index = &stepIndexRun;
 			history = &stepIndexRunHistory;
 			reps = phraseReps[phraseIndexRun];
-			runMode = runModeSeq[phrase[phraseIndexRun]];
-			endStep = lengths[phrase[phraseIndexRun]] - 1;
+			runMode = runModeSeq[phraseSeq[phraseIndexRun]];
+			endStep = lengths[phraseSeq[phraseIndexRun]] - 1;
 			startStep = 0;
 		}
 		else {// move song
