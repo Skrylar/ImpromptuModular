@@ -11,58 +11,54 @@ using namespace rack;
 int moveIndexEx(int index, int indexNext, int numSteps);
 	
 	
-class Attribute {
-	// Attributes of a step
-	unsigned long attribute;
+class StepAttributes {
+	unsigned long attributes;
 	
 	public:
 
-	static const unsigned long ATT_MSK_GATE = 0x01;
-	static const unsigned long ATT_MSK_GATEP = 0x02;
-	static const unsigned long ATT_MSK_SLIDE = 0x04;
-	static const unsigned long ATT_MSK_TIED = 0x08;
-	static const unsigned long ATT_MSK_GATETYPE = 0xF0;
-	static const unsigned long gate1TypeShift = 4;
-	static const unsigned long ATT_MSK_GATEP_VAL = 0xFF00;
-	static const unsigned long GatePValShift = 8;
-	static const unsigned long ATT_MSK_SLIDE_VAL = 0xFF0000;
-	static const unsigned long slideValShift = 16;
-	static const unsigned long ATT_MSK_VELOCITY = 0xFF000000;
-	static const unsigned long velocityShift = 24;
-	static const unsigned long ATT_MSK_INITSTATE = (ATT_MSK_GATE | (0 << gate1TypeShift) | (50 << GatePValShift) | (10 << slideValShift) | (128 << velocityShift));
+	static const unsigned long ATT_MSK_GATE =      0x01000000, gateShift = 24;
+	static const unsigned long ATT_MSK_GATEP =     0x02000000;
+	static const unsigned long ATT_MSK_SLIDE =     0x04000000;
+	static const unsigned long ATT_MSK_TIED =      0x08000000;
+	static const unsigned long ATT_MSK_GATETYPE =  0xF0000000, gateTypeShift = 28;
+	static const unsigned long ATT_MSK_VELOCITY =  0x000000FF, velocityShift = 0;
+	static const unsigned long ATT_MSK_GATEP_VAL = 0x0000FF00, gatePValShift = 8;
+	static const unsigned long ATT_MSK_SLIDE_VAL = 0x00FF0000, slideValShift = 16;
 
-	inline void clear() {attribute = 0ul;}
-	inline void init() {attribute = ATT_MSK_INITSTATE;}
-	inline void randomize() {attribute = ((randomu32() & 0xF) | ((randomu32() % 101) << GatePValShift) | ((randomu32() % 101) << slideValShift) | ((randomu32() & 0xFF) << velocityShift));}
+	static const unsigned long ATT_MSK_INITSTATE = ((ATT_MSK_GATE) | (128 << velocityShift) | (50 << gatePValShift) | (10 << slideValShift));
+
+	inline void clear() {attributes = 0ul;}
+	inline void init() {attributes = ATT_MSK_INITSTATE;}
+	inline void randomize() {attributes = ( ((randomu32() & 0xF) << gateShift) | ((randomu32() % 101) << gatePValShift) | ((randomu32() % 101) << slideValShift) | ((randomu32() & 0xFF) << velocityShift) );}
 	
-	inline bool getGate() {return (attribute & ATT_MSK_GATE) != 0;}
-	inline int getGateType() {return ((int)(attribute & ATT_MSK_GATETYPE) >> gate1TypeShift);}
-	inline bool getTied() {return (attribute & ATT_MSK_TIED) != 0;}
-	inline bool getGateP() {return (attribute & ATT_MSK_GATEP) != 0;}
-	inline int getGatePVal() {return (int)((attribute & ATT_MSK_GATEP_VAL) >> GatePValShift);}
-	inline bool getSlide() {return (attribute & ATT_MSK_SLIDE) != 0;}
-	inline int getSlideVal() {return (int)((attribute & ATT_MSK_SLIDE_VAL) >> slideValShift);}
-	inline int getVelocityVal() {return (int)((attribute & ATT_MSK_VELOCITY) >> velocityShift);}
+	inline bool getGate() {return (attributes & ATT_MSK_GATE) != 0;}
+	inline int getGateType() {return (int)((attributes & ATT_MSK_GATETYPE) >> gateTypeShift);}
+	inline bool getTied() {return (attributes & ATT_MSK_TIED) != 0;}
+	inline bool getGateP() {return (attributes & ATT_MSK_GATEP) != 0;}
+	inline int getGatePVal() {return (int)((attributes & ATT_MSK_GATEP_VAL) >> gatePValShift);}
+	inline bool getSlide() {return (attributes & ATT_MSK_SLIDE) != 0;}
+	inline int getSlideVal() {return (int)((attributes & ATT_MSK_SLIDE_VAL) >> slideValShift);}
+	inline int getVelocityVal() {return (int)((attributes & ATT_MSK_VELOCITY) >> velocityShift);}
 	inline float getVelocity() {return ((float)getVelocityVal()) / 25.5f;}
-	inline unsigned long getAttribute() {return attribute;}
+	inline unsigned long getAttribute() {return attributes;}
 
-	inline void setGate(bool gate1State) {attribute &= ~ATT_MSK_GATE; if (gate1State) attribute |= ATT_MSK_GATE;}
-	inline void setGateType(int gate1Type) {attribute &= ~ATT_MSK_GATETYPE; attribute |= (((unsigned long)gate1Type) << gate1TypeShift);}
-	inline void setTied(bool tiedState) {attribute &= ~ATT_MSK_TIED; if (tiedState) attribute |= ATT_MSK_TIED;}
-	inline void setGateP(bool GatePState) {attribute &= ~ATT_MSK_GATEP; if (GatePState) attribute |= ATT_MSK_GATEP;}
-	inline void setGatePVal(int gatePval) {attribute &= ~ATT_MSK_GATEP_VAL; attribute |= (((unsigned long)gatePval) << GatePValShift);}
-	inline void setSlide(bool slideState) {attribute &= ~ATT_MSK_SLIDE; if (slideState) attribute |= ATT_MSK_SLIDE;}
-	inline void setSlideVal(int slideVal) {attribute &= ~ATT_MSK_SLIDE_VAL; attribute |= (((unsigned long)slideVal) << slideValShift);}
-	inline void setVelocityVal(int _velocity) {attribute &= ~ATT_MSK_VELOCITY; attribute |= (((unsigned long)_velocity) << velocityShift);}
+	inline void setGate(bool gate1State) {attributes &= ~ATT_MSK_GATE; if (gate1State) attributes |= ATT_MSK_GATE;}
+	inline void setGateType(int gateType) {attributes &= ~ATT_MSK_GATETYPE; attributes |= (((unsigned long)gateType) << gateTypeShift);}
+	inline void setTied(bool tiedState) {attributes &= ~ATT_MSK_TIED; if (tiedState) attributes |= ATT_MSK_TIED;}
+	inline void setGateP(bool GatePState) {attributes &= ~ATT_MSK_GATEP; if (GatePState) attributes |= ATT_MSK_GATEP;}
+	inline void setGatePVal(int gatePval) {attributes &= ~ATT_MSK_GATEP_VAL; attributes |= (((unsigned long)gatePval) << gatePValShift);}
+	inline void setSlide(bool slideState) {attributes &= ~ATT_MSK_SLIDE; if (slideState) attributes |= ATT_MSK_SLIDE;}
+	inline void setSlideVal(int slideVal) {attributes &= ~ATT_MSK_SLIDE_VAL; attributes |= (((unsigned long)slideVal) << slideValShift);}
+	inline void setVelocityVal(int _velocity) {attributes &= ~ATT_MSK_VELOCITY; attributes |= (((unsigned long)_velocity) << velocityShift);}
 	inline void setVelocity(float _velocityf) {setVelocityVal((int)(_velocityf * 25.5f + 0.5f));}
-	inline void setAttribute(unsigned long _attribute) {attribute = _attribute;}
+	inline void setAttribute(unsigned long _attributes) {attributes = _attributes;}
 
-	inline void toggleGate() {attribute ^= ATT_MSK_GATE;}
-	inline void toggleTied() {attribute ^= ATT_MSK_TIED;}
-	inline void toggleGateP() {attribute ^= ATT_MSK_GATEP;}
-	inline void toggleSlide() {attribute ^= ATT_MSK_SLIDE;}	
+	inline void toggleGate() {attributes ^= ATT_MSK_GATE;}
+	inline void toggleTied() {attributes ^= ATT_MSK_TIED;}
+	inline void toggleGateP() {attributes ^= ATT_MSK_GATEP;}
+	inline void toggleSlide() {attributes ^= ATT_MSK_SLIDE;}	
 	
-	inline void applyTied() {attribute &= ~(ATT_MSK_GATE | ATT_MSK_GATEP | ATT_MSK_SLIDE);}// clear other attributes if tied
+	inline void applyTied() {attributes &= ~(ATT_MSK_GATE | ATT_MSK_GATEP | ATT_MSK_SLIDE);}// clear other attributes if tied
 };
 
 
@@ -72,21 +68,54 @@ class Phrase {
 	
 	public:
 
-	static const unsigned long PHR_MSK_SEQNUM = 0xFF;
-	static const unsigned long PHR_MSK_REPS = 0xFF00;// a rep is 1 to 99
-	static const unsigned long repShift = 8;
-	static const unsigned long PHR_MSK_INITSTATE = (0 | (1 << repShift));
+	static const unsigned long PHR_MSK_SEQNUM = 0x00FF;
+	static const unsigned long PHR_MSK_REPS =   0xFF00, repShift = 8;// a rep is 1 to 99
 	
-	inline void init() {phrase = PHR_MSK_INITSTATE;}
+	inline void init() {phrase = (1 << repShift);}
 	inline void randomize(int maxSeqs) {phrase = ((randomu32() % maxSeqs) | ((randomu32() % 4 + 1) << repShift));}
 	
 	inline int getSeqNum() {return (int)(phrase & PHR_MSK_SEQNUM);}
 	inline int getReps() {return (int)((phrase & PHR_MSK_REPS) >> repShift);}
-	inline unsigned long getPhrase() {return phrase;}
+	inline unsigned long getPhraseJson() {return phrase - (1 << repShift);}// compression trick (store 0 instead of 1)
 	
 	inline void setSeqNum(int seqn) {phrase &= ~PHR_MSK_SEQNUM; phrase |= ((unsigned long)seqn);}
 	inline void setReps(int _reps) {phrase &= ~PHR_MSK_REPS; phrase |= (((unsigned long)_reps) << repShift);}
-	inline void setPhrase(unsigned long _phrase) {phrase = _phrase;}
+	inline void setPhraseJson(unsigned long _phrase) {phrase = (_phrase + (1 << repShift));}// compression trick (store 0 instead of 1)
+};
+
+
+class SeqAttributes {
+	unsigned long attributes;
+	
+	public:
+
+	static const unsigned long SEQ_MSK_LENGTH  =   0x0000FF;// number of steps in each sequence, min value is 1
+	static const unsigned long SEQ_MSK_RUNMODE =   0x00FF00, runModeShift = 8;
+	static const unsigned long SEQ_MSK_TRANSPOSE = 0x7F0000, transposeShift = 16;
+	static const unsigned long SEQ_MSK_TRANSIGN  = 0x800000;// manually implement sign bit
+	
+	inline void init(int length, int runMode) {attributes = ((length) | (((unsigned long)runMode) << runModeShift));}
+	inline void randomize(int maxSteps, int numModes) {attributes = ( (1 + (randomu32() % maxSteps)) | (((unsigned long)(randomu32() % numModes) << runModeShift)) );}
+	
+	inline int getLength() {return (int)(attributes & SEQ_MSK_LENGTH);}
+	inline int getRunMode() {return (int)((attributes & SEQ_MSK_RUNMODE) >> runModeShift);}
+	inline int getTranspose() {
+		int ret = (int)((attributes & SEQ_MSK_TRANSPOSE) >> transposeShift);
+		if ( (attributes & SEQ_MSK_TRANSIGN) != 0)// if negative
+			ret *= -1;
+		return ret;
+	}
+	inline unsigned long getSeqAttrib() {return attributes;}
+	
+	inline void setLength(int length) {attributes &= ~SEQ_MSK_LENGTH; attributes |= ((unsigned long)length);}
+	inline void setRunMode(int runMode) {attributes &= ~SEQ_MSK_RUNMODE; attributes |= (((unsigned long)runMode) << runModeShift);}
+	inline void setTranspose(int transp) {
+		attributes &= ~ (SEQ_MSK_TRANSPOSE | SEQ_MSK_TRANSIGN); 
+		attributes |= (((unsigned long)abs(transp)) << transposeShift);
+		if (transp < 0) 
+			attributes |= SEQ_MSK_TRANSIGN;
+	}
+	inline void setSeqAttrib(unsigned long _attributes) {attributes = _attributes;}
 };
 
 
@@ -124,13 +153,11 @@ class SequencerKernel {
 	
 	// Need to save
 	int runModeSong;	
-	int runModeSeq[MAX_SEQS];
+	SeqAttributes sequences[MAX_SEQS];
 	int pulsesPerStep;// stored range is [1:49] so must ALWAYS read thgouth getPulsesPerStep(). Must do this because of knob
 	Phrase phrases[MAX_PHRASES];// This is the song (series of phases; a phrase is a sequence number and a repetition value)	
-	int lengths[MAX_SEQS];// number of steps in each sequence, min value is 1
 	float cv[MAX_SEQS][MAX_STEPS];// [-3.0 : 3.917]. First index is sequence number, 2nd index is step
-	Attribute attributes[MAX_SEQS][MAX_STEPS];// First index is sequence number, 2nd index is step
-	int transposeOffsets[MAX_SEQS];
+	StepAttributes attributes[MAX_SEQS][MAX_STEPS];// First index is sequence number, 2nd index is step
 	int songBeginIndex;
 	int songEndIndex;
 	
@@ -151,20 +178,20 @@ class SequencerKernel {
 	// get
 	// ----------------
 	inline int getRunModeSong() {return runModeSong;}
-	inline int getRunModeSeq(int seqn) {return runModeSeq[seqn];}
+	inline int getRunModeSeq(int seqn) {return sequences[seqn].getRunMode();}
 	inline int getBegin() {return songBeginIndex;}
 	inline int getEnd() {return songEndIndex;}
-	inline int getLength(int seqn) {return lengths[seqn];}
+	inline int getLength(int seqn) {return sequences[seqn].getLength();}
 	inline int getPhraseSeq(int phrn) {return phrases[phrn].getSeqNum();}
 	inline int getPhraseReps(int phrn) {return phrases[phrn].getReps();}
 	inline int getPulsesPerStep() {return (pulsesPerStep > 2 ? ((pulsesPerStep - 1) << 1) : pulsesPerStep);}
-	inline int getTransposeOffset(int seqn) {return transposeOffsets[seqn];}
+	inline int getTransposeOffset(int seqn) {return sequences[seqn].getTranspose();}
 	inline int getStepIndexRun() {return stepIndexRun;}
 	inline int getPhraseIndexRun() {return phraseIndexRun;}
 	inline float getCV(int seqn, int stepn) {return cv[seqn][stepn];}
 	inline float getCVRun() {return cv[phrases[phraseIndexRun].getSeqNum()][stepIndexRun];}
-	inline Attribute getAttribute(int seqn, int stepn) {return attributes[seqn][stepn];}
-	inline Attribute getAttributeRun() {return attributes[phrases[phraseIndexRun].getSeqNum()][stepIndexRun];}
+	inline StepAttributes getAttribute(int seqn, int stepn) {return attributes[seqn][stepn];}
+	inline StepAttributes getAttributeRun() {return attributes[phrases[phraseIndexRun].getSeqNum()][stepIndexRun];}
 	inline bool getTied(int seqn, int stepn) {return attributes[seqn][stepn].getTied();}
 	inline int getGatePVal(int seqn, int stepn) {return attributes[seqn][stepn].getGatePVal();}
 	inline int getSlideVal(int seqn, int stepn) {return attributes[seqn][stepn].getSlideVal();}
@@ -176,7 +203,7 @@ class SequencerKernel {
 	
 	// Set
 	// ----------------
-	inline void setLength(int seqn, int _length) {lengths[seqn] = _length;}
+	inline void setLength(int seqn, int _length) {sequences[seqn].setLength(_length);}
 	inline void setBegin(int phrn) {songBeginIndex = phrn; songEndIndex = max(phrn, songEndIndex);}
 	inline void setEnd(int phrn) {songEndIndex = phrn; songBeginIndex = min(phrn, songBeginIndex);}
 	inline void setGatePVal(int seqn, int stepn, int gatePval) {attributes[seqn][stepn].setGatePVal(gatePval);}
@@ -190,14 +217,18 @@ class SequencerKernel {
 	// ----------------
 	inline void modRunModeSong(int delta) {runModeSong += delta; if (runModeSong < 0) runModeSong = 0; if (runModeSong >= NUM_MODES) runModeSong = NUM_MODES - 1;}
 	inline void modRunModeSeq(int seqn, int delta) {
-		runModeSeq[seqn] += delta;
-		if (runModeSeq[seqn] < 0) runModeSeq[seqn] = 0;
-		if (runModeSeq[seqn] >= NUM_MODES) runModeSeq[seqn] = NUM_MODES - 1;
+		int rVal = sequences[seqn].getRunMode();
+		rVal += delta;
+		if (rVal < 0) rVal = 0;
+		if (rVal >= NUM_MODES) rVal = NUM_MODES - 1;
+		sequences[seqn].setRunMode(rVal);
 	}
 	inline void modLength(int seqn, int delta) {
-		lengths[seqn] += delta; 
-		if (lengths[seqn] > MAX_STEPS) lengths[seqn] = MAX_STEPS; 
-		if (lengths[seqn] < 1 ) lengths[seqn] = 1;
+		int lVal = sequences[seqn].getLength();
+		lVal += delta; 
+		if (lVal > MAX_STEPS) lVal = MAX_STEPS; 
+		if (lVal < 1 ) lVal = 1;
+		sequences[seqn].setLength(lVal);
 	}
 	inline void modPhraseSeqNum(int phrn, int delta) {
 		int seqn = phrases[phrn].getSeqNum();
@@ -287,11 +318,11 @@ class SequencerKernel {
 	// Init
 	// ----------------
 	inline void initSequence(int seqn) {
+		sequences[seqn].init(MAX_STEPS, MODE_FWD);
 		for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
 			cv[seqn][stepn] = INIT_CV;
 			attributes[seqn][stepn].init();
 		}
-		transposeOffsets[seqn] = 0;
 	}
 	inline void initSong() {
 		for (int phrn = 0; phrn < MAX_PHRASES; phrn++) {
@@ -303,6 +334,7 @@ class SequencerKernel {
 	// Randomize and staircase
 	// ----------------
 	inline void randomizeSequence(int seqn) {
+		sequences[seqn].randomize(MAX_STEPS, NUM_MODES);// code below uses lengths so this must be randomized first
 		for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
 			cv[seqn][stepn] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 			attributes[seqn][stepn].randomize();
@@ -311,7 +343,6 @@ class SequencerKernel {
 				applyTiedStep(seqn, stepn);
 			}	
 		}
-		transposeOffsets[seqn] = 0;
 	}
 	inline void randomizeSong() {
 		for (int phrn = 0; phrn < MAX_PHRASES; phrn++) {
@@ -322,42 +353,40 @@ class SequencerKernel {
 	
 	// Copy-paste sequence or song
 	// ----------------
-	inline void copySequence(float* cvCPbuffer, Attribute* attribCPbuffer, int* lenBegCPbuffer, int *endCPbuffer, int* modeCPbuffer, int seqn, int startCP, int countCP) {
+	inline void copySequence(float* cvCPbuffer, StepAttributes* attribCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int seqn, int startCP, int countCP) {
 		for (int i = 0, stepn = startCP; i < countCP; i++, stepn++) {
 			cvCPbuffer[i] = cv[seqn][stepn];
 			attribCPbuffer[i] = attributes[seqn][stepn];
 		}
-		*lenBegCPbuffer = lengths[seqn];
-		*endCPbuffer = -1;// so that a cross paste can be detected
-		*modeCPbuffer = runModeSeq[seqn];
+		*seqPhraseAttribCPbuffer = sequences[seqn];
+		seqPhraseAttribCPbuffer->setTranspose(-1);// so that a cross paste can be detected
 	}
-	inline void copyPhrase(Phrase* phraseCPbuffer, int* lenBegCPbuffer, int *endCPbuffer, int* modeCPbuffer, int startCP, int countCP) {	
-		for (int i = 0, phrn = startCP; i < countCP; i++, phrn++) {
-			phraseCPbuffer[i] = phrases[phrn];
-		}
-		*lenBegCPbuffer = songBeginIndex;
-		*endCPbuffer = songEndIndex;
-		*modeCPbuffer = runModeSong;
-	}
-	inline void pasteSequence(float* cvCPbuffer, Attribute* attribCPbuffer, int lenBegCPbuffer, int modeCPbuffer, int seqn, int startCP, int countCP) {
+	inline void pasteSequence(float* cvCPbuffer, StepAttributes* attribCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int seqn, int startCP, int countCP) {
 		for (int i = 0, stepn = startCP; i < countCP; i++, stepn++) {
 			cv[seqn][stepn] = cvCPbuffer[i];
 			attributes[seqn][stepn] = attribCPbuffer[i];
 		}
 		if (countCP == MAX_STEPS) {// all
-			lengths[seqn] = lenBegCPbuffer;
-			runModeSeq[seqn] = modeCPbuffer;
-			transposeOffsets[seqn] = 0;
+			sequences[seqn] = *seqPhraseAttribCPbuffer;
+			sequences[seqn].setTranspose(0);
 		}
 	}
-	inline void pastePhrase(Phrase* phraseCPbuffer, int lenBegCPbuffer, int endCPbuffer, int modeCPbuffer, int startCP, int countCP) {	
+	inline void copyPhrase(Phrase* phraseCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int startCP, int countCP) {	
+		for (int i = 0, phrn = startCP; i < countCP; i++, phrn++) {
+			phraseCPbuffer[i] = phrases[phrn];
+		}
+		seqPhraseAttribCPbuffer->setLength(songBeginIndex);
+		seqPhraseAttribCPbuffer->setTranspose(songEndIndex);
+		seqPhraseAttribCPbuffer->setRunMode(runModeSong);
+	}
+	inline void pastePhrase(Phrase* phraseCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int startCP, int countCP) {	
 		for (int i = 0, phrn = startCP; i < countCP; i++, phrn++) {
 			phrases[phrn] = phraseCPbuffer[i];
 		}
 		if (countCP == MAX_PHRASES) {// all
-			songBeginIndex = lenBegCPbuffer;
-			songEndIndex = endCPbuffer;
-			runModeSong = modeCPbuffer;
+			songBeginIndex = seqPhraseAttribCPbuffer->getLength();
+			songEndIndex = seqPhraseAttribCPbuffer->getTranspose();
+			runModeSong = seqPhraseAttribCPbuffer->getRunMode();
 		}
 	}
 	
@@ -378,8 +407,6 @@ class SequencerKernel {
 		songEndIndex = 0;
 		initSong();
 		for (int seqn = 0; seqn < MAX_SEQS; seqn++) {
-			runModeSeq[seqn] = MODE_FWD;
-			lengths[seqn] = MAX_STEPS;			
 			initSequence(seqn);		
 		}
 		slideStepsRemain = 0ul;
@@ -393,9 +420,7 @@ class SequencerKernel {
 		songEndIndex = (randomu32() % MAX_PHRASES);
 		randomizeSong();
 		for (int seqn = 0; seqn < MAX_SEQS; seqn++) {
-			runModeSeq[seqn] = randomu32() % NUM_MODES;
-			lengths[seqn] = 1 + (randomu32() % MAX_STEPS);
-			randomizeSequence(seqn);// uses lengths[] so must be after lengths[] randomized
+			randomizeSequence(seqn);
 		}
 		// no need to call initRun() here since user of the kernel does it in its onRandomize() via its initRun()
 	}
@@ -408,7 +433,7 @@ class SequencerKernel {
 		}
 		int seqn = phrases[phraseIndexRun].getSeqNum();
 		if (hard) {
-			stepIndexRun = (runModeSeq[seqn] == MODE_REV ? lengths[seqn] - 1 : 0);
+			stepIndexRun = (sequences[seqn].getRunMode() == MODE_REV ? sequences[seqn].getLength() - 1 : 0);
 			stepIndexRunHistory = 0;
 		}
 		ppqnCount = 0;
@@ -424,16 +449,16 @@ class SequencerKernel {
 		// runModeSong
 		json_object_set_new(rootJ, (ids + "runModeSong").c_str(), json_integer(runModeSong));
 
-		// runModeSeq
-		json_t *runModeSeqJ = json_array();
+		// sequences (attributes of a seqs)
+		json_t *sequencesJ = json_array();
 		for (int i = 0; i < MAX_SEQS; i++)
-			json_array_insert_new(runModeSeqJ, i, json_integer(runModeSeq[i]));
-		json_object_set_new(rootJ, (ids + "runModeSeq").c_str(), runModeSeqJ);
+			json_array_insert_new(sequencesJ, i, json_integer(sequences[i].getSeqAttrib()));
+		json_object_set_new(rootJ, (ids + "sequences").c_str(), sequencesJ);
 
 		// phrases 
 		json_t *phrasesJ = json_array();
 		for (int i = 0; i < MAX_PHRASES; i++)
-			json_array_insert_new(phrasesJ, i, json_integer(phrases[i].getPhrase()));
+			json_array_insert_new(phrasesJ, i, json_integer(phrases[i].getPhraseJson()));
 		json_object_set_new(rootJ, (ids + "phrases").c_str(), phrasesJ);
 
 		// CV and attributes
@@ -443,7 +468,7 @@ class SequencerKernel {
 		for (int seqnRead = 0, seqnWrite = 0; seqnRead < MAX_SEQS; seqnRead++) {
 			bool compress = true;
 			for (int stepn = 0; stepn < 4; stepn++) {
-				if (cv[seqnRead][stepn] != INIT_CV || attributes[seqnRead][stepn].getAttribute() != Attribute::ATT_MSK_INITSTATE) {
+				if (cv[seqnRead][stepn] != INIT_CV || attributes[seqnRead][stepn].getAttribute() != StepAttributes::ATT_MSK_INITSTATE) {
 					compress = false;
 					break;
 				}
@@ -463,18 +488,6 @@ class SequencerKernel {
 		json_object_set_new(rootJ, (ids + "seqSaved").c_str(), seqSavedJ);
 		json_object_set_new(rootJ, (ids + "cv").c_str(), cvJ);
 		json_object_set_new(rootJ, (ids + "attributes").c_str(), attributesJ);
-
-		// lengths
-		json_t *lengthsJ = json_array();
-		for (int i = 0; i < MAX_SEQS; i++)
-			json_array_insert_new(lengthsJ, i, json_integer(lengths[i]));
-		json_object_set_new(rootJ, (ids + "lengths").c_str(), lengthsJ);
-		
-		// transposeOffsets
-		json_t *transposeOffsetsJ = json_array();
-		for (int i = 0; i < MAX_SEQS; i++)
-			json_array_insert_new(transposeOffsetsJ, i, json_integer(transposeOffsets[i]));
-		json_object_set_new(rootJ, (ids + "transposeOffsets").c_str(), transposeOffsetsJ);
 
 		// songBeginIndex
 		json_object_set_new(rootJ, (ids + "songBeginIndex").c_str(), json_integer(songBeginIndex));
@@ -496,14 +509,14 @@ class SequencerKernel {
 		if (runModeSongJ)
 			runModeSong = json_integer_value(runModeSongJ);
 				
-		// runModeSeq
-		json_t *runModeSeqJ = json_object_get(rootJ, (ids + "runModeSeq").c_str());
-		if (runModeSeqJ) {
+		// sequences (attributes of a seqs)
+		json_t *sequencesJ = json_object_get(rootJ, (ids + "sequences").c_str());
+		if (sequencesJ) {
 			for (int i = 0; i < MAX_SEQS; i++)
 			{
-				json_t *runModeSeqArrayJ = json_array_get(runModeSeqJ, i);
-				if (runModeSeqArrayJ)
-					runModeSeq[i] = json_integer_value(runModeSeqArrayJ);
+				json_t *sequencesArrayJ = json_array_get(sequencesJ, i);
+				if (sequencesArrayJ)
+					sequences[i].setSeqAttrib(json_integer_value(sequencesArrayJ));
 			}			
 		}		
 		
@@ -514,7 +527,7 @@ class SequencerKernel {
 			{
 				json_t *phrasesArrayJ = json_array_get(phrasesJ, i);
 				if (phrasesArrayJ)
-					phrases[i].setPhrase(json_integer_value(phrasesArrayJ));
+					phrases[i].setPhraseJson(json_integer_value(phrasesArrayJ));
 			}
 		
 		// CV and attributes
@@ -552,27 +565,6 @@ class SequencerKernel {
 			}
 		}		
 		
-		// lengths
-		json_t *lengthsJ = json_object_get(rootJ, (ids + "lengths").c_str());
-		if (lengthsJ)
-			for (int i = 0; i < MAX_SEQS; i++)
-			{
-				json_t *lengthsArrayJ = json_array_get(lengthsJ, i);
-				if (lengthsArrayJ)
-					lengths[i] = json_integer_value(lengthsArrayJ);
-			}
-
-		// transposeOffsets
-		json_t *transposeOffsetsJ = json_object_get(rootJ, (ids + "transposeOffsets").c_str());
-		if (transposeOffsetsJ) {
-			for (int i = 0; i < MAX_SEQS; i++)
-			{
-				json_t *transposeOffsetsArrayJ = json_array_get(transposeOffsetsJ, i);
-				if (transposeOffsetsArrayJ)
-					transposeOffsets[i] = json_integer_value(transposeOffsetsArrayJ);
-			}			
-		}	
-
 		// songBeginIndex
 		json_t *songBeginIndexJ = json_object_get(rootJ, (ids + "songBeginIndex").c_str());
 		if (songBeginIndexJ)
@@ -594,7 +586,8 @@ class SequencerKernel {
 			float slideFromCV = cv[phrases[phraseIndexRun].getSeqNum()][stepIndexRun];
 			if (moveIndexRunMode(true)) {// true means seq
 				moveIndexRunMode(false); // false means song
-				stepIndexRun = (runModeSeq[phrases[phraseIndexRun].getSeqNum()] == MODE_REV ? lengths[phrases[phraseIndexRun].getSeqNum()] - 1 : 0);// must always refresh after phraseIndexRun has changed
+				stepIndexRun = (sequences[phrases[phraseIndexRun].getSeqNum()].getRunMode() == MODE_REV ? 
+								sequences[phrases[phraseIndexRun].getSeqNum()].getLength() - 1 : 0);// must always refresh after phraseIndexRun has changed
 			}
 
 			// Slide
@@ -635,12 +628,14 @@ class SequencerKernel {
 
 
 	void transposeSeq(int seqn, int delta) {
-		int oldTransposeOffset = transposeOffsets[seqn];
-		transposeOffsets[seqn] += delta;
-		if (transposeOffsets[seqn] > 99) transposeOffsets[seqn] = 99;
-		if (transposeOffsets[seqn] < -99) transposeOffsets[seqn] = -99;						
-
-		delta = transposeOffsets[seqn] - oldTransposeOffset;
+		int tVal = sequences[seqn].getTranspose();
+		int oldTransposeOffset = tVal;
+		tVal += delta;
+		if (tVal > 99) tVal = 99;
+		if (tVal < -99) tVal = -99;						
+		sequences[seqn].setTranspose(tVal);
+		
+		delta = tVal - oldTransposeOffset;
 		if (delta != 0) { 
 			float offsetCV = ((float)(delta))/12.0f;
 			for (int stepn = 0; stepn < MAX_STEPS; stepn++) 
@@ -677,9 +672,9 @@ class SequencerKernel {
 	
 	void rotateSeqByOne(int seqn, bool directionRight) {
 		float rotCV;
-		Attribute rotAttributes;
+		StepAttributes rotAttributes;
 		int iStart = 0;
-		int iEnd = lengths[seqn] - 1;
+		int iEnd = sequences[seqn].getLength() - 1;
 		int iRot = iStart;
 		int iDelta = 1;
 		if (directionRight) {
@@ -700,7 +695,7 @@ class SequencerKernel {
 
 	
 	void applyTiedStep(int seqn, int indexTied) {
-		int seqLength = lengths[seqn];
+		int seqLength = sequences[seqn].getLength();
 		// Start on indexTied and loop until seqLength
 		// Called because either:
 		//   case A: tied was activated for given step
@@ -731,7 +726,7 @@ class SequencerKernel {
 	
 
 	void calcGateCodeEx(int seqn) {// uses stepIndexRun as the step
-		Attribute attribute = attributes[seqn][stepIndexRun];
+		StepAttributes attribute = attributes[seqn][stepIndexRun];
 		int ppsFiltered = getPulsesPerStep();// must use method
 		int gateType;
 
@@ -778,8 +773,8 @@ class SequencerKernel {
 			index = &stepIndexRun;
 			history = &stepIndexRunHistory;
 			reps = phrases[phraseIndexRun].getReps();
-			runMode = runModeSeq[phrases[phraseIndexRun].getSeqNum()];
-			endStep = lengths[phrases[phraseIndexRun].getSeqNum()] - 1;
+			runMode = sequences[phrases[phraseIndexRun].getSeqNum()].getRunMode();
+			endStep = sequences[phrases[phraseIndexRun].getSeqNum()].getLength() - 1;
 			startStep = 0;
 		}
 		else {// move song
