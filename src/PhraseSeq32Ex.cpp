@@ -111,7 +111,7 @@ struct PhraseSeq32Ex : Module {
 	int displayState;
 	float cvCPbuffer[SequencerKernel::MAX_STEPS];// copy paste buffer for CVs
 	Attribute attribCPbuffer[SequencerKernel::MAX_STEPS];
-	int phraseCPbuffer[SequencerKernel::MAX_PHRASES];
+	Phrase phraseCPbuffer[SequencerKernel::MAX_PHRASES];
 	int repCPbuffer[SequencerKernel::MAX_PHRASES];
 	int lenBegCPbuffer;
 	int endCPbuffer;// is -1 when seq was copied, >=0 when song was copied
@@ -177,8 +177,7 @@ struct PhraseSeq32Ex : Module {
 		seqIndexEdit = 0;
 		trackIndexEdit = 0;
 		for (int phrn = 0; phrn < SequencerKernel::MAX_PHRASES; phrn++) {
-			phraseCPbuffer[phrn] = 0;
-			repCPbuffer[phrn] = 1;
+			phraseCPbuffer[phrn].init();
 		}
 			
 		for (int stepn = 0; stepn < SequencerKernel::MAX_STEPS; stepn++) {
@@ -381,7 +380,7 @@ struct PhraseSeq32Ex : Module {
 							countCP = min(4, countCP - startCP);
 						else// 8
 							countCP = min(8, countCP - startCP);
-						sek[trackIndexEdit].copyPhrase(phraseCPbuffer, repCPbuffer, &lenBegCPbuffer, &endCPbuffer, &modeCPbuffer, startCP, countCP);
+						sek[trackIndexEdit].copyPhrase(phraseCPbuffer, &lenBegCPbuffer, &endCPbuffer, &modeCPbuffer, startCP, countCP);
 						displayState = DISP_COPY_SONG;
 					}
 				}
@@ -405,7 +404,7 @@ struct PhraseSeq32Ex : Module {
 							startCP = phraseIndexEdit;
 							countCP = min(countCP, SequencerKernel::MAX_PHRASES - startCP);
 						}
-						sek[trackIndexEdit].pastePhrase(phraseCPbuffer, repCPbuffer, lenBegCPbuffer, endCPbuffer, modeCPbuffer, startCP, countCP);
+						sek[trackIndexEdit].pastePhrase(phraseCPbuffer, lenBegCPbuffer, endCPbuffer, modeCPbuffer, startCP, countCP);
 						displayState = DISP_PASTE_SONG;
 						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
@@ -633,7 +632,7 @@ struct PhraseSeq32Ex : Module {
 								seqIndexEdit = moveIndexEx(seqIndexEdit, seqIndexEdit + deltaSeqKnob, SequencerKernel::MAX_SEQS);
 						}
 						else {// editing song
-							sek[trackIndexEdit].modPhrase(phraseIndexEdit, deltaSeqKnob);
+							sek[trackIndexEdit].modPhraseSeqNum(phraseIndexEdit, deltaSeqKnob);
 						}
 						displayState = DISP_NORMAL;
 					}
