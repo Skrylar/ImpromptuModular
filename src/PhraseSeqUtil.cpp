@@ -266,11 +266,27 @@ bool moveIndexRunMode(int* index, int numSteps, int runMode, int* history) {
 */
 
 int keyIndexToGateMode(int keyIndex, int pulsesPerStep) {
-	if (pulsesPerStep == 4 && (keyIndex == 1 || keyIndex == 3 || keyIndex == 6 || keyIndex == 8 || keyIndex == 10))
-		return -1;
-	if (pulsesPerStep == 6 && (keyIndex == 0 || keyIndex == 4 || keyIndex == 7 || keyIndex == 9))
-		return -1;
-	return keyIndex;// keyLight index now matches gate modes, so no mapping table needed anymore
+	int ret = keyIndex;
+	
+	if (keyIndex == 1 || keyIndex == 3 || keyIndex == 6 || keyIndex == 8 || keyIndex == 10) {// black keys
+		if ((pulsesPerStep % 6) != 0)
+			ret = -1;
+	}
+	else if (keyIndex == 4 || keyIndex == 7 || keyIndex == 9) {// 75%, DUO, DU2 
+		if ((pulsesPerStep % 4) != 0)
+			ret = -1;
+	}
+	else if (keyIndex == 2) {// 50%
+		if ((pulsesPerStep % 2) != 0)
+			ret = -1;
+	}
+	else if (keyIndex == 0) {// 25%
+		if (pulsesPerStep != 1 && (pulsesPerStep % 4) != 0)
+			ret = -1;
+	}
+	//else always good: 5 (full) and 11 (trig)
+	
+	return ret;
 }
 
 /*CHANGE LOG

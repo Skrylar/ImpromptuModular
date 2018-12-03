@@ -239,7 +239,7 @@ struct PhraseSeq32 : Module {
 			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
 			transposeOffsets[i] = 0;
 		}
-		initRun(true);
+		initRun();
 		lengthCPbuffer = 32;
 		modeCPbuffer = MODE_FWD;
 		countCP = 32;
@@ -282,21 +282,19 @@ struct PhraseSeq32 : Module {
 				}
 			}
 		}
-		initRun(true);
+		initRun();
 	}
 	
 	
-	void initRun(bool hard) {// run button activated or run edge in run input jack
-		if (hard) {
-			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
-			phraseIndexRunHistory = 0;
-		}
+	void initRun() {// run button activated or run edge in run input jack
+		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+		phraseIndexRunHistory = 0;
+
 		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
-		if (hard) {
-			stepIndexRun[0] = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
-			fillStepIndexRunVector(runModeSeq[seq], lengths[seq]);
-			stepIndexRunHistory = 0;
-		}
+		stepIndexRun[0] = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
+		fillStepIndexRunVector(runModeSeq[seq], lengths[seq]);
+		stepIndexRunHistory = 0;
+
 		ppqnCount = 0;
 		for (int i = 0; i < 2; i += stepConfig) {
 			gate1Code[i] = calcGate1Code(attributes[seq][(i * 16) + stepIndexRun[i]], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
@@ -586,7 +584,8 @@ struct PhraseSeq32 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
 			if (running) {
-				initRun(resetOnRun);
+				if (resetOnRun)
+					initRun();
 				attachedChanB = stepIndexEdit >= 16;
 			}
 			displayState = DISP_NORMAL;
@@ -605,7 +604,7 @@ struct PhraseSeq32 : Module {
 					for (int i = 0; i < 32; i++)
 						lengths[i] = 16 * stepConfig;
 				}
-				initRun(true);			
+				initRun();			
 				attachedChanB = false;
 				stepConfigSync = 0;
 			}
@@ -886,8 +885,8 @@ struct PhraseSeq32 : Module {
 				if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (editingPpqn != 0) {
 						pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
-						if (pulsesPerStep < 2)
-							editingGateLength = 0l;
+						// if (pulsesPerStep < 2)
+							// editingGateLength = 0l;
 						editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 					}
 					else if (displayState == DISP_MODE) {
@@ -1005,14 +1004,14 @@ struct PhraseSeq32 : Module {
 							if (editingGateLength > 0l) {
 								if (newMode != -1)
 									setGate1Mode(sequence, stepIndexEdit, newMode);
-								else
-									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+								// else
+									// editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 							}
 							else {
 								if (newMode != -1)
 									setGate2Mode(sequence, stepIndexEdit, newMode);
-								else
-									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+								// else
+									// editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 							}
 						}
 						else if (getTied(sequence,stepIndexEdit)) {
@@ -1043,10 +1042,10 @@ struct PhraseSeq32 : Module {
 				editingGateLength = 0l;
 			}
 			if (keyGateTrigger.process(params[KEYGATE_PARAM].value)) {
-				if (pulsesPerStep < 2) {
-					editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-				}
-				else {
+				// if (pulsesPerStep < 2) {
+					// editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+				// }
+				// else {
 					if (editingGateLength == 0l) {
 						editingGateLength = lastGateEdit;
 					}
@@ -1054,7 +1053,7 @@ struct PhraseSeq32 : Module {
 						editingGateLength *= -1l;
 						lastGateEdit = editingGateLength;
 					}
-				}
+				// }
 			}
 
 			// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
@@ -1159,7 +1158,7 @@ struct PhraseSeq32 : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			initRun(true);// must be after sequence reset
+			initRun();// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
 		}
@@ -1325,7 +1324,19 @@ struct PhraseSeq32 : Module {
 			else	
 				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun[0]] + 10.0f;//to properly handle negative note voltages
 			int keyLightIndex = clamp( (int)((cvValOffset-floor(cvValOffset)) * 12.0f + 0.5f),  0,  11);
-			if (editingGateLength != 0l && editingSequence) {
+			if (editingPpqn != 0) {
+				for (int i = 0; i < 12; i++) {
+					if (keyIndexToGateMode(i, pulsesPerStep) != -1) {
+						lights[KEY_LIGHTS + i * 2 + 0].value = 1.0f;
+						lights[KEY_LIGHTS + i * 2 + 1].value = 1.0f;
+					}
+					else {
+						lights[KEY_LIGHTS + i * 2 + 0].value = 0.0f;
+						lights[KEY_LIGHTS + i * 2 + 1].value = 0.0f;
+					}
+				}
+			} 
+			else if (editingGateLength != 0l && editingSequence) {
 				int modeLightIndex = gateModeToKeyLightIndex(attributes[sequence][stepIndexEdit], editingGateLength > 0l);
 				for (int i = 0; i < 12; i++) {
 					if (i == modeLightIndex) {
@@ -1917,6 +1928,7 @@ fix run mode bug (history not reset when hard reset)
 fix slide bug when reset happens during a slide and run stays on
 fix transposeOffset not initialized bug
 add live mute on Gate1 and Gate2 buttons in song mode
+fix initRun() timing bug when turn off-and-then-on running button (it was resetting ppqnCount)
 
 0.6.12:
 input refresh optimization

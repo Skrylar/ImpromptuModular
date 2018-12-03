@@ -87,7 +87,7 @@ struct PhraseSeq32Ex : Module {
 	};
 	
 	// Constants
-	enum EditPSDisplayStateIds {DISP_NORMAL, DISP_MODE_SEQ, DISP_MODE_SONG, DISP_LEN, DISP_REPS, DISP_TRANSPOSE, DISP_ROTATE, DISP_PPQN, DISP_COPY_SEQ, DISP_PASTE_SEQ, DISP_COPY_SONG, DISP_PASTE_SONG};
+	enum EditPSDisplayStateIds {DISP_NORMAL, DISP_MODE_SEQ, DISP_MODE_SONG, DISP_LEN, DISP_REPS, DISP_TRANSPOSE, DISP_ROTATE, DISP_PPQN, DISP_DELAY, DISP_COPY_SEQ, DISP_PASTE_SEQ, DISP_COPY_SONG, DISP_PASTE_SONG};
 	enum MainSwitchIds {MAIN_EDIT_SEQ, MAIN_EDIT_SONG, MAIN_SHOW_RUN};
 	static const int NUM_TRACKS = 4;
 
@@ -197,20 +197,20 @@ struct PhraseSeq32Ex : Module {
 			editingGate[trkn] = 0ul;
 			sek[trkn].reset();
 		}
-		initRun(true);
+		initRun();
 	}
 	
 	
 	void onRandomize() override {
 		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
 			sek[trkn].randomize();	
-		initRun(true);
+		initRun();
 	}
 	
 	
-	void initRun(bool hard) {// run button activated or run edge in run input jack
+	void initRun() {// run button activated or run edge in run input jack
 		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
-			sek[trkn].initRun(hard);
+			sek[trkn].initRun();
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}	
 
@@ -310,7 +310,7 @@ struct PhraseSeq32Ex : Module {
 			sek[trkn].fromJson(rootJ);
 		
 		// Initialize dependants after everything loaded
-		initRun(true);
+		initRun();
 	}
 
 
@@ -328,8 +328,8 @@ struct PhraseSeq32Ex : Module {
 		// Run button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
-			if (running)
-				initRun(resetOnRun);
+			if (running && resetOnRun)
+				initRun();
 			displayState = DISP_NORMAL;
 		}
 
@@ -489,11 +489,13 @@ struct PhraseSeq32Ex : Module {
 				}
 			}
 			
-			// Clk res button
+			// Clk res/delay button
 			if (clkResTrigger.process(params[CLKRES_PARAM].value)) {
 				if (!attached) {
-					if (displayState != DISP_PPQN)	
+					if (displayState != DISP_PPQN && displayState != DISP_DELAY)	
 						displayState = DISP_PPQN;
+					else if (displayState == DISP_PPQN)
+						displayState = DISP_DELAY;
 					else
 						displayState = DISP_NORMAL;
 				}
@@ -588,6 +590,9 @@ struct PhraseSeq32Ex : Module {
 				if (abs(deltaPhrKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (displayState == DISP_PPQN) {
 						sek[trackIndexEdit].modPulsesPerStep(deltaPhrKnob);
+					}
+					else if (displayState == DISP_DELAY) {
+						sek[trackIndexEdit].modDelay(deltaPhrKnob);
 					}
 					else if (displayState == DISP_MODE_SONG) {
 						sek[trackIndexEdit].modRunModeSong(deltaPhrKnob);
@@ -736,7 +741,7 @@ struct PhraseSeq32Ex : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			initRun(true);
+			initRun();
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
 		}
@@ -1025,6 +1030,9 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 
 			if (module->displayState == PhraseSeq32Ex::DISP_PPQN) {
 				snprintf(displayStr, 4, "x%2u", (unsigned) module->sek[module->trackIndexEdit].getPulsesPerStep());
+			}
+			else if (module->displayState == PhraseSeq32Ex::DISP_DELAY) {
+				snprintf(displayStr, 4, "D%2u", (unsigned) module->sek[module->trackIndexEdit].getDelay());
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_COPY_SONG) {
 				snprintf(displayStr, 4, "CPY");
@@ -1471,7 +1479,6 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB9, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::CV_OUTPUTS + 3, &module->panelTheme));
 		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB10, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::GATE_OUTPUTS + 3, &module->panelTheme));
 		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB11, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::VEL_OUTPUTS + 3, &module->panelTheme));
-
 
 		
 		

@@ -338,7 +338,7 @@ struct SemiModularSynth : Module {
 			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
 			transposeOffsets[i] = 0;
 		}
-		initRun(true);
+		initRun();
 		lengthCPbuffer = 16;
 		modeCPbuffer = MODE_FWD;
 		countCP = 16;
@@ -387,20 +387,18 @@ struct SemiModularSynth : Module {
 				}
 			}
 		}
-		initRun(true);
+		initRun();
 	}
 	
 	
-	void initRun(bool hard) {// run button activated or run edge in run input jack
-		if (hard) {
-			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
-			phraseIndexRunHistory = 0;
-		}
+	void initRun() {// run button activated or run edge in run input jack
+		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+		phraseIndexRunHistory = 0;
+
 		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
-		if (hard) {
-			stepIndexRun = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
-			stepIndexRunHistory = 0;
-		}
+		stepIndexRun = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
+		stepIndexRunHistory = 0;
+
 		ppqnCount = 0;
 		gate1Code = calcGate1Code(attributes[seq][stepIndexRun], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
 		gate2Code = calcGate2Code(attributes[seq][stepIndexRun], 0, pulsesPerStep);
@@ -636,7 +634,7 @@ struct SemiModularSynth : Module {
 		}
 
 		// Initialize dependants after everything loaded
-		initRun(true);
+		initRun();
 	}
 
 
@@ -685,8 +683,8 @@ struct SemiModularSynth : Module {
 		// Run button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
-			if (running)
-				initRun(resetOnRun);
+			if (running && resetOnRun)
+				initRun();
 			displayState = DISP_NORMAL;
 		}
 
@@ -944,8 +942,8 @@ struct SemiModularSynth : Module {
 				if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (editingPpqn != 0) {
 						pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
-						if (pulsesPerStep < 2)
-							editingGateLength = 0l;
+						// if (pulsesPerStep < 2)
+							// editingGateLength = 0l;
 						editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 					}
 					else if (displayState == DISP_MODE) {
@@ -1052,14 +1050,14 @@ struct SemiModularSynth : Module {
 							if (editingGateLength > 0l) {
 								if (newMode != -1)
 									setGate1Mode(sequence, stepIndexEdit, newMode);
-								else
-									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+								// else
+									// editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 							}
 							else {
 								if (newMode != -1)
 									setGate2Mode(sequence, stepIndexEdit, newMode);
-								else
-									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+								// else
+									// editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 							}
 						}
 						else if (getTied(sequence,stepIndexEdit)) {
@@ -1089,10 +1087,10 @@ struct SemiModularSynth : Module {
 				editingGateLength = 0l;
 			}
 			if (keyGateTrigger.process(params[KEYGATE_PARAM].value)) {
-				if (pulsesPerStep < 2) {
-					editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-				}
-				else {
+				// if (pulsesPerStep < 2) {
+					// editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+				// }
+				// else {
 					if (editingGateLength == 0l) {
 						editingGateLength = lastGateEdit;
 					}
@@ -1100,7 +1098,7 @@ struct SemiModularSynth : Module {
 						editingGateLength *= -1l;
 						lastGateEdit = editingGateLength;
 					}
-				}
+				// }
 			}
 
 			// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
@@ -1199,7 +1197,7 @@ struct SemiModularSynth : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			initRun(true);// must be after sequence reset
+			initRun();// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
 		}
@@ -1309,7 +1307,19 @@ struct SemiModularSynth : Module {
 			else	
 				cvValOffset = cv[phrase[phraseIndexEdit]][stepIndexRun] + 10.0f;//to properly handle negative note voltages
 			int keyLightIndex = clamp( (int)((cvValOffset-floor(cvValOffset)) * 12.0f + 0.5f),  0,  11);
-			if (editingGateLength != 0l && editingSequence) {
+			if (editingPpqn != 0) {
+				for (int i = 0; i < 12; i++) {
+					if (keyIndexToGateMode(i, pulsesPerStep) != -1) {
+						lights[KEY_LIGHTS + i * 2 + 0].value = 1.0f;
+						lights[KEY_LIGHTS + i * 2 + 1].value = 1.0f;
+					}
+					else {
+						lights[KEY_LIGHTS + i * 2 + 0].value = 0.0f;
+						lights[KEY_LIGHTS + i * 2 + 1].value = 0.0f;
+					}
+				}
+			} 
+			else if (editingGateLength != 0l && editingSequence) {
 				int modeLightIndex = gateModeToKeyLightIndex(attributes[sequence][stepIndexEdit], editingGateLength > 0l);
 				for (int i = 0; i < 12; i++) {
 					if (i == modeLightIndex) {
@@ -2085,6 +2095,7 @@ Model *modelSemiModularSynth = Model::create<SemiModularSynth, SemiModularSynthW
 fix run mode bug (history not reset when hard reset)
 fix slide bug when reset happens during a slide and run stays on
 add live mute on Gate1 and Gate2 buttons in song mode
+fix initRun() timing bug when turn off-and-then-on running button (it was resetting ppqnCount)
 
 0.6.12:
 input refresh optimization

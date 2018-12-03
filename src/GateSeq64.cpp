@@ -222,7 +222,7 @@ struct GateSeq64 : Module {
 			phrase[i] = 0;
 			attribOrPhraseCPbuffer[i] = 50;
 		}
-		initRun(true);
+		initRun();
 		lengthCPbuffer = 64;
 		modeCPbuffer = MODE_FWD;
 		countCP = 64;
@@ -255,21 +255,19 @@ struct GateSeq64 : Module {
 		}
 		for (int i = 0; i < 64; i++)
 			phrase[i] = randomu32() % 16;
-		initRun(true);
+		initRun();
 	}
 
 
-	void initRun(bool hard) {// run button activated or run edge in run input jack
-		if (hard) {
-			phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
-			phraseIndexRunHistory = 0;
-		}
+	void initRun() {// run button activated or run edge in run input jack
+		phraseIndexRun = (runModeSong == MODE_REV ? phrases - 1 : 0);
+		phraseIndexRunHistory = 0;
+
 		int seq = (isEditingSequence() ? sequence : phrase[phraseIndexRun]);
-		if (hard) {	
-			stepIndexRun[0] = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
-			fillStepIndexRunVector(runModeSeq[seq], lengths[seq]);
-			stepIndexRunHistory = 0;
-		}
+		stepIndexRun[0] = (runModeSeq[seq] == MODE_REV ? lengths[seq] - 1 : 0);
+		fillStepIndexRunVector(runModeSeq[seq], lengths[seq]);
+		stepIndexRunHistory = 0;
+
 		ppqnCount = 0;
 		for (int i = 0; i < 4; i += stepConfig)
 			gateCode[i] = calcGateCode(attributes[seq][(i * 16) + stepIndexRun[i]], 0, pulsesPerStep);
@@ -501,8 +499,10 @@ struct GateSeq64 : Module {
 		// Run state button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
-			if (running)
-				initRun(resetOnRun);
+			if (running) {
+				if (resetOnRun) 
+					initRun();
+			}
 			else
 				blinkNum = blinkNumInit;
 			displayState = DISP_GATE;
@@ -525,7 +525,7 @@ struct GateSeq64 : Module {
 					for (int i = 0; i < 16; i++)
 						lengths[i] = 16 * stepConfig;
 				}
-				initRun(true);	
+				initRun();	
 				stepConfigSync = 0;
 			}
 			
@@ -876,7 +876,7 @@ struct GateSeq64 : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			initRun(true);// must be after sequence reset
+			initRun();// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_GATE;
 		}
@@ -1395,6 +1395,7 @@ Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Mod
 
 0.6.13:
 fix run mode bug (history not reset when hard reset)
+fix initRun() timing bug when turn off-and-then-on running button (it was resetting ppqnCount)
 
 0.6.12:
 input refresh optimization
