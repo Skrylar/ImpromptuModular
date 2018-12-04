@@ -47,20 +47,27 @@ inline void toggleSlideA(int *attribute) {(*attribute) ^= ATT_MSK_SLIDE;}
 inline void toggleTiedA(int *attribute) {(*attribute) ^= ATT_MSK_TIED;}
 
 
-inline int ppsToIndex(int pulsesPerStep) {// map 1,4,6,12,24, to 0,1,2,3,4
+inline int ppsToIndex(int pulsesPerStep) {// map 1,2,4,6,8,10,12...24, to 0,1,2,3,4,5,6...12
 	if (pulsesPerStep == 1) return 0;
-	if (pulsesPerStep == 4) return 1; 
-	if (pulsesPerStep == 6) return 2;
-	if (pulsesPerStep == 12) return 3; 
-	return 4; 
+	return pulsesPerStep >> 1;
+	
+	// map 1,4,6,12,24, to 0,1,2,3,4
+	// if (pulsesPerStep == 1) return 0;
+	// if (pulsesPerStep == 4) return 1; 
+	// if (pulsesPerStep == 6) return 2;
+	// if (pulsesPerStep == 12) return 3; 
+	// return 4; 
 }
 inline int indexToPps(int index) {// inverse map of ppsToIndex()
-	index = clamp(index, 0, 4); 
+	index = clamp(index, 0, 12);
 	if (index == 0) return 1;
-	if (index == 1) return 4; 
-	if (index == 2) return 6;
-	if (index == 3) return 12; 
-	return 24; 
+	return index <<	1;
+	 
+	// if (index == 0) return 1;
+	// if (index == 1) return 4; 
+	// if (index == 2) return 6;
+	// if (index == 3) return 12; 
+	// return 24; 
 }
 
 inline bool calcGate(int gateCode, SchmittTrigger clockTrigger, unsigned long clockStep, float sampleRate) {

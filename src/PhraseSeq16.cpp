@@ -1856,6 +1856,7 @@ fix run mode bug (history not reset when hard reset)
 fix slide bug when reset happens during a slide and run stays on
 add live mute on Gate1 and Gate2 buttons in song mode
 fix initRun() timing bug when turn off-and-then-on running button (it was resetting ppqnCount)
+allow pulsesPerStep setting of 1 and all even values from 2 to 24, and allow all gate types that work in these
 
 0.6.12:
 input refresh optimization

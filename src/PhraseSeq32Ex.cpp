@@ -121,6 +121,7 @@ struct PhraseSeq32Ex : Module {
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
 	long revertDisplay;
+	long showLenInSteps;
 	
 
 	unsigned int lightRefreshCounter = 0;
@@ -190,6 +191,7 @@ struct PhraseSeq32Ex : Module {
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 		revertDisplay = 0l;
+		showLenInSteps = 0l;
 		resetOnRun = false;
 		attached = false;
 		
@@ -468,6 +470,7 @@ struct PhraseSeq32Ex : Module {
 						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
 					else {
+						showLenInSteps = (long) (2.0f * sampleRate / displayRefreshStepSkips);
 						stepIndexEdit = stepPressed;
 						if (!sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit)) {// play if non-tied step
 							editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
@@ -790,7 +793,7 @@ struct PhraseSeq32Ex : Module {
 					if (stepn == stepIndexEdit) {
 						red = 1.0f;
 					}
-					else if (!attached && stepn < sek[trackIndexEdit].getLength(seqIndexEdit))
+					else if (!attached && showLenInSteps > 0l && stepn < sek[trackIndexEdit].getLength(seqIndexEdit))
 						green = 0.01f;
 				}
 				else if (attached) {
@@ -906,6 +909,8 @@ struct PhraseSeq32Ex : Module {
 			}
 			if (tiedWarning > 0l)
 				tiedWarning--;
+			if (showLenInSteps > 0l)
+				showLenInSteps--;
 			if (revertDisplay > 0l) {
 				if (revertDisplay == 1)
 					displayState = DISP_NORMAL;

@@ -192,7 +192,21 @@ struct GateSeq64 : Module {
 			stepIndexRun[3] = randomu32() % len;
 		}
 	}
-		
+	inline int ppsToIndexGS(int pulsesPerStep) {// map 1,4,6,12,24, to 0,1,2,3,4
+		if (pulsesPerStep == 1) return 0;
+		if (pulsesPerStep == 4) return 1; 
+		if (pulsesPerStep == 6) return 2;
+		if (pulsesPerStep == 12) return 3; 
+		return 4; 
+	}
+	inline int indexToPpsGS(int index) {// inverse map of ppsToIndex()
+		index = clamp(index, 0, 4); 
+		if (index == 0) return 1;
+		if (index == 1) return 4; 
+		if (index == 2) return 6;
+		if (index == 3) return 12; 
+		return 24; 
+	}
 		
 	GateSeq64() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		for (int i = 0; i < 16; i++)
@@ -785,7 +799,7 @@ struct GateSeq64 : Module {
 						displayProbInfo = (long) (displayProbInfoTime * sampleRate / displayRefreshStepSkips);
 					}
 					else if (editingPpqn != 0) {
-						pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
+						pulsesPerStep = indexToPpsGS(ppsToIndexGS(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
 						editingPpqn = (long) (editingPpqnTime * sampleRate / displayRefreshStepSkips);
 					}
 					else if (displayState == DISP_MODES) {
