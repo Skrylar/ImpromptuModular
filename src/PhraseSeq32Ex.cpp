@@ -666,11 +666,14 @@ struct PhraseSeq32Ex : Module {
 			// Keyboard buttons
 			for (int i = 0; i < 12; i++) {
 				if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
+					displayState = DISP_NORMAL;
 					if (editingSequence && !attached && displayState != DISP_PPQN) {
 						if (isEditingGates()) {
 							int newMode = sek[trackIndexEdit].keyIndexToGateTypeEx(i);
 							if (newMode != -1)
 								sek[trackIndexEdit].setGateType(seqIndexEdit, stepIndexEdit, newMode);
+							else
+								displayState = DISP_PPQN;
 						}
 						else if (sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit)) {
 							if (params[KEY_PARAMS + i].value > 1.5f)
@@ -688,7 +691,6 @@ struct PhraseSeq32Ex : Module {
 							}
 						}						
 					}
-					displayState = DISP_NORMAL;
 				}
 			}
 			

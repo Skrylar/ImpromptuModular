@@ -168,7 +168,7 @@ struct SemiModularSynth : Module {
 		TIE_LIGHT,
 		KEYNOTE_LIGHT,
 		ENUMS(KEYGATE_LIGHT, 2),// room for GreenRed
-		RES_LIGHT,
+		// RES_LIGHT,
 		
 		// VCO, CLK, VCA
 		// none
@@ -1048,16 +1048,20 @@ struct SemiModularSynth : Module {
 						if (editingGateLength != 0l) {
 							int newMode = keyIndexToGateMode(i, pulsesPerStep);
 							if (editingGateLength > 0l) {
-								if (newMode != -1)
+								if (newMode != -1) {
+									editingPpqn = 0l;
 									setGate1Mode(sequence, stepIndexEdit, newMode);
-								// else
-									// editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+								}
+								else
+									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 							}
 							else {
-								if (newMode != -1)
+								if (newMode != -1) {
+									editingPpqn = 0l;
 									setGate2Mode(sequence, stepIndexEdit, newMode);
-								// else
-									// editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+								}
+								else
+									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 							}
 						}
 						else if (getTied(sequence,stepIndexEdit)) {
@@ -1367,13 +1371,13 @@ struct SemiModularSynth : Module {
 				setGreenRed(KEYGATE_LIGHT, 0.2f, 1.0f);
 
 			// Res light
-			long editingPpqnInit = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-			if ( ((editingPpqn > 0l) && (editingPpqn < (editingPpqnInit / 6l))) ||
-				 ((editingPpqn > (editingPpqnInit * 2l / 6l)) && (editingPpqn < (editingPpqnInit * 3l / 6l))) ||
-				 ((editingPpqn > (editingPpqnInit * 4l / 6l)) && (editingPpqn < (editingPpqnInit * 5l / 6l))) )
-				lights[RES_LIGHT].value = 1.0f;
-			else 
-				lights[RES_LIGHT].value = 0.0f;
+			// long editingPpqnInit = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+			// if ( ((editingPpqn > 0l) && (editingPpqn < (editingPpqnInit / 6l))) ||
+				 // ((editingPpqn > (editingPpqnInit * 2l / 6l)) && (editingPpqn < (editingPpqnInit * 3l / 6l))) ||
+				 // ((editingPpqn > (editingPpqnInit * 4l / 6l)) && (editingPpqn < (editingPpqnInit * 5l / 6l))) )
+				// lights[RES_LIGHT].value = 1.0f;
+			// else 
+				// lights[RES_LIGHT].value = 0.0f;
 
 			// Gate1, Gate1Prob, Gate2, Slide and Tied lights
 			if (!editingSequence && (!attached || !running)) {// no oct lights when song mode and either (detached [1] or stopped [2])
@@ -1900,7 +1904,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		addChild(displaySequence);
 		// Len/mode button
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK0 + 0 + offsetCKD6b), module, SemiModularSynth::RUNMODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addChild(createLight<SmallLight<RedLight>>(Vec(columnRulerMK2 + offsetCKD6b + 24, rowRulerMK0 + 0 + offsetCKD6b + 31), module, SemiModularSynth::RES_LIGHT));
+		// addChild(createLight<SmallLight<RedLight>>(Vec(columnRulerMK2 + offsetCKD6b + 24, rowRulerMK0 + 0 + offsetCKD6b + 31), module, SemiModularSynth::RES_LIGHT));
 
 		// Run LED bezel and light
 		addParam(createParam<LEDBezel>(Vec(columnRulerMK0 + offsetLEDbezel, rowRulerMK1 + 7 + offsetLEDbezel), module, SemiModularSynth::RUN_PARAM, 0.0f, 1.0f, 0.0f));

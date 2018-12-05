@@ -88,7 +88,7 @@ struct PhraseSeq32 : Module {
 		TIE_LIGHT,
 		KEYNOTE_LIGHT,
 		ENUMS(KEYGATE_LIGHT, 2),// room for GreenRed
-		RES_LIGHT,
+		// RES_LIGHT,
 		NUM_LIGHTS
 	};
 	
@@ -1002,16 +1002,20 @@ struct PhraseSeq32 : Module {
 						if (editingGateLength != 0l) {
 							int newMode = keyIndexToGateMode(i, pulsesPerStep);
 							if (editingGateLength > 0l) {
-								if (newMode != -1)
+								if (newMode != -1) {
+									editingPpqn = 0l;
 									setGate1Mode(sequence, stepIndexEdit, newMode);
-								// else
-									// editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+								}
+								else
+									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 							}
 							else {
-								if (newMode != -1)
+								if (newMode != -1) {
+									editingPpqn = 0l;
 									setGate2Mode(sequence, stepIndexEdit, newMode);
-								// else
-									// editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+								}
+								else
+									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 							}
 						}
 						else if (getTied(sequence,stepIndexEdit)) {
@@ -1385,13 +1389,13 @@ struct PhraseSeq32 : Module {
 				setGreenRed(KEYGATE_LIGHT, 0.2f, 1.0f);
 			
 			// Res light
-			long editingPpqnInit = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-			if ( ((editingPpqn > 0l) && (editingPpqn < (editingPpqnInit / 6l))) ||
-				 ((editingPpqn > (editingPpqnInit * 2l / 6l)) && (editingPpqn < (editingPpqnInit * 3l / 6l))) ||
-				 ((editingPpqn > (editingPpqnInit * 4l / 6l)) && (editingPpqn < (editingPpqnInit * 5l / 6l))) )
-				lights[RES_LIGHT].value = 1.0f;
-			else 
-				lights[RES_LIGHT].value = 0.0f;
+			// long editingPpqnInit = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+			// if ( ((editingPpqn > 0l) && (editingPpqn < (editingPpqnInit / 6l))) ||
+				 // ((editingPpqn > (editingPpqnInit * 2l / 6l)) && (editingPpqn < (editingPpqnInit * 3l / 6l))) ||
+				 // ((editingPpqn > (editingPpqnInit * 4l / 6l)) && (editingPpqn < (editingPpqnInit * 5l / 6l))) )
+				// lights[RES_LIGHT].value = 1.0f;
+			// else 
+				// lights[RES_LIGHT].value = 0.0f;
 
 			// Gate1, Gate1Prob, Gate2, Slide and Tied lights (can only show channel A when running attached in 1x32 mode, does not pose problem for all other situations)
 			if (!editingSequence && (!attached || !running || (stepConfig == 1))) {// no oct lights when song mode and either (detached [1] or stopped [2] or 2x16config [3])
@@ -1800,7 +1804,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 		static const int rowRulerMK2 = rowRulerMK1 + 54; // Copy-paste Tran/rot row
 		static const int columnRulerMK0 = 307;// Edit mode column
 		static const int columnRulerMK2 = columnRulerT4;// Mode/Len column
-		static const int columnRulerMK1 = 366;// Display column
+		static const int columnRulerMK1 = 366;// Display column 
 		
 		// Edit mode switch
 		addParam(createParam<CKSS>(Vec(columnRulerMK0 + 2 + hOffsetCKSS, rowRulerMK0 + vOffsetCKSS), module, PhraseSeq32::EDIT_PARAM, 0.0f, 1.0f, 1.0f));
@@ -1812,7 +1816,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 		addChild(displaySequence);
 		// Len/mode button
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK0 + 0 + offsetCKD6b), module, PhraseSeq32::RUNMODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addChild(createLight<SmallLight<RedLight>>(Vec(columnRulerMK2 + offsetCKD6b + 24, rowRulerMK0 + 0 + offsetCKD6b + 31), module, PhraseSeq32::RES_LIGHT));
+		// addChild(createLight<SmallLight<RedLight>>(Vec(columnRulerMK2 + offsetCKD6b + 24, rowRulerMK0 + 0 + offsetCKD6b + 31), module, PhraseSeq32::RES_LIGHT));
 
 		// Autostep
 		addParam(createParam<CKSS>(Vec(columnRulerMK0 + 2 + hOffsetCKSS, rowRulerMK1 + 7 + vOffsetCKSS), module, PhraseSeq32::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
