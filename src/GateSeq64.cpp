@@ -687,7 +687,7 @@ struct GateSeq64 : Module {
 					}
 					// Autostep (after grab all active inputs)
 					stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 64);
-					if (stepIndexEdit == 0 && autoseq)
+					if (stepIndexEdit == 0 && autoseq && !inputs[SEQCV_INPUT].active)
 						sequence = moveIndex(sequence, sequence + 1, 16);			
 				}
 			}
@@ -914,6 +914,8 @@ struct GateSeq64 : Module {
 			initRun();// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_GATE;
+			if (inputs[SEQCV_INPUT].active && seqCVmethod == 2)
+				sequence = 0;
 		}
 	
 		

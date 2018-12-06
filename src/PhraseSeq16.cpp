@@ -797,7 +797,7 @@ struct PhraseSeq16 : Module {
 					// Autostep (after grab all active inputs)
 					if (params[AUTOSTEP_PARAM].value > 0.5f) {
 						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
-						if (stepIndexEdit == 0 && autoseq)
+						if (stepIndexEdit == 0 && autoseq && !inputs[SEQCV_INPUT].active)
 							sequence = moveIndex(sequence, sequence + 1, 16);
 					}
 				}
@@ -1185,6 +1185,8 @@ struct PhraseSeq16 : Module {
 			initRun();// must be after sequence reset
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
+			if (inputs[SEQCV_INPUT].active && seqCVmethod == 2)
+				sequence = 0;
 		}
 		
 		

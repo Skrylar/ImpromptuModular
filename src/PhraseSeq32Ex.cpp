@@ -94,6 +94,7 @@ struct PhraseSeq32Ex : Module {
 	// Need to save
 	int panelTheme = 0;
 	int expansion = 0;
+	bool autoseq;
 	bool showSharp = true;
 	int seqCVmethod = 0;// 0 is 0-10V, 1 is C2-D7#, 2 is TrigIncr
 	bool running;
@@ -172,6 +173,7 @@ struct PhraseSeq32Ex : Module {
 	// widgets are not yet created when module is created (and when onReset() is called by constructor)
 	// onReset() is also called when right-click initialization of module
 	void onReset() override {
+		autoseq = false;
 		running = false;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
@@ -228,6 +230,9 @@ struct PhraseSeq32Ex : Module {
 		// expansion
 		json_object_set_new(rootJ, "expansion", json_integer(expansion));
 
+		// autoseq
+		json_object_set_new(rootJ, "autoseq", json_boolean(autoseq));
+		
 		// showSharp
 		json_object_set_new(rootJ, "showSharp", json_boolean(showSharp));
 		
@@ -272,6 +277,11 @@ struct PhraseSeq32Ex : Module {
 		json_t *expansionJ = json_object_get(rootJ, "expansion");
 		if (expansionJ)
 			expansion = json_integer_value(expansionJ);
+
+		// autoseq
+		json_t *autoseqJ = json_object_get(rootJ, "autoseq");
+		if (autoseqJ)
+			autoseq = json_is_true(autoseqJ);
 
 		// showSharp
 		json_t *showSharpJ = json_object_get(rootJ, "showSharp");
@@ -450,6 +460,8 @@ struct PhraseSeq32Ex : Module {
 					// Autostep (after grab all active inputs)
 					if (params[AUTOSTEP_PARAM].value > 0.5f) {
 						stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
+						if (stepIndexEdit == 0 && autoseq && !inputs[SEQCV_INPUT].active)
+							seqIndexEdit = moveIndexEx(seqIndexEdit, seqIndexEdit + 1, SequencerKernel::MAX_SEQS);			
 					}
 				}
 			}
@@ -770,6 +782,8 @@ struct PhraseSeq32Ex : Module {
 			initRun();
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
+			if (inputs[SEQCV_INPUT].active && seqCVmethod == 2)
+				seqIndexEdit = 0;
 		}
 		
 		
@@ -1164,6 +1178,12 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			module->resetOnRun = !module->resetOnRun;
 		}
 	};
+	struct AutoseqItem : MenuItem {
+		PhraseSeq32Ex *module;
+		void onAction(EventAction &e) override {
+			module->autoseq = !module->autoseq;
+		}
+	};
 	struct SeqCVmethodItem : MenuItem {
 		PhraseSeq32Ex *module;
 		void onAction(EventAction &e) override {
@@ -1214,6 +1234,10 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		ResetOnRunItem *rorItem = MenuItem::create<ResetOnRunItem>("Reset on Run", CHECKMARK(module->resetOnRun));
 		rorItem->module = module;
 		menu->addChild(rorItem);
+
+		AutoseqItem *aseqItem = MenuItem::create<AutoseqItem>("AutoSeq when writing via CV inputs", CHECKMARK(module->autoseq));
+		aseqItem->module = module;
+		menu->addChild(aseqItem);
 
 		SeqCVmethodItem *seqcvItem = MenuItem::create<SeqCVmethodItem>("Seq CV in: ", "");
 		seqcvItem->module = module;
