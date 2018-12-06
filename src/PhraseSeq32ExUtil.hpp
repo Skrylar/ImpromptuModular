@@ -25,7 +25,7 @@ class StepAttributes {
 	static const unsigned long ATT_MSK_GATEP_VAL = 0x0000FF00, gatePValShift = 8;
 	static const unsigned long ATT_MSK_SLIDE_VAL = 0x00FF0000, slideValShift = 16;
 
-	static const unsigned long ATT_MSK_INITSTATE = ((ATT_MSK_GATE) | (128 << velocityShift) | (50 << gatePValShift) | (10 << slideValShift));
+	static const unsigned long ATT_MSK_INITSTATE = ((ATT_MSK_GATE) | (100 << velocityShift) | (50 << gatePValShift) | (10 << slideValShift));
 
 	inline void clear() {attributes = 0ul;}
 	inline void init() {attributes = ATT_MSK_INITSTATE;}
@@ -230,16 +230,18 @@ class SequencerKernel {
 	inline void modRunModeSong(int delta) {runModeSong += delta; if (runModeSong < 0) runModeSong = 0; if (runModeSong >= NUM_MODES) runModeSong = NUM_MODES - 1;}
 	inline void modRunModeSeq(int seqn, int delta) {
 		int rVal = sequences[seqn].getRunMode();
-		rVal += delta;
-		if (rVal < 0) rVal = 0;
-		if (rVal >= NUM_MODES) rVal = NUM_MODES - 1;
+		rVal = clamp(rVal + delta, 0, NUM_MODES - 1);
+		// rVal += delta;
+		// if (rVal < 0) rVal = 0;
+		// if (rVal > (NUM_MODES -1)) rVal = NUM_MODES - 1;
 		sequences[seqn].setRunMode(rVal);
 	}
 	inline void modLength(int seqn, int delta) {
 		int lVal = sequences[seqn].getLength();
-		lVal += delta; 
-		if (lVal > MAX_STEPS) lVal = MAX_STEPS; 
-		if (lVal < 1 ) lVal = 1;
+		lVal = clamp(lVal + delta, 1, MAX_STEPS);
+		// lVal += delta; 
+		// if (lVal < 1 ) lVal = 1;
+		// if (lVal > MAX_STEPS) lVal = MAX_STEPS; 
 		sequences[seqn].setLength(lVal);
 	}
 	inline void modPhraseSeqNum(int phrn, int delta) {
@@ -249,9 +251,10 @@ class SequencerKernel {
 	}
 	inline void modPhraseReps(int phrn, int delta) {
 		int rVal = phrases[phrn].getReps();
-		rVal += delta; 
-		if (rVal > 99) rVal = 99; 
-		if (rVal < 1 ) rVal = 1;
+		rVal = clamp(rVal + delta, 1, 99);
+		// rVal += delta; 
+		// if (rVal < 1 ) rVal = 1;
+		// if (rVal > 99) rVal = 99; 
 		phrases[phrn].setReps(rVal);
 	}		
 	inline void modPulsesPerStep(int delta) {
@@ -260,29 +263,33 @@ class SequencerKernel {
 		if (pulsesPerStep > 49) pulsesPerStep = 49;
 	}
 	inline void modDelay(int delta) {
-		delay += delta;
-		if (delay < 0) delay = 0;
-		if (delay > 99) delay = 99;
+		delay = clamp(delay + delta, 0, 99);
+		// delay += delta;
+		// if (delay < 0) delay = 0;
+		// if (delay > 99) delay = 99;
 	}
 	inline void modGatePVal(int seqn, int stepn, int delta) {
 		int pVal = getGatePVal(seqn, stepn);
-		pVal += delta;
-		if (pVal > 100) pVal = 100;
-		if (pVal < 0) pVal = 0;
+		pVal = clamp(pVal + delta, 0, 100);
+		// pVal += delta;
+		// if (pVal < 0) pVal = 0;
+		// if (pVal > 100) pVal = 100;
 		setGatePVal(seqn, stepn, pVal);						
 	}		
 	inline void modSlideVal(int seqn, int stepn, int delta) {
 		int sVal = getSlideVal(seqn, stepn);
-		sVal += delta;
-		if (sVal > 100) sVal = 100;
-		if (sVal < 0) sVal = 0;
+		sVal = clamp(sVal + delta, 0, 100);
+		// sVal += delta;
+		// if (sVal < 0) sVal = 0;
+		// if (sVal > 100) sVal = 100;
 		setSlideVal(seqn, stepn, sVal);
 	}		
 	inline void modVelocityVal(int seqn, int stepn, int delta) {
 		int vVal = getVelocityVal(seqn, stepn);
-		vVal += delta;
-		if (vVal > 255) vVal = 255;
-		if (vVal < 0) vVal = 0;
+		vVal = clamp(vVal + delta, 0, 127);
+		// vVal += delta;
+		// if (vVal < 0) vVal = 0;
+		// if (vVal > 127) vVal = 127;
 		setVelocityVal(seqn, stepn, vVal);						
 	}		
 	inline void decSlideStepsRemain() {if (slideStepsRemain > 0ul) slideStepsRemain--;}	

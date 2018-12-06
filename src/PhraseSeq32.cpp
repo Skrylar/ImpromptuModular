@@ -100,6 +100,7 @@ struct PhraseSeq32 : Module {
 	int panelTheme = 0;
 	int expansion = 0;
 	bool autoseq;
+	int seqCVmethod = 0;// 0 is 0-10V, 1 is C4-G6, 2 is TrigIncr
 	int pulsesPerStep;// 1 means normal gate mode, alt choices are 4, 6, 12, 24 PPS (Pulses per step)
 	bool running;
 	int runModeSeq[32];
@@ -177,6 +178,7 @@ struct PhraseSeq32 : Module {
 	SchmittTrigger stepTriggers[32];
 	SchmittTrigger keyNoteTrigger;
 	SchmittTrigger keyGateTrigger;
+	SchmittTrigger seqCVTrigger;
 	HoldDetect modeHoldDetect;
 	int lengthsBuffer[32];// buffer from Json for thread safety
 
@@ -318,6 +320,9 @@ struct PhraseSeq32 : Module {
 		// autoseq
 		json_object_set_new(rootJ, "autoseq", json_boolean(autoseq));
 		
+		// seqCVmethod
+		json_object_set_new(rootJ, "seqCVmethod", json_integer(seqCVmethod));
+
 		// pulsesPerStep
 		json_object_set_new(rootJ, "pulsesPerStep", json_integer(pulsesPerStep));
 
@@ -404,6 +409,11 @@ struct PhraseSeq32 : Module {
 		json_t *autoseqJ = json_object_get(rootJ, "autoseq");
 		if (autoseqJ)
 			autoseq = json_is_true(autoseqJ);
+
+		// seqCVmethod
+		json_t *seqCVmethodJ = json_object_get(rootJ, "seqCVmethod");
+		if (seqCVmethodJ)
+			seqCVmethod = json_integer_value(seqCVmethodJ);
 
 		// pulsesPerStep
 		json_t *pulsesPerStepJ = json_object_get(rootJ, "pulsesPerStep");
@@ -611,7 +621,18 @@ struct PhraseSeq32 : Module {
 			
 			// Seq CV input
 			if (inputs[SEQCV_INPUT].active) {
-				sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * (32.0f - 1.0f) / 10.0f), 0.0f, (32.0f - 1.0f) );
+				if (seqCVmethod == 0) {// 0-10 V
+					int newSeq = (int)( inputs[SEQCV_INPUT].value * (32.0f - 1.0f) / 10.0f + 0.5f );
+					sequence = clamp(newSeq, 0, 32 - 1);
+				}
+				else if (seqCVmethod == 1) {// C4-G6
+					int newSeq = (int)( (inputs[SEQCV_INPUT].value) * 12.0f + 0.5f );
+					sequence = clamp(newSeq, 0, 32 - 1);
+				}
+				else {// TrigIncr
+					if (seqCVTrigger.process(inputs[SEQCV_INPUT].value))
+						sequence = clamp(sequence + 1, 0, 32 - 1);
+				}	
 			}
 			
 			// Mode CV input
@@ -1620,6 +1641,22 @@ struct PhraseSeq32Widget : ModuleWidget {
 			module->autoseq = !module->autoseq;
 		}
 	};
+	struct SeqCVmethodItem : MenuItem {
+		PhraseSeq32 *module;
+		void onAction(EventAction &e) override {
+			module->seqCVmethod++;
+			if (module->seqCVmethod > 2)
+				module->seqCVmethod = 0;
+		}
+		void step() override {
+			if (module->seqCVmethod == 0)
+				text = "Seq CV in: <0-10V>,  C4-G6,  Trig-Incr";
+			else if (module->seqCVmethod == 1)
+				text = "Seq CV in: 0-10V,  <C4-G6>,  Trig-Incr";
+			else
+				text = "Seq CV in: 0-10V,  C4-G6,  <Trig-Incr>";
+		}	
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -1659,6 +1696,10 @@ struct PhraseSeq32Widget : ModuleWidget {
 		aseqItem->module = module;
 		menu->addChild(aseqItem);
 
+		SeqCVmethodItem *seqcvItem = MenuItem::create<SeqCVmethodItem>("Seq CV in: ", "");
+		seqcvItem->module = module;
+		menu->addChild(seqcvItem);
+		
 		menu->addChild(new MenuLabel());// empty line
 		
 		MenuLabel *expansionLabel = new MenuLabel();
@@ -1934,6 +1975,7 @@ fix transposeOffset not initialized bug
 add live mute on Gate1 and Gate2 buttons in song mode
 fix initRun() timing bug when turn off-and-then-on running button (it was resetting ppqnCount)
 allow pulsesPerStep setting of 1 and all even values from 2 to 24, and allow all gate types that work in these
+add two extra modes for Seq CV input (right-click menu): note-voltage-levels and trigger-increment
 
 0.6.12:
 input refresh optimization

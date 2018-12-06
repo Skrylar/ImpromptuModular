@@ -79,6 +79,7 @@ struct GateSeq64 : Module {
 	int panelTheme = 0;
 	int expansion = 0;
 	bool autoseq;
+	int seqCVmethod = 0;// 0 is 0-10V, 1 is C4-D5#, 2 is TrigIncr
 	int pulsesPerStep;// 1 means normal gate mode, alt choices are 4, 6, 12, 24 PPS (Pulses per step)
 	bool running;
 	int runModeSeq[16];
@@ -133,6 +134,7 @@ struct GateSeq64 : Module {
 	SchmittTrigger stepLTrigger;
 	SchmittTrigger gModeTriggers[8];
 	SchmittTrigger probTrigger;
+	SchmittTrigger seqCVTrigger;
 	BooleanTrigger editingSequenceTrigger;
 	HoldDetect modeHoldDetect;
 	int lengthsBuffer[16];// buffer from Json for thread safety
@@ -301,6 +303,9 @@ struct GateSeq64 : Module {
 		// autoseq
 		json_object_set_new(rootJ, "autoseq", json_boolean(autoseq));
 		
+		// seqCVmethod
+		json_object_set_new(rootJ, "seqCVmethod", json_integer(seqCVmethod));
+
 		// pulsesPerStep
 		json_object_set_new(rootJ, "pulsesPerStep", json_integer(pulsesPerStep));
 
@@ -370,6 +375,11 @@ struct GateSeq64 : Module {
 		json_t *autoseqJ = json_object_get(rootJ, "autoseq");
 		if (autoseqJ)
 			autoseq = json_is_true(autoseqJ);
+
+		// seqCVmethod
+		json_t *seqCVmethodJ = json_object_get(rootJ, "seqCVmethod");
+		if (seqCVmethodJ)
+			seqCVmethod = json_integer_value(seqCVmethodJ);
 
 		// pulsesPerStep
 		json_t *pulsesPerStepJ = json_object_get(rootJ, "pulsesPerStep");
@@ -545,7 +555,18 @@ struct GateSeq64 : Module {
 			
 			// Seq CV input
 			if (inputs[SEQCV_INPUT].active) {
-				sequence = (int) clamp( round(inputs[SEQCV_INPUT].value * 15.0f / 10.0f), 0.0f, 15.0f );
+				if (seqCVmethod == 0) {// 0-10 V
+					int newSeq = (int)( inputs[SEQCV_INPUT].value * (16.0f - 1.0f) / 10.0f + 0.5f );
+					sequence = clamp(newSeq, 0, 16 - 1);
+				}
+				else if (seqCVmethod == 1) {// C4-D5#
+					int newSeq = (int)( (inputs[SEQCV_INPUT].value) * 12.0f + 0.5f );
+					sequence = clamp(newSeq, 0, 16 - 1);
+				}
+				else {// TrigIncr
+					if (seqCVTrigger.process(inputs[SEQCV_INPUT].value))
+						sequence = clamp(sequence + 1, 0, 16 - 1);
+				}	
 			}
 			
 			// Copy button
@@ -1191,6 +1212,22 @@ struct GateSeq64Widget : ModuleWidget {
 			module->autoseq = !module->autoseq;
 		}
 	};
+	struct SeqCVmethodItem : MenuItem {
+		GateSeq64 *module;
+		void onAction(EventAction &e) override {
+			module->seqCVmethod++;
+			if (module->seqCVmethod > 2)
+				module->seqCVmethod = 0;
+		}
+		void step() override {
+			if (module->seqCVmethod == 0)
+				text = "Seq CV in: <0-10V>,  C4-D5#,  Trig-Incr";
+			else if (module->seqCVmethod == 1)
+				text = "Seq CV in: 0-10V,  <C4-D5#>,  Trig-Incr";
+			else
+				text = "Seq CV in: 0-10V,  C4-D5#,  <Trig-Incr>";
+		}	
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -1230,6 +1267,10 @@ struct GateSeq64Widget : ModuleWidget {
 		aseqItem->module = module;
 		menu->addChild(aseqItem);
 
+		SeqCVmethodItem *seqcvItem = MenuItem::create<SeqCVmethodItem>("Seq CV in: ", "");
+		seqcvItem->module = module;
+		menu->addChild(seqcvItem);
+		
 		menu->addChild(new MenuLabel());// empty line
 		
 		MenuLabel *expansionLabel = new MenuLabel();
@@ -1410,6 +1451,7 @@ Model *modelGateSeq64 = Model::create<GateSeq64, GateSeq64Widget>("Impromptu Mod
 0.6.13:
 fix run mode bug (history not reset when hard reset)
 fix initRun() timing bug when turn off-and-then-on running button (it was resetting ppqnCount)
+add two extra modes for Seq CV input (right-click menu): note-voltage-levels and trigger-increment
 
 0.6.12:
 input refresh optimization

@@ -95,6 +95,7 @@ struct PhraseSeq32Ex : Module {
 	int panelTheme = 0;
 	int expansion = 0;
 	bool showSharp = true;
+	int seqCVmethod = 0;// 0 is 0-10V, 1 is C2-D7#, 2 is TrigIncr
 	bool running;
 	bool resetOnRun;
 	bool attached;
@@ -154,6 +155,7 @@ struct PhraseSeq32Ex : Module {
 	SchmittTrigger endTrigger;
 	SchmittTrigger repLenTrigger;
 	SchmittTrigger attachedTrigger;
+	SchmittTrigger seqCVTrigger;
 
 	
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
@@ -229,6 +231,9 @@ struct PhraseSeq32Ex : Module {
 		// showSharp
 		json_object_set_new(rootJ, "showSharp", json_boolean(showSharp));
 		
+		// seqCVmethod
+		json_object_set_new(rootJ, "seqCVmethod", json_integer(seqCVmethod));
+
 		// running
 		json_object_set_new(rootJ, "running", json_boolean(running));
 		
@@ -273,6 +278,11 @@ struct PhraseSeq32Ex : Module {
 		if (showSharpJ)
 			showSharp = json_is_true(showSharpJ);
 		
+		// seqCVmethod
+		json_t *seqCVmethodJ = json_object_get(rootJ, "seqCVmethod");
+		if (seqCVmethodJ)
+			seqCVmethod = json_integer_value(seqCVmethodJ);
+
 		// running
 		json_t *runningJ = json_object_get(rootJ, "running");
 		if (runningJ)
@@ -321,6 +331,7 @@ struct PhraseSeq32Ex : Module {
 		static const float gateTime = 0.4f;// seconds
 		static const float revertDisplayTime = 0.7f;// seconds
 		static const float tiedWarningTime = 0.7f;// seconds
+		static const float showLenInStepsTime = 2.0f;// seconds
 		
 		
 		//********** Buttons, knobs, switches and inputs **********
@@ -339,8 +350,18 @@ struct PhraseSeq32Ex : Module {
 			
 			// Seq CV input
 			if (inputs[SEQCV_INPUT].active) {
-				float maxSeqf = (float)SequencerKernel::MAX_SEQS;
-				seqIndexEdit = (int) clamp( round(inputs[SEQCV_INPUT].value * (maxSeqf - 1.0f) / 10.0f), 0.0f, (maxSeqf - 1.0f) );
+				if (seqCVmethod == 0) {// 0-10 V
+					int newSeq = (int)( inputs[SEQCV_INPUT].value * ((float)SequencerKernel::MAX_SEQS - 1.0f) / 10.0f + 0.5f );
+					seqIndexEdit = clamp(newSeq, 0, SequencerKernel::MAX_SEQS - 1);
+				}
+				else if (seqCVmethod == 1) {// C2-D7#
+					int newSeq = (int)( (inputs[SEQCV_INPUT].value + 2.0f) * 12.0f + 0.5f );
+					seqIndexEdit = clamp(newSeq, 0, SequencerKernel::MAX_SEQS - 1);
+				}
+				else {// TrigIncr
+					if (seqCVTrigger.process(inputs[SEQCV_INPUT].value))
+						seqIndexEdit = clamp(seqIndexEdit + 1, 0, SequencerKernel::MAX_SEQS - 1);
+				}	
 			}
 			
 			// Attach button
@@ -470,7 +491,7 @@ struct PhraseSeq32Ex : Module {
 						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
 					else {
-						showLenInSteps = (long) (2.0f * sampleRate / displayRefreshStepSkips);
+						showLenInSteps = (long) (showLenInStepsTime * sampleRate / displayRefreshStepSkips);
 						stepIndexEdit = stepPressed;
 						if (!sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit)) {// play if non-tied step
 							editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
@@ -795,8 +816,9 @@ struct PhraseSeq32Ex : Module {
 					if (stepn == stepIndexEdit) {
 						red = 1.0f;
 					}
-					else if (!attached && showLenInSteps > 0l && stepn < sek[trackIndexEdit].getLength(seqIndexEdit))
+					else if (!attached && showLenInSteps > 0l && stepn < sek[trackIndexEdit].getLength(seqIndexEdit)) {
 						green = 0.01f;
+					}
 				}
 				else if (attached) {
 					// all active light green, current track is bright yellow
@@ -1142,6 +1164,22 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			module->resetOnRun = !module->resetOnRun;
 		}
 	};
+	struct SeqCVmethodItem : MenuItem {
+		PhraseSeq32Ex *module;
+		void onAction(EventAction &e) override {
+			module->seqCVmethod++;
+			if (module->seqCVmethod > 2)
+				module->seqCVmethod = 0;
+		}
+		void step() override {
+			if (module->seqCVmethod == 0)
+				text = "Seq CV in: <0-10V>,  C2-D7#,  Trig-Incr";
+			else if (module->seqCVmethod == 1)
+				text = "Seq CV in: 0-10V,  <C2-D7#>,  Trig-Incr";
+			else
+				text = "Seq CV in: 0-10V,  C2-D7#,  <Trig-Incr>";
+		}	
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -1177,6 +1215,10 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		rorItem->module = module;
 		menu->addChild(rorItem);
 
+		SeqCVmethodItem *seqcvItem = MenuItem::create<SeqCVmethodItem>("Seq CV in: ", "");
+		seqcvItem->module = module;
+		menu->addChild(seqcvItem);
+		
 		menu->addChild(new MenuLabel());// empty line
 		
 		MenuLabel *expansionLabel = new MenuLabel();
