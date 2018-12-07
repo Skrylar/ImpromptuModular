@@ -1282,7 +1282,27 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			SVGSwitch::onChange(e);		
 		}
 	};
-
+	struct Velocityknob : IMMediumKnobInf {
+		Velocityknob() {};
+		void onMouseDown(EventMouseDown &e) override {// from ParamWidget.cpp
+			if (e.button == 1) {
+				float vparam = ((PhraseSeq32Ex*)(module))->params[PhraseSeq32Ex::VELMODE_PARAM].value;
+				int trkn = ((PhraseSeq32Ex*)(module))->trackIndexEdit;
+				int seqn = ((PhraseSeq32Ex*)(module))->seqIndexEdit;
+				int stepn = ((PhraseSeq32Ex*)(module))->stepIndexEdit;
+				if (vparam > 1.5f) {
+					((PhraseSeq32Ex*)(module))->sek[trkn].setSlideVal(seqn, stepn, StepAttributes::INIT_SLIDE);
+				}
+				else if (vparam > 0.5f) {
+					((PhraseSeq32Ex*)(module))->sek[trkn].setGatePVal(seqn, stepn, StepAttributes::INIT_PROB);
+				}
+				else {
+					((PhraseSeq32Ex*)(module))->sek[trkn].setVelocityVal(seqn, stepn, StepAttributes::INIT_VELOCITY);
+				}
+			}
+			ParamWidget::onMouseDown(e);
+		}
+	};
 		
 	PhraseSeq32ExWidget(PhraseSeq32Ex *module) : ModuleWidget(module) {
 		this->module = module;
@@ -1408,7 +1428,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int colRulerVel = 288;
 		addChild(new VelocityDisplayWidget(Vec(colRulerVel, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 3 characters
 		// Velocity knob
-		addParam(createDynamicParamCentered<IMMediumKnobInf>(Vec(colRulerVel, rowRulerKnobs), module, PhraseSeq32Ex::VEL_KNOB_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));	
+		addParam(createDynamicParamCentered<Velocityknob>(Vec(colRulerVel, rowRulerKnobs), module, PhraseSeq32Ex::VEL_KNOB_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));	
 		// Veocity mode switch (3 position)
 		addParam(createParamCentered<CKSSHThreeNotify>(Vec(colRulerVel, rowRulerSmallButtons), module, PhraseSeq32Ex::VELMODE_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
 		

@@ -25,7 +25,11 @@ class StepAttributes {
 	static const unsigned long ATT_MSK_GATEP_VAL = 0x0000FF00, gatePValShift = 8;
 	static const unsigned long ATT_MSK_SLIDE_VAL = 0x00FF0000, slideValShift = 16;
 
-	static const unsigned long ATT_MSK_INITSTATE = ((ATT_MSK_GATE) | (100 << velocityShift) | (50 << gatePValShift) | (10 << slideValShift));
+	static const int INIT_VELOCITY = 100;
+	static const int INIT_PROB = 50;
+	static const int INIT_SLIDE = 10;
+	
+	static const unsigned long ATT_MSK_INITSTATE = ((ATT_MSK_GATE) | (INIT_VELOCITY << velocityShift) | (INIT_PROB << gatePValShift) | (INIT_SLIDE << slideValShift));
 
 	inline void clear() {attributes = 0ul;}
 	inline void init() {attributes = ATT_MSK_INITSTATE;}
@@ -796,7 +800,7 @@ class SequencerKernel {
 	
 
 	bool moveIndexRunMode(bool moveSequence) {	
-		// assert((reps * numSteps) <= 0xFFF); // for BRN and RND run modes, history is not a span count but a step count
+		// assert((reps * MAX_STEPS) <= 0xFFF); // for BRN and RND run modes, history is not a span count but a step count
 		
 		int* index;
 		unsigned long* history;
