@@ -64,6 +64,7 @@ struct PhraseSeq32Ex : Module {
 		SLIDECV_INPUT,
 		VEL_INPUT,
 		SEQCV_INPUT,
+		TRKCV_INPUT,
 		NUM_INPUTS
 	};
 	enum OutputIds {
@@ -164,11 +165,10 @@ struct PhraseSeq32Ex : Module {
 
 	
 	PhraseSeq32Ex() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
+		sek[0].setSlaveRndLastPtrs(nullptr, nullptr);
 		for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
 			sek[trkn].setId(trkn);
-			if (trkn == 0)
-				sek[0].setSlaveRndLastPtrs(nullptr, nullptr);
-			else
+			if (trkn > 0)
 				sek[trkn].setSlaveRndLastPtrs(sek[0].getSeqRndLast(), sek[0].getSongRndLast());
 		}
 		onReset();
@@ -379,6 +379,12 @@ struct PhraseSeq32Ex : Module {
 				}	
 			}
 			
+			// Track CV input
+			if (inputs[TRKCV_INPUT].active) {
+				int newTrk = (int)( inputs[TRKCV_INPUT].value * ((float)NUM_TRACKS - 1.0f) / 10.0f + 0.5f );
+				trackIndexEdit = clamp(newTrk, 0, NUM_TRACKS - 1);
+			}
+			
 			// Attach button
 			if (attachedTrigger.process(params[ATTACH_PARAM].value)) {
 				attached = !attached;
@@ -583,16 +589,20 @@ struct PhraseSeq32Ex : Module {
 
 			// Track Inc/Dec buttons
 			if (trackIncTrigger.process(params[TRACKUP_PARAM].value)) {
-				if (trackIndexEdit < (NUM_TRACKS - 1)) 
-					trackIndexEdit++;
-				else
-					trackIndexEdit = 0;
+				if (!inputs[TRKCV_INPUT].active) {
+					if (trackIndexEdit < (NUM_TRACKS - 1)) 
+						trackIndexEdit++;
+					else
+						trackIndexEdit = 0;
+				}
 			}
 			if (trackDeccTrigger.process(params[TRACKDOWN_PARAM].value)) {
-				if (trackIndexEdit > 0) 
-					trackIndexEdit--;
-				else
-					trackIndexEdit = NUM_TRACKS - 1;
+				if (!inputs[TRKCV_INPUT].active) {
+					if (trackIndexEdit > 0) 
+						trackIndexEdit--;
+					else
+						trackIndexEdit = NUM_TRACKS - 1;
+				}
 			}
 			
 		
@@ -980,7 +990,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	DynamicSVGPanel *panel;
 	int oldExpansion;
 	int expWidth = 60;
-	IMPort* expPorts[5];
+	IMPort* expPorts[6];
 	
 	template <int NUMCHAR>
 	struct DisplayWidget : TransparentWidget {// a centered display, must derive from this
@@ -1264,7 +1274,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	void step() override {
 		if(module->expansion != oldExpansion) {
 			if (oldExpansion!= -1 && module->expansion == 0) {// if just removed expansion panel, disconnect wires to those jacks
-				for (int i = 0; i < 5; i++)
+				for (int i = 0; i < 6; i++)
 					gRackWidget->wireContainer->removeAllWires(expPorts[i]);
 			}
 			oldExpansion = module->expansion;		
@@ -1581,14 +1591,15 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		
 		
 		// Expansion module
-		static const int rowRulerExpTop = 78;
-		static const int rowSpacingExp = 60;
+		static const int rowRulerExpTop = 73.55;//78;
+		static const int rowSpacingExp = 50;//60;
 		static const int colRulerExp = panel->box.size.x - expWidth / 2;
 		addInput(expPorts[0] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, PhraseSeq32Ex::GATECV_INPUT, &module->panelTheme));
 		addInput(expPorts[1] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, PhraseSeq32Ex::GATEPCV_INPUT, &module->panelTheme));
 		addInput(expPorts[2] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, PhraseSeq32Ex::TIEDCV_INPUT, &module->panelTheme));
 		addInput(expPorts[3] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, PhraseSeq32Ex::SLIDECV_INPUT, &module->panelTheme));
 		addInput(expPorts[4] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 4), Port::INPUT, module, PhraseSeq32Ex::SEQCV_INPUT, &module->panelTheme));
+		addInput(expPorts[5] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 5), Port::INPUT, module, PhraseSeq32Ex::TRKCV_INPUT, &module->panelTheme));
 	}
 };
 

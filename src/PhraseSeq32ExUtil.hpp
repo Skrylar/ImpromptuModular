@@ -26,6 +26,7 @@ class StepAttributes {
 	static const unsigned long ATT_MSK_SLIDE_VAL = 0x00FF0000, slideValShift = 16;
 
 	static const int INIT_VELOCITY = 100;
+	static const int MAX_VELOCITY = 127;
 	static const int INIT_PROB = 50;
 	static const int INIT_SLIDE = 10;
 	
@@ -43,7 +44,7 @@ class StepAttributes {
 	inline bool getSlide() {return (attributes & ATT_MSK_SLIDE) != 0;}
 	inline int getSlideVal() {return (int)((attributes & ATT_MSK_SLIDE_VAL) >> slideValShift);}
 	inline int getVelocityVal() {return (int)((attributes & ATT_MSK_VELOCITY) >> velocityShift);}
-	inline float getVelocity() {return ((float)getVelocityVal()) / 25.5f;}
+	inline float getVelocity() {return ((float)getVelocityVal()) * 10.0f / ((float)MAX_VELOCITY);}
 	inline unsigned long getAttribute() {return attributes;}
 
 	inline void setGate(bool gate1State) {attributes &= ~ATT_MSK_GATE; if (gate1State) attributes |= ATT_MSK_GATE;}
@@ -54,7 +55,7 @@ class StepAttributes {
 	inline void setSlide(bool slideState) {attributes &= ~ATT_MSK_SLIDE; if (slideState) attributes |= ATT_MSK_SLIDE;}
 	inline void setSlideVal(int slideVal) {attributes &= ~ATT_MSK_SLIDE_VAL; attributes |= (((unsigned long)slideVal) << slideValShift);}
 	inline void setVelocityVal(int _velocity) {attributes &= ~ATT_MSK_VELOCITY; attributes |= (((unsigned long)_velocity) << velocityShift);}
-	inline void setVelocity(float _velocityf) {setVelocityVal((int)(_velocityf * 25.5f + 0.5f));}
+	inline void setVelocity(float _velocityf) {setVelocityVal((int)(_velocityf * ((float)MAX_VELOCITY) / 10.0f + 0.5f));}
 	inline void setAttribute(unsigned long _attributes) {attributes = _attributes;}
 
 	inline void toggleGate() {attributes ^= ATT_MSK_GATE;}
@@ -186,9 +187,9 @@ class SequencerKernel {
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta;// no need to initialize, this is only used when slideStepsRemain is not 0
 	uint32_t* slaveSeqRndLast;// nullprt for track 0
-	uint32_t* slaveSongRndLast;
-	uint32_t seqRndLast;
-	uint32_t songRndLast;
+	uint32_t* slaveSongRndLast;// nullprt for track 0
+	uint32_t seqRndLast;// slaved random seq on tracks 2-4
+	uint32_t songRndLast;// slaved random song on tracks 2-4
 	
 	
 	
@@ -218,6 +219,7 @@ class SequencerKernel {
 	inline int getSlideVal(int seqn, int stepn) {return attributes[seqn][stepn].getSlideVal();}
 	inline int getVelocityVal(int seqn, int stepn) {return attributes[seqn][stepn].getVelocityVal();}
 	inline float getVelocity(int seqn, int stepn) {return attributes[seqn][stepn].getVelocity();}
+	inline int getVelocityValRun() {return getAttributeRun().getVelocityVal();}
 	inline float getVelocityRun() {return getAttributeRun().getVelocity();}
 	inline int getGateType(int seqn, int stepn) {return attributes[seqn][stepn].getGateType();}
 	inline uint32_t* getSeqRndLast() {return &seqRndLast;}
