@@ -32,7 +32,7 @@ int moveIndexEx(int index, int indexNext, int numSteps) {
 
 // TODO: move non trivial methods here
 
-const std::string SequencerKernel::modeLabels[NUM_MODES] = {"FWD","REV","PPG","PEN","BRN","RND"};
+const std::string SequencerKernel::modeLabels[NUM_MODES] = {"FWD","REV","PPG","PEN","BRN","RND", "ARN"};
 
 
 const uint64_t SequencerKernel::advGateHitMaskLow[NUM_GATES] = 

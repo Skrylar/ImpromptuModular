@@ -145,7 +145,7 @@ class SequencerKernel {
 	static const int MAX_PHRASES = 99;// maximum value is 99 (disp will be 1 to 99)
 
 	// Run modes
-	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, NUM_MODES};
+	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, MODE_ARN, NUM_MODES};
 	static const std::string modeLabels[NUM_MODES];
 	
 	// Gate types
@@ -185,6 +185,11 @@ class SequencerKernel {
 	int gateCode;// -1 = Killed for all pulses of step, 0 = Low for current pulse of step, 1 = High for current pulse of step, 2 = Clk high pulse, 3 = 1ms trig
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta;// no need to initialize, this is only used when slideStepsRemain is not 0
+	uint32_t* slaveSeqRndLast;// nullprt for track 0
+	uint32_t* slaveSongRndLast;
+	uint32_t seqRndLast;
+	uint32_t songRndLast;
+	
 	
 	
 	public: 
@@ -215,6 +220,8 @@ class SequencerKernel {
 	inline float getVelocity(int seqn, int stepn) {return attributes[seqn][stepn].getVelocity();}
 	inline float getVelocityRun() {return getAttributeRun().getVelocity();}
 	inline int getGateType(int seqn, int stepn) {return attributes[seqn][stepn].getGateType();}
+	inline uint32_t* getSeqRndLast() {return &seqRndLast;}
+	inline uint32_t* getSongRndLast() {return &songRndLast;}
 	
 	
 	// Set
@@ -227,25 +234,22 @@ class SequencerKernel {
 	inline void setVelocityVal(int seqn, int stepn, int velocity) {attributes[seqn][stepn].setVelocityVal(velocity);}
 	inline void setVelocity(int seqn, int stepn, float velocity) {attributes[seqn][stepn].setVelocity(velocity);}
 	inline void setGateType(int seqn, int stepn, int gateType) {attributes[seqn][stepn].setGateType(gateType);}
-
+	inline void setSlaveRndLastPtrs(uint32_t* seqPtr, uint32_t* songPtr) {slaveSeqRndLast = seqPtr; slaveSongRndLast = songPtr;}
+	
 	
 	// Mod, inc, dec, toggle, etc
 	// ----------------
-	inline void modRunModeSong(int delta) {runModeSong += delta; if (runModeSong < 0) runModeSong = 0; if (runModeSong >= NUM_MODES) runModeSong = NUM_MODES - 1;}
+	inline void modRunModeSong(int delta) {
+		runModeSong = clamp(runModeSong += delta, 0, NUM_MODES - 1);
+	}
 	inline void modRunModeSeq(int seqn, int delta) {
 		int rVal = sequences[seqn].getRunMode();
 		rVal = clamp(rVal + delta, 0, NUM_MODES - 1);
-		// rVal += delta;
-		// if (rVal < 0) rVal = 0;
-		// if (rVal > (NUM_MODES -1)) rVal = NUM_MODES - 1;
 		sequences[seqn].setRunMode(rVal);
 	}
 	inline void modLength(int seqn, int delta) {
 		int lVal = sequences[seqn].getLength();
 		lVal = clamp(lVal + delta, 1, MAX_STEPS);
-		// lVal += delta; 
-		// if (lVal < 1 ) lVal = 1;
-		// if (lVal > MAX_STEPS) lVal = MAX_STEPS; 
 		sequences[seqn].setLength(lVal);
 	}
 	inline void modPhraseSeqNum(int phrn, int delta) {
@@ -256,9 +260,6 @@ class SequencerKernel {
 	inline void modPhraseReps(int phrn, int delta) {
 		int rVal = phrases[phrn].getReps();
 		rVal = clamp(rVal + delta, 1, 99);
-		// rVal += delta; 
-		// if (rVal < 1 ) rVal = 1;
-		// if (rVal > 99) rVal = 99; 
 		phrases[phrn].setReps(rVal);
 	}		
 	inline void modPulsesPerStep(int delta) {
@@ -268,32 +269,20 @@ class SequencerKernel {
 	}
 	inline void modDelay(int delta) {
 		delay = clamp(delay + delta, 0, 99);
-		// delay += delta;
-		// if (delay < 0) delay = 0;
-		// if (delay > 99) delay = 99;
 	}
 	inline void modGatePVal(int seqn, int stepn, int delta) {
 		int pVal = getGatePVal(seqn, stepn);
 		pVal = clamp(pVal + delta, 0, 100);
-		// pVal += delta;
-		// if (pVal < 0) pVal = 0;
-		// if (pVal > 100) pVal = 100;
 		setGatePVal(seqn, stepn, pVal);						
 	}		
 	inline void modSlideVal(int seqn, int stepn, int delta) {
 		int sVal = getSlideVal(seqn, stepn);
 		sVal = clamp(sVal + delta, 0, 100);
-		// sVal += delta;
-		// if (sVal < 0) sVal = 0;
-		// if (sVal > 100) sVal = 100;
 		setSlideVal(seqn, stepn, sVal);
 	}		
 	inline void modVelocityVal(int seqn, int stepn, int delta) {
 		int vVal = getVelocityVal(seqn, stepn);
 		vVal = clamp(vVal + delta, 0, 127);
-		// vVal += delta;
-		// if (vVal < 0) vVal = 0;
-		// if (vVal > 127) vVal = 127;
 		setVelocityVal(seqn, stepn, vVal);						
 	}		
 	inline void decSlideStepsRemain() {if (slideStepsRemain > 0ul) slideStepsRemain--;}	
@@ -909,9 +898,29 @@ class SequencerKernel {
 			break;
 			
 			case MODE_RND :// random; history base is 0x6000
-				if ((*history) < 0x6001 || (*history) > 0x6FFF) 
+			case MODE_ARN :// use track A's random number for seq/song depending on moveSequence bool value
+				if ((*history) < 0x6001 || (*history) > 0x6FFF) {
 					(*history) = 0x6000 + (endStep - startStep + 1) * reps;
-				(*index) = startStep + (randomu32() % (endStep - startStep + 1)) ;
+				}
+
+				{
+					uint32_t randomToUseHere = 0ul;
+					if (runMode == MODE_ARN && slaveSeqRndLast != nullptr) {// must test both since MODE_ARN allowed for track 0 (defaults to RND)
+						if (moveSequence)
+							randomToUseHere = *slaveSeqRndLast;
+						else
+							randomToUseHere = *slaveSongRndLast;
+					}
+					else {
+						randomToUseHere = randomu32();
+						if (moveSequence)
+							seqRndLast = randomToUseHere;
+						else
+							songRndLast = randomToUseHere;
+					}
+					
+					(*index) = startStep + (randomToUseHere % (endStep - startStep + 1)) ;
+				}
 				(*history)--;
 				if ((*history) <= 0x6000) {
 					crossBoundary = true;
@@ -932,7 +941,7 @@ class SequencerKernel {
 
 		return crossBoundary;
 	}
-		
+	
 };// struct SequencerKernel 
 
 

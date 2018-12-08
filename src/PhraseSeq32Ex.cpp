@@ -164,8 +164,13 @@ struct PhraseSeq32Ex : Module {
 
 	
 	PhraseSeq32Ex() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
 			sek[trkn].setId(trkn);
+			if (trkn == 0)
+				sek[0].setSlaveRndLastPtrs(nullptr, nullptr);
+			else
+				sek[trkn].setSlaveRndLastPtrs(sek[0].getSeqRndLast(), sek[0].getSongRndLast());
+		}
 		onReset();
 	}
 
