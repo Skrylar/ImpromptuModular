@@ -44,7 +44,6 @@ class StepAttributes {
 	inline bool getSlide() {return (attributes & ATT_MSK_SLIDE) != 0;}
 	inline int getSlideVal() {return (int)((attributes & ATT_MSK_SLIDE_VAL) >> slideValShift);}
 	inline int getVelocityVal() {return (int)((attributes & ATT_MSK_VELOCITY) >> velocityShift);}
-	inline float getVelocity() {return ((float)getVelocityVal()) * 10.0f / ((float)MAX_VELOCITY);}
 	inline unsigned long getAttribute() {return attributes;}
 
 	inline void setGate(bool gate1State) {attributes &= ~ATT_MSK_GATE; if (gate1State) attributes |= ATT_MSK_GATE;}
@@ -55,7 +54,6 @@ class StepAttributes {
 	inline void setSlide(bool slideState) {attributes &= ~ATT_MSK_SLIDE; if (slideState) attributes |= ATT_MSK_SLIDE;}
 	inline void setSlideVal(int slideVal) {attributes &= ~ATT_MSK_SLIDE_VAL; attributes |= (((unsigned long)slideVal) << slideValShift);}
 	inline void setVelocityVal(int _velocity) {attributes &= ~ATT_MSK_VELOCITY; attributes |= (((unsigned long)_velocity) << velocityShift);}
-	inline void setVelocity(float _velocityf) {setVelocityVal((int)(_velocityf * ((float)MAX_VELOCITY) / 10.0f + 0.5f));}
 	inline void setAttribute(unsigned long _attributes) {attributes = _attributes;}
 
 	inline void toggleGate() {attributes ^= ATT_MSK_GATE;}
@@ -190,10 +188,21 @@ class SequencerKernel {
 	uint32_t* slaveSongRndLast;// nullprt for track 0
 	uint32_t seqRndLast;// slaved random seq on tracks 2-4
 	uint32_t songRndLast;// slaved random song on tracks 2-4
-	
+	bool* holdTiedNotesPtr;
 	
 	
 	public: 
+	
+	
+	void construct(int _id, uint32_t* seqPtr, uint32_t* songPtr, bool* _holdTiedNotesPtr) {// don't want regaular constructor mechanism
+		id = _id;
+		ids = "id" + std::to_string(id) + "_";
+		
+		slaveSeqRndLast = seqPtr; 
+		slaveSongRndLast = songPtr;
+		
+		holdTiedNotesPtr = _holdTiedNotesPtr;
+	}
 	
 	
 	// get
@@ -218,9 +227,7 @@ class SequencerKernel {
 	inline int getGatePVal(int seqn, int stepn) {return attributes[seqn][stepn].getGatePVal();}
 	inline int getSlideVal(int seqn, int stepn) {return attributes[seqn][stepn].getSlideVal();}
 	inline int getVelocityVal(int seqn, int stepn) {return attributes[seqn][stepn].getVelocityVal();}
-	inline float getVelocity(int seqn, int stepn) {return attributes[seqn][stepn].getVelocity();}
 	inline int getVelocityValRun() {return getAttributeRun().getVelocityVal();}
-	inline float getVelocityRun() {return getAttributeRun().getVelocity();}
 	inline int getGateType(int seqn, int stepn) {return attributes[seqn][stepn].getGateType();}
 	inline uint32_t* getSeqRndLast() {return &seqRndLast;}
 	inline uint32_t* getSongRndLast() {return &songRndLast;}
@@ -234,9 +241,7 @@ class SequencerKernel {
 	inline void setGatePVal(int seqn, int stepn, int gatePval) {attributes[seqn][stepn].setGatePVal(gatePval);}
 	inline void setSlideVal(int seqn, int stepn, int slideVal) {attributes[seqn][stepn].setSlideVal(slideVal);}
 	inline void setVelocityVal(int seqn, int stepn, int velocity) {attributes[seqn][stepn].setVelocityVal(velocity);}
-	inline void setVelocity(int seqn, int stepn, float velocity) {attributes[seqn][stepn].setVelocity(velocity);}
 	inline void setGateType(int seqn, int stepn, int gateType) {attributes[seqn][stepn].setGateType(gateType);}
-	inline void setSlaveRndLastPtrs(uint32_t* seqPtr, uint32_t* songPtr) {slaveSeqRndLast = seqPtr; slaveSongRndLast = songPtr;}
 	
 	
 	// Mod, inc, dec, toggle, etc
@@ -300,7 +305,7 @@ class SequencerKernel {
 	}
 	inline void toggleGateP(int seqn, int step) {attributes[seqn][step].toggleGateP();}
 	inline void toggleSlide(int seqn, int step) {attributes[seqn][step].toggleSlide();}	
-	inline float applyNewOctave(int seqn, int stepn, int newOct) {
+	inline float applyNewOctave(int seqn, int stepn, int newOct) {// must not call if current step is tied
 		float newCV = cv[seqn][stepn] + 10.0f;//to properly handle negative note voltages
 		newCV = newCV - floor(newCV) + (float) (newOct - 3);
 		if (newCV >= -3.0f && newCV < 4.0f) {
@@ -309,15 +314,17 @@ class SequencerKernel {
 		}
 		return newCV;
 	}
-	inline float applyNewKey(int seqn, int stepn, int newKeyIndex) {
+	inline float applyNewKey(int seqn, int stepn, int newKeyIndex) {// must not call if current step is tied
 		float newCV = floor(cv[seqn][stepn]) + ((float) newKeyIndex) / 12.0f;
 		cv[seqn][stepn] = newCV;
 		applyTiedStep(seqn, stepn);
 		return newCV;
 	}
-	inline float writeCV(int seqn, int stepn, float newCV) {
-		cv[seqn][stepn] = newCV;
-		applyTiedStep(seqn, stepn);
+	inline float writeCV(int seqn, int stepn, float newCV) {// will not write if current step is tied
+		if (!attributes[seqn][stepn].getTied()) {
+			cv[seqn][stepn] = newCV;
+			applyTiedStep(seqn, stepn);
+		}
 		return cv[seqn][stepn];// may have changed with the applyTiedStep so must return
 	}
 
@@ -361,7 +368,7 @@ class SequencerKernel {
 			cv[seqn][stepn] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 			attributes[seqn][stepn].randomize();
 			if (attributes[seqn][stepn].getTied()) {
-				attributes[seqn][stepn].applyTied();
+				attributes[seqn][stepn].applyTied();// clears gate, gatep and slide
 				applyTiedStep(seqn, stepn);
 			}	
 		}
@@ -418,12 +425,7 @@ class SequencerKernel {
 	
 	// Main methods
 	// ----------------
-	
-	void setId(int _id) {
-		id = _id;
-		ids = "id" + std::to_string(id) + "_";
-	}
-	
+		
 	
 	void reset() {
 		pulsesPerStep = 1;
@@ -727,32 +729,32 @@ class SequencerKernel {
 	}
 
 	
-	void applyTiedStep(int seqn, int indexTied) {
+	void applyTiedStep(int seqn, int stepn) {
 		int seqLength = sequences[seqn].getLength();
-		// Start on indexTied and loop until seqLength
+		// Start on stepn and loop until seqLength or untied step
 		// Called because either:
-		//   case A: tied was activated for given step
-		//   case B: the given step's CV was modified
+		//   case A: tied was activated for given step: randomize(), toggleTied()
+		//   case B: the given step's CV was modified (and the step is not tied): writeCV(), applyNewKey(), applyNewOctave(),
 		// These cases are mutually exclusive
 		
 		// copy previous CV and attribute over to current step if tied
-		if (attributes[seqn][indexTied].getTied() && (indexTied > 0)) {
-			cv[seqn][indexTied] = cv[seqn][indexTied - 1];
-			attributes[seqn][indexTied] = attributes[seqn][indexTied - 1];
-			attributes[seqn][indexTied].setTied(true);
-			attributes[seqn][indexTied].setGate(false);
-			attributes[seqn][indexTied].setGateP(false);
-			attributes[seqn][indexTied].setSlide(false);
+		if (attributes[seqn][stepn].getTied() && (stepn > 0)) {
+			cv[seqn][stepn] = cv[seqn][stepn - 1];
+			// if (*holdTiedNotesPtr)
+				// attributes[seqn][stepn - 1].setGateType(5);
+			attributes[seqn][stepn] = attributes[seqn][stepn - 1];
+			attributes[seqn][stepn].setTied(true);
+			attributes[seqn][stepn].applyTied();// clears gate, gatep and slide
 		}
 		
 		// Affect downstream CVs and attributes of subsequent tied note chain (can be 0 length if next note is not tied)
-		for (int i = indexTied + 1; i < seqLength; i++) {
-			if (attributes[seqn][i].getTied()) {
-				cv[seqn][i] = cv[seqn][indexTied];
-			}
-			else 
+		for (int i = stepn + 1; i < seqLength; i++) {
+			if (!attributes[seqn][i].getTied()) 
 				break;
+			cv[seqn][i] = cv[seqn][stepn];
 		}
+		
+		//if ((*holdTiedNotesPtr) && 
 	}	
 	
 

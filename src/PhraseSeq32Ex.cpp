@@ -95,6 +95,8 @@ struct PhraseSeq32Ex : Module {
 	// Need to save
 	int panelTheme = 0;
 	int expansion = 0;
+	int velocityMode = 0;
+	bool holdTiedNotes = true;
 	bool autoseq;
 	bool showSharp = true;
 	int seqCVmethod = 0;// 0 is 0-10V, 1 is C2-D7#, 2 is TrigIncr
@@ -165,12 +167,9 @@ struct PhraseSeq32Ex : Module {
 
 	
 	PhraseSeq32Ex() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		sek[0].setSlaveRndLastPtrs(nullptr, nullptr);
-		for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
-			sek[trkn].setId(trkn);
-			if (trkn > 0)
-				sek[trkn].setSlaveRndLastPtrs(sek[0].getSeqRndLast(), sek[0].getSongRndLast());
-		}
+		sek[0].construct(0, nullptr, nullptr, &holdTiedNotes);
+		for (int trkn = 1; trkn < NUM_TRACKS; trkn++)
+			sek[trkn].construct(trkn, sek[0].getSeqRndLast(), sek[0].getSongRndLast(), &holdTiedNotes);
 		onReset();
 	}
 
@@ -235,6 +234,12 @@ struct PhraseSeq32Ex : Module {
 		// expansion
 		json_object_set_new(rootJ, "expansion", json_integer(expansion));
 
+		// velocityMode
+		json_object_set_new(rootJ, "velocityMode", json_integer(velocityMode));
+
+		// holdTiedNotes
+		json_object_set_new(rootJ, "holdTiedNotes", json_boolean(holdTiedNotes));
+		
 		// autoseq
 		json_object_set_new(rootJ, "autoseq", json_boolean(autoseq));
 		
@@ -283,6 +288,16 @@ struct PhraseSeq32Ex : Module {
 		if (expansionJ)
 			expansion = json_integer_value(expansionJ);
 
+		// velocityMode
+		json_t *velocityModeJ = json_object_get(rootJ, "velocityMode");
+		if (velocityModeJ)
+			velocityMode = json_integer_value(velocityModeJ);
+
+		// holdTiedNotes
+		json_t *holdTiedNotesJ = json_object_get(rootJ, "holdTiedNotes");
+		if (holdTiedNotesJ)
+			holdTiedNotes = json_is_true(holdTiedNotesJ);
+		
 		// autoseq
 		json_t *autoseqJ = json_object_get(rootJ, "autoseq");
 		if (autoseqJ)
@@ -461,10 +476,10 @@ struct PhraseSeq32Ex : Module {
 				if (editingSequence && ! attached) {
 					for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
 						if (inputs[CV_INPUTS + trkn].active) {
-							editingGateCV[trkn] = sek[trkn].writeCV(seqIndexEdit, stepIndexEdit, inputs[CV_INPUTS + trkn].value);
+							editingGateCV[trkn] = sek[trkn].writeCV(seqIndexEdit, stepIndexEdit, inputs[CV_INPUTS + trkn].value);// internally will not write if current step is tied
 							editingGate[trkn] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 							if (inputs[VEL_INPUT].active)
-								sek[trkn].setVelocity(seqIndexEdit, stepIndexEdit, (int)(inputs[VEL_INPUT].value));
+								sek[trkn].setVelocityVal(seqIndexEdit, stepIndexEdit, calcVelocityInteger(inputs[VEL_INPUT].value));
 						}
 					}
 					editingGateKeyLight = -1;
@@ -811,12 +826,12 @@ struct PhraseSeq32Ex : Module {
 			if (running) {
 				outputs[CV_OUTPUTS + trkn].value = sek[trkn].getCVRun() - sek[trkn].calcSlideOffset();
 				outputs[GATE_OUTPUTS + trkn].value = (sek[trkn].calcGate(clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f);
-				outputs[VEL_OUTPUTS + trkn].value = sek[trkn].getVelocityRun();
+				outputs[VEL_OUTPUTS + trkn].value = calcVelocityVoltage(sek[trkn].getVelocityValRun());
 			}
 			else {// not running 
 				outputs[CV_OUTPUTS + trkn].value = (editingGate[trkn] > 0ul) ? editingGateCV[trkn] : sek[trkn].getCV(seqIndexEdit, stepIndexEdit);
 				outputs[GATE_OUTPUTS + trkn].value = (editingGate[trkn] > 0ul) ? 10.0f : 0.0f;
-				outputs[VEL_OUTPUTS + trkn].value = (editingGate[trkn] > 0ul) ? 10.0f : sek[trkn].getVelocity(seqIndexEdit, stepIndexEdit);
+				outputs[VEL_OUTPUTS + trkn].value = (editingGate[trkn] > 0ul) ? 7.874f : calcVelocityVoltage(sek[trkn].getVelocityVal(seqIndexEdit, stepIndexEdit));
 			}
 			sek[trkn].decSlideStepsRemain();
 		}
@@ -980,6 +995,15 @@ struct PhraseSeq32Ex : Module {
 	inline void setGreenRed(int id, float green, float red) {
 		lights[id + 0].value = green;
 		lights[id + 1].value = red;
+	}
+	
+	inline float calcVelocityVoltage(int vVal) {
+		if (velocityMode == 1)
+			return min(((float)vVal) / 12.0f, 10.0f);
+		return ((float)vVal)* 10.0f / ((float)StepAttributes::MAX_VELOCITY);
+	}
+	inline int calcVelocityInteger(float vVal) {// no velocityMode taken into account here, VEL input is always 0-10V
+		return (int)(vVal * ((float)StepAttributes::MAX_VELOCITY) / 10.0f + 0.5f);
 	}
 };
 
@@ -1215,6 +1239,18 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				text = "Seq CV in: 0-10V,  C2-D7#,  <Trig-Incr>";
 		}	
 	};
+	struct VelModeItem : MenuItem {
+		PhraseSeq32Ex *module;
+		void onAction(EventAction &e) override {
+			module->velocityMode = module->velocityMode == 1 ? 0 : 1;
+		}
+	};
+	struct HoldTiedItem : MenuItem {
+		PhraseSeq32Ex *module;
+		void onAction(EventAction &e) override {
+			module->holdTiedNotes = !module->holdTiedNotes;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -1257,6 +1293,14 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		SeqCVmethodItem *seqcvItem = MenuItem::create<SeqCVmethodItem>("Seq CV in: ", "");
 		seqcvItem->module = module;
 		menu->addChild(seqcvItem);
+		
+		HoldTiedItem *holdItem = MenuItem::create<HoldTiedItem>("Hold tied notes", CHECKMARK(module->holdTiedNotes));
+		holdItem->module = module;
+		menu->addChild(holdItem);
+
+		VelModeItem *velItem = MenuItem::create<VelModeItem>("Velocity semitone scaling (outs only)", CHECKMARK(module->velocityMode != 0));
+		velItem->module = module;
+		menu->addChild(velItem);
 		
 		menu->addChild(new MenuLabel());// empty line
 		
