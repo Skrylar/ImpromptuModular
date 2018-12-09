@@ -614,6 +614,7 @@ struct PhraseSeq32Ex : Module {
 					else
 						trackIndexEdit = 0;
 				}
+				displayState = DISP_NORMAL;
 			}
 			if (trackDeccTrigger.process(params[TRACKDOWN_PARAM].value)) {
 				if (!inputs[TRKCV_INPUT].active) {
@@ -622,6 +623,7 @@ struct PhraseSeq32Ex : Module {
 					else
 						trackIndexEdit = NUM_TRACKS - 1;
 				}
+				displayState = DISP_NORMAL;
 			}
 			
 		
