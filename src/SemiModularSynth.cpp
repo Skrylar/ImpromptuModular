@@ -383,7 +383,7 @@ struct SemiModularSynth : Module {
 				attributes[i][s] = randomu32() & 0x1FFF;// 5 bit for normal attributes + 2 * 4 bits for advanced gate modes
 				if (getTied(i,s)) {
 					attributes[i][s] = ATT_MSK_TIED;// clear other attributes if tied
-					applyTiedStep(i, s, lengths[i]);
+					applyTiedStep(i, s);
 				}
 			}
 		}
@@ -683,8 +683,12 @@ struct SemiModularSynth : Module {
 		// Run button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
-			if (running && resetOnRun)
-				initRun();
+			if (running) {
+				if (resetOnRun)
+					initRun();
+				else
+					clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
+			}
 			displayState = DISP_NORMAL;
 		}
 
@@ -810,7 +814,7 @@ struct SemiModularSynth : Module {
 			if (writeTrig) {
 				if (editingSequence) {
 					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
-					applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+					applyTiedStep(sequence, stepIndexEdit);
 					editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 					editingGateCV = cv[sequence][stepIndexEdit];
 					editingGateKeyLight = -1;
@@ -1032,7 +1036,7 @@ struct SemiModularSynth : Module {
 						newCV = newCV - floor(newCV) + (float) (newOct - 3);
 						if (newCV >= -3.0f && newCV < 4.0f) {
 							cv[sequence][stepIndexEdit] = newCV;
-							applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+							applyTiedStep(sequence, stepIndexEdit);
 						}
 						editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 						editingGateCV = cv[sequence][stepIndexEdit];
@@ -1072,7 +1076,7 @@ struct SemiModularSynth : Module {
 						}
 						else {			
 							cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
-							applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+							applyTiedStep(sequence, stepIndexEdit);
 							editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 							editingGateCV = cv[sequence][stepIndexEdit];
 							editingGateKeyLight = -1;
@@ -1144,7 +1148,7 @@ struct SemiModularSynth : Module {
 						setGate1Pa(&attributes[sequence][stepIndexEdit], false);
 						setGate2a(&attributes[sequence][stepIndexEdit], false);
 						setSlideA(&attributes[sequence][stepIndexEdit], false);
-						applyTiedStep(sequence, stepIndexEdit, lengths[sequence]);
+						applyTiedStep(sequence, stepIndexEdit);
 					}
 				}
 				displayState = DISP_NORMAL;
@@ -1587,8 +1591,8 @@ struct SemiModularSynth : Module {
 		lights[id + 1].value = red;
 	}
 	
-	void applyTiedStep(int seqNum, int indexTied, int seqLength) {
-		// Start on indexTied and loop until seqLength
+	void applyTiedStep(int seqNum, int indexTied) {
+		// Start on indexTied and loop until end of seq (not length)
 		// Called because either:
 		//   case A: tied was activated for given step
 		//   case B: the given step's CV was modified
@@ -1599,7 +1603,7 @@ struct SemiModularSynth : Module {
 			cv[seqNum][indexTied] = cv[seqNum][indexTied - 1];
 		
 		// Affect downstream CVs of subsequent tied note chain (can be 0 length if next note is not tied)
-		for (int i = indexTied + 1; i < seqLength && getTied(seqNum,i); i++) 
+		for (int i = indexTied + 1; i < 16 && getTied(seqNum,i); i++) 
 			cv[seqNum][i] = cv[seqNum][indexTied];
 	}
 
@@ -2101,6 +2105,7 @@ fix slide bug when reset happens during a slide and run stays on
 add live mute on Gate1 and Gate2 buttons in song mode
 fix initRun() timing bug when turn off-and-then-on running button (it was resetting ppqnCount)
 allow pulsesPerStep setting of 1 and all even values from 2 to 24, and allow all gate types that work in these
+fix tied bug that prevented correct tied propagation when editing beyond sequence length less than 16
 
 0.6.12:
 input refresh optimization

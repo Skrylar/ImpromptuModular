@@ -297,10 +297,10 @@ class SequencerKernel {
 	inline void toggleTied(int seqn, int stepn) {// will clear other attribs if new state is on
 		attributes[seqn][stepn].toggleTied();
 		if (attributes[seqn][stepn].getTied()) {
-			attributes[seqn][stepn].setGate(false);
-			attributes[seqn][stepn].setGateP(false);
-			attributes[seqn][stepn].setSlide(false);
-			applyTiedStep(seqn, stepn);
+			activateTiedStep(seqn, stepn);
+		}
+		else {
+			deactivateTiedStep(seqn, stepn);
 		}
 	}
 	inline void toggleGateP(int seqn, int step) {attributes[seqn][step].toggleGateP();}
@@ -310,24 +310,24 @@ class SequencerKernel {
 		newCV = newCV - floor(newCV) + (float) (newOct - 3);
 		if (newCV >= -3.0f && newCV < 4.0f) {
 			cv[seqn][stepn] = newCV;
-			applyTiedStep(seqn, stepn);
+			propagateCVtoTied(seqn, stepn);
 		}
 		return newCV;
 	}
 	inline float applyNewKey(int seqn, int stepn, int newKeyIndex) {// must not call if current step is tied
 		float newCV = floor(cv[seqn][stepn]) + ((float) newKeyIndex) / 12.0f;
 		cv[seqn][stepn] = newCV;
-		applyTiedStep(seqn, stepn);
+		propagateCVtoTied(seqn, stepn);
 		return newCV;
 	}
 	inline float writeCV(int seqn, int stepn, float newCV) {// will not write if current step is tied
 		if (!attributes[seqn][stepn].getTied()) {
 			cv[seqn][stepn] = newCV;
-			applyTiedStep(seqn, stepn);
+			propagateCVtoTied(seqn, stepn);
 		}
-		return cv[seqn][stepn];// may have changed with the applyTiedStep so must return
+		return cv[seqn][stepn];
 	}
-
+	
 	
 	// Calc
 	// ----------------
@@ -368,8 +368,7 @@ class SequencerKernel {
 			cv[seqn][stepn] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 			attributes[seqn][stepn].randomize();
 			if (attributes[seqn][stepn].getTied()) {
-				attributes[seqn][stepn].applyTied();// clears gate, gatep and slide
-				applyTiedStep(seqn, stepn);
+				activateTiedStep(seqn, stepn);
 			}	
 		}
 	}
@@ -729,35 +728,58 @@ class SequencerKernel {
 	}
 
 	
-	void applyTiedStep(int seqn, int stepn) {
-		int seqLength = sequences[seqn].getLength();
-		// Start on stepn and loop until seqLength or untied step
-		// Called because either:
-		//   case A: tied was activated for given step: randomize(), toggleTied()
-		//   case B: the given step's CV was modified (and the step is not tied): writeCV(), applyNewKey(), applyNewOctave(),
-		// These cases are mutually exclusive
-		
-		// copy previous CV and attribute over to current step if tied
-		if (attributes[seqn][stepn].getTied() && (stepn > 0)) {
-			cv[seqn][stepn] = cv[seqn][stepn - 1];
-			// if (*holdTiedNotesPtr)
-				// attributes[seqn][stepn - 1].setGateType(5);
-			attributes[seqn][stepn] = attributes[seqn][stepn - 1];
-			attributes[seqn][stepn].setTied(true);
-			attributes[seqn][stepn].applyTied();// clears gate, gatep and slide
-		}
-		
-		// Affect downstream CVs and attributes of subsequent tied note chain (can be 0 length if next note is not tied)
-		for (int i = stepn + 1; i < seqLength; i++) {
-			if (!attributes[seqn][i].getTied()) 
+	inline void propagateCVtoTied(int seqn, int stepn) {
+		for (int i = stepn + 1; i < MAX_STEPS; i++) {
+			if (!attributes[seqn][i].getTied())
 				break;
-			cv[seqn][i] = cv[seqn][stepn];
-		}
-		
-		//if ((*holdTiedNotesPtr) && 
-	}	
+			cv[seqn][i] = cv[seqn][i - 1];
+		}	
+	}
 	
-
+	
+	void activateTiedStep(int seqn, int stepn) {// tied attribute is already set, do the rest here
+		attributes[seqn][stepn].applyTied();// clears gate, gatep and slide
+		if (stepn > 0) 
+			propagateCVtoTied(seqn, stepn - 1);
+		
+		if (*holdTiedNotesPtr) {// new method
+			for (int i = max(stepn, 1); i < MAX_STEPS; i++) {
+				if (!attributes[seqn][i].getTied()) {
+					attributes[seqn][i - 1].setGate(true);
+					break;
+				}
+				attributes[seqn][i].setGateType(attributes[seqn][i - 1].getGateType());
+				attributes[seqn][i - 1].setGateType(5);
+				attributes[seqn][i - 1].setGate(true);
+			}
+		}
+		else {// old method
+			if (stepn > 0) {
+				attributes[seqn][stepn] = attributes[seqn][stepn - 1];
+				attributes[seqn][stepn].setTied(true);
+				attributes[seqn][stepn].applyTied();// clears gate, gatep and slide
+			}
+		}
+	}
+	
+	void deactivateTiedStep(int seqn, int stepn) {// tied attribute is already reset, do the rest here
+		if (*holdTiedNotesPtr) {// new method
+			int lastGateType = attributes[seqn][stepn].getGateType();
+			for (int i = stepn + 1; i < MAX_STEPS; i++) {
+				if (attributes[seqn][i].getTied())
+					lastGateType = attributes[seqn][i].getGateType();
+				else
+					break;
+			}
+			if (stepn > 0)
+				attributes[seqn][stepn - 1].setGateType(lastGateType);
+		}
+		else {// old method
+			// nothing to do here
+		}
+	}
+	
+	
 	void calcGateCodeEx(int seqn) {// uses stepIndexRun as the step
 		StepAttributes attribute = attributes[seqn][stepIndexRun];
 		int ppsFiltered = getPulsesPerStep();// must use method

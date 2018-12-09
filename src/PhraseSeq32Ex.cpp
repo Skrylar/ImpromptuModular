@@ -371,8 +371,12 @@ struct PhraseSeq32Ex : Module {
 		// Run button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
-			if (running && resetOnRun)
-				initRun();
+			if (running) {
+				if (resetOnRun)
+					initRun();
+				else
+					clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
+			}
 			displayState = DISP_NORMAL;
 		}
 
@@ -405,7 +409,7 @@ struct PhraseSeq32Ex : Module {
 				attached = !attached;
 				displayState = DISP_NORMAL;			
 			}
-			if (running && attached) {
+			if (attached) {//if (running && attached) {
 				phraseIndexEdit = sek[trackIndexEdit].getPhraseIndexRun();
 				seqIndexEdit = sek[trackIndexEdit].getPhraseSeq(phraseIndexEdit);
 				stepIndexEdit = sek[trackIndexEdit].getStepIndexRun();
@@ -873,7 +877,7 @@ struct PhraseSeq32Ex : Module {
 					if (green > 0.1f) 
 						green = 0.1f;
 					if (stepn == stepIndexEdit) {
-						green = 1.0f;// this makes it yellow since already red in code above
+						green = 1.0f;
 						red = 1.0f;
 					}
 				}
@@ -1635,8 +1639,8 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		
 		
 		// Expansion module
-		static const int rowRulerExpTop = 73.55;//78;
-		static const int rowSpacingExp = 50;//60;
+		static const int rowRulerExpTop = 73;
+		static const int rowSpacingExp = 50;
 		static const int colRulerExp = panel->box.size.x - expWidth / 2;
 		addInput(expPorts[0] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, PhraseSeq32Ex::GATECV_INPUT, &module->panelTheme));
 		addInput(expPorts[1] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, PhraseSeq32Ex::GATEPCV_INPUT, &module->panelTheme));
