@@ -88,7 +88,6 @@ struct PhraseSeq32 : Module {
 		TIE_LIGHT,
 		KEYNOTE_LIGHT,
 		ENUMS(KEYGATE_LIGHT, 2),// room for GreenRed
-		// RES_LIGHT,
 		NUM_LIGHTS
 	};
 	
@@ -1422,15 +1421,6 @@ struct PhraseSeq32 : Module {
 			else
 				setGreenRed(KEYGATE_LIGHT, 0.2f, 1.0f);
 			
-			// Res light
-			// long editingPpqnInit = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-			// if ( ((editingPpqn > 0l) && (editingPpqn < (editingPpqnInit / 6l))) ||
-				 // ((editingPpqn > (editingPpqnInit * 2l / 6l)) && (editingPpqn < (editingPpqnInit * 3l / 6l))) ||
-				 // ((editingPpqn > (editingPpqnInit * 4l / 6l)) && (editingPpqn < (editingPpqnInit * 5l / 6l))) )
-				// lights[RES_LIGHT].value = 1.0f;
-			// else 
-				// lights[RES_LIGHT].value = 0.0f;
-
 			// Gate1, Gate1Prob, Gate2, Slide and Tied lights (can only show channel A when running attached in 1x32 mode, does not pose problem for all other situations)
 			if (!editingSequence && (!attached || !running || (stepConfig == 1))) {// no oct lights when song mode and either (detached [1] or stopped [2] or 2x16config [3])
 											// [1] makes no sense, can't mod steps and stepping though seq that may not be playing
@@ -1915,7 +1905,6 @@ struct PhraseSeq32Widget : ModuleWidget {
 		addChild(displaySequence);
 		// Len/mode button
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK0 + 0 + offsetCKD6b), module, PhraseSeq32::RUNMODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		// addChild(createLight<SmallLight<RedLight>>(Vec(columnRulerMK2 + offsetCKD6b + 24, rowRulerMK0 + 0 + offsetCKD6b + 31), module, PhraseSeq32::RES_LIGHT));
 
 		// Autostep
 		addParam(createParam<CKSS>(Vec(columnRulerMK0 + 2 + hOffsetCKSS, rowRulerMK1 + 7 + vOffsetCKSS), module, PhraseSeq32::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
