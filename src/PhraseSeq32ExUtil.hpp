@@ -308,10 +308,8 @@ class SequencerKernel {
 	inline float applyNewOctave(int seqn, int stepn, int newOct) {// must not call if current step is tied
 		float newCV = cv[seqn][stepn] + 10.0f;//to properly handle negative note voltages
 		newCV = newCV - floor(newCV) + (float) (newOct - 3);
-		if (newCV >= -3.0f && newCV < 4.0f) {
-			cv[seqn][stepn] = newCV;
-			propagateCVtoTied(seqn, stepn);
-		}
+		cv[seqn][stepn] = newCV;
+		propagateCVtoTied(seqn, stepn);
 		return newCV;
 	}
 	inline float applyNewKey(int seqn, int stepn, int newKeyIndex) {// must not call if current step is tied
@@ -774,9 +772,9 @@ class SequencerKernel {
 			if (stepn > 0)
 				attributes[seqn][stepn - 1].setGateType(lastGateType);
 		}
-		else {// old method
+		//else {// old method
 			// nothing to do here
-		}
+		//}
 	}
 	
 	

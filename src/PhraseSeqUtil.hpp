@@ -46,6 +46,7 @@ inline void toggleGate2a(int *attribute) {(*attribute) ^= ATT_MSK_GATE2;}
 inline void toggleSlideA(int *attribute) {(*attribute) ^= ATT_MSK_SLIDE;}
 inline void toggleTiedA(int *attribute) {(*attribute) ^= ATT_MSK_TIED;}
 
+inline void applyTied(int *attribute) {(*attribute) &= ~(ATT_MSK_GATE1 | ATT_MSK_GATE1P | ATT_MSK_GATE2 | ATT_MSK_SLIDE);}// clear other attributes if tied
 
 inline int ppsToIndex(int pulsesPerStep) {// map 1,2,4,6,8,10,12...24, to 0,1,2,3,4,5,6...12
 	if (pulsesPerStep == 1) return 0;

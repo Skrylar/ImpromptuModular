@@ -186,6 +186,7 @@ struct SemiModularSynth : Module {
 	int panelTheme = 1;
 	int portTheme = 1;
 	bool autoseq;
+	bool holdTiedNotes = true;
 	int pulsesPerStep;// 1 means normal gate mode, alt choices are 4, 6, 12, 24 PPS (Pulses per step)
 	bool running;
 	int runModeSeq[16]; 
@@ -382,8 +383,7 @@ struct SemiModularSynth : Module {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
 				attributes[i][s] = randomu32() & 0x1FFF;// 5 bit for normal attributes + 2 * 4 bits for advanced gate modes
 				if (getTied(i,s)) {
-					attributes[i][s] = ATT_MSK_TIED;// clear other attributes if tied
-					applyTiedStep(i, s);
+					activateTiedStep(i, s);
 				}
 			}
 		}
@@ -416,6 +416,9 @@ struct SemiModularSynth : Module {
 
 		// autoseq
 		json_object_set_new(rootJ, "autoseq", json_boolean(autoseq));
+		
+		// holdTiedNotes
+		json_object_set_new(rootJ, "holdTiedNotes", json_boolean(holdTiedNotes));
 		
 		// pulsesPerStep
 		json_object_set_new(rootJ, "pulsesPerStep", json_integer(pulsesPerStep));
@@ -501,6 +504,13 @@ struct SemiModularSynth : Module {
 		if (autoseqJ)
 			autoseq = json_is_true(autoseqJ);
 
+		// holdTiedNotes
+		json_t *holdTiedNotesJ = json_object_get(rootJ, "holdTiedNotes");
+		if (holdTiedNotesJ)
+			holdTiedNotes = json_is_true(holdTiedNotesJ);
+		else
+			holdTiedNotes = false;// legacy
+		
 		// pulsesPerStep
 		json_t *pulsesPerStepJ = json_object_get(rootJ, "pulsesPerStep");
 		if (pulsesPerStepJ)
@@ -813,8 +823,10 @@ struct SemiModularSynth : Module {
 			bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 			if (writeTrig) {
 				if (editingSequence) {
-					cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
-					applyTiedStep(sequence, stepIndexEdit);
+					if (!getTied(sequence, stepIndexEdit)) {
+						cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
+						propagateCVtoTied(sequence, stepIndexEdit);
+					}
 					editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 					editingGateCV = cv[sequence][stepIndexEdit];
 					editingGateKeyLight = -1;
@@ -1034,10 +1046,8 @@ struct SemiModularSynth : Module {
 					else {			
 						float newCV = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
 						newCV = newCV - floor(newCV) + (float) (newOct - 3);
-						if (newCV >= -3.0f && newCV < 4.0f) {
-							cv[sequence][stepIndexEdit] = newCV;
-							applyTiedStep(sequence, stepIndexEdit);
-						}
+						cv[sequence][stepIndexEdit] = newCV;
+						propagateCVtoTied(sequence, stepIndexEdit);
 						editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 						editingGateCV = cv[sequence][stepIndexEdit];
 						editingGateKeyLight = -1;
@@ -1076,7 +1086,7 @@ struct SemiModularSynth : Module {
 						}
 						else {			
 							cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
-							applyTiedStep(sequence, stepIndexEdit);
+							propagateCVtoTied(sequence, stepIndexEdit);
 							editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 							editingGateCV = cv[sequence][stepIndexEdit];
 							editingGateKeyLight = -1;
@@ -1144,11 +1154,10 @@ struct SemiModularSynth : Module {
 				if (editingSequence) {
 					toggleTiedA(&attributes[sequence][stepIndexEdit]);
 					if (getTied(sequence,stepIndexEdit)) {
-						setGate1a(&attributes[sequence][stepIndexEdit], false);
-						setGate1Pa(&attributes[sequence][stepIndexEdit], false);
-						setGate2a(&attributes[sequence][stepIndexEdit], false);
-						setSlideA(&attributes[sequence][stepIndexEdit], false);
-						applyTiedStep(sequence, stepIndexEdit);
+						activateTiedStep(sequence, stepIndexEdit);
+					}
+					else {
+						deactivateTiedStep(sequence, stepIndexEdit);
 					}
 				}
 				displayState = DISP_NORMAL;
@@ -1591,22 +1600,56 @@ struct SemiModularSynth : Module {
 		lights[id + 1].value = red;
 	}
 	
-	void applyTiedStep(int seqNum, int indexTied) {
-		// Start on indexTied and loop until end of seq (not length)
-		// Called because either:
-		//   case A: tied was activated for given step
-		//   case B: the given step's CV was modified
-		// These cases are mutually exclusive
-		
-		// copy previous CV over to current step if tied
-		if (getTied(seqNum,indexTied) && (indexTied > 0))
-			cv[seqNum][indexTied] = cv[seqNum][indexTied - 1];
-		
-		// Affect downstream CVs of subsequent tied note chain (can be 0 length if next note is not tied)
-		for (int i = indexTied + 1; i < 16 && getTied(seqNum,i); i++) 
-			cv[seqNum][i] = cv[seqNum][indexTied];
+	inline void propagateCVtoTied(int seqn, int stepn) {
+		for (int i = stepn + 1; i < 16; i++) {
+			if (!getTied(seqn, i))
+				break;
+			cv[seqn][i] = cv[seqn][i - 1];
+		}	
 	}
 
+	void activateTiedStep(int seqn, int stepn) {// tied attribute is already set, do the rest here
+		applyTied(&attributes[seqn][stepn]);// clears gate1, gate1p, gate2 and slide
+		if (stepn > 0) 
+			propagateCVtoTied(seqn, stepn - 1);
+		
+		if (holdTiedNotes) {// new method
+			for (int i = max(stepn, 1); i < 16; i++) {
+				if (!getTied(seqn, i)) {// !attributes[seqn][i].getTied()
+					setGate1a(&attributes[seqn][i - 1], true);//attributes[seqn][i - 1].setGate(true);
+					break;
+				}
+				setGate1Mode(seqn, i, getGate1Mode(seqn, i - 1));//attributes[seqn][i].setGateType(attributes[seqn][i - 1].getGateType());
+				setGate1Mode(seqn, i - 1, 5);//attributes[seqn][i - 1].setGateType(5);
+				setGate1a(&attributes[seqn][i - 1], true);//attributes[seqn][i - 1].setGate1(true);
+			}
+		}
+		else {// old method
+			if (stepn > 0) {
+				attributes[seqn][stepn] = attributes[seqn][stepn - 1];
+				setTiedA(&attributes[seqn][stepn], true);//attributes[seqn][stepn].setTied(true);
+				applyTied(&attributes[seqn][stepn]);//attributes[seqn][stepn].applyTied();// gate1, gate1p, gate2 and slide
+			}
+		}
+	}
+	
+	void deactivateTiedStep(int seqn, int stepn) {// tied attribute is already reset, do the rest here
+		if (holdTiedNotes) {// new method
+			int lastGateType = getGate1Mode(seqn, stepn);//attributes[seqn][stepn].getGateType();
+			for (int i = stepn + 1; i < 16; i++) {
+				if (getTied(seqn, i))//attributes[seqn][i].getTied()
+					lastGateType = getGate1Mode(seqn, i);//attributes[seqn][i].getGateType();
+				else
+					break;
+			}
+			if (stepn > 0)
+				setGate1Mode(seqn, stepn - 1, lastGateType);//attributes[seqn][stepn - 1].setGateType(lastGateType);
+		}
+		//else {// old method
+			// nothing to do here
+		//}
+	}
+	
 	inline void setGateLight(bool gateOn, int lightIndex) {
 		if (!gateOn) {
 			lights[lightIndex + 0].value = 0.0f;
@@ -1736,6 +1779,12 @@ struct SemiModularSynthWidget : ModuleWidget {
 			module->autoseq = !module->autoseq;
 		}
 	};
+	struct HoldTiedItem : MenuItem {
+		SemiModularSynth *module;
+		void onAction(EventAction &e) override {
+			module->holdTiedNotes = !module->holdTiedNotes;
+		}
+	};
 	Menu *createContextMenu() override {
 		Menu *menu = ModuleWidget::createContextMenu();
 
@@ -1783,6 +1832,10 @@ struct SemiModularSynthWidget : ModuleWidget {
 		AutoseqItem *aseqItem = MenuItem::create<AutoseqItem>("AutoSeq when writing via CV inputs", CHECKMARK(module->autoseq));
 		aseqItem->module = module;
 		menu->addChild(aseqItem);
+
+		HoldTiedItem *holdItem = MenuItem::create<HoldTiedItem>("Hold tied notes", CHECKMARK(module->holdTiedNotes));
+		holdItem->module = module;
+		menu->addChild(holdItem);
 
 		return menu;
 	}	
@@ -2106,6 +2159,7 @@ add live mute on Gate1 and Gate2 buttons in song mode
 fix initRun() timing bug when turn off-and-then-on running button (it was resetting ppqnCount)
 allow pulsesPerStep setting of 1 and all even values from 2 to 24, and allow all gate types that work in these
 fix tied bug that prevented correct tied propagation when editing beyond sequence length less than 16
+implement held tied notes option
 
 0.6.12:
 input refresh optimization

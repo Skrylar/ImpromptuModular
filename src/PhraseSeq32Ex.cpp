@@ -237,11 +237,11 @@ struct PhraseSeq32Ex : Module {
 		// velocityMode
 		json_object_set_new(rootJ, "velocityMode", json_integer(velocityMode));
 
-		// holdTiedNotes
-		json_object_set_new(rootJ, "holdTiedNotes", json_boolean(holdTiedNotes));
-		
 		// autoseq
 		json_object_set_new(rootJ, "autoseq", json_boolean(autoseq));
+		
+		// holdTiedNotes
+		json_object_set_new(rootJ, "holdTiedNotes", json_boolean(holdTiedNotes));
 		
 		// showSharp
 		json_object_set_new(rootJ, "showSharp", json_boolean(showSharp));
@@ -293,16 +293,16 @@ struct PhraseSeq32Ex : Module {
 		if (velocityModeJ)
 			velocityMode = json_integer_value(velocityModeJ);
 
-		// holdTiedNotes
-		json_t *holdTiedNotesJ = json_object_get(rootJ, "holdTiedNotes");
-		if (holdTiedNotesJ)
-			holdTiedNotes = json_is_true(holdTiedNotesJ);
-		
 		// autoseq
 		json_t *autoseqJ = json_object_get(rootJ, "autoseq");
 		if (autoseqJ)
 			autoseq = json_is_true(autoseqJ);
 
+		// holdTiedNotes
+		json_t *holdTiedNotesJ = json_object_get(rootJ, "holdTiedNotes");
+		if (holdTiedNotesJ)
+			holdTiedNotes = json_is_true(holdTiedNotesJ);
+		
 		// showSharp
 		json_t *showSharpJ = json_object_get(rootJ, "showSharp");
 		if (showSharpJ)
