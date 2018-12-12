@@ -92,17 +92,23 @@ inline int calcGate1Code(int attribute, int ppqnCount, int pulsesPerStep, float 
 		return -1;// must do this first in this method since it will kill rest of step if prob turns off the step
 	if (!getGate1a(attribute))
 		return 0;
-	if (pulsesPerStep == 1)
+	int gateType = getGate1aMode(attribute);
+	if (pulsesPerStep == 1 && gateType == 0)
 		return 2;// clock high
-	return getAdvGate(ppqnCount, pulsesPerStep, getGate1aMode(attribute));
+	if (gateType == 11)
+		return (ppqnCount == 0 ? 3 : 0);
+	return getAdvGate(ppqnCount, pulsesPerStep, gateType);
 }
 inline int calcGate2Code(int attribute, int ppqnCount, int pulsesPerStep) {
 	// 0 = gate off, 1 = clock high, 2 = trigger, 3 = gate on
 	if (!getGate2a(attribute))
 		return 0;
-	if (pulsesPerStep == 1)
+	int gateType = getGate2aMode(attribute);
+	if (pulsesPerStep == 1 && gateType == 0)
 		return 2;// clock high
-	return getAdvGate(ppqnCount, pulsesPerStep, getGate2aMode(attribute));
+	if (gateType == 11)
+		return (ppqnCount == 0 ? 3 : 0);
+	return getAdvGate(ppqnCount, pulsesPerStep, gateType);
 }
 
 inline int gateModeToKeyLightIndex(int attribute, bool isGate1) {// keyLight index now matches gate modes, so no mapping table needed anymore
