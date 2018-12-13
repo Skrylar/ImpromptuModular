@@ -1047,7 +1047,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			nvgFontFaceId(vg, font->handle);
 			nvgTextLetterSpacing(vg, -0.4);
 
-			Vec textPos = Vec(4.7f, textOffsetY);
+			Vec textPos = Vec(5.7f, textOffsetY);
 			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 			std::string initString(NUMCHAR,'~');
 			nvgText(vg, textPos.x, textPos.y, initString.c_str(), NULL);
@@ -1485,7 +1485,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int rowRulerDisp = 110;
 		static const int rowRulerKnobs = 145;
 		static const int rowRulerSmallButtons = 189;
-		static const int displayWidths = 46; // 43 for 14pt, 46 for 15pt
+		static const int displayWidths = 48; // 43 for 14pt, 46 for 15pt
 		static const int displayHeights = 24; // 22 for 14pt, 24 for 15pt
 		static const int displaySpacingX = 62;
 
