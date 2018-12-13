@@ -1304,7 +1304,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		holdItem->module = module;
 		menu->addChild(holdItem);
 
-		VelModeItem *velItem = MenuItem::create<VelModeItem>("Velocity semitone scaling (outs only)", CHECKMARK(module->velocityMode != 0));
+		VelModeItem *velItem = MenuItem::create<VelModeItem>("Velocity semitone scaling (outputs only)", CHECKMARK(module->velocityMode != 0));
 		velItem->module = module;
 		menu->addChild(velItem);
 		

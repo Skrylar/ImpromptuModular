@@ -114,7 +114,7 @@ struct FourViewWidget : ModuleWidget {
 			nvgTextLetterSpacing(vg, -1.5);
 
 			for (int i = 0; i < 2; i++) {
-				Vec textPos = Vec(7 + i * 46, 23);
+				Vec textPos = Vec(7.0f + i * 46.0f, 23.4f);
 				nvgFillColor(vg, nvgTransRGBA(textColor, 16));
 				nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 				nvgFillColor(vg, textColor);
@@ -200,14 +200,14 @@ struct FourViewWidget : ModuleWidget {
 		const int centerX = box.size.x / 2;
 
 		// Notes display
-		NotesDisplayWidget *displayNotes12 = new NotesDisplayWidget(Vec(centerX, 70), Vec(99, 29), module, 0);
+		NotesDisplayWidget *displayNotes12 = new NotesDisplayWidget(Vec(centerX, 66), Vec(99, 29), module, 0);
 		addChild(displayNotes12);
-		NotesDisplayWidget *displayNotes34 = new NotesDisplayWidget(Vec(centerX, 130), Vec(99, 29), module, 2);
+		NotesDisplayWidget *displayNotes34 = new NotesDisplayWidget(Vec(centerX, 122), Vec(99, 29), module, 2);
 		addChild(displayNotes34);
 
-		static const int rowRulerPort = 190;
+		static const int rowRulerPort = 193;
 		static const int portSpacingY = 45;
-		static const int portOffsetX = 30;
+		static const int portOffsetX = 28;
 		
 		for (int i = 0; i < 4; i++) {
 			addInput(createDynamicPortCentered<IMPort>(Vec(centerX - portOffsetX, rowRulerPort + i * portSpacingY), Port::INPUT, module, FourView::CV_INPUTS + i, &module->panelTheme));	
