@@ -40,7 +40,7 @@ struct PhraseSeq32Ex : Module {
 		TRACKDOWN_PARAM,
 		TRACKUP_PARAM,
 		VEL_KNOB_PARAM,
-		ALLSTEPS_PARAM,
+		SEL_PARAM,
 		ALLTRACKS_PARAM,
 		REP_LEN_PARAM,
 		VELMODE_PARAM,
@@ -88,7 +88,7 @@ struct PhraseSeq32Ex : Module {
 	};
 	
 	// Constants
-	enum EditPSDisplayStateIds {DISP_NORMAL, DISP_MODE_SEQ, DISP_MODE_SONG, DISP_LEN, DISP_REPS, DISP_TRANSPOSE, DISP_ROTATE, DISP_PPQN, DISP_DELAY, DISP_COPY_SEQ, DISP_PASTE_SEQ, DISP_COPY_SONG, DISP_PASTE_SONG};
+	enum EditPSDisplayStateIds {DISP_NORMAL, DISP_SEL, DISP_MODE_SEQ, DISP_MODE_SONG, DISP_LEN, DISP_REPS, DISP_TRANSPOSE, DISP_ROTATE, DISP_PPQN, DISP_DELAY, DISP_COPY_SEQ, DISP_PASTE_SEQ, DISP_COPY_SONG, DISP_PASTE_SONG};
 	enum MainSwitchIds {MAIN_EDIT_SEQ, MAIN_EDIT_SONG, MAIN_SHOW_RUN};
 	static const int NUM_TRACKS = 4;
 
@@ -160,6 +160,7 @@ struct PhraseSeq32Ex : Module {
 	SchmittTrigger repLenTrigger;
 	SchmittTrigger attachedTrigger;
 	SchmittTrigger seqCVTrigger;
+	SchmittTrigger selTrigger;
 
 	
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
@@ -626,6 +627,18 @@ struct PhraseSeq32Ex : Module {
 				displayState = DISP_NORMAL;
 			}
 			
+			// Sel button
+			// if (selTrigger.process(params[SEL_PARAM].value)) {
+				// if (!attached && editingSequence) {
+					// if (displayState != DISP_SEL)
+						// displayState = DISP_SEL;
+					// else 
+						// displayState = DISP_NORMAL;
+				// }
+				// else
+					// displayState = DISP_NORMAL;
+			// }	
+			
 		
 			// Velocity knob 
 			float velParamValue = params[VEL_KNOB_PARAM].value;
@@ -739,8 +752,11 @@ struct PhraseSeq32Ex : Module {
 					if (editingSequence && !attached && displayState != DISP_PPQN) {
 						if (isEditingGates()) {
 							int newMode = sek[trackIndexEdit].keyIndexToGateTypeEx(i);
-							if (newMode != -1)
+							if (newMode != -1) {
 								sek[trackIndexEdit].setGateType(seqIndexEdit, stepIndexEdit, newMode);
+								if (params[KEY_PARAMS + i].value > 1.5f) // if right-click then move to next step
+									stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
+							}
 							else
 								displayState = DISP_PPQN;
 						}
@@ -1421,8 +1437,8 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			if ((x + 1) % 4 == 0)
 				posX += spacingSteps4;
 		}
-		// AllSteps button
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerT1, rowRulerT0), module, PhraseSeq32Ex::ALLSTEPS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		// Sel button
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerT1, rowRulerT0), module, PhraseSeq32Ex::SEL_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		
 		// Copy-paste and select mode switch (3 position)
 		addParam(createParamCentered<CKSSThreeInv>(Vec(columnRulerT2, rowRulerT0), module, PhraseSeq32Ex::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));	// 0.0f is top position

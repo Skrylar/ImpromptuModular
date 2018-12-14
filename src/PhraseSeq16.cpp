@@ -1042,22 +1042,17 @@ struct PhraseSeq16 : Module {
 					if (editingSequence) {
 						if (editingGateLength != 0l) {
 							int newMode = keyIndexToGateMode(i, pulsesPerStep);
-							if (editingGateLength > 0l) {
-								if (newMode != -1) {
-									editingPpqn = 0l;
+							if (newMode != -1) {
+								editingPpqn = 0l;
+								if (editingGateLength > 0l) 
 									setGate1Mode(sequence, stepIndexEdit, newMode);
-								}
 								else
-									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-							}
-							else {
-								if (newMode != -1) {
-									editingPpqn = 0l;
 									setGate2Mode(sequence, stepIndexEdit, newMode);
-								}
-								else
-									editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+								if (params[KEY_PARAMS + i].value > 1.5f)
+									stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
 							}
+							else
+								editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 						}
 						else if (getTied(sequence,stepIndexEdit)) {
 							if (params[KEY_PARAMS + i].value > 1.5f)
