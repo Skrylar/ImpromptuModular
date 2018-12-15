@@ -104,8 +104,12 @@ struct FourViewWidget : ModuleWidget {
 		}
 		
 		void cvToStr(int index2) {
-			float cvVal = module->inputs[FourView::CV_INPUTS + baseIndex + index2].value;
-			printNote(cvVal, text, module->showSharp);
+			if (module->inputs[FourView::CV_INPUTS + baseIndex + index2].active) {
+				float cvVal = module->inputs[FourView::CV_INPUTS + baseIndex + index2].value;
+				printNote(cvVal, text, module->showSharp);
+			}
+			else
+				snprintf(text, 4," - ");
 		}
 
 		void draw(NVGcontext *vg) override {
