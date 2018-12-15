@@ -88,7 +88,7 @@ struct PhraseSeq32Ex : Module {
 	};
 	
 	// Constants
-	enum EditPSDisplayStateIds {DISP_NORMAL, DISP_SEL, DISP_MODE_SEQ, DISP_MODE_SONG, DISP_LEN, DISP_REPS, DISP_TRANSPOSE, DISP_ROTATE, DISP_PPQN, DISP_DELAY, DISP_COPY_SEQ, DISP_PASTE_SEQ, DISP_COPY_SONG, DISP_PASTE_SONG};
+	enum EditPSDisplayStateIds {DISP_NORMAL, DISP_MODE_SEQ, DISP_MODE_SONG, DISP_LEN, DISP_REPS, DISP_TRANSPOSE, DISP_ROTATE, DISP_PPQN, DISP_DELAY, DISP_COPY_SEQ, DISP_PASTE_SEQ, DISP_COPY_SONG, DISP_PASTE_SONG};
 	enum MainSwitchIds {MAIN_EDIT_SEQ, MAIN_EDIT_SONG, MAIN_SHOW_RUN};
 	static const int NUM_TRACKS = 4;
 
@@ -127,6 +127,7 @@ struct PhraseSeq32Ex : Module {
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
 	long revertDisplay;
 	long showLenInSteps;
+	bool selSteps = false;
 	
 
 	unsigned int lightRefreshCounter = 0;
@@ -165,6 +166,11 @@ struct PhraseSeq32Ex : Module {
 	
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
 	inline bool isEditingGates(void) {return params[KEY_GATE_PARAM].value < 0.5f;}
+	inline int getCPMode(void) {
+		if (params[CPMODE_PARAM].value > 1.5f) return 32;
+		if (params[CPMODE_PARAM].value < 0.5f) return 4;
+		return 8;
+	}
 
 	
 	PhraseSeq32Ex() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -368,6 +374,7 @@ struct PhraseSeq32Ex : Module {
 		//********** Buttons, knobs, switches and inputs **********
 		
 		bool editingSequence = isEditingSequence();
+		int cpMode = getCPMode();
 		
 		// Run button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
@@ -424,9 +431,9 @@ struct PhraseSeq32Ex : Module {
 					if (editingSequence) {// copying sequence steps
 						startCP = stepIndexEdit;
 						countCP = SequencerKernel::MAX_STEPS;
-						if (params[CPMODE_PARAM].value > 1.5f)// all
+						if (cpMode == 32)// all
 							startCP = 0;
-						else if (params[CPMODE_PARAM].value < 0.5f)// 4
+						else if (cpMode == 4)
 							countCP = min(4, countCP - startCP);
 						else// 8
 							countCP = min(8, countCP - startCP);
@@ -436,9 +443,9 @@ struct PhraseSeq32Ex : Module {
 					else {// copying song phrases
 						startCP = phraseIndexEdit;
 						countCP = SequencerKernel::MAX_PHRASES;
-						if (params[CPMODE_PARAM].value > 1.5f)// all
+						if (cpMode == 32)// all
 							startCP = 0;
-						else if (params[CPMODE_PARAM].value < 0.5f)// 4
+						else if (cpMode == 4)
 							countCP = min(4, countCP - startCP);
 						else// 8
 							countCP = min(8, countCP - startCP);
@@ -628,16 +635,12 @@ struct PhraseSeq32Ex : Module {
 			}
 			
 			// Sel button
-			// if (selTrigger.process(params[SEL_PARAM].value)) {
-				// if (!attached && editingSequence) {
-					// if (displayState != DISP_SEL)
-						// displayState = DISP_SEL;
-					// else 
-						// displayState = DISP_NORMAL;
-				// }
-				// else
-					// displayState = DISP_NORMAL;
-			// }	
+			if (selTrigger.process(params[SEL_PARAM].value)) {
+				if (!attached && editingSequence)
+					selSteps = !selSteps;
+				else
+					selSteps = false;
+			}	
 			
 		
 			// Velocity knob 
@@ -782,7 +785,7 @@ struct PhraseSeq32Ex : Module {
 			// Gate, GateProb, Slide and Tied buttons
 			if (gate1Trigger.process(params[GATE_PARAM].value + inputs[GATECV_INPUT].value)) {
 				if (editingSequence && !attached ) {
-					sek[trackIndexEdit].toggleGate(seqIndexEdit, stepIndexEdit);
+					sek[trackIndexEdit].toggleGate(seqIndexEdit, stepIndexEdit, selSteps ? cpMode : 1);
 				}
 				displayState = DISP_NORMAL;
 			}		
@@ -791,7 +794,7 @@ struct PhraseSeq32Ex : Module {
 					if (sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit))
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 					else {
-						sek[trackIndexEdit].toggleGateP(seqIndexEdit, stepIndexEdit);
+						sek[trackIndexEdit].toggleGateP(seqIndexEdit, stepIndexEdit, selSteps ? cpMode : 1);
 					}
 				}
 				displayState = DISP_NORMAL;
@@ -801,14 +804,22 @@ struct PhraseSeq32Ex : Module {
 					if (sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit))
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 					else {
-						sek[trackIndexEdit].toggleSlide(seqIndexEdit, stepIndexEdit);
+						sek[trackIndexEdit].toggleSlide(seqIndexEdit, stepIndexEdit, selSteps ? cpMode : 1);
 					}
 				}
 				displayState = DISP_NORMAL;
 			}		
 			if (tiedTrigger.process(params[TIE_PARAM].value + inputs[TIEDCV_INPUT].value)) {
 				if (editingSequence && !attached ) {
-					sek[trackIndexEdit].toggleTied(seqIndexEdit, stepIndexEdit);// will clear other attribs if new state is on
+					sek[trackIndexEdit].toggleTied(seqIndexEdit, stepIndexEdit, selSteps ? cpMode : 1);// will clear other attribs if new state is on
+					// if (selSteps) {
+						// bool newTied = sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit);
+						// for (int i = (cpMode == 32 ? 0 : stepIndexEdit + 1); i < (stepIndexEdit + cpMode); i++) {
+							// sek[trackIndexEdit].setTied(seqIndexEdit, i & (SequencerKernel::MAX_STEPS - 1), false);
+							// if (newTied)
+								// sek[trackIndexEdit].toggleTied(seqIndexEdit, i & (SequencerKernel::MAX_STEPS - 1));
+						// }
+					// }
 				}
 				displayState = DISP_NORMAL;
 			}		
@@ -863,7 +874,7 @@ struct PhraseSeq32Ex : Module {
 		if (lightRefreshCounter >= displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
 		
-			// Step/phrase lights
+			// Step lights
 			for (int stepn = 0; stepn < SequencerKernel::MAX_STEPS; stepn++) {
 				float red = 0.0f;
 				float green = 0.0f;		
@@ -879,7 +890,11 @@ struct PhraseSeq32Ex : Module {
 						green =  1.0f;
 				}				
 				else if (editingSequence && !attached) {
-					if (stepn == stepIndexEdit) {
+					if (selSteps) {
+						if (cpMode == 32 || (stepn >= stepIndexEdit && stepn < (stepIndexEdit + cpMode)))
+							red = 1.0f;
+					}
+					else if (stepn == stepIndexEdit) {
 						red = 1.0f;
 					}
 					else if (!attached && showLenInSteps > 0l && stepn < sek[trackIndexEdit].getLength(seqIndexEdit)) {
@@ -1420,7 +1435,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int stepsOffsetY = 10;
 		static const int posLEDvsButton = 26;
 
-		// Step/Phrase LED buttons
+		// Step LED buttons
 		int posX = columnRulerT0;
 		static int spacingSteps = 20;
 		static int spacingSteps4 = 4;

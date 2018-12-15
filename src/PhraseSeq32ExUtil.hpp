@@ -48,7 +48,13 @@ class StepAttributes {
 
 	inline void setGate(bool gate1State) {attributes &= ~ATT_MSK_GATE; if (gate1State) attributes |= ATT_MSK_GATE;}
 	inline void setGateType(int gateType) {attributes &= ~ATT_MSK_GATETYPE; attributes |= (((unsigned long)gateType) << gateTypeShift);}
-	inline void setTied(bool tiedState) {attributes &= ~ATT_MSK_TIED; if (tiedState) attributes |= ATT_MSK_TIED;}
+	inline void setTied(bool tiedState) {
+		attributes &= ~ATT_MSK_TIED; 
+		if (tiedState) {
+			attributes |= ATT_MSK_TIED;
+			attributes &= ~(ATT_MSK_GATE | ATT_MSK_GATEP | ATT_MSK_SLIDE);// clear other attributes if tied
+		}
+	}
 	inline void setGateP(bool GatePState) {attributes &= ~ATT_MSK_GATEP; if (GatePState) attributes |= ATT_MSK_GATEP;}
 	inline void setGatePVal(int gatePval) {attributes &= ~ATT_MSK_GATEP_VAL; attributes |= (((unsigned long)gatePval) << gatePValShift);}
 	inline void setSlide(bool slideState) {attributes &= ~ATT_MSK_SLIDE; if (slideState) attributes |= ATT_MSK_SLIDE;}
@@ -57,12 +63,9 @@ class StepAttributes {
 	inline void setAttribute(unsigned long _attributes) {attributes = _attributes;}
 
 	inline void toggleGate() {attributes ^= ATT_MSK_GATE;}
-	inline void toggleTied() {attributes ^= ATT_MSK_TIED;}
 	inline void toggleGateP() {attributes ^= ATT_MSK_GATEP;}
 	inline void toggleSlide() {attributes ^= ATT_MSK_SLIDE;}	
-	
-	inline void applyTied() {attributes &= ~(ATT_MSK_GATE | ATT_MSK_GATEP | ATT_MSK_SLIDE);}// clear other attributes if tied
-};
+};// class StepAttributes
 
 
 //*****************************************************************************
@@ -87,7 +90,7 @@ class Phrase {
 	inline void setSeqNum(int seqn) {phrase &= ~PHR_MSK_SEQNUM; phrase |= ((unsigned long)seqn);}
 	inline void setReps(int _reps) {phrase &= ~PHR_MSK_REPS; phrase |= (((unsigned long)_reps) << repShift);}
 	inline void setPhraseJson(unsigned long _phrase) {phrase = (_phrase + (1 << repShift));}// compression trick (store 0 instead of 1)
-};
+};// class Phrase
 
 
 //*****************************************************************************
@@ -125,7 +128,7 @@ class SeqAttributes {
 			attributes |= SEQ_MSK_TRANSIGN;
 	}
 	inline void setSeqAttrib(unsigned long _attributes) {attributes = _attributes;}
-};
+};// class SeqAttributes
 
 
 //*****************************************************************************
@@ -139,7 +142,7 @@ class SequencerKernel {
 	// ----------------
 
 	// Sequencer dimensions
-	static const int MAX_STEPS = 32;
+	static const int MAX_STEPS = 32;// must be a power of two (some multi select loops have bitwise "& (MAX_STEPS - 1)")
 	static const int MAX_SEQS = 64;
 	static const int MAX_PHRASES = 99;// maximum value is 99 (disp will be 1 to 99)
 
@@ -223,6 +226,9 @@ class SequencerKernel {
 	inline float getCVRun() {return cv[phrases[phraseIndexRun].getSeqNum()][stepIndexRun];}
 	inline StepAttributes getAttribute(int seqn, int stepn) {return attributes[seqn][stepn];}
 	inline StepAttributes getAttributeRun() {return attributes[phrases[phraseIndexRun].getSeqNum()][stepIndexRun];}
+	inline bool getGate(int seqn, int stepn) {return attributes[seqn][stepn].getGate();}
+	inline bool getGateP(int seqn, int stepn) {return attributes[seqn][stepn].getGateP();}
+	inline bool getSlide(int seqn, int stepn) {return attributes[seqn][stepn].getSlide();}
 	inline bool getTied(int seqn, int stepn) {return attributes[seqn][stepn].getTied();}
 	inline int getGatePVal(int seqn, int stepn) {return attributes[seqn][stepn].getGatePVal();}
 	inline int getSlideVal(int seqn, int stepn) {return attributes[seqn][stepn].getSlideVal();}
@@ -238,6 +244,10 @@ class SequencerKernel {
 	inline void setLength(int seqn, int _length) {sequences[seqn].setLength(_length);}
 	inline void setBegin(int phrn) {songBeginIndex = phrn; songEndIndex = max(phrn, songEndIndex);}
 	inline void setEnd(int phrn) {songEndIndex = phrn; songBeginIndex = min(phrn, songBeginIndex);}
+	inline void setGate(int seqn, int stepn, bool gate) {attributes[seqn][stepn].setGate(gate);}
+	inline void setGateP(int seqn, int stepn, bool gateP) {attributes[seqn][stepn].setGateP(gateP);}
+	inline void setSlide(int seqn, int stepn, bool slide) {attributes[seqn][stepn].setSlide(slide);}
+	inline void setTied(int seqn, int stepn, bool tied) {attributes[seqn][stepn].setTied(tied);}// gate, gateP and slide will get cleared if true
 	inline void setGatePVal(int seqn, int stepn, int gatePval) {attributes[seqn][stepn].setGatePVal(gatePval);}
 	inline void setSlideVal(int seqn, int stepn, int slideVal) {attributes[seqn][stepn].setSlideVal(slideVal);}
 	inline void setVelocityVal(int seqn, int stepn, int velocity) {attributes[seqn][stepn].setVelocityVal(velocity);}
@@ -293,18 +303,44 @@ class SequencerKernel {
 		setVelocityVal(seqn, stepn, vVal);						
 	}		
 	inline void decSlideStepsRemain() {if (slideStepsRemain > 0ul) slideStepsRemain--;}	
-	inline void toggleGate(int seqn, int stepn) {attributes[seqn][stepn].toggleGate();}
-	inline void toggleTied(int seqn, int stepn) {// will clear other attribs if new state is on
-		attributes[seqn][stepn].toggleTied();
+	inline void toggleGate(int seqn, int stepn, int count) {
+		attributes[seqn][stepn].toggleGate();
+		bool newGate = attributes[seqn][stepn].getGate();
+		int starti = (count == 32 ? 0 : stepn + 1);
+		int endi = min(32, stepn + count);
+		for (int i = starti; i < endi; i++)
+			attributes[seqn][stepn].setGate(newGate);
+	}
+	inline void toggleGateP(int seqn, int stepn, int count) {
+		attributes[seqn][stepn].toggleGateP();
+		bool newGateP = attributes[seqn][stepn].getGateP();
+		int starti = (count == 32 ? 0 : stepn + 1);
+		int endi = min(32, stepn + count);
+		for (int i = starti; i < endi; i++)
+			attributes[seqn][stepn].setGateP(newGateP);
+	}
+	inline void toggleSlide(int seqn, int stepn, int count) {
+		attributes[seqn][stepn].toggleSlide();
+		bool newSlide = attributes[seqn][stepn].getSlide();
+		int starti = (count == 32 ? 0 : stepn + 1);
+		int endi = min(32, stepn + count);
+		for (int i = starti; i < endi; i++)
+			attributes[seqn][stepn].setSlide(newSlide);
+	}	
+	inline void toggleTied(int seqn, int stepn, int count) {
+		int starti = (count == 32 ? 0 : stepn + 1);
+		int endi = min(32, stepn + count);
 		if (attributes[seqn][stepn].getTied()) {
-			activateTiedStep(seqn, stepn);
+			deactivateTiedStep(seqn, stepn);
+			for (int i = starti; i < endi; i++)
+				deactivateTiedStep(seqn, i);
 		}
 		else {
-			deactivateTiedStep(seqn, stepn);
+			activateTiedStep(seqn, stepn);
+			for (int i = starti; i < endi; i++)
+				activateTiedStep(seqn, i);
 		}
 	}
-	inline void toggleGateP(int seqn, int step) {attributes[seqn][step].toggleGateP();}
-	inline void toggleSlide(int seqn, int step) {attributes[seqn][step].toggleSlide();}	
 	inline float applyNewOctave(int seqn, int stepn, int newOct) {// must not call if current step is tied
 		float newCV = cv[seqn][stepn] + 10.0f;//to properly handle negative note voltages
 		newCV = newCV - floor(newCV) + (float) (newOct - 3);
@@ -735,12 +771,13 @@ class SequencerKernel {
 	}
 	
 	
-	void activateTiedStep(int seqn, int stepn) {// tied attribute is already set, do the rest here
-		attributes[seqn][stepn].applyTied();// clears gate, gatep and slide
+	void activateTiedStep(int seqn, int stepn) {
+		attributes[seqn][stepn].setTied(true);
 		if (stepn > 0) 
 			propagateCVtoTied(seqn, stepn - 1);
 		
 		if (*holdTiedNotesPtr) {// new method
+			attributes[seqn][stepn].setGate(true);
 			for (int i = max(stepn, 1); i < MAX_STEPS; i++) {
 				if (!attributes[seqn][i].getTied()) {
 					attributes[seqn][i - 1].setGate(true);
@@ -755,12 +792,12 @@ class SequencerKernel {
 			if (stepn > 0) {
 				attributes[seqn][stepn] = attributes[seqn][stepn - 1];
 				attributes[seqn][stepn].setTied(true);
-				attributes[seqn][stepn].applyTied();// clears gate, gatep and slide
 			}
 		}
 	}
 	
-	void deactivateTiedStep(int seqn, int stepn) {// tied attribute is already reset, do the rest here
+	void deactivateTiedStep(int seqn, int stepn) {
+		attributes[seqn][stepn].setTied(false);
 		if (*holdTiedNotesPtr) {// new method
 			int lastGateType = attributes[seqn][stepn].getGateType();
 			for (int i = stepn + 1; i < MAX_STEPS; i++) {
