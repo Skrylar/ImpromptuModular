@@ -777,7 +777,7 @@ struct PhraseSeq32 : Module {
 						propagateCVtoTied(sequence, stepIndexEdit);
 					}
 					editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
-					editingGateCV = cv[sequence][stepIndexEdit];
+					editingGateCV = inputs[CV_INPUT].value;// cv[sequence][stepIndexEdit];
 					editingGateKeyLight = -1;
 					editingChannel = (stepIndexEdit >= 16 * stepConfig) ? 1 : 0;
 					// Autostep (after grab all active inputs)

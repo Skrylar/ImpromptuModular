@@ -248,10 +248,30 @@ class SequencerKernel {
 	inline void setGateP(int seqn, int stepn, bool gateP) {attributes[seqn][stepn].setGateP(gateP);}
 	inline void setSlide(int seqn, int stepn, bool slide) {attributes[seqn][stepn].setSlide(slide);}
 	inline void setTied(int seqn, int stepn, bool tied) {attributes[seqn][stepn].setTied(tied);}// gate, gateP and slide will get cleared if true
-	inline void setGatePVal(int seqn, int stepn, int gatePval) {attributes[seqn][stepn].setGatePVal(gatePval);}
-	inline void setSlideVal(int seqn, int stepn, int slideVal) {attributes[seqn][stepn].setSlideVal(slideVal);}
-	inline void setVelocityVal(int seqn, int stepn, int velocity) {attributes[seqn][stepn].setVelocityVal(velocity);}
-	inline void setGateType(int seqn, int stepn, int gateType) {attributes[seqn][stepn].setGateType(gateType);}
+	inline void setGatePVal(int seqn, int stepn, int gatePval, int count) {
+		int starti = (count == MAX_STEPS ? 0 : stepn);
+		int endi = min(MAX_STEPS, stepn + count);
+		for (int i = starti; i < endi; i++)
+			attributes[seqn][i].setGatePVal(gatePval);
+	}
+	void setSlideVal(int seqn, int stepn, int slideVal, int count) {
+		int starti = (count == MAX_STEPS ? 0 : stepn);
+		int endi = min(MAX_STEPS, stepn + count);
+		for (int i = starti; i < endi; i++)
+			attributes[seqn][i].setSlideVal(slideVal);
+	}
+	void setVelocityVal(int seqn, int stepn, int velocity, int count) {
+		int starti = (count == MAX_STEPS ? 0 : stepn);
+		int endi = min(MAX_STEPS, stepn + count);
+		for (int i = starti; i < endi; i++)
+			attributes[seqn][i].setVelocityVal(velocity);
+	}
+	void setGateType(int seqn, int stepn, int gateType, int count) {
+		int starti = (count == MAX_STEPS ? 0 : stepn);
+		int endi = min(MAX_STEPS, stepn + count);
+		for (int i = starti; i < endi; i++)
+			attributes[seqn][i].setGateType(gateType);
+	}
 	
 	
 	// Mod, inc, dec, toggle, etc
@@ -287,49 +307,49 @@ class SequencerKernel {
 	inline void modDelay(int delta) {
 		delay = clamp(delay + delta, 0, 99);
 	}
-	inline void modGatePVal(int seqn, int stepn, int delta) {
+	inline void modGatePVal(int seqn, int stepn, int delta, int count) {
 		int pVal = getGatePVal(seqn, stepn);
 		pVal = clamp(pVal + delta, 0, 100);
-		setGatePVal(seqn, stepn, pVal);						
+		setGatePVal(seqn, stepn, pVal, count);						
 	}		
-	inline void modSlideVal(int seqn, int stepn, int delta) {
+	inline void modSlideVal(int seqn, int stepn, int delta, int count) {
 		int sVal = getSlideVal(seqn, stepn);
 		sVal = clamp(sVal + delta, 0, 100);
-		setSlideVal(seqn, stepn, sVal);
+		setSlideVal(seqn, stepn, sVal, count);
 	}		
-	inline void modVelocityVal(int seqn, int stepn, int delta) {
+	inline void modVelocityVal(int seqn, int stepn, int delta, int count) {
 		int vVal = getVelocityVal(seqn, stepn);
 		vVal = clamp(vVal + delta, 0, 127);
-		setVelocityVal(seqn, stepn, vVal);						
+		setVelocityVal(seqn, stepn, vVal, count);						
 	}		
 	inline void decSlideStepsRemain() {if (slideStepsRemain > 0ul) slideStepsRemain--;}	
-	inline void toggleGate(int seqn, int stepn, int count) {
+	void toggleGate(int seqn, int stepn, int count) {
 		attributes[seqn][stepn].toggleGate();
 		bool newGate = attributes[seqn][stepn].getGate();
-		int starti = (count == 32 ? 0 : stepn + 1);
-		int endi = min(32, stepn + count);
+		int starti = (count == MAX_STEPS ? 0 : (stepn + 1));
+		int endi = min(MAX_STEPS, stepn + count);
 		for (int i = starti; i < endi; i++)
-			attributes[seqn][stepn].setGate(newGate);
+			attributes[seqn][i].setGate(newGate);
 	}
-	inline void toggleGateP(int seqn, int stepn, int count) {
+	void toggleGateP(int seqn, int stepn, int count) {
 		attributes[seqn][stepn].toggleGateP();
 		bool newGateP = attributes[seqn][stepn].getGateP();
-		int starti = (count == 32 ? 0 : stepn + 1);
-		int endi = min(32, stepn + count);
+		int starti = (count == MAX_STEPS ? 0 : (stepn + 1));
+		int endi = min(MAX_STEPS, stepn + count);
 		for (int i = starti; i < endi; i++)
-			attributes[seqn][stepn].setGateP(newGateP);
+			attributes[seqn][i].setGateP(newGateP);
 	}
-	inline void toggleSlide(int seqn, int stepn, int count) {
+	void toggleSlide(int seqn, int stepn, int count) {
 		attributes[seqn][stepn].toggleSlide();
 		bool newSlide = attributes[seqn][stepn].getSlide();
-		int starti = (count == 32 ? 0 : stepn + 1);
-		int endi = min(32, stepn + count);
+		int starti = (count == MAX_STEPS ? 0 : (stepn + 1));
+		int endi = min(MAX_STEPS, stepn + count);
 		for (int i = starti; i < endi; i++)
-			attributes[seqn][stepn].setSlide(newSlide);
+			attributes[seqn][i].setSlide(newSlide);
 	}	
-	inline void toggleTied(int seqn, int stepn, int count) {
-		int starti = (count == 32 ? 0 : stepn + 1);
-		int endi = min(32, stepn + count);
+	void toggleTied(int seqn, int stepn, int count) {
+		int starti = (count == MAX_STEPS ? 0 : (stepn + 1));
+		int endi = min(MAX_STEPS, stepn + count);
 		if (attributes[seqn][stepn].getTied()) {
 			deactivateTiedStep(seqn, stepn);
 			for (int i = starti; i < endi; i++)
@@ -341,25 +361,45 @@ class SequencerKernel {
 				activateTiedStep(seqn, i);
 		}
 	}
-	inline float applyNewOctave(int seqn, int stepn, int newOct) {// must not call if current step is tied
+	float applyNewOctave(int seqn, int stepn, int newOct, int count) {// does not overwrite tied steps
 		float newCV = cv[seqn][stepn] + 10.0f;//to properly handle negative note voltages
 		newCV = newCV - floor(newCV) + (float) (newOct - 3);
-		cv[seqn][stepn] = newCV;
-		propagateCVtoTied(seqn, stepn);
-		return newCV;
-	}
-	inline float applyNewKey(int seqn, int stepn, int newKeyIndex) {// must not call if current step is tied
-		float newCV = floor(cv[seqn][stepn]) + ((float) newKeyIndex) / 12.0f;
-		cv[seqn][stepn] = newCV;
-		propagateCVtoTied(seqn, stepn);
-		return newCV;
-	}
-	inline float writeCV(int seqn, int stepn, float newCV) {// will not write if current step is tied
-		if (!attributes[seqn][stepn].getTied()) {
-			cv[seqn][stepn] = newCV;
-			propagateCVtoTied(seqn, stepn);
+		
+		int starti = (count == MAX_STEPS ? 0 : stepn);
+		int endi = min(MAX_STEPS, stepn + count);
+		for (int i = starti; i < endi; i++) {
+			if (!attributes[seqn][i].getTied()) {
+				cv[seqn][i] = newCV;
+				propagateCVtoTied(seqn, i);		
+			}
 		}
-		return cv[seqn][stepn];
+		
+		return newCV;
+	}
+	float applyNewKey(int seqn, int stepn, int newKeyIndex, int count) {// does not overwrite tied steps
+		float newCV = floor(cv[seqn][stepn]) + ((float) newKeyIndex) / 12.0f;
+		
+		int starti = (count == MAX_STEPS ? 0 : stepn);
+		int endi = min(MAX_STEPS, stepn + count);
+		for (int i = starti; i < endi; i++) {
+			if (!attributes[seqn][i].getTied()) {
+				cv[seqn][i] = newCV;
+				propagateCVtoTied(seqn, i);		
+			}
+		}
+		
+		return newCV;
+	}
+	float writeCV(int seqn, int stepn, float newCV, int count) {// does not overwrite tied steps
+		int starti = (count == MAX_STEPS ? 0 : stepn);
+		int endi = min(MAX_STEPS, stepn + count);
+		for (int i = starti; i < endi; i++) {
+			if (!attributes[seqn][i].getTied()) {
+				cv[seqn][i] = newCV;
+				propagateCVtoTied(seqn, i);
+			}
+		}
+		return newCV;
 	}
 	
 	
@@ -377,14 +417,14 @@ class SequencerKernel {
 	
 	// Init
 	// ----------------
-	inline void initSequence(int seqn) {
+	void initSequence(int seqn) {
 		sequences[seqn].init(MAX_STEPS, MODE_FWD);
 		for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
 			cv[seqn][stepn] = INIT_CV;
 			attributes[seqn][stepn].init();
 		}
 	}
-	inline void initSong() {
+	void initSong() {
 		runModeSong = MODE_FWD;
 		songBeginIndex = 0;
 		songEndIndex = 0;
@@ -396,7 +436,7 @@ class SequencerKernel {
 	
 	// Randomize and staircase
 	// ----------------
-	inline void randomizeSequence(int seqn) {
+	void randomizeSequence(int seqn) {
 		sequences[seqn].randomize(MAX_STEPS, NUM_MODES);// code below uses lengths so this must be randomized first
 		for (int stepn = 0; stepn < MAX_STEPS; stepn++) {
 			cv[seqn][stepn] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
@@ -406,7 +446,7 @@ class SequencerKernel {
 			}	
 		}
 	}
-	inline void randomizeSong() {
+	void randomizeSong() {
 		runModeSong = randomu32() % NUM_MODES;
 		songBeginIndex = 0;
 		songEndIndex = (randomu32() % MAX_PHRASES);
@@ -418,7 +458,7 @@ class SequencerKernel {
 	
 	// Copy-paste sequence or song
 	// ----------------
-	inline void copySequence(float* cvCPbuffer, StepAttributes* attribCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int seqn, int startCP, int countCP) {
+	void copySequence(float* cvCPbuffer, StepAttributes* attribCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int seqn, int startCP, int countCP) {
 		for (int i = 0, stepn = startCP; i < countCP; i++, stepn++) {
 			cvCPbuffer[i] = cv[seqn][stepn];
 			attribCPbuffer[i] = attributes[seqn][stepn];
@@ -426,7 +466,7 @@ class SequencerKernel {
 		*seqPhraseAttribCPbuffer = sequences[seqn];
 		seqPhraseAttribCPbuffer->setTranspose(-1);// so that a cross paste can be detected
 	}
-	inline void pasteSequence(float* cvCPbuffer, StepAttributes* attribCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int seqn, int startCP, int countCP) {
+	void pasteSequence(float* cvCPbuffer, StepAttributes* attribCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int seqn, int startCP, int countCP) {
 		for (int i = 0, stepn = startCP; i < countCP; i++, stepn++) {
 			cv[seqn][stepn] = cvCPbuffer[i];
 			attributes[seqn][stepn] = attribCPbuffer[i];
@@ -436,7 +476,7 @@ class SequencerKernel {
 			sequences[seqn].setTranspose(0);
 		}
 	}
-	inline void copyPhrase(Phrase* phraseCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int startCP, int countCP) {	
+	void copyPhrase(Phrase* phraseCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int startCP, int countCP) {	
 		for (int i = 0, phrn = startCP; i < countCP; i++, phrn++) {
 			phraseCPbuffer[i] = phrases[phrn];
 		}
@@ -444,7 +484,7 @@ class SequencerKernel {
 		seqPhraseAttribCPbuffer->setTranspose(songEndIndex);
 		seqPhraseAttribCPbuffer->setRunMode(runModeSong);
 	}
-	inline void pastePhrase(Phrase* phraseCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int startCP, int countCP) {	
+	void pastePhrase(Phrase* phraseCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int startCP, int countCP) {	
 		for (int i = 0, phrn = startCP; i < countCP; i++, phrn++) {
 			phrases[phrn] = phraseCPbuffer[i];
 		}
@@ -778,11 +818,7 @@ class SequencerKernel {
 		
 		if (*holdTiedNotesPtr) {// new method
 			attributes[seqn][stepn].setGate(true);
-			for (int i = max(stepn, 1); i < MAX_STEPS; i++) {
-				if (!attributes[seqn][i].getTied()) {
-					attributes[seqn][i - 1].setGate(true);
-					break;
-				}
+			for (int i = max(stepn, 1); i < MAX_STEPS && attributes[seqn][i].getTied(); i++) {
 				attributes[seqn][i].setGateType(attributes[seqn][i - 1].getGateType());
 				attributes[seqn][i - 1].setGateType(5);
 				attributes[seqn][i - 1].setGate(true);
@@ -800,18 +836,12 @@ class SequencerKernel {
 		attributes[seqn][stepn].setTied(false);
 		if (*holdTiedNotesPtr) {// new method
 			int lastGateType = attributes[seqn][stepn].getGateType();
-			for (int i = stepn + 1; i < MAX_STEPS; i++) {
-				if (attributes[seqn][i].getTied())
-					lastGateType = attributes[seqn][i].getGateType();
-				else
-					break;
-			}
+			for (int i = stepn + 1; i < MAX_STEPS && attributes[seqn][i].getTied(); i++)
+				lastGateType = attributes[seqn][i].getGateType();
 			if (stepn > 0)
 				attributes[seqn][stepn - 1].setGateType(lastGateType);
 		}
-		//else {// old method
-			// nothing to do here
-		//}
+		//else old method, nothing to do
 	}
 	
 	

@@ -167,7 +167,7 @@ struct PhraseSeq32Ex : Module {
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
 	inline bool isEditingGates(void) {return params[KEY_GATE_PARAM].value < 0.5f;}
 	inline int getCPMode(void) {
-		if (params[CPMODE_PARAM].value > 1.5f) return 32;
+		if (params[CPMODE_PARAM].value > 1.5f) return SequencerKernel::MAX_STEPS;
 		if (params[CPMODE_PARAM].value < 0.5f) return 4;
 		return 8;
 	}
@@ -431,7 +431,7 @@ struct PhraseSeq32Ex : Module {
 					if (editingSequence) {// copying sequence steps
 						startCP = stepIndexEdit;
 						countCP = SequencerKernel::MAX_STEPS;
-						if (cpMode == 32)// all
+						if (cpMode == SequencerKernel::MAX_STEPS)// all
 							startCP = 0;
 						else if (cpMode == 4)
 							countCP = min(4, countCP - startCP);
@@ -443,7 +443,7 @@ struct PhraseSeq32Ex : Module {
 					else {// copying song phrases
 						startCP = phraseIndexEdit;
 						countCP = SequencerKernel::MAX_PHRASES;
-						if (cpMode == 32)// all
+						if (cpMode == SequencerKernel::MAX_STEPS)// all
 							startCP = 0;
 						else if (cpMode == 4)
 							countCP = min(4, countCP - startCP);
@@ -488,10 +488,11 @@ struct PhraseSeq32Ex : Module {
 				if (editingSequence && ! attached) {
 					for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
 						if (inputs[CV_INPUTS + trkn].active) {
-							editingGateCV[trkn] = sek[trkn].writeCV(seqIndexEdit, stepIndexEdit, inputs[CV_INPUTS + trkn].value);// internally will not write if current step is tied
+							int multiStepsCount = selSteps ? cpMode : 1;
+							editingGateCV[trkn] = sek[trkn].writeCV(seqIndexEdit, stepIndexEdit, inputs[CV_INPUTS + trkn].value, multiStepsCount);
 							editingGate[trkn] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 							if (inputs[VEL_INPUT].active)
-								sek[trkn].setVelocityVal(seqIndexEdit, stepIndexEdit, calcVelocityInteger(inputs[VEL_INPUT].value));
+								sek[trkn].setVelocityVal(seqIndexEdit, stepIndexEdit, calcVelocityInteger(inputs[VEL_INPUT].value), multiStepsCount);
 						}
 					}
 					editingGateKeyLight = -1;
@@ -652,14 +653,15 @@ struct PhraseSeq32Ex : Module {
 			if (deltaVelKnob != 0) {
 				if (abs(deltaVelKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (editingSequence && !attached) {
+						int mutliStepsCount = selSteps ? cpMode : 1;
 						if (params[VELMODE_PARAM].value > 1.5f) {
-							sek[trackIndexEdit].modSlideVal(seqIndexEdit, stepIndexEdit, deltaVelKnob);
+							sek[trackIndexEdit].modSlideVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
 						}
 						else if (params[VELMODE_PARAM].value > 0.5f) {
-							sek[trackIndexEdit].modGatePVal(seqIndexEdit, stepIndexEdit, deltaVelKnob);
+							sek[trackIndexEdit].modGatePVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
 						}
 						else {
-							sek[trackIndexEdit].modVelocityVal(seqIndexEdit, stepIndexEdit, deltaVelKnob);
+							sek[trackIndexEdit].modVelocityVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
 						}
 						displayState = DISP_NORMAL;
 					}
@@ -732,14 +734,14 @@ struct PhraseSeq32Ex : Module {
 			}	
 			
 			// Octave buttons
-			for (int i = 0; i < 7; i++) {
-				if (octTriggers[i].process(params[OCTAVE_PARAM + i].value)) {
+			for (int octn = 0; octn < 7; octn++) {
+				if (octTriggers[octn].process(params[OCTAVE_PARAM + octn].value)) {
 					if (editingSequence && !attached && displayState != DISP_PPQN) {
 						if (sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit)) {
 							tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 						}
 						else {			
-							editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewOctave(seqIndexEdit, stepIndexEdit, 6 - i);
+							editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewOctave(seqIndexEdit, stepIndexEdit, 6 - octn, selSteps ? cpMode : 1);
 							editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 							editingGateKeyLight = -1;
 						}
@@ -749,33 +751,33 @@ struct PhraseSeq32Ex : Module {
 			}
 			
 			// Keyboard buttons
-			for (int i = 0; i < 12; i++) {
-				if (keyTriggers[i].process(params[KEY_PARAMS + i].value)) {
+			for (int keyn = 0; keyn < 12; keyn++) {
+				if (keyTriggers[keyn].process(params[KEY_PARAMS + keyn].value)) {
 					displayState = DISP_NORMAL;
 					if (editingSequence && !attached && displayState != DISP_PPQN) {
 						if (isEditingGates()) {
-							int newMode = sek[trackIndexEdit].keyIndexToGateTypeEx(i);
+							int newMode = sek[trackIndexEdit].keyIndexToGateTypeEx(keyn);
 							if (newMode != -1) {
-								sek[trackIndexEdit].setGateType(seqIndexEdit, stepIndexEdit, newMode);
-								if (params[KEY_PARAMS + i].value > 1.5f) // if right-click then move to next step
+								sek[trackIndexEdit].setGateType(seqIndexEdit, stepIndexEdit, newMode, selSteps ? cpMode : 1);
+								if (params[KEY_PARAMS + keyn].value > 1.5f) // if right-click then move to next step
 									stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
 							}
 							else
 								displayState = DISP_PPQN;
 						}
 						else if (sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit)) {
-							if (params[KEY_PARAMS + i].value > 1.5f)
+							if (params[KEY_PARAMS + keyn].value > 1.5f)
 								stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
 							else
 								tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 						}
 						else {	
-							editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewKey(seqIndexEdit, stepIndexEdit, i);
+							editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewKey(seqIndexEdit, stepIndexEdit, keyn, selSteps ? cpMode : 1);
 							editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 							editingGateKeyLight = -1;
-							if (params[KEY_PARAMS + i].value > 1.5f) {// if right-click then move to next step
+							if (params[KEY_PARAMS + keyn].value > 1.5f) {// if right-click then move to next step
 								stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
-								editingGateKeyLight = i;
+								editingGateKeyLight = keyn;
 							}
 						}						
 					}
@@ -812,14 +814,6 @@ struct PhraseSeq32Ex : Module {
 			if (tiedTrigger.process(params[TIE_PARAM].value + inputs[TIEDCV_INPUT].value)) {
 				if (editingSequence && !attached ) {
 					sek[trackIndexEdit].toggleTied(seqIndexEdit, stepIndexEdit, selSteps ? cpMode : 1);// will clear other attribs if new state is on
-					// if (selSteps) {
-						// bool newTied = sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit);
-						// for (int i = (cpMode == 32 ? 0 : stepIndexEdit + 1); i < (stepIndexEdit + cpMode); i++) {
-							// sek[trackIndexEdit].setTied(seqIndexEdit, i & (SequencerKernel::MAX_STEPS - 1), false);
-							// if (newTied)
-								// sek[trackIndexEdit].toggleTied(seqIndexEdit, i & (SequencerKernel::MAX_STEPS - 1));
-						// }
-					// }
 				}
 				displayState = DISP_NORMAL;
 			}		
@@ -891,7 +885,7 @@ struct PhraseSeq32Ex : Module {
 				}				
 				else if (editingSequence && !attached) {
 					if (selSteps) {
-						if (cpMode == 32 || (stepn >= stepIndexEdit && stepn < (stepIndexEdit + cpMode)))
+						if (cpMode == SequencerKernel::MAX_STEPS || (stepn >= stepIndexEdit && stepn < (stepIndexEdit + cpMode)))
 							red = 1.0f;
 					}
 					else if (stepn == stepIndexEdit) {
@@ -1386,14 +1380,15 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				int trkn = ((PhraseSeq32Ex*)(module))->trackIndexEdit;
 				int seqn = ((PhraseSeq32Ex*)(module))->seqIndexEdit;
 				int stepn = ((PhraseSeq32Ex*)(module))->stepIndexEdit;
+				int multiStepsCount = ((PhraseSeq32Ex*)(module))->selSteps ? ((PhraseSeq32Ex*)(module))->getCPMode() : 1;
 				if (vparam > 1.5f) {
-					((PhraseSeq32Ex*)(module))->sek[trkn].setSlideVal(seqn, stepn, StepAttributes::INIT_SLIDE);
+					((PhraseSeq32Ex*)(module))->sek[trkn].setSlideVal(seqn, stepn, StepAttributes::INIT_SLIDE, multiStepsCount);
 				}
 				else if (vparam > 0.5f) {
-					((PhraseSeq32Ex*)(module))->sek[trkn].setGatePVal(seqn, stepn, StepAttributes::INIT_PROB);
+					((PhraseSeq32Ex*)(module))->sek[trkn].setGatePVal(seqn, stepn, StepAttributes::INIT_PROB, multiStepsCount);
 				}
 				else {
-					((PhraseSeq32Ex*)(module))->sek[trkn].setVelocityVal(seqn, stepn, StepAttributes::INIT_VELOCITY);
+					((PhraseSeq32Ex*)(module))->sek[trkn].setVelocityVal(seqn, stepn, StepAttributes::INIT_VELOCITY, multiStepsCount);
 				}
 			}
 			ParamWidget::onMouseDown(e);

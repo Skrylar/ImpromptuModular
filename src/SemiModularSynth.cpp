@@ -827,7 +827,7 @@ struct SemiModularSynth : Module {
 						propagateCVtoTied(sequence, stepIndexEdit);
 					}
 					editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
-					editingGateCV = cv[sequence][stepIndexEdit];
+					editingGateCV = inputs[CV_INPUT].value;// cv[sequence][stepIndexEdit];
 					editingGateKeyLight = -1;
 					// Autostep (after grab all active inputs)
 					if (params[AUTOSTEP_PARAM].value > 0.5f) {
