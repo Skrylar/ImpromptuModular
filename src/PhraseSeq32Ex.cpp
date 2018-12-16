@@ -127,7 +127,7 @@ struct PhraseSeq32Ex : Module {
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
 	long revertDisplay;
 	long showLenInSteps;
-	bool selSteps = false;
+	bool multiSteps;
 	
 
 	unsigned int lightRefreshCounter = 0;
@@ -209,6 +209,7 @@ struct PhraseSeq32Ex : Module {
 		showLenInSteps = 0l;
 		resetOnRun = false;
 		attached = false;
+		multiSteps = false;
 		
 		for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
 			editingGate[trkn] = 0ul;
@@ -386,6 +387,7 @@ struct PhraseSeq32Ex : Module {
 					clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
 			}
 			displayState = DISP_NORMAL;
+			multiSteps = false;
 		}
 
 		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
@@ -416,6 +418,7 @@ struct PhraseSeq32Ex : Module {
 			if (attachedTrigger.process(params[ATTACH_PARAM].value)) {
 				attached = !attached;
 				displayState = DISP_NORMAL;			
+				multiSteps = false;
 			}
 			if (attached) {//if (running && attached) {
 				phraseIndexEdit = sek[trackIndexEdit].getPhraseIndexRun();
@@ -488,7 +491,7 @@ struct PhraseSeq32Ex : Module {
 				if (editingSequence && ! attached) {
 					for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
 						if (inputs[CV_INPUTS + trkn].active) {
-							int multiStepsCount = selSteps ? cpMode : 1;
+							int multiStepsCount = multiSteps ? cpMode : 1;
 							editingGateCV[trkn] = sek[trkn].writeCV(seqIndexEdit, stepIndexEdit, inputs[CV_INPUTS + trkn].value, multiStepsCount);
 							editingGate[trkn] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 							if (inputs[VEL_INPUT].active)
@@ -638,9 +641,9 @@ struct PhraseSeq32Ex : Module {
 			// Sel button
 			if (selTrigger.process(params[SEL_PARAM].value)) {
 				if (!attached && editingSequence)
-					selSteps = !selSteps;
+					multiSteps = !multiSteps;
 				else
-					selSteps = false;
+					multiSteps = false;
 			}	
 			
 		
@@ -653,7 +656,7 @@ struct PhraseSeq32Ex : Module {
 			if (deltaVelKnob != 0) {
 				if (abs(deltaVelKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (editingSequence && !attached) {
-						int mutliStepsCount = selSteps ? cpMode : 1;
+						int mutliStepsCount = multiSteps ? cpMode : 1;
 						if (params[VELMODE_PARAM].value > 1.5f) {
 							sek[trackIndexEdit].modSlideVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
 						}
@@ -741,7 +744,7 @@ struct PhraseSeq32Ex : Module {
 							tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 						}
 						else {			
-							editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewOctave(seqIndexEdit, stepIndexEdit, 6 - octn, selSteps ? cpMode : 1);
+							editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewOctave(seqIndexEdit, stepIndexEdit, 6 - octn, multiSteps ? cpMode : 1);
 							editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 							editingGateKeyLight = -1;
 						}
@@ -758,7 +761,7 @@ struct PhraseSeq32Ex : Module {
 						if (isEditingGates()) {
 							int newMode = sek[trackIndexEdit].keyIndexToGateTypeEx(keyn);
 							if (newMode != -1) {
-								sek[trackIndexEdit].setGateType(seqIndexEdit, stepIndexEdit, newMode, selSteps ? cpMode : 1);
+								sek[trackIndexEdit].setGateType(seqIndexEdit, stepIndexEdit, newMode, multiSteps ? cpMode : 1);
 								if (params[KEY_PARAMS + keyn].value > 1.5f) // if right-click then move to next step
 									stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
 							}
@@ -772,7 +775,7 @@ struct PhraseSeq32Ex : Module {
 								tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 						}
 						else {	
-							editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewKey(seqIndexEdit, stepIndexEdit, keyn, selSteps ? cpMode : 1);
+							editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewKey(seqIndexEdit, stepIndexEdit, keyn, multiSteps ? cpMode : 1);
 							editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 							editingGateKeyLight = -1;
 							if (params[KEY_PARAMS + keyn].value > 1.5f) {// if right-click then move to next step
@@ -787,7 +790,7 @@ struct PhraseSeq32Ex : Module {
 			// Gate, GateProb, Slide and Tied buttons
 			if (gate1Trigger.process(params[GATE_PARAM].value + inputs[GATECV_INPUT].value)) {
 				if (editingSequence && !attached ) {
-					sek[trackIndexEdit].toggleGate(seqIndexEdit, stepIndexEdit, selSteps ? cpMode : 1);
+					sek[trackIndexEdit].toggleGate(seqIndexEdit, stepIndexEdit, multiSteps ? cpMode : 1);
 				}
 				displayState = DISP_NORMAL;
 			}		
@@ -796,7 +799,7 @@ struct PhraseSeq32Ex : Module {
 					if (sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit))
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 					else {
-						sek[trackIndexEdit].toggleGateP(seqIndexEdit, stepIndexEdit, selSteps ? cpMode : 1);
+						sek[trackIndexEdit].toggleGateP(seqIndexEdit, stepIndexEdit, multiSteps ? cpMode : 1);
 					}
 				}
 				displayState = DISP_NORMAL;
@@ -806,14 +809,14 @@ struct PhraseSeq32Ex : Module {
 					if (sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit))
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 					else {
-						sek[trackIndexEdit].toggleSlide(seqIndexEdit, stepIndexEdit, selSteps ? cpMode : 1);
+						sek[trackIndexEdit].toggleSlide(seqIndexEdit, stepIndexEdit, multiSteps ? cpMode : 1);
 					}
 				}
 				displayState = DISP_NORMAL;
 			}		
 			if (tiedTrigger.process(params[TIE_PARAM].value + inputs[TIEDCV_INPUT].value)) {
 				if (editingSequence && !attached ) {
-					sek[trackIndexEdit].toggleTied(seqIndexEdit, stepIndexEdit, selSteps ? cpMode : 1);// will clear other attribs if new state is on
+					sek[trackIndexEdit].toggleTied(seqIndexEdit, stepIndexEdit, multiSteps ? cpMode : 1);// will clear other attribs if new state is on
 				}
 				displayState = DISP_NORMAL;
 			}		
@@ -839,6 +842,7 @@ struct PhraseSeq32Ex : Module {
 			initRun();
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
+			multiSteps = false;
 			if (inputs[SEQCV_INPUT].active && seqCVmethod == 2)
 				seqIndexEdit = 0;
 		}
@@ -884,7 +888,7 @@ struct PhraseSeq32Ex : Module {
 						green =  1.0f;
 				}				
 				else if (editingSequence && !attached) {
-					if (selSteps) {
+					if (multiSteps) {
 						if (cpMode == SequencerKernel::MAX_STEPS || (stepn >= stepIndexEdit && stepn < (stepIndexEdit + cpMode)))
 							red = 1.0f;
 					}
@@ -1362,6 +1366,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		CKSSNotify() {};
 		void onChange(EventChange &e) override {
 			((PhraseSeq32Ex*)(module))->displayState = PhraseSeq32Ex::DISP_NORMAL;
+			((PhraseSeq32Ex*)(module))->multiSteps = false;
 			SVGSwitch::onChange(e);		
 		}
 	};
@@ -1380,7 +1385,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				int trkn = ((PhraseSeq32Ex*)(module))->trackIndexEdit;
 				int seqn = ((PhraseSeq32Ex*)(module))->seqIndexEdit;
 				int stepn = ((PhraseSeq32Ex*)(module))->stepIndexEdit;
-				int multiStepsCount = ((PhraseSeq32Ex*)(module))->selSteps ? ((PhraseSeq32Ex*)(module))->getCPMode() : 1;
+				int multiStepsCount = ((PhraseSeq32Ex*)(module))->multiSteps ? ((PhraseSeq32Ex*)(module))->getCPMode() : 1;
 				if (vparam > 1.5f) {
 					((PhraseSeq32Ex*)(module))->sek[trkn].setSlideVal(seqn, stepn, StepAttributes::INIT_SLIDE, multiStepsCount);
 				}

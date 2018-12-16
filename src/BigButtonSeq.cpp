@@ -14,7 +14,6 @@
 
 
 #include "ImpromptuModular.hpp"
-#include "PhraseSeqUtil.hpp"
 
 
 struct BigButtonSeq : Module {
@@ -293,7 +292,7 @@ struct BigButtonSeq : Module {
 		// Clock
 		if (clockTrigger.process(inputs[CLK_INPUT].value)) {
 			if (clockIgnoreOnReset == 0l) {
-				indexStep = moveIndex(indexStep, indexStep + 1, len);
+				if ((++indexStep) >= len) indexStep = 0;
 				
 				// Fill button
 				fillPressed = (params[FILL_PARAM].value + inputs[FILL_INPUT].value) > 0.5f;

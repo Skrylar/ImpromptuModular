@@ -189,19 +189,14 @@ struct PhraseSeq32 : Module {
 	}
 
 	inline void initAttrib(int seq, int step) {attributes[seq][step] = ATT_MSK_GATE1;}
-	inline bool getGate1(int seq, int step) {return getGate1a(attributes[seq][step]);}
-	inline bool getGate1P(int seq, int step) {return getGate1Pa(attributes[seq][step]);}
-	inline bool getGate2(int seq, int step) {return getGate2a(attributes[seq][step]);}
-	inline bool getSlide(int seq, int step) {return getSlideA(attributes[seq][step]);}
 	inline bool getTied(int seq, int step) {return getTiedA(attributes[seq][step]);}
 	inline int getGate1Mode(int seq, int step) {return getGate1aMode(attributes[seq][step]);}
 	inline int getGate2Mode(int seq, int step) {return getGate2aMode(attributes[seq][step]);}
 	
 	inline void setGate1Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE1MODE; attributes[seq][step] |= (gateMode << gate1ModeShift);}
 	inline void setGate2Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE2MODE; attributes[seq][step] |= (gateMode << gate2ModeShift);}
-	inline void setGate1P(int seq, int step, bool gate1Pstate) {setGate1Pa(&attributes[seq][step], gate1Pstate);}
-	inline void toggleGate1(int seq, int step) {toggleGate1a(&attributes[seq][step]);}
 
+	
 	inline void fillStepIndexRunVector(int runMode, int len) {
 		if (runMode != MODE_RN2) 
 			stepIndexRun[1] = stepIndexRun[0];
@@ -734,7 +729,7 @@ struct PhraseSeq32 : Module {
 						else {// 8 (randomize gate 1)
 							for (int s = 0; s < 32; s++)
 								if ( (randomu32() & 0x1) != 0)
-									toggleGate1(sequence, s);
+									toggleGate1a(&attributes[sequence][s]);// toggleGate1(sequence, s);
 						}
 						startCP = 0;
 						countCP = 32;
@@ -1120,12 +1115,11 @@ struct PhraseSeq32 : Module {
 			}		
 			if (tiedTrigger.process(params[TIE_PARAM].value + inputs[TIEDCV_INPUT].value)) {
 				if (editingSequence) {
-					toggleTiedA(&attributes[sequence][stepIndexEdit]);
 					if (getTied(sequence,stepIndexEdit)) {
-						activateTiedStep(sequence, stepIndexEdit);
+						deactivateTiedStep(sequence, stepIndexEdit);
 					}
 					else {
-						deactivateTiedStep(sequence, stepIndexEdit);
+						activateTiedStep(sequence, stepIndexEdit);
 					}
 				}
 				displayState = DISP_NORMAL;
@@ -1165,7 +1159,7 @@ struct PhraseSeq32 : Module {
 
 					// Slide
 					for (int i = 0; i < 2; i += stepConfig) {
-						if (getSlide(newSeq, (i * 16) + stepIndexRun[i])) {
+						if (getSlideA(attributes[newSeq][(i * 16) + stepIndexRun[i]])) {// getSlide(newSeq, (i * 16) + stepIndexRun[i])) {
 							slideStepsRemain[i] =   (unsigned long) (((float)clockPeriod  * pulsesPerStep) * params[SLIDE_KNOB_PARAM].value / 2.0f);
 							float slideToCV = cv[newSeq][(i * 16) + stepIndexRun[i]];
 							slideCVdelta[i] = (slideToCV - slideFromCV[i])/(float)slideStepsRemain[i];
@@ -1495,47 +1489,36 @@ struct PhraseSeq32 : Module {
 		}	
 	}
 
-	void activateTiedStep(int seqn, int stepn) {// tied attribute is already set, do the rest here
-		applyTied(&attributes[seqn][stepn]);// clears gate1, gate1p, gate2 and slide
+	void activateTiedStep(int seqn, int stepn) {
+		setTiedA(&attributes[seqn][stepn], true);
 		if (stepn > 0) 
 			propagateCVtoTied(seqn, stepn - 1);
 		
 		if (holdTiedNotes) {// new method
-			for (int i = max(stepn, 1); i < 32; i++) {
-				if (!getTied(seqn, i)) {// !attributes[seqn][i].getTied()
-					setGate1a(&attributes[seqn][i - 1], true);//attributes[seqn][i - 1].setGate(true);
-					break;
-				}
-				setGate1Mode(seqn, i, getGate1Mode(seqn, i - 1));//attributes[seqn][i].setGateType(attributes[seqn][i - 1].getGateType());
-				setGate1Mode(seqn, i - 1, 5);//attributes[seqn][i - 1].setGateType(5);
-				setGate1a(&attributes[seqn][i - 1], true);//attributes[seqn][i - 1].setGate1(true);
+			setGate1a(&attributes[seqn][stepn], true);
+			for (int i = max(stepn, 1); i < 32 && getTied(seqn, i); i++) {
+				setGate1Mode(seqn, i, getGate1Mode(seqn, i - 1));
+				setGate1Mode(seqn, i - 1, 5);
+				setGate1a(&attributes[seqn][i - 1], true);
 			}
 		}
 		else {// old method
 			if (stepn > 0) {
 				attributes[seqn][stepn] = attributes[seqn][stepn - 1];
-				setTiedA(&attributes[seqn][stepn], true);//attributes[seqn][stepn].setTied(true);
-				applyTied(&attributes[seqn][stepn]);//attributes[seqn][stepn].applyTied();// gate1, gate1p, gate2 and slide
+				setTiedA(&attributes[seqn][stepn], true);
 			}
 		}
 	}
 	
-	void deactivateTiedStep(int seqn, int stepn) {// tied attribute is already reset, do the rest here
+	void deactivateTiedStep(int seqn, int stepn) {
 		if (holdTiedNotes) {// new method
-			int lastGateType = getGate1Mode(seqn, stepn);//attributes[seqn][stepn].getGateType();
-			for (int i = stepn + 1; i < 32; i++) {
-				if (getTied(seqn, i))//attributes[seqn][i].getTied()
-					lastGateType = getGate1Mode(seqn, i);//attributes[seqn][i].getGateType();
-				else
-					break;
-			}
-			if (stepn > 0) {
-				setGate1Mode(seqn, stepn - 1, lastGateType);//attributes[seqn][stepn - 1].setGateType(lastGateType);
-			}
+			int lastGateType = getGate1Mode(seqn, stepn);
+			for (int i = stepn + 1; i < 32 && getTied(seqn, i); i++)
+				lastGateType = getGate1Mode(seqn, i);
+			if (stepn > 0)
+				setGate1Mode(seqn, stepn - 1, lastGateType);
 		}
-		//else {// old method
-			// nothing to do here
-		//}
+		//else old method, nothing to do
 	}
 	
 	inline void setGateLight(bool gateOn, int lightIndex) {

@@ -26,15 +26,15 @@ class StepAttributes {
 	static const unsigned long ATT_MSK_SLIDE_VAL = 0x00FF0000, slideValShift = 16;
 
 	static const int INIT_VELOCITY = 100;
-	static const int MAX_VELOCITY = 127;// also update randomize() below if change
-	static const int INIT_PROB = 50;
-	static const int INIT_SLIDE = 10;
+	static const int MAX_VELOCITY = 0x7F;// also used as a bit mask
+	static const int INIT_PROB = 50;// range is 0 to 100
+	static const int INIT_SLIDE = 10;// range is 0 to 100
 	
 	static const unsigned long ATT_MSK_INITSTATE = ((ATT_MSK_GATE) | (INIT_VELOCITY << velocityShift) | (INIT_PROB << gatePValShift) | (INIT_SLIDE << slideValShift));
 
 	inline void clear() {attributes = 0ul;}
 	inline void init() {attributes = ATT_MSK_INITSTATE;}
-	inline void randomize() {attributes = ( ((randomu32() & 0xF) << gateShift) | ((randomu32() % 101) << gatePValShift) | ((randomu32() % 101) << slideValShift) | ((randomu32() & 0x7F) << velocityShift) );}
+	inline void randomize() {attributes = ( ((randomu32() & (ATT_MSK_GATE | ATT_MSK_GATEP | ATT_MSK_SLIDE | ATT_MSK_TIED)) << gateShift) | ((randomu32() % 101) << gatePValShift) | ((randomu32() % 101) << slideValShift) | ((randomu32() & MAX_VELOCITY) << velocityShift) );}
 	
 	inline bool getGate() {return (attributes & ATT_MSK_GATE) != 0;}
 	inline int getGateType() {return (int)((attributes & ATT_MSK_GATETYPE) >> gateTypeShift);}
