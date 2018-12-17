@@ -58,7 +58,13 @@ class StepAttributes {
 	inline void setGate1P(bool gate1PState) {attributes &= ~ATT_MSK_GATE1P; if (gate1PState) attributes |= ATT_MSK_GATE1P;}
 	inline void setGate2(bool gate2State) {attributes &= ~ATT_MSK_GATE2; if (gate2State) attributes |= ATT_MSK_GATE2;}
 	inline void setSlide(bool slideState) {attributes &= ~ATT_MSK_SLIDE; if (slideState) attributes |= ATT_MSK_SLIDE;}
-	inline void setTied(bool tiedState) {attributes &= ~ATT_MSK_TIED; if (tiedState) attributes |= ATT_MSK_TIED;}
+	inline void setTied(bool tiedState) {
+		attributes &= ~ATT_MSK_TIED; 
+		if (tiedState) {
+			attributes |= ATT_MSK_TIED;
+			attributes &= ~(ATT_MSK_GATE1 | ATT_MSK_GATE1P | ATT_MSK_GATE2 | ATT_MSK_SLIDE);// clear other attributes if tied
+		}
+	}
 	inline void setGate1Mode(int gateMode) {attributes &= ~ATT_MSK_GATE1MODE; attributes |= (gateMode << gate1ModeShift);}
 	inline void setGate2Mode(int gateMode) {attributes &= ~ATT_MSK_GATE2MODE; attributes |= (gateMode << gate2ModeShift);}
 
@@ -66,9 +72,6 @@ class StepAttributes {
 	inline void toggleGate1P() {attributes ^= ATT_MSK_GATE1P;}
 	inline void toggleGate2() {attributes ^= ATT_MSK_GATE2;}
 	inline void toggleSlide() {attributes ^= ATT_MSK_SLIDE;}
-	inline void toggleTied() {attributes ^= ATT_MSK_TIED;}
-
-	inline void applyTied() {attributes &= ~(ATT_MSK_GATE1 | ATT_MSK_GATE1P | ATT_MSK_GATE2 | ATT_MSK_SLIDE);}// clear other attributes if tied 
 };// class StepAttributes
 			
 				

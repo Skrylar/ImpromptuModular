@@ -174,8 +174,8 @@ class SequencerKernel {
 	int songEndIndex;
 	Phrase phrases[MAX_PHRASES];// This is the song (series of phases; a phrase is a sequence number and a repetition value)	
 	SeqAttributes sequences[MAX_SEQS];
-	float cv[MAX_SEQS][MAX_STEPS];// [-3.0 : 3.917]. First index is sequence number, 2nd index is step
-	StepAttributes attributes[MAX_SEQS][MAX_STEPS];// First index is sequence number, 2nd index is step
+	float cv[MAX_SEQS][MAX_STEPS];// [-3.0 : 3.917].
+	StepAttributes attributes[MAX_SEQS][MAX_STEPS];
 	
 	// No need to save
 	int stepIndexRun;
@@ -248,7 +248,7 @@ class SequencerKernel {
 	inline void setGateP(int seqn, int stepn, bool gateP) {attributes[seqn][stepn].setGateP(gateP);}
 	inline void setSlide(int seqn, int stepn, bool slide) {attributes[seqn][stepn].setSlide(slide);}
 	inline void setTied(int seqn, int stepn, bool tied) {attributes[seqn][stepn].setTied(tied);}// gate, gateP and slide will get cleared if true
-	inline void setGatePVal(int seqn, int stepn, int gatePval, int count) {
+	void setGatePVal(int seqn, int stepn, int gatePval, int count) {
 		int starti = (count == MAX_STEPS ? 0 : stepn);
 		int endi = min(MAX_STEPS, stepn + count);
 		for (int i = starti; i < endi; i++)
@@ -564,7 +564,7 @@ class SequencerKernel {
 		json_t *attributesJ = json_array();
 		for (int seqnRead = 0, seqnWrite = 0; seqnRead < MAX_SEQS; seqnRead++) {
 			bool compress = true;
-			for (int stepn = 0; stepn < 4; stepn++) {
+			for (int stepn = 0; stepn < 5; stepn++) {
 				if (cv[seqnRead][stepn] != INIT_CV || attributes[seqnRead][stepn].getAttribute() != StepAttributes::ATT_MSK_INITSTATE) {
 					compress = false;
 					break;
@@ -738,9 +738,7 @@ class SequencerKernel {
 	void transposeSeq(int seqn, int delta) {
 		int tVal = sequences[seqn].getTranspose();
 		int oldTransposeOffset = tVal;
-		tVal += delta;
-		if (tVal > 99) tVal = 99;
-		if (tVal < -99) tVal = -99;						
+		tVal = clamp(tVal + delta, -99, 99);
 		sequences[seqn].setTranspose(tVal);
 		
 		delta = tVal - oldTransposeOffset;
@@ -754,9 +752,7 @@ class SequencerKernel {
 	
 	void rotateSeq(int* rotateOffset, int seqn, int delta) {
 		int oldRotateOffset = *rotateOffset;
-		*rotateOffset += delta;
-		if (*rotateOffset > 99) *rotateOffset = 99;
-		if (*rotateOffset < -99) *rotateOffset = -99;	
+		*rotateOffset = clamp(*rotateOffset + delta, -99, 99);
 		
 		delta = *rotateOffset - oldRotateOffset;
 		if (delta == 0) 

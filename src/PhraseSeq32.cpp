@@ -131,7 +131,8 @@ struct PhraseSeq32 : Module {
 	unsigned long slideStepsRemain[2];// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta[2];// no need to initialize, this is a companion to slideStepsRemain
 	float cvCPbuffer[32];// copy paste buffer for CVs
-	int attribOrPhraseCPbuffer[32];
+	int attribCPbuffer[32];
+	int phraseCPbuffer[32];
 	int lengthCPbuffer;
 	int modeCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
@@ -233,7 +234,8 @@ struct PhraseSeq32 : Module {
 			phrase[i] = 0;
 			lengths[i] = 16 * stepConfig;
 			cvCPbuffer[i] = 0.0f;
-			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
+			attribCPbuffer[i] = ATT_MSK_GATE1;
+			phraseCPbuffer[i] = 0;
 			transposeOffsets[i] = 0;
 		}
 		initRun();
@@ -678,14 +680,14 @@ struct PhraseSeq32 : Module {
 				if (editingSequence) {
 					for (int i = 0, s = startCP; i < countCP; i++, s++) {
 						cvCPbuffer[i] = cv[sequence][s];
-						attribOrPhraseCPbuffer[i] = attributes[sequence][s];
+						attribCPbuffer[i] = attributes[sequence][s];
 					}
 					lengthCPbuffer = lengths[sequence];
 					modeCPbuffer = runModeSeq[sequence];
 				}
 				else {
 					for (int i = 0, p = startCP; i < countCP; i++, p++)
-						attribOrPhraseCPbuffer[i] = phrase[p];
+						phraseCPbuffer[i] = phrase[p];
 					lengthCPbuffer = -1;// so that a cross paste can be detected
 				}
 				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
@@ -705,7 +707,7 @@ struct PhraseSeq32 : Module {
 					if (lengthCPbuffer >= 0) {// non-crossed paste (seq vs song)
 						for (int i = 0, s = startCP; i < countCP; i++, s++) {
 							cv[sequence][s] = cvCPbuffer[i];
-							attributes[sequence][s] = attribOrPhraseCPbuffer[i];
+							attributes[sequence][s] = attribCPbuffer[i];
 						}
 						if (params[CPMODE_PARAM].value > 1.5f) {// all
 							lengths[sequence] = lengthCPbuffer;
@@ -739,7 +741,7 @@ struct PhraseSeq32 : Module {
 				else {
 					if (lengthCPbuffer < 0) {// non-crossed paste (seq vs song)
 						for (int i = 0, p = startCP; i < countCP; i++, p++)
-							phrase[p] = attribOrPhraseCPbuffer[i];
+							phrase[p] = phraseCPbuffer[i];
 					}
 					else {// crossed paste to song (seq vs song)
 						if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init phrases)
@@ -799,15 +801,11 @@ struct PhraseSeq32 : Module {
 			if (delta != 0) {
 				if (displayState == DISP_LENGTH) {
 					if (editingSequence) {
-						lengths[sequence] += delta;
-						if (lengths[sequence] > (16 * stepConfig)) lengths[sequence] = (16 * stepConfig);
-						if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+						lengths[sequence] = clamp(lengths[sequence] + delta, 1, (16 * stepConfig));
 						lengths[sequence] = ((lengths[sequence] - 1) % (16 * stepConfig)) + 1;
 					}
 					else {
-						phrases += delta;
-						if (phrases > 32) phrases = 32;
-						if (phrases < 1 ) phrases = 1;
+						phrases = clamp(phrases + delta, 1, 32);
 					}
 				}
 				else {
@@ -893,7 +891,6 @@ struct PhraseSeq32 : Module {
 				if (editingSequence) {
 					if (displayState == DISP_NORMAL || displayState == DISP_MODE || displayState == DISP_LENGTH) {
 						displayState = DISP_TRANSPOSE;
-						//transposeOffset = 0;
 					}
 					else if (displayState == DISP_TRANSPOSE) {
 						displayState = DISP_ROTATE;
@@ -914,43 +911,30 @@ struct PhraseSeq32 : Module {
 				if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (editingPpqn != 0) {
 						pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
-						// if (pulsesPerStep < 2)
-							// editingGateLength = 0l;
 						editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 					}
 					else if (displayState == DISP_MODE) {
 						if (editingSequence) {
 							if (!inputs[MODECV_INPUT].active) {
-								runModeSeq[sequence] += deltaKnob;
-								if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
-								if (runModeSeq[sequence] >= NUM_MODES) runModeSeq[sequence] = NUM_MODES - 1;
+								runModeSeq[sequence] = clamp(runModeSeq[sequence] + deltaKnob, 0, NUM_MODES - 1);
 							}
 						}
 						else {
-							runModeSong += deltaKnob;
-							if (runModeSong < 0) runModeSong = 0;
-							if (runModeSong >= 6) runModeSong = 6 - 1;
+							runModeSong = clamp(runModeSong + deltaKnob, 0, 6 - 1);
 						}
 					}
 					else if (displayState == DISP_LENGTH) {
 						if (editingSequence) {
-							lengths[sequence] += deltaKnob;
-							if (lengths[sequence] > (16 * stepConfig)) lengths[sequence] = (16 * stepConfig);
-							if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+							lengths[sequence] = clamp(lengths[sequence] + deltaKnob, 1, (16 * stepConfig));
 						}
 						else {
-							phrases += deltaKnob;
-							if (phrases > 32) phrases = 32;
-							if (phrases < 1 ) phrases = 1;
+							phrases = clamp(phrases + deltaKnob, 1, 32);
 						}
 					}
 					else if (displayState == DISP_TRANSPOSE) {
 						if (editingSequence) {
-							transposeOffsets[sequence] += deltaKnob;
-							if (transposeOffsets[sequence] > 99) transposeOffsets[sequence] = 99;
-							if (transposeOffsets[sequence] < -99) transposeOffsets[sequence] = -99;						
-							// Tranpose by this number of semi-tones: deltaKnob
-							float transposeOffsetCV = ((float)(deltaKnob))/12.0f;
+							transposeOffsets[sequence] = clamp(transposeOffsets[sequence] + deltaKnob, -99, 99);
+							float transposeOffsetCV = ((float)(deltaKnob))/12.0f;// Tranpose by deltaKnob number of semi-tones
 							if (stepConfig == 1){ // 2x16 (transpose only the 16 steps corresponding to row where stepIndexEdit is located)
 								int offset = stepIndexEdit < 16 ? 0 : 16;
 								for (int s = offset; s < offset + 16; s++) 
@@ -964,9 +948,7 @@ struct PhraseSeq32 : Module {
 					}
 					else if (displayState == DISP_ROTATE) {
 						if (editingSequence) {
-							rotateOffset += deltaKnob;
-							if (rotateOffset > 99) rotateOffset = 99;
-							if (rotateOffset < -99) rotateOffset = -99;	
+							rotateOffset = clamp(rotateOffset + deltaKnob, -99, 99);
 							if (deltaKnob > 0 && deltaKnob < 99) {// Rotate right, 99 is safety
 								for (int i = deltaKnob; i > 0; i--)
 									rotateSeq(sequence, true, lengths[sequence], stepConfig == 1 && stepIndexEdit >= 16);
@@ -980,9 +962,7 @@ struct PhraseSeq32 : Module {
 					else {// DISP_NORMAL
 						if (editingSequence) {
 							if (!inputs[SEQCV_INPUT].active) {
-								sequence += deltaKnob;
-								if (sequence < 0) sequence = 0;
-								if (sequence >= 32) sequence = (32 - 1);
+								sequence = clamp(sequence + deltaKnob, 0, 32 - 1);
 							}
 						}
 						else {
@@ -1068,18 +1048,13 @@ struct PhraseSeq32 : Module {
 				editingGateLength = 0l;
 			}
 			if (keyGateTrigger.process(params[KEYGATE_PARAM].value)) {
-				// if (pulsesPerStep < 2) {
-					// editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-				// }
-				// else {
-					if (editingGateLength == 0l) {
-						editingGateLength = lastGateEdit;
-					}
-					else {
-						editingGateLength *= -1l;
-						lastGateEdit = editingGateLength;
-					}
-				// }
+				if (editingGateLength == 0l) {
+					editingGateLength = lastGateEdit;
+				}
+				else {
+					editingGateLength *= -1l;
+					lastGateEdit = editingGateLength;
+				}
 			}
 
 			// Gate1, Gate1Prob, Gate2, Slide and Tied buttons

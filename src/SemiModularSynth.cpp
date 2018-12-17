@@ -215,7 +215,8 @@ struct SemiModularSynth : Module {
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta;// no need to initialize, this is a companion to slideStepsRemain
 	float cvCPbuffer[16];// copy paste buffer for CVs
-	int attribOrPhraseCPbuffer[16];
+	int attribCPbuffer[16];
+	int phraseCPbuffer[16];
 	int lengthCPbuffer;
 	int modeCPbuffer;
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
@@ -329,7 +330,8 @@ struct SemiModularSynth : Module {
 			phrase[i] = 0;
 			lengths[i] = 16;
 			cvCPbuffer[i] = 0.0f;
-			attribOrPhraseCPbuffer[i] = ATT_MSK_GATE1;
+			attribCPbuffer[i] = ATT_MSK_GATE1;
+			phraseCPbuffer[i] = 0;
 			transposeOffsets[i] = 0;
 		}
 		initRun();
@@ -727,14 +729,14 @@ struct SemiModularSynth : Module {
 				if (editingSequence) {
 					for (int i = 0, s = startCP; i < countCP; i++, s++) {
 						cvCPbuffer[i] = cv[sequence][s];
-						attribOrPhraseCPbuffer[i] = attributes[sequence][s];
+						attribCPbuffer[i] = attributes[sequence][s];
 					}
 					lengthCPbuffer = lengths[sequence];
 					modeCPbuffer = runModeSeq[sequence];
 				}
 				else {
 					for (int i = 0, p = startCP; i < countCP; i++, p++)
-						attribOrPhraseCPbuffer[i] = phrase[p];
+						phraseCPbuffer[i] = phrase[p];
 					lengthCPbuffer = -1;// so that a cross paste can be detected
 				}
 				infoCopyPaste = (long) (copyPasteInfoTime * sampleRate / displayRefreshStepSkips);
@@ -754,7 +756,7 @@ struct SemiModularSynth : Module {
 					if (lengthCPbuffer >= 0) {// non-crossed paste (seq vs song)
 						for (int i = 0, s = startCP; i < countCP; i++, s++) {
 							cv[sequence][s] = cvCPbuffer[i];
-							attributes[sequence][s] = attribOrPhraseCPbuffer[i];
+							attributes[sequence][s] = attribCPbuffer[i];
 						}
 						if (params[CPMODE_PARAM].value > 1.5f) {// all
 							lengths[sequence] = lengthCPbuffer;
@@ -788,7 +790,7 @@ struct SemiModularSynth : Module {
 				else {
 					if (lengthCPbuffer < 0) {// non-crossed paste (seq vs song)
 						for (int i = 0, p = startCP; i < countCP; i++, p++)
-							phrase[p] = attribOrPhraseCPbuffer[i];
+							phrase[p] = phraseCPbuffer[i];
 					}
 					else {// crossed paste to song (seq vs song)
 						if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init phrases)
@@ -847,14 +849,10 @@ struct SemiModularSynth : Module {
 			if (delta != 0) {
 				if (displayState == DISP_LENGTH) {
 					if (editingSequence) {
-						lengths[sequence] += delta;
-						if (lengths[sequence] > 16) lengths[sequence] = 16;
-						if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+						lengths[sequence] = clamp(lengths[sequence] + delta, 1, 16);
 					}
 					else {
-						phrases += delta;
-						if (phrases > 16) phrases = 16;
-						if (phrases < 1 ) phrases = 1;
+						phrases = clamp(phrases + delta, 1, 16);
 					}
 				}
 				else {
@@ -930,7 +928,6 @@ struct SemiModularSynth : Module {
 				if (editingSequence) {
 					if (displayState == DISP_NORMAL || displayState == DISP_MODE || displayState == DISP_LENGTH) {
 						displayState = DISP_TRANSPOSE;
-						//transposeOffset = 0;
 					}
 					else if (displayState == DISP_TRANSPOSE) {
 						displayState = DISP_ROTATE;
@@ -951,41 +948,28 @@ struct SemiModularSynth : Module {
 				if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (editingPpqn != 0) {
 						pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
-						// if (pulsesPerStep < 2)
-							// editingGateLength = 0l;
 						editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 					}
 					else if (displayState == DISP_MODE) {
 						if (editingSequence) {
-							runModeSeq[sequence] += deltaKnob;
-							if (runModeSeq[sequence] < 0) runModeSeq[sequence] = 0;
-							if (runModeSeq[sequence] >= (NUM_MODES - 1)) runModeSeq[sequence] = (NUM_MODES - 1 - 1);
+							runModeSeq[sequence] = clamp(runModeSeq[sequence] + deltaKnob, 0, (NUM_MODES - 1 - 1));
 						}
 						else {
-							runModeSong += deltaKnob;
-							if (runModeSong < 0) runModeSong = 0;
-							if (runModeSong >= 6) runModeSong = 6 - 1;
+							runModeSong = clamp(runModeSong + deltaKnob, 0, 6 - 1);
 						}
 					}
 					else if (displayState == DISP_LENGTH) {
 						if (editingSequence) {
-							lengths[sequence] += deltaKnob;
-							if (lengths[sequence] > 16) lengths[sequence] = 16;
-							if (lengths[sequence] < 1 ) lengths[sequence] = 1;
+							lengths[sequence] = clamp(lengths[sequence] + deltaKnob, 1, 16);
 						}
 						else {
-							phrases += deltaKnob;
-							if (phrases > 16) phrases = 16;
-							if (phrases < 1 ) phrases = 1;
+							phrases = clamp(phrases + deltaKnob, 1, 16);
 						}
 					}
 					else if (displayState == DISP_TRANSPOSE) {
 						if (editingSequence) {
-							transposeOffsets[sequence] += deltaKnob;
-							if (transposeOffsets[sequence] > 99) transposeOffsets[sequence] = 99;
-							if (transposeOffsets[sequence] < -99) transposeOffsets[sequence] = -99;						
-							// Tranpose by this number of semi-tones: deltaKnob
-							float transposeOffsetCV = ((float)(deltaKnob))/12.0f;
+							transposeOffsets[sequence] = clamp(transposeOffsets[sequence] + deltaKnob, -99, 99);
+							float transposeOffsetCV = ((float)(deltaKnob))/12.0f;// Tranpose by deltaKnob number of semi-tones
 							for (int s = 0; s < 16; s++) {
 								cv[sequence][s] += transposeOffsetCV;
 							}
@@ -993,9 +977,7 @@ struct SemiModularSynth : Module {
 					}
 					else if (displayState == DISP_ROTATE) {
 						if (editingSequence) {
-							rotateOffset += deltaKnob;
-							if (rotateOffset > 99) rotateOffset = 99;
-							if (rotateOffset < -99) rotateOffset = -99;	
+							rotateOffset = clamp(rotateOffset + deltaKnob, -99, 99);
 							if (deltaKnob > 0 && deltaKnob < 99) {// Rotate right, 99 is safety
 								for (int i = deltaKnob; i > 0; i--)
 									rotateSeq(sequence, true, lengths[sequence]);
@@ -1009,15 +991,11 @@ struct SemiModularSynth : Module {
 					else {// DISP_NORMAL
 						if (editingSequence) {
 							if (!inputs[SEQCV_INPUT].active) {
-								sequence += deltaKnob;
-								if (sequence < 0) sequence = 0;
-								if (sequence >= 16) sequence = (16 - 1);
+								sequence = clamp(sequence + deltaKnob, 0, 16 - 1);
 							}
 						}
 						else {
-							phrase[phraseIndexEdit] += deltaKnob;
-							if (phrase[phraseIndexEdit] < 0) phrase[phraseIndexEdit] = 0;
-							if (phrase[phraseIndexEdit] >= 16) phrase[phraseIndexEdit] = (16 - 1);				
+							phrase[phraseIndexEdit] = clamp(phrase[phraseIndexEdit] + deltaKnob, 0, 16 - 1);
 						}
 					}
 				}
@@ -1093,18 +1071,13 @@ struct SemiModularSynth : Module {
 				editingGateLength = 0l;
 			}
 			if (keyGateTrigger.process(params[KEYGATE_PARAM].value)) {
-				// if (pulsesPerStep < 2) {
-					// editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
-				// }
-				// else {
-					if (editingGateLength == 0l) {
-						editingGateLength = lastGateEdit;
-					}
-					else {
-						editingGateLength *= -1l;
-						lastGateEdit = editingGateLength;
-					}
-				// }
+				if (editingGateLength == 0l) {
+					editingGateLength = lastGateEdit;
+				}
+				else {
+					editingGateLength *= -1l;
+					lastGateEdit = editingGateLength;
+				}
 			}
 
 			// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
