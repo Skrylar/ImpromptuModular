@@ -306,7 +306,6 @@ struct Clocked : Module {
 	
 	
 	void onRandomize() override {
-		//running = false;
 		resetClocked(false);
 	}
 
@@ -497,7 +496,6 @@ struct Clocked : Module {
 				if (running) {
 					extIntervalTime += sampleTime;
 					if (extIntervalTime > timeoutTime) {
-						//info("*** extIntervalTime = %f, timeoutTime = %f",extIntervalTime, timeoutTime);
 						running = false;
 						runPulse.trigger(0.001f);
 						resetClocked(false);
@@ -622,10 +620,7 @@ struct Clocked : Module {
 			if (cantRunWarning > 0l) 
 				warningFlashState = calcWarningFlash(cantRunWarning, (long) (0.7 * sampleRate / displayRefreshStepSkips));
 			lights[BPMSYNC_LIGHT + 0].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? 1.0f : 0.0f;
-			//if (editingBpmMode < 0l)
-				//lights[BPMSYNC_LIGHT + 1].value = 1.0f;
-			//else
-				lights[BPMSYNC_LIGHT + 1].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
+			lights[BPMSYNC_LIGHT + 1].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
 			
 			// ratios synched lights
 			for (int i = 1; i < 4; i++)
@@ -639,12 +634,6 @@ struct Clocked : Module {
 			}
 			if (cantRunWarning > 0l)
 				cantRunWarning--;
-			/*if (editingBpmMode != 0l) {// with schedulesReset method, this block is not thread-unsafe and is ok as it is
-				if (editingBpmMode > 0l)
-					editingBpmMode--;
-				else
-					editingBpmMode++;
-			}*/
 			editingBpmMode--;
 			if (editingBpmMode < 0l)
 				editingBpmMode = 0l;
@@ -726,14 +715,10 @@ struct ClockedWidget : ModuleWidget {
 				}
 				else {// BPM to display
 					if (module->editingBpmMode != 0l) {
-						//if (module->editingBpmMode > 0l) {
-							if (!module->bpmDetectionMode)
-								snprintf(displayStr, 4, " CV");
-							else
-								snprintf(displayStr, 4, "P%2u", (unsigned) module->ppqn);
-						//}
-						//else
-							//snprintf(displayStr, 4, " --");
+						if (!module->bpmDetectionMode)
+							snprintf(displayStr, 4, " CV");
+						else
+							snprintf(displayStr, 4, "P%2u", (unsigned) module->ppqn);
 					}
 					else
 						snprintf(displayStr, 4, "%3u", (unsigned)((120.0f / module->masterLength) + 0.5f));

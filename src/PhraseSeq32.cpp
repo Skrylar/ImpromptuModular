@@ -990,9 +990,7 @@ struct PhraseSeq32 : Module {
 					if (getTied(sequence,stepIndexEdit))
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 					else {			
-						float newCV = cv[sequence][stepIndexEdit] + 10.0f;//to properly handle negative note voltages
-						newCV = newCV - floor(newCV) + (float) (newOct - 3);
-						cv[sequence][stepIndexEdit] = newCV;
+						cv[sequence][stepIndexEdit] = applyNewOct(cv[sequence][stepIndexEdit], newOct);
 						propagateCVtoTied(sequence, stepIndexEdit);
 						editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 						editingGateCV = cv[sequence][stepIndexEdit];

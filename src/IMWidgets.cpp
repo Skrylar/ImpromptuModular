@@ -20,6 +20,7 @@ ScrewCircle::ScrewCircle(float _angle) {
 	_angle = fabs(angle - M_PI/4.0f);
 	radius = ((highRadius - lowRadius)/(M_PI/4.0f)) * _angle + lowRadius;
 }
+
 void ScrewCircle::draw(NVGcontext *vg) {
 	NVGcolor backgroundColor = nvgRGB(0x72, 0x72, 0x72); 
 	NVGcolor borderColor = nvgRGB(0x72, 0x72, 0x72);
@@ -31,6 +32,7 @@ void ScrewCircle::draw(NVGcontext *vg) {
 	nvgStrokeColor(vg, borderColor);
 	nvgStroke(vg);
 }
+
 DynamicSVGScrew::DynamicSVGScrew() {
     mode = nullptr;
     oldMode = -1;
@@ -68,7 +70,6 @@ DynamicSVGScrew::DynamicSVGScrew() {
 	swAlt->visible = false;
     addChild(swAlt);
 }
-
 
 void DynamicSVGScrew::addSVGalt(std::shared_ptr<SVG> svg) {
     if(!swAlt->svg) {
@@ -317,9 +318,4 @@ void DynamicIMTactile::onMouseDown(EventMouseDown &e) {
 	setValue(val);
 	ParamWidget::onMouseDown(e);
 }
-
-//void DynamicIMTactile::changeValue(float newVal) {
-//	setValue(newVal);
-//}
-
 

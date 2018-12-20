@@ -114,6 +114,11 @@ inline int indexToPps(int index) {// inverse map of ppsToIndex()
 	return index <<	1;
 }
 
+inline float applyNewOct(float cvVal, int newOct) {
+	float newCV = cvVal + 10.0f;//to properly handle negative note voltages
+	return newCV - floor(newCV) + (float) (newOct - 3);
+}
+
 inline bool calcGate(int gateCode, SchmittTrigger clockTrigger, unsigned long clockStep, float sampleRate) {
 	if (gateCode < 2) 
 		return gateCode == 1;
