@@ -17,15 +17,6 @@ static const uint32_t advGateHitMask[NUM_GATES] =
 {0x00003F, 0x0F0F0F, 0x000FFF, 0x0F0F00, 0x03FFFF, 0xFFFFFF, 0x00000F, 0x03F03F, 0x000F00, 0x03F000, 0x0F0000, 0};
 //	  25%		TRI		  50%		T23		  75%		FUL		  TR1 		DUO		  TR2 	     D2		  TR3  TRIG		
 
-enum AttributeBitMasks {ATT_MSK_GATE1 = 0x01, ATT_MSK_GATE1P = 0x02, ATT_MSK_GATE2 = 0x04, ATT_MSK_SLIDE = 0x08, ATT_MSK_TIED = 0x10};// 5 bits
-static const int ATT_MSK_GATE1MODE = 0x01E0;// 4 bits
-static const int gate1ModeShift = 5;
-static const int ATT_MSK_GATE2MODE = 0x1E00;// 4 bits
-static const int gate2ModeShift = 9;
-
-			
-
-
 
 class StepAttributes {
 	unsigned short attributes;
@@ -53,6 +44,7 @@ class StepAttributes {
 	inline bool getTied() {return (attributes & ATT_MSK_TIED) != 0;}
 	inline int getGate1Mode() {return (attributes & ATT_MSK_GATE1MODE) >> gate1ModeShift;}
 	inline int getGate2Mode() {return (attributes & ATT_MSK_GATE2MODE) >> gate2ModeShift;}
+	inline unsigned short getAttribute() {return attributes;}
 
 	inline void setGate1(bool gate1State) {attributes &= ~ATT_MSK_GATE1; if (gate1State) attributes |= ATT_MSK_GATE1;}
 	inline void setGate1P(bool gate1PState) {attributes &= ~ATT_MSK_GATE1P; if (gate1PState) attributes |= ATT_MSK_GATE1P;}
@@ -67,6 +59,7 @@ class StepAttributes {
 	}
 	inline void setGate1Mode(int gateMode) {attributes &= ~ATT_MSK_GATE1MODE; attributes |= (gateMode << gate1ModeShift);}
 	inline void setGate2Mode(int gateMode) {attributes &= ~ATT_MSK_GATE2MODE; attributes |= (gateMode << gate2ModeShift);}
+	inline void setAttribute(unsigned short _attributes) {attributes = _attributes;}
 
 	inline void toggleGate1() {attributes ^= ATT_MSK_GATE1;}
 	inline void toggleGate1P() {attributes ^= ATT_MSK_GATE1P;}
@@ -74,35 +67,6 @@ class StepAttributes {
 	inline void toggleSlide() {attributes ^= ATT_MSK_SLIDE;}
 };// class StepAttributes
 			
-				
-				
-				
-				
-// Inline methods
-inline bool getGate1a(int attribute) {return (attribute & ATT_MSK_GATE1) != 0;}
-inline bool getGate1Pa(int attribute) {return (attribute & ATT_MSK_GATE1P) != 0;}
-inline bool getGate2a(int attribute) {return (attribute & ATT_MSK_GATE2) != 0;}
-inline bool getSlideA(int attribute) {return (attribute & ATT_MSK_SLIDE) != 0;}
-inline bool getTiedA(int attribute) {return (attribute & ATT_MSK_TIED) != 0;}
-inline int getGate1aMode(int attribute) {return (attribute & ATT_MSK_GATE1MODE) >> gate1ModeShift;}
-inline int getGate2aMode(int attribute) {return (attribute & ATT_MSK_GATE2MODE) >> gate2ModeShift;}
-
-inline void setGate1a(int *attribute, bool gate1State) {(*attribute) &= ~ATT_MSK_GATE1; if (gate1State) (*attribute) |= ATT_MSK_GATE1;}
-inline void setGate1Pa(int *attribute, bool gate1PState) {(*attribute) &= ~ATT_MSK_GATE1P; if (gate1PState) (*attribute) |= ATT_MSK_GATE1P;}
-inline void setGate2a(int *attribute, bool gate2State) {(*attribute) &= ~ATT_MSK_GATE2; if (gate2State) (*attribute) |= ATT_MSK_GATE2;}
-inline void setSlideA(int *attribute, bool slideState) {(*attribute) &= ~ATT_MSK_SLIDE; if (slideState) (*attribute) |= ATT_MSK_SLIDE;}
-inline void setTiedA(int *attribute, bool tiedState) {
-	(*attribute) &= ~ATT_MSK_TIED; 
-	if (tiedState) {
-		(*attribute) |= ATT_MSK_TIED;
-		(*attribute) &= ~(ATT_MSK_GATE1 | ATT_MSK_GATE1P | ATT_MSK_GATE2 | ATT_MSK_SLIDE);// clear other attributes if tied
-	}
-}
-inline void toggleGate1a(int *attribute) {(*attribute) ^= ATT_MSK_GATE1;}
-inline void toggleGate1Pa(int *attribute) {(*attribute) ^= ATT_MSK_GATE1P;}
-inline void toggleGate2a(int *attribute) {(*attribute) ^= ATT_MSK_GATE2;}
-inline void toggleSlideA(int *attribute) {(*attribute) ^= ATT_MSK_SLIDE;}
-
 
 inline int ppsToIndex(int pulsesPerStep) {// map 1,2,4,6,8,10,12...24, to 0,1,2,3,4,5,6...12
 	if (pulsesPerStep == 1) return 0;
@@ -134,24 +98,24 @@ inline int getAdvGate(int ppqnCount, int pulsesPerStep, int gateMode) {
 	return (int)((advGateHitMask[gateMode] >> shiftAmt) & (uint32_t)0x1);
 }
 
-inline int calcGate1Code(int attribute, int ppqnCount, int pulsesPerStep, float randKnob) {
+inline int calcGate1Code(StepAttributes attribute, int ppqnCount, int pulsesPerStep, float randKnob) {
 	// -1 = gate off for whole step, 0 = gate off for current ppqn, 1 = gate on, 2 = clock high, 3 = trigger
-	if (ppqnCount == 0 && getGate1Pa(attribute) && !(randomUniform() < randKnob))// randomUniform is [0.0, 1.0), see include/util/common.hpp
+	if (ppqnCount == 0 && attribute.getGate1P() && !(randomUniform() < randKnob))// randomUniform is [0.0, 1.0), see include/util/common.hpp
 		return -1;// must do this first in this method since it will kill rest of step if prob turns off the step
-	if (!getGate1a(attribute))
+	if (!attribute.getGate1())
 		return 0;
-	int gateType = getGate1aMode(attribute);
+	int gateType = attribute.getGate1Mode();
 	if (pulsesPerStep == 1 && gateType == 0)
 		return 2;// clock high
 	if (gateType == 11)
 		return (ppqnCount == 0 ? 3 : 0);
 	return getAdvGate(ppqnCount, pulsesPerStep, gateType);
 }
-inline int calcGate2Code(int attribute, int ppqnCount, int pulsesPerStep) {
+inline int calcGate2Code(StepAttributes attribute, int ppqnCount, int pulsesPerStep) {
 	// 0 = gate off, 1 = clock high, 2 = trigger, 3 = gate on
-	if (!getGate2a(attribute))
+	if (!attribute.getGate2())
 		return 0;
-	int gateType = getGate2aMode(attribute);
+	int gateType = attribute.getGate2Mode();
 	if (pulsesPerStep == 1 && gateType == 0)
 		return 2;// clock high
 	if (gateType == 11)
@@ -159,8 +123,8 @@ inline int calcGate2Code(int attribute, int ppqnCount, int pulsesPerStep) {
 	return getAdvGate(ppqnCount, pulsesPerStep, gateType);
 }
 
-inline int gateModeToKeyLightIndex(int attribute, bool isGate1) {// keyLight index now matches gate modes, so no mapping table needed anymore
-	return isGate1 ? getGate1aMode(attribute) : getGate2aMode(attribute);
+inline int gateModeToKeyLightIndex(StepAttributes attribute, bool isGate1) {// keyLight index now matches gate modes, so no mapping table needed anymore
+	return isGate1 ? attribute.getGate1Mode() : attribute.getGate2Mode();
 }
 
 

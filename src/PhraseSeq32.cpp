@@ -110,7 +110,7 @@ struct PhraseSeq32 : Module {
 	int phrase[32];// This is the song (series of phases; a phrase is a patten number)
 	int phrases;//1 to 32
 	float cv[32][32];// [-3.0 : 3.917]. First index is patten number, 2nd index is step
-	int attributes[32][32];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
+	StepAttributes attributes[32][32];// First index is patten number, 2nd index is step (see enum AttributeBitMasks for details)
 	bool resetOnRun;
 	bool attached;
 	int transposeOffsets[32];
@@ -131,7 +131,7 @@ struct PhraseSeq32 : Module {
 	unsigned long slideStepsRemain[2];// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta[2];// no need to initialize, this is a companion to slideStepsRemain
 	float cvCPbuffer[32];// copy paste buffer for CVs
-	int attribCPbuffer[32];
+	StepAttributes attribCPbuffer[32];
 	int phraseCPbuffer[32];
 	int lengthCPbuffer;
 	int modeCPbuffer;
@@ -189,14 +189,6 @@ struct PhraseSeq32 : Module {
 		return (paramValue > 0.5f) ? 1 : 2;
 	}
 
-	inline void initAttrib(int seq, int step) {attributes[seq][step] = ATT_MSK_GATE1;}
-	inline bool getTied(int seq, int step) {return getTiedA(attributes[seq][step]);}
-	inline int getGate1Mode(int seq, int step) {return getGate1aMode(attributes[seq][step]);}
-	inline int getGate2Mode(int seq, int step) {return getGate2aMode(attributes[seq][step]);}
-	
-	inline void setGate1Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE1MODE; attributes[seq][step] |= (gateMode << gate1ModeShift);}
-	inline void setGate2Mode(int seq, int step, int gateMode) {attributes[seq][step] &= ~ATT_MSK_GATE2MODE; attributes[seq][step] |= (gateMode << gate2ModeShift);}
-
 	
 	inline void fillStepIndexRunVector(int runMode, int len) {
 		if (runMode != MODE_RN2) 
@@ -228,13 +220,13 @@ struct PhraseSeq32 : Module {
 		for (int i = 0; i < 32; i++) {
 			for (int s = 0; s < 32; s++) {
 				cv[i][s] = 0.0f;
-				initAttrib(i, s);
+				attributes[i][s].init();
 			}
 			runModeSeq[i] = MODE_FWD;
 			phrase[i] = 0;
 			lengths[i] = 16 * stepConfig;
 			cvCPbuffer[i] = 0.0f;
-			attribCPbuffer[i] = ATT_MSK_GATE1;
+			attribCPbuffer[i].init();
 			phraseCPbuffer[i] = 0;
 			transposeOffsets[i] = 0;
 		}
@@ -274,8 +266,8 @@ struct PhraseSeq32 : Module {
 			transposeOffsets[i] = 0;
 			for (int s = 0; s < 32; s++) {
 				cv[i][s] = ((float)(randomu32() % 7)) + ((float)(randomu32() % 12)) / 12.0f - 3.0f;
-				attributes[i][s] = randomu32() & 0x1FFF;// 5 bit for normal attributes + 2 * 4 bits for advanced gate modes
-				if (getTied(i,s)) {
+				attributes[i][s].randomize();
+				if (attributes[i][s].getTied()) {
 					activateTiedStep(i, s);
 				}
 			}
@@ -367,7 +359,7 @@ struct PhraseSeq32 : Module {
 		json_t *attributesJ = json_array();
 		for (int i = 0; i < 32; i++)
 			for (int s = 0; s < 32; s++) {
-				json_array_insert_new(attributesJ, s + (i * 32), json_integer(attributes[i][s]));
+				json_array_insert_new(attributesJ, s + (i * 32), json_integer(attributes[i][s].getAttribute()));
 			}
 		json_object_set_new(rootJ, "attributes", attributesJ);
 
@@ -517,7 +509,7 @@ struct PhraseSeq32 : Module {
 				for (int s = 0; s < 32; s++) {
 					json_t *attributesArrayJ = json_array_get(attributesJ, s + (i * 32));
 					if (attributesArrayJ)
-						attributes[i][s] = json_integer_value(attributesArrayJ);
+						attributes[i][s].setAttribute((unsigned short)json_integer_value(attributesArrayJ));
 				}
 		}
 		
@@ -559,7 +551,7 @@ struct PhraseSeq32 : Module {
 		// set chanB_16 to false to rotate chan A in 2x16 config (length will be <= 16) or single chan in 1x32 config (length will be <= 32)
 		// set chanB_16 to true  to rotate chan B in 2x16 config (length must be <= 16)
 		float rotCV;
-		int rotAttributes;
+		StepAttributes rotAttributes;
 		int iStart = chanB_16 ? 16 : 0;
 		int iEnd = iStart + seqLength - 1;
 		int iRot = iStart;
@@ -719,7 +711,7 @@ struct PhraseSeq32 : Module {
 						if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init steps)
 							for (int s = 0; s < 32; s++) {
 								cv[sequence][s] = 0.0f;
-								initAttrib(sequence, s);
+								attributes[sequence][s].init();
 							}
 							transposeOffsets[sequence] = 0;
 						}
@@ -731,7 +723,7 @@ struct PhraseSeq32 : Module {
 						else {// 8 (randomize gate 1)
 							for (int s = 0; s < 32; s++)
 								if ( (randomu32() & 0x1) != 0)
-									toggleGate1a(&attributes[sequence][s]);// toggleGate1(sequence, s);
+									attributes[sequence][s].toggleGate1();
 						}
 						startCP = 0;
 						countCP = 32;
@@ -769,7 +761,7 @@ struct PhraseSeq32 : Module {
 			bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 			if (writeTrig) {
 				if (editingSequence) {
-					if (!getTied(sequence, stepIndexEdit)) {
+					if (!attributes[sequence][stepIndexEdit].getTied()) {
 						cv[sequence][stepIndexEdit] = inputs[CV_INPUT].value;
 						propagateCVtoTied(sequence, stepIndexEdit);
 					}
@@ -812,7 +804,7 @@ struct PhraseSeq32 : Module {
 					if (!running || !attached) {// don't move heads when attach and running
 						if (editingSequence) {
 							stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, 32);
-							if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
+							if (!attributes[sequence][stepIndexEdit].getTied()) {// play if non-tied step
 								if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
 									editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 									editingGateCV = cv[sequence][stepIndexEdit];
@@ -848,7 +840,7 @@ struct PhraseSeq32 : Module {
 					if (!running || !attached) {// not running or detached
 						if (editingSequence) {
 							stepIndexEdit = stepPressed;
-							if (!getTied(sequence,stepIndexEdit)) {// play if non-tied step
+							if (!attributes[sequence][stepIndexEdit].getTied()) {// play if non-tied step
 								editingGate = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 								editingGateCV = cv[sequence][stepIndexEdit];
 								editingGateKeyLight = -1;
@@ -987,7 +979,7 @@ struct PhraseSeq32 : Module {
 			}
 			if (newOct >= 0 && newOct <= 6) {
 				if (editingSequence) {
-					if (getTied(sequence,stepIndexEdit))
+					if (attributes[sequence][stepIndexEdit].getTied())
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 					else {			
 						cv[sequence][stepIndexEdit] = applyNewOct(cv[sequence][stepIndexEdit], newOct);
@@ -1009,16 +1001,16 @@ struct PhraseSeq32 : Module {
 							if (newMode != -1) {
 								editingPpqn = 0l;
 								if (editingGateLength > 0l) 
-									setGate1Mode(sequence, stepIndexEdit, newMode);
+									attributes[sequence][stepIndexEdit].setGate1Mode(newMode);
 								else
-									setGate2Mode(sequence, stepIndexEdit, newMode);
+									attributes[sequence][stepIndexEdit].setGate2Mode(newMode);
 								if (params[KEY_PARAMS + i].value > 1.5f)
 									stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 32);
 							}
 							else
 								editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
 						}
-						else if (getTied(sequence,stepIndexEdit)) {
+						else if (attributes[sequence][stepIndexEdit].getTied()) {
 							if (params[KEY_PARAMS + i].value > 1.5f)
 								stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 32);
 							else
@@ -1058,37 +1050,37 @@ struct PhraseSeq32 : Module {
 			// Gate1, Gate1Prob, Gate2, Slide and Tied buttons
 			if (gate1Trigger.process(params[GATE1_PARAM].value + inputs[GATE1CV_INPUT].value)) {
 				if (editingSequence) {
-					toggleGate1a(&attributes[sequence][stepIndexEdit]);
+					attributes[sequence][stepIndexEdit].toggleGate1();
 				}
 				displayState = DISP_NORMAL;
 			}		
 			if (gate1ProbTrigger.process(params[GATE1_PROB_PARAM].value)) {
 				if (editingSequence) {
-					if (getTied(sequence,stepIndexEdit))
+					if (attributes[sequence][stepIndexEdit].getTied())
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 					else
-						toggleGate1Pa(&attributes[sequence][stepIndexEdit]);
+						attributes[sequence][stepIndexEdit].toggleGate1P();
 				}
 				displayState = DISP_NORMAL;
 			}		
 			if (gate2Trigger.process(params[GATE2_PARAM].value + inputs[GATE2CV_INPUT].value)) {
 				if (editingSequence) {
-					toggleGate2a(&attributes[sequence][stepIndexEdit]);
+					attributes[sequence][stepIndexEdit].toggleGate2();
 				}
 				displayState = DISP_NORMAL;
 			}		
 			if (slideTrigger.process(params[SLIDE_BTN_PARAM].value + inputs[SLIDECV_INPUT].value)) {
 				if (editingSequence) {
-					if (getTied(sequence,stepIndexEdit))
+					if (attributes[sequence][stepIndexEdit].getTied())
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 					else
-						toggleSlideA(&attributes[sequence][stepIndexEdit]);
+						attributes[sequence][stepIndexEdit].toggleSlide();
 				}
 				displayState = DISP_NORMAL;
 			}		
 			if (tiedTrigger.process(params[TIE_PARAM].value + inputs[TIEDCV_INPUT].value)) {
 				if (editingSequence) {
-					if (getTied(sequence,stepIndexEdit)) {
+					if (attributes[sequence][stepIndexEdit].getTied()) {
 						deactivateTiedStep(sequence, stepIndexEdit);
 					}
 					else {
@@ -1132,7 +1124,7 @@ struct PhraseSeq32 : Module {
 
 					// Slide
 					for (int i = 0; i < 2; i += stepConfig) {
-						if (getSlideA(attributes[newSeq][(i * 16) + stepIndexRun[i]])) {// getSlide(newSeq, (i * 16) + stepIndexRun[i])) {
+						if (attributes[newSeq][(i * 16) + stepIndexRun[i]].getSlide()) {
 							slideStepsRemain[i] =   (unsigned long) (((float)clockPeriod  * pulsesPerStep) * params[SLIDE_KNOB_PARAM].value / 2.0f);
 							float slideToCV = cv[newSeq][(i * 16) + stepIndexRun[i]];
 							slideCVdelta[i] = (slideToCV - slideFromCV[i])/(float)slideStepsRemain[i];
@@ -1395,20 +1387,20 @@ struct PhraseSeq32 : Module {
 				lights[TIE_LIGHT].value = 0.0f;
 			}
 			else {
-				int attributesVal = attributes[sequence][stepIndexEdit];
+				StepAttributes attributesVal = attributes[sequence][stepIndexEdit];
 				if (!editingSequence)
 					attributesVal = attributes[phrase[phraseIndexEdit]][stepIndexRun[0]];
 				//
-				setGateLight(getGate1a(attributesVal), GATE1_LIGHT);
-				setGateLight(getGate2a(attributesVal), GATE2_LIGHT);
-				lights[GATE1_PROB_LIGHT].value = getGate1Pa(attributesVal) ? 1.0f : 0.0f;
-				lights[SLIDE_LIGHT].value = getSlideA(attributesVal) ? 1.0f : 0.0f;
+				setGateLight(attributesVal.getGate1(), GATE1_LIGHT);
+				setGateLight(attributesVal.getGate2(), GATE2_LIGHT);
+				lights[GATE1_PROB_LIGHT].value = attributesVal.getGate1P() ? 1.0f : 0.0f;
+				lights[SLIDE_LIGHT].value = attributesVal.getSlide() ? 1.0f : 0.0f;
 				if (tiedWarning > 0l) {
 					bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
 					lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
 				}
 				else
-					lights[TIE_LIGHT].value = getTiedA(attributesVal) ? 1.0f : 0.0f;
+					lights[TIE_LIGHT].value = attributesVal.getTied() ? 1.0f : 0.0f;
 			}
 			
 			// Attach light
@@ -1456,40 +1448,41 @@ struct PhraseSeq32 : Module {
 
 	inline void propagateCVtoTied(int seqn, int stepn) {
 		for (int i = stepn + 1; i < 32; i++) {
-			if (!getTied(seqn, i))
+			if (!attributes[seqn][i].getTied())
 				break;
 			cv[seqn][i] = cv[seqn][i - 1];
 		}	
 	}
 
 	void activateTiedStep(int seqn, int stepn) {
-		setTiedA(&attributes[seqn][stepn], true);
+		attributes[seqn][stepn].setTied(true);
 		if (stepn > 0) 
 			propagateCVtoTied(seqn, stepn - 1);
 		
 		if (holdTiedNotes) {// new method
-			setGate1a(&attributes[seqn][stepn], true);
-			for (int i = max(stepn, 1); i < 32 && getTied(seqn, i); i++) {
-				setGate1Mode(seqn, i, getGate1Mode(seqn, i - 1));
-				setGate1Mode(seqn, i - 1, 5);
-				setGate1a(&attributes[seqn][i - 1], true);
+			attributes[seqn][stepn].setGate1(true);
+			for (int i = max(stepn, 1); i < 32 && attributes[seqn][i].getTied(); i++) {
+				attributes[seqn][i].setGate1Mode(attributes[seqn][i - 1].getGate1Mode());
+				attributes[seqn][i - 1].setGate1Mode(5);
+				attributes[seqn][i - 1].setGate1(true);
 			}
 		}
 		else {// old method
 			if (stepn > 0) {
 				attributes[seqn][stepn] = attributes[seqn][stepn - 1];
-				setTiedA(&attributes[seqn][stepn], true);
+				attributes[seqn][stepn].setTied(true);
 			}
 		}
 	}
 	
 	void deactivateTiedStep(int seqn, int stepn) {
+		attributes[seqn][stepn].setTied(false);
 		if (holdTiedNotes) {// new method
-			int lastGateType = getGate1Mode(seqn, stepn);
-			for (int i = stepn + 1; i < 32 && getTied(seqn, i); i++)
-				lastGateType = getGate1Mode(seqn, i);
+			int lastGateType = attributes[seqn][stepn].getGate1Mode();
+			for (int i = stepn + 1; i < 32 && attributes[seqn][i].getTied(); i++)
+				lastGateType = attributes[seqn][i].getGate1Mode();
 			if (stepn > 0)
-				setGate1Mode(seqn, stepn - 1, lastGateType);
+				attributes[seqn][stepn - 1].setGate1Mode(lastGateType);
 		}
 		//else old method, nothing to do
 	}

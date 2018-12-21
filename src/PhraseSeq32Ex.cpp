@@ -681,13 +681,7 @@ struct PhraseSeq32Ex : Module {
 			int deltaPhrKnob = newPhraseKnob - phraseKnob;
 			if (deltaPhrKnob != 0) {
 				if (abs(deltaPhrKnob) <= 3) {// avoid discontinuous step (initialize for example)
-					if (displayState == DISP_PPQN) {
-						sek[trackIndexEdit].modPulsesPerStep(deltaPhrKnob);
-					}
-					else if (displayState == DISP_DELAY) {
-						sek[trackIndexEdit].modDelay(deltaPhrKnob);
-					}
-					else if (displayState == DISP_MODE_SONG) {
+					if (displayState == DISP_MODE_SONG) {
 						sek[trackIndexEdit].modRunModeSong(deltaPhrKnob);
 					}
 					else if (!editingSequence && !attached) {
@@ -707,7 +701,13 @@ struct PhraseSeq32Ex : Module {
 			int deltaSeqKnob = newSequenceKnob - sequenceKnob;
 			if (deltaSeqKnob != 0) {
 				if (abs(deltaSeqKnob) <= 3) {// avoid discontinuous step (initialize for example)
-					if (displayState == DISP_MODE_SEQ) {
+					if (displayState == DISP_PPQN) {
+						sek[trackIndexEdit].modPulsesPerStep(deltaSeqKnob);
+					}
+					else if (displayState == DISP_DELAY) {
+						sek[trackIndexEdit].modDelay(deltaSeqKnob);
+					}
+					else if (displayState == DISP_MODE_SEQ) {
 						sek[trackIndexEdit].modRunModeSeq(seqIndexEdit, deltaSeqKnob);
 					}
 					else if (displayState == DISP_LEN) {
@@ -1057,7 +1057,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		std::shared_ptr<Font> font;
 		char displayStr[NUMCHAR+1];
 		static const int textFontSize = 15;
-		static constexpr float textOffsetY = 19.7f; // 18.2f for 14 pt, 19.7f for 15pt
+		static constexpr float textOffsetY = 19.9f; // 18.2f for 14 pt, 19.7f for 15pt
 		
 		void runModeToStr(int num) {
 			if (num >= 0 && num < SequencerKernel::NUM_MODES)
@@ -1145,13 +1145,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		char printText() override {
 			char overlayChar = 0;// extra char to print an end symbol overlaped (begin symbol done in here)
 
-			if (module->displayState == PhraseSeq32Ex::DISP_PPQN) {
-				snprintf(displayStr, 4, "x%2u", (unsigned) module->sek[module->trackIndexEdit].getPulsesPerStep());
-			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_DELAY) {
-				snprintf(displayStr, 4, "D%2u", (unsigned) module->sek[module->trackIndexEdit].getDelay());
-			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_COPY_SONG) {
+			if (module->displayState == PhraseSeq32Ex::DISP_COPY_SONG) {
 				snprintf(displayStr, 4, "CPY");
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_PASTE_SONG) {
@@ -1187,10 +1181,17 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	
 	struct SeqEditDisplayWidget : DisplayWidget<3> {
 		SeqEditDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
+		
 		char printText() override {
 			int trkn = module->trackIndexEdit;
 
-			if (module->displayState == PhraseSeq32Ex::DISP_REPS) {
+			if (module->displayState == PhraseSeq32Ex::DISP_PPQN) {
+				snprintf(displayStr, 4, "x%2u", (unsigned) module->sek[trkn].getPulsesPerStep());
+			}
+			else if (module->displayState == PhraseSeq32Ex::DISP_DELAY) {
+				snprintf(displayStr, 4, "D%2u", (unsigned) module->sek[trkn].getDelay());
+			}
+			else if (module->displayState == PhraseSeq32Ex::DISP_REPS) {
 				snprintf(displayStr, 4, "R%2u", (unsigned) abs(module->sek[trkn].getPhraseReps(module->phraseIndexEdit)));
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_COPY_SEQ) {
@@ -1366,7 +1367,8 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		CKSSNotify() {};
 		void onChange(EventChange &e) override {
 			((PhraseSeq32Ex*)(module))->displayState = PhraseSeq32Ex::DISP_NORMAL;
-			((PhraseSeq32Ex*)(module))->multiSteps = false;
+			if (paramId != PhraseSeq32Ex::KEY_GATE_PARAM)
+				((PhraseSeq32Ex*)(module))->multiSteps = false;
 			SVGSwitch::onChange(e);		
 		}
 	};
@@ -1556,7 +1558,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk + trkButtonsOffsetX, rowRulerKnobs), module, PhraseSeq32Ex::TRACKUP_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk - trkButtonsOffsetX, rowRulerKnobs), module, PhraseSeq32Ex::TRACKDOWN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// AllTracks button
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk, rowRulerSmallButtons - 10), module, PhraseSeq32Ex::ALLTRACKS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk, rowRulerSmallButtons - 12), module, PhraseSeq32Ex::ALLTRACKS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Copy/paste buttons
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk - trkButtonsOffsetX, rowRulerT0), module, PhraseSeq32Ex::COPY_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk + trkButtonsOffsetX, rowRulerT0), module, PhraseSeq32Ex::PASTE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
