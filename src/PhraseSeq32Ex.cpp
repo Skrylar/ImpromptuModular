@@ -1,12 +1,10 @@
 //***********************************************************************************************
-//Multi-track multi-phrase 32 step sequencer module for VCV Rack by Marc Boulé
+//Multi-track sequencer module for VCV Rack by Marc Boulé
 //
 //Based on code from the Fundamental and AudibleInstruments plugins by Andrew Belt 
 //and graphics from the Component Library by Wes Milholen 
 //See ./LICENSE.txt for all licenses
 //See ./res/fonts/ for font licenses
-//
-//Module inspired by the SA-100 Stepper Acid sequencer by Transistor Sounds Labs
 //
 //Acknowledgements: please see README.md
 //***********************************************************************************************
@@ -17,6 +15,8 @@
 
 
 struct PhraseSeq32Ex : Module {
+	static const int NUM_TRACKS = 4;
+	
 	enum ParamIds {
 		EDIT_PARAM,
 		PHRASE_PARAM,
@@ -52,7 +52,7 @@ struct PhraseSeq32Ex : Module {
 	};
 	enum InputIds {
 		WRITE_INPUT,
-		ENUMS(CV_INPUTS, 4),
+		ENUMS(CV_INPUTS, NUM_TRACKS),
 		RESET_INPUT,
 		CLOCK_INPUT,
 		LEFTCV_INPUT,
@@ -68,9 +68,9 @@ struct PhraseSeq32Ex : Module {
 		NUM_INPUTS
 	};
 	enum OutputIds {
-		ENUMS(CV_OUTPUTS, 4),
-		ENUMS(VEL_OUTPUTS, 4),
-		ENUMS(GATE_OUTPUTS, 4),
+		ENUMS(CV_OUTPUTS, NUM_TRACKS),
+		ENUMS(VEL_OUTPUTS, NUM_TRACKS),
+		ENUMS(GATE_OUTPUTS, NUM_TRACKS),
 		NUM_OUTPUTS
 	};
 	enum LightIds {
@@ -89,8 +89,6 @@ struct PhraseSeq32Ex : Module {
 	
 	// Constants
 	enum EditPSDisplayStateIds {DISP_NORMAL, DISP_MODE_SEQ, DISP_MODE_SONG, DISP_LEN, DISP_REPS, DISP_TRANSPOSE, DISP_ROTATE, DISP_PPQN, DISP_DELAY, DISP_COPY_SEQ, DISP_PASTE_SEQ, DISP_COPY_SONG, DISP_PASTE_SONG};
-	enum MainSwitchIds {MAIN_EDIT_SEQ, MAIN_EDIT_SONG, MAIN_SHOW_RUN};
-	static const int NUM_TRACKS = 4;
 
 	// Need to save
 	int panelTheme = 0;
@@ -103,22 +101,23 @@ struct PhraseSeq32Ex : Module {
 	bool running;
 	bool resetOnRun;
 	bool attached;
-	int stepIndexEdit;
-	int seqIndexEdit;// used in edit Seq mode only
-	int phraseIndexEdit;// used in edit Song mode only
-	int trackIndexEdit;
-	SequencerKernel sek[NUM_TRACKS];
+	Sequencer seq;
+int stepIndexEdit;
+int seqIndexEdit;// used in edit Seq mode only
+int phraseIndexEdit;// used in edit Song mode only
+int trackIndexEdit;
+SequencerKernel sek[NUM_TRACKS];
 
 	// No need to save
-	unsigned long editingGate[NUM_TRACKS];// 0 when no edit gate, downward step counter timer when edit gate
-	float editingGateCV[NUM_TRACKS];// no need to initialize, this goes with editingGate (output this only when editingGate > 0)
-	int editingGateKeyLight;// no need to initialize, this goes with editingGate (use this only when editingGate > 0)
+unsigned long editingGate[NUM_TRACKS];// 0 when no edit gate, downward step counter timer when edit gate
+float editingGateCV[NUM_TRACKS];// no need to initialize, this goes with editingGate (output this only when editingGate > 0)
+int editingGateKeyLight;// no need to initialize, this goes with editingGate (use this only when editingGate > 0)
 	int displayState;
-	float cvCPbuffer[SequencerKernel::MAX_STEPS];// copy paste buffer for CVs
-	StepAttributes attribCPbuffer[SequencerKernel::MAX_STEPS];
-	Phrase phraseCPbuffer[SequencerKernel::MAX_PHRASES];
-	int repCPbuffer[SequencerKernel::MAX_PHRASES];
-	SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, holds songEnd when song was copied; len holds songBeg when song
+float cvCPbuffer[SequencerKernel::MAX_STEPS];// copy paste buffer for CVs
+StepAttributes attribCPbuffer[SequencerKernel::MAX_STEPS];
+Phrase phraseCPbuffer[SequencerKernel::MAX_PHRASES];
+int repCPbuffer[SequencerKernel::MAX_PHRASES];
+SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, holds songEnd when song was copied; len holds songBeg when song
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
 	int startCP;
 	int rotateOffset;// no need to initialize, this goes with displayMode = DISP_ROTATE
@@ -494,16 +493,18 @@ struct PhraseSeq32Ex : Module {
 							int multiStepsCount = multiSteps ? cpMode : 1;
 							editingGateCV[trkn] = sek[trkn].writeCV(seqIndexEdit, stepIndexEdit, inputs[CV_INPUTS + trkn].value, multiStepsCount);
 							editingGate[trkn] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
-							if (inputs[VEL_INPUT].active)
-								sek[trkn].setVelocityVal(seqIndexEdit, stepIndexEdit, calcVelocityInteger(inputs[VEL_INPUT].value), multiStepsCount);
+							if (inputs[VEL_INPUT].active) {	
+								int intVal = (int)(inputs[VEL_INPUT].value * ((float)StepAttributes::MAX_VELOCITY) / 10.0f + 0.5f);// no velocityMode taken into account here, VEL input is always 0-10V
+								sek[trkn].setVelocityVal(seqIndexEdit, stepIndexEdit, intVal, multiStepsCount);
+							}
 						}
 					}
 					editingGateKeyLight = -1;
 					// Autostep (after grab all active inputs)
 					if (params[AUTOSTEP_PARAM].value > 0.5f) {
-						stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
+						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
 						if (stepIndexEdit == 0 && autoseq && !inputs[SEQCV_INPUT].active)
-							seqIndexEdit = moveIndexEx(seqIndexEdit, seqIndexEdit + 1, SequencerKernel::MAX_SEQS);			
+							seqIndexEdit = moveIndex(seqIndexEdit, seqIndexEdit + 1, SequencerKernel::MAX_SEQS);			
 					}
 				}
 			}
@@ -518,7 +519,7 @@ struct PhraseSeq32Ex : Module {
 			if (delta != 0) {
 				if (editingSequence && !attached) {
 					if (displayState == DISP_NORMAL) {
-						stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + delta, SequencerKernel::MAX_STEPS);
+						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, SequencerKernel::MAX_STEPS);
 						for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
 							if (!sek[trkn].getTied(seqIndexEdit, stepIndexEdit)) {// play if non-tied step
 								if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
@@ -685,7 +686,7 @@ struct PhraseSeq32Ex : Module {
 						sek[trackIndexEdit].modRunModeSong(deltaPhrKnob);
 					}
 					else if (!editingSequence && !attached) {
-						phraseIndexEdit = moveIndexEx(phraseIndexEdit, phraseIndexEdit + deltaPhrKnob, SequencerKernel::MAX_PHRASES);
+						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + deltaPhrKnob, SequencerKernel::MAX_PHRASES);
 						displayState = DISP_NORMAL;
 					}
 				}
@@ -725,7 +726,7 @@ struct PhraseSeq32Ex : Module {
 					else if (!attached) {
 						if (editingSequence) {
 							if (!inputs[SEQCV_INPUT].active)
-								seqIndexEdit = moveIndexEx(seqIndexEdit, seqIndexEdit + deltaSeqKnob, SequencerKernel::MAX_SEQS);
+								seqIndexEdit = moveIndex(seqIndexEdit, seqIndexEdit + deltaSeqKnob, SequencerKernel::MAX_SEQS);
 						}
 						else {// editing song
 							sek[trackIndexEdit].modPhraseSeqNum(phraseIndexEdit, deltaSeqKnob);
@@ -763,14 +764,14 @@ struct PhraseSeq32Ex : Module {
 							if (newMode != -1) {
 								sek[trackIndexEdit].setGateType(seqIndexEdit, stepIndexEdit, newMode, multiSteps ? cpMode : 1);
 								if (params[KEY_PARAMS + keyn].value > 1.5f) // if right-click then move to next step
-									stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
+									stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
 							}
 							else
 								displayState = DISP_PPQN;
 						}
 						else if (sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit)) {
 							if (params[KEY_PARAMS + keyn].value > 1.5f)
-								stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
+								stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
 							else
 								tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
 						}
@@ -779,7 +780,7 @@ struct PhraseSeq32Ex : Module {
 							editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 							editingGateKeyLight = -1;
 							if (params[KEY_PARAMS + keyn].value > 1.5f) {// if right-click then move to next step
-								stepIndexEdit = moveIndexEx(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
+								stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
 								editingGateKeyLight = keyn;
 							}
 						}						
@@ -1037,9 +1038,6 @@ struct PhraseSeq32Ex : Module {
 			return min(((float)vVal) / 12.0f, 10.0f);
 		return ((float)vVal)* 10.0f / ((float)StepAttributes::MAX_VELOCITY);
 	}
-	inline int calcVelocityInteger(float vVal) {// no velocityMode taken into account here, VEL input is always 0-10V
-		return (int)(vVal * ((float)StepAttributes::MAX_VELOCITY) / 10.0f + 0.5f);
-	}
 };
 
 
@@ -1055,7 +1053,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	struct DisplayWidget : TransparentWidget {// a centered display, must derive from this
 		PhraseSeq32Ex *module;
 		std::shared_ptr<Font> font;
-		char displayStr[NUMCHAR+1];
+		char displayStr[NUMCHAR + 1];
 		static const int textFontSize = 15;
 		static constexpr float textOffsetY = 19.9f; // 18.2f for 14 pt, 19.7f for 15pt
 		

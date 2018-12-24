@@ -6,27 +6,6 @@
 #include "PhraseSeqUtil.hpp"
 
 
-int moveIndex(int index, int indexNext, int numSteps) {
-	if (indexNext < 0)
-		index = numSteps - 1;
-	else
-	{
-		if (indexNext - index >= 0) { // if moving right or same place
-			if (indexNext >= numSteps)
-				index = 0;
-			else
-				index = indexNext;
-		}
-		else { // moving left 
-			if (indexNext >= numSteps)
-				index = numSteps - 1;
-			else
-				index = indexNext;
-		}
-	}
-	return index;
-}
-
 bool moveIndexRunMode(int* index, int numSteps, int runMode, unsigned long* history) {// some of this code if from PS32EX)
 	int reps = 1;
 	// assert((reps * numSteps) <= 0xFFF); // for BRN and RND run modes, history is not a span count but a step count

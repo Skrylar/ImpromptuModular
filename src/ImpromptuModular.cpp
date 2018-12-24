@@ -162,3 +162,24 @@ void printNote(float cvVal, char* text, bool sharp) {// text must be at least 4 
 	text[3] = 0;
 }
 
+int moveIndex(int index, int indexNext, int numSteps) {
+	if (indexNext < 0)
+		index = numSteps - 1;
+	else
+	{
+		if (indexNext - index >= 0) { // if moving right or same place
+			if (indexNext >= numSteps)
+				index = 0;
+			else
+				index = indexNext;
+		}
+		else { // moving left 
+			if (indexNext >= numSteps)
+				index = numSteps - 1;
+			else
+				index = indexNext;
+		}
+	}
+	return index;
+}
+

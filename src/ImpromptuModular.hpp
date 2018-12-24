@@ -334,5 +334,7 @@ inline bool calcWarningFlash(long count, long countInit) {
 
 NVGcolor prepareDisplay(NVGcontext *vg, Rect *box, int fontSize);
 void printNote(float cvVal, char* text, bool sharp);
+int moveIndex(int index, int indexNext, int numSteps);
+
 
 #endif
