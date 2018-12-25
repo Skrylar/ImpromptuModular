@@ -9,7 +9,6 @@
 
 
 #include "ImpromptuModular.hpp"
-#include "PhraseSeqUtil.hpp"
 
 
 struct WriteSeq64 : Module {
