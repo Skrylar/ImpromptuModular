@@ -138,7 +138,7 @@ class SequencerKernel {
 	// General constants
 	// ----------------
 
-	// Sequencer dimensions
+	// Sequencer kernel dimensions
 	static const int MAX_STEPS = 32;// must be a power of two (some multi select loops have bitwise "& (MAX_STEPS - 1)")
 	static const int MAX_SEQS = 64;
 	static const int MAX_PHRASES = 99;// maximum value is 99 (disp will be 1 to 99)
@@ -317,6 +317,8 @@ class SequencerKernel {
 	
 	inline float calcSlideOffset() {return (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);}
 	inline bool calcGate(SchmittTrigger clockTrigger, unsigned long clockStep, float sampleRate) {
+		if (ppqnLeftToSkip != 0)
+			return false;
 		if (gateCode < 2) 
 			return gateCode == 1;
 		if (gateCode == 2)
@@ -372,9 +374,387 @@ class SequencerKernel {
 
 
 class Sequencer {
-	//static const int NUM_TRACKS;
+	public: 
 	
-	//SequencerKernel sek[NUM_TRACKS];
+	
+	// General constants
+	// ----------------
+
+	// Sequencer dimensions
+	static const int NUM_TRACKS = 4;
+	static constexpr float gateTime = 0.4f;// seconds
+
+
+	private:
+	
+
+	// Member data
+	// ----------------	
+
+	// Need to save
+	int stepIndexEdit;
+	int seqIndexEdit;// used in edit Seq mode only
+	int phraseIndexEdit;// used in edit Song mode only
+	int trackIndexEdit;
+	SequencerKernel sek[NUM_TRACKS];
+	
+	// No need to save	
+	unsigned long editingGate[NUM_TRACKS];// 0 when no edit gate, downward step counter timer when edit gate
+	float editingGateCV[NUM_TRACKS];// no need to initialize, this goes with editingGate (output this only when editingGate > 0)
+	int editingGateKeyLight;// no need to initialize, this goes with editingGate (use this only when editingGate > 0)
+	float cvCPbuffer[SequencerKernel::MAX_STEPS];// copy paste buffer for CVs
+	StepAttributes attribCPbuffer[SequencerKernel::MAX_STEPS];
+	Phrase phraseCPbuffer[SequencerKernel::MAX_PHRASES];
+	int repCPbuffer[SequencerKernel::MAX_PHRASES];
+	SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, holds songEnd when song was copied; len holds songBeg when song
+
+	
+	public: 
+	
+	
+	inline int getStepIndexEdit() {return stepIndexEdit;}
+	inline int getSeqIndexEdit() {return seqIndexEdit;}
+	inline int getPhraseIndexEdit() {return phraseIndexEdit;}
+	inline int getTrackIndexEdit() {return trackIndexEdit;}
+	inline int getStepIndexRun(int trkn) {return sek[trkn].getStepIndexRun();}
+	inline int getLength() {return sek[trackIndexEdit].getLength(seqIndexEdit);}
+	inline StepAttributes getAttribute() {return sek[trackIndexEdit].getAttribute(seqIndexEdit, stepIndexEdit);}
+	inline float getCV() {return sek[trackIndexEdit].getCV(seqIndexEdit, stepIndexEdit);}
+	inline int keyIndexToGateTypeEx(int keyn) {return sek[trackIndexEdit].keyIndexToGateTypeEx(keyn);}
+	inline int getGateType() {return sek[trackIndexEdit].getGateType(seqIndexEdit, stepIndexEdit);}
+	inline int getPulsesPerStep() {return sek[trackIndexEdit].getPulsesPerStep();}
+	inline int getDelay() {return sek[trackIndexEdit].getDelay();}
+	inline int getRunModeSong() {return sek[trackIndexEdit].getRunModeSong();}
+	inline int getRunModeSeq() {return sek[trackIndexEdit].getRunModeSeq(seqIndexEdit);}
+	inline int getPhraseReps() {return sek[trackIndexEdit].getPhraseReps(phraseIndexEdit);}
+	inline int getBegin() {return sek[trackIndexEdit].getBegin();}
+	inline int getEnd() {return sek[trackIndexEdit].getEnd();}
+	inline int getTransposeOffset() {return sek[trackIndexEdit].getTransposeOffset(seqIndexEdit);}
+	inline int getPhraseSeq() {return sek[trackIndexEdit].getPhraseSeq(phraseIndexEdit);}
+	
+	inline void setStepIndexEdit(int _stepIndexEdit, int sampleRate) {
+		stepIndexEdit = _stepIndexEdit;
+		if (!sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit)) {// play if non-tied step
+			editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+			editingGateCV[trackIndexEdit] = sek[trackIndexEdit].getCV(seqIndexEdit, stepIndexEdit);
+			editingGateKeyLight = -1;
+		}
+	}
+	inline void setSeqIndexEdit(int _seqIndexEdit) {seqIndexEdit = _seqIndexEdit;}
+	//inline void setPhraseIndexEdit(int _phraseIndexEdit) {phraseIndexEdit = _phraseIndexEdit;}
+	inline void setTrackIndexEdit(int _trackIndexEdit) {trackIndexEdit = _trackIndexEdit;}
+	inline void setVelocityVal(int trkn, int intVel, int multiStepsCount) {
+		sek[trkn].setVelocityVal(seqIndexEdit, stepIndexEdit, intVel, multiStepsCount);
+	}
+	inline void setEditingGateKeyLight(int _editingGateKeyLight) {editingGateKeyLight = _editingGateKeyLight;}
+	inline void setLength(int length) {
+		sek[trackIndexEdit].setLength(seqIndexEdit, length);
+	}
+	inline void setBegin() {
+		sek[trackIndexEdit].setBegin(phraseIndexEdit);
+	}
+	inline void setEnd() {
+		sek[trackIndexEdit].setEnd(phraseIndexEdit);
+	}
+	inline bool setGateType(int keyn, int multiSteps, bool autostepClick) {// Third param is for right-click autostep. Returns success
+		int newMode = keyIndexToGateTypeEx(keyn);
+		if (newMode != -1) {
+			sek[trackIndexEdit].setGateType(seqIndexEdit, stepIndexEdit, newMode, multiSteps);
+			if (autostepClick) // if right-click then move to next step
+				moveStepIndexEdit(1);
+			return true;
+		}
+		return false;
+	}
+	inline void setSlideVal(int multiStepsCount) {
+		sek[trackIndexEdit].setSlideVal(seqIndexEdit, stepIndexEdit, StepAttributes::INIT_SLIDE, multiStepsCount);
+	}
+	inline void setGatePVal(int multiStepsCount) {
+		sek[trackIndexEdit].setGatePVal(seqIndexEdit, stepIndexEdit, StepAttributes::INIT_PROB, multiStepsCount);
+	}
+	inline void setVelocityVal(int multiStepsCount) {
+		sek[trackIndexEdit].setVelocityVal(seqIndexEdit, stepIndexEdit, StepAttributes::INIT_VELOCITY, multiStepsCount);
+	}
+	
+	inline void incTrackIndexEdit() {
+		if (trackIndexEdit < (NUM_TRACKS - 1)) 
+			trackIndexEdit++;
+		else
+			trackIndexEdit = 0;
+	}
+	inline void decTrackIndexEdit() {
+		if (trackIndexEdit > 0) 
+			trackIndexEdit--;
+		else
+			trackIndexEdit = NUM_TRACKS - 1;
+	}
+	
+	inline void attach() {
+		phraseIndexEdit = sek[trackIndexEdit].getPhraseIndexRun();
+		seqIndexEdit = sek[trackIndexEdit].getPhraseSeq(phraseIndexEdit);
+		stepIndexEdit = sek[trackIndexEdit].getStepIndexRun();
+	}
+	
+	
+	inline bool copyPasteHoldsSequence() {return seqPhraseAttribCPbuffer.getTranspose() == -1;}
+	inline void copySequence(int startCP, int countCP) {
+		sek[trackIndexEdit].copySequence(cvCPbuffer, attribCPbuffer, &seqPhraseAttribCPbuffer, seqIndexEdit, startCP, countCP);
+	}
+	inline void pasteSequence(int startCP, int countCP) {
+		sek[trackIndexEdit].pasteSequence(cvCPbuffer, attribCPbuffer, &seqPhraseAttribCPbuffer, seqIndexEdit, startCP, countCP);
+	}
+	inline void copyPhrase(int startCP, int countCP) {
+		sek[trackIndexEdit].copyPhrase(phraseCPbuffer, &seqPhraseAttribCPbuffer, startCP, countCP);
+	}
+	inline void pastePhrase(int startCP, int countCP) {
+		sek[trackIndexEdit].pastePhrase(phraseCPbuffer, &seqPhraseAttribCPbuffer, startCP, countCP);
+	}
+	
+	
+	inline void writeCV(int trkn, float cvVal, int multiStepsCount, float sampleRate) {
+		editingGateCV[trkn] = sek[trkn].writeCV(seqIndexEdit, stepIndexEdit, cvVal, multiStepsCount);
+		editingGate[trkn] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+	}
+	inline void autostep(bool autoseq) {
+		moveStepIndexEdit(1);
+		if (stepIndexEdit == 0 && autoseq)
+			seqIndexEdit = moveIndex(seqIndexEdit, seqIndexEdit + 1, SequencerKernel::MAX_SEQS);	
+	}	
+
+	inline bool applyNewOctave(int octn, int multiSteps, float sampleRate) { // returns true if tied
+		if (sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit))
+			return true;
+		editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewOctave(seqIndexEdit, stepIndexEdit, octn, multiSteps);
+		editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+		editingGateKeyLight = -1;
+		return false;
+	}
+	inline bool applyNewKey(int keyn, int multiSteps, float sampleRate, bool autostepClick) { // returns true if tied
+		bool ret = false;
+		if (sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit)) {
+			if (autostepClick)
+				moveStepIndexEdit(1);
+			else
+				ret = true;
+		}
+		else {
+			editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewKey(seqIndexEdit, stepIndexEdit, keyn, multiSteps);
+			editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+			editingGateKeyLight = -1;
+			if (autostepClick) {// if right-click then move to next step
+				moveStepIndexEdit(1);
+				editingGateKeyLight = keyn;
+			}
+		}
+		return ret;
+	}
+
+	inline void moveStepIndexEdit(int delta) {
+		stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, SequencerKernel::MAX_STEPS);
+	}
+	inline void moveStepIndexEditWithEditingGate(int delta, bool writeTrig, float sampleRate) {
+		moveStepIndexEdit(delta);
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
+			if (!sek[trkn].getTied(seqIndexEdit, stepIndexEdit)) {// play if non-tied step
+				if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
+					editingGate[trkn] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+					editingGateCV[trkn] = sek[trkn].getCV(seqIndexEdit, stepIndexEdit);
+					editingGateKeyLight = -1;
+				}
+			}
+		}
+	}
+	inline void moveSeqIndexEdit(int deltaSeqKnob) {
+		seqIndexEdit = moveIndex(seqIndexEdit, seqIndexEdit + deltaSeqKnob, SequencerKernel::MAX_SEQS);
+	}
+	inline void movePhraseIndexEdit(int deltaPhrKnob) {
+		phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + deltaPhrKnob, SequencerKernel::MAX_PHRASES);
+	}
+
+	
+	inline void modSlideVal(int deltaVelKnob, int mutliStepsCount) {
+		sek[trackIndexEdit].modSlideVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
+	}
+	inline void modGatePVal(int deltaVelKnob, int mutliStepsCount) {
+		sek[trackIndexEdit].modGatePVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
+	}
+	inline void modVelocityVal(int deltaVelKnob, int mutliStepsCount) {
+		sek[trackIndexEdit].modVelocityVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
+	}
+	inline void modRunModeSong(int deltaPhrKnob) {
+		sek[trackIndexEdit].modRunModeSong(deltaPhrKnob);
+	}
+	inline void modPulsesPerStep(int deltaSeqKnob) {
+		sek[trackIndexEdit].modPulsesPerStep(deltaSeqKnob);
+	}
+	inline void modDelay(int deltaSeqKnob) {
+		sek[trackIndexEdit].modDelay(deltaSeqKnob);
+	}
+	inline void modRunModeSeq(int deltaSeqKnob) {
+		sek[trackIndexEdit].modRunModeSeq(seqIndexEdit, deltaSeqKnob);
+	}
+	inline void modLength(int deltaSeqKnob) {
+		sek[trackIndexEdit].modLength(seqIndexEdit, deltaSeqKnob);
+	}
+	inline void transposeSeq(int deltaSeqKnob) {
+		sek[trackIndexEdit].transposeSeq(seqIndexEdit, deltaSeqKnob);
+	}
+	inline void rotateSeq(int *rotateOffsetPtr, int deltaSeqKnob) {
+		sek[trackIndexEdit].rotateSeq(rotateOffsetPtr, seqIndexEdit, deltaSeqKnob);
+	}
+	inline void modPhraseReps(int deltaSeqKnob) {
+		sek[trackIndexEdit].modPhraseReps(phraseIndexEdit, deltaSeqKnob);
+	}
+	inline void modPhraseSeqNum(int deltaSeqKnob) {
+		sek[trackIndexEdit].modPhraseSeqNum(phraseIndexEdit, deltaSeqKnob);
+	}
+
+	inline void toggleGate(int multiSteps) {
+		sek[trackIndexEdit].toggleGate(seqIndexEdit, stepIndexEdit, multiSteps);
+	}
+	inline bool toggleGateP(int multiSteps) { // returns true if tied
+		if (sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit))
+			return true;
+		sek[trackIndexEdit].toggleGateP(seqIndexEdit, stepIndexEdit, multiSteps);
+		return false;
+	}
+	inline bool toggleSlide(int multiSteps) {
+		if (sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit))
+			return true;
+		sek[trackIndexEdit].toggleSlide(seqIndexEdit, stepIndexEdit, multiSteps);
+		return false;
+	}
+	inline void toggleTied(int multiSteps) { 
+		sek[trackIndexEdit].toggleTied(seqIndexEdit, stepIndexEdit, multiSteps);// will clear other attribs if new state is on
+	}
+
+
+	inline float calcCvOutputAndDecSlideStepsRemain(int trkn, bool running) {
+		float cvout;
+		if (running)
+			cvout = sek[trkn].getCVRun() - sek[trkn].calcSlideOffset();
+		else
+			cvout = (editingGate[trkn] > 0ul) ? editingGateCV[trkn] : sek[trkn].getCV(seqIndexEdit, stepIndexEdit);
+		sek[trkn].decSlideStepsRemain();
+		return cvout;
+	}
+
+	inline float calcGateOutput(int trkn, bool running, SchmittTrigger clockTrigger, unsigned long clockPeriod, float sampleRate) {
+		if (running) 
+			return (sek[trkn].calcGate(clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f);
+		return (editingGate[trkn] > 0ul) ? 10.0f : 0.0f;
+	}
+	
+	inline float calcVelOutput(int trkn, bool running, int velocityMode) {
+		if (running)
+			return calcVelocityVoltage(sek[trkn].getVelocityValRun(), velocityMode);
+		return (editingGate[trkn] > 0ul) ? 7.874f : calcVelocityVoltage(sek[trkn].getVelocityVal(seqIndexEdit, stepIndexEdit), velocityMode);
+	}
+	inline float calcVelocityVoltage(int vVal, int velocityMode) {
+		if (velocityMode == 1)
+			return min(((float)vVal) / 12.0f, 10.0f);
+		return ((float)vVal)* 10.0f / ((float)StepAttributes::MAX_VELOCITY);
+	}
+
+
+
+
+	inline float calcKeyLightWithEditing(int keyScanIndex, int keyLightIndex, float sampleRate) {
+		if (editingGate[trackIndexEdit] > 0ul && editingGateKeyLight != -1)
+			return (keyScanIndex == editingGateKeyLight ? ((float) editingGate[trackIndexEdit] / (float)(gateTime * sampleRate / displayRefreshStepSkips)) : 0.0f);
+		return (keyScanIndex == keyLightIndex ? 1.0f : 0.0f);
+	}
+	inline void stepEditingGate() {
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
+			if (editingGate[trkn] > 0ul)
+				editingGate[trkn]--;
+		}
+	}
+	
+	inline void construct(bool* _holdTiedNotesPtr) {// don't want regaular constructor mechanism
+		sek[0].construct(0, nullptr, nullptr, _holdTiedNotesPtr);
+		for (int trkn = 1; trkn < NUM_TRACKS; trkn++)
+			sek[trkn].construct(trkn, sek[0].getSeqRndLast(), sek[0].getSongRndLast(), _holdTiedNotesPtr);
+	}
+	
+	void reset() {
+		stepIndexEdit = 0;
+		phraseIndexEdit = 0;
+		seqIndexEdit = 0;
+		trackIndexEdit = 0;
+		for (int phrn = 0; phrn < SequencerKernel::MAX_PHRASES; phrn++) {
+			phraseCPbuffer[phrn].init();
+		}
+			
+		for (int stepn = 0; stepn < SequencerKernel::MAX_STEPS; stepn++) {
+			cvCPbuffer[stepn] = 0.0f;
+			attribCPbuffer[stepn].init();
+		}
+		seqPhraseAttribCPbuffer.init(SequencerKernel::MAX_STEPS, SequencerKernel::MODE_FWD);
+		seqPhraseAttribCPbuffer.setTranspose(-1);
+		
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
+			editingGate[trkn] = 0ul;
+			sek[trkn].reset();
+		}
+	}
+	
+	inline void randomize() {
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+			sek[trkn].randomize();	
+	}
+	
+	inline void initRun() {
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+			sek[trkn].initRun();
+	}
+	
+	void toJson(json_t *rootJ) {
+		// stepIndexEdit
+		json_object_set_new(rootJ, "stepIndexEdit", json_integer(stepIndexEdit));
+	
+		// seqIndexEdit
+		json_object_set_new(rootJ, "seqIndexEdit", json_integer(seqIndexEdit));
+
+		// phraseIndexEdit
+		json_object_set_new(rootJ, "phraseIndexEdit", json_integer(phraseIndexEdit));
+
+		// trackIndexEdit
+		json_object_set_new(rootJ, "trackIndexEdit", json_integer(trackIndexEdit));
+
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+			sek[trkn].toJson(rootJ);
+	}
+	
+	void fromJson(json_t *rootJ) {
+		// stepIndexEdit
+		json_t *stepIndexEditJ = json_object_get(rootJ, "stepIndexEdit");
+		if (stepIndexEditJ)
+			stepIndexEdit = json_integer_value(stepIndexEditJ);
+		
+		// phraseIndexEdit
+		json_t *phraseIndexEditJ = json_object_get(rootJ, "phraseIndexEdit");
+		if (phraseIndexEditJ)
+			phraseIndexEdit = json_integer_value(phraseIndexEditJ);
+		
+		// seqIndexEdit
+		json_t *seqIndexEditJ = json_object_get(rootJ, "seqIndexEdit");
+		if (seqIndexEditJ)
+			seqIndexEdit = json_integer_value(seqIndexEditJ);
+		
+		// trackIndexEdit
+		json_t *trackIndexEditJ = json_object_get(rootJ, "trackIndexEdit");
+		if (trackIndexEditJ)
+			trackIndexEdit = json_integer_value(trackIndexEditJ);
+		
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+			sek[trkn].fromJson(rootJ);
+	}
+
+	inline void clockStep(unsigned long clockPeriod) {
+		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+			sek[trkn].clockStep(clockPeriod);
+	}
 	
 };// class Sequencer 
 

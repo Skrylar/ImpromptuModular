@@ -14,9 +14,7 @@
 #include "PhraseSeq32ExUtil.hpp"
 
 
-struct PhraseSeq32Ex : Module {
-	static const int NUM_TRACKS = 4;
-	
+struct PhraseSeq32Ex : Module {	
 	enum ParamIds {
 		EDIT_PARAM,
 		PHRASE_PARAM,
@@ -52,7 +50,7 @@ struct PhraseSeq32Ex : Module {
 	};
 	enum InputIds {
 		WRITE_INPUT,
-		ENUMS(CV_INPUTS, NUM_TRACKS),
+		ENUMS(CV_INPUTS, Sequencer::NUM_TRACKS),
 		RESET_INPUT,
 		CLOCK_INPUT,
 		LEFTCV_INPUT,
@@ -68,9 +66,9 @@ struct PhraseSeq32Ex : Module {
 		NUM_INPUTS
 	};
 	enum OutputIds {
-		ENUMS(CV_OUTPUTS, NUM_TRACKS),
-		ENUMS(VEL_OUTPUTS, NUM_TRACKS),
-		ENUMS(GATE_OUTPUTS, NUM_TRACKS),
+		ENUMS(CV_OUTPUTS, Sequencer::NUM_TRACKS),
+		ENUMS(VEL_OUTPUTS, Sequencer::NUM_TRACKS),
+		ENUMS(GATE_OUTPUTS, Sequencer::NUM_TRACKS),
 		NUM_OUTPUTS
 	};
 	enum LightIds {
@@ -102,22 +100,9 @@ struct PhraseSeq32Ex : Module {
 	bool resetOnRun;
 	bool attached;
 	Sequencer seq;
-int stepIndexEdit;
-int seqIndexEdit;// used in edit Seq mode only
-int phraseIndexEdit;// used in edit Song mode only
-int trackIndexEdit;
-SequencerKernel sek[NUM_TRACKS];
 
 	// No need to save
-unsigned long editingGate[NUM_TRACKS];// 0 when no edit gate, downward step counter timer when edit gate
-float editingGateCV[NUM_TRACKS];// no need to initialize, this goes with editingGate (output this only when editingGate > 0)
-int editingGateKeyLight;// no need to initialize, this goes with editingGate (use this only when editingGate > 0)
 	int displayState;
-float cvCPbuffer[SequencerKernel::MAX_STEPS];// copy paste buffer for CVs
-StepAttributes attribCPbuffer[SequencerKernel::MAX_STEPS];
-Phrase phraseCPbuffer[SequencerKernel::MAX_PHRASES];
-int repCPbuffer[SequencerKernel::MAX_PHRASES];
-SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, holds songEnd when song was copied; len holds songBeg when song
 	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
 	int startCP;
 	int rotateOffset;// no need to initialize, this goes with displayMode = DISP_ROTATE
@@ -173,9 +158,7 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 
 	
 	PhraseSeq32Ex() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		sek[0].construct(0, nullptr, nullptr, &holdTiedNotes);
-		for (int trkn = 1; trkn < NUM_TRACKS; trkn++)
-			sek[trkn].construct(trkn, sek[0].getSeqRndLast(), sek[0].getSongRndLast(), &holdTiedNotes);
+		seq.construct(&holdTiedNotes);
 		onReset();
 	}
 
@@ -185,20 +168,6 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 	void onReset() override {
 		autoseq = false;
 		running = false;
-		stepIndexEdit = 0;
-		phraseIndexEdit = 0;
-		seqIndexEdit = 0;
-		trackIndexEdit = 0;
-		for (int phrn = 0; phrn < SequencerKernel::MAX_PHRASES; phrn++) {
-			phraseCPbuffer[phrn].init();
-		}
-			
-		for (int stepn = 0; stepn < SequencerKernel::MAX_STEPS; stepn++) {
-			cvCPbuffer[stepn] = 0.0f;
-			attribCPbuffer[stepn].init();
-		}
-		seqPhraseAttribCPbuffer.init(SequencerKernel::MAX_STEPS, SequencerKernel::MODE_FWD);
-		seqPhraseAttribCPbuffer.setTranspose(-1);
 		countCP = SequencerKernel::MAX_STEPS;
 		startCP = 0;
 		displayState = DISP_NORMAL;
@@ -209,25 +178,19 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 		resetOnRun = false;
 		attached = false;
 		multiSteps = false;
-		
-		for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
-			editingGate[trkn] = 0ul;
-			sek[trkn].reset();
-		}
+		seq.reset();
 		initRun();
 	}
 	
 	
 	void onRandomize() override {
-		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
-			sek[trkn].randomize();	
+		seq.randomize();
 		initRun();
 	}
 	
 	
 	void initRun() {// run button activated or run edge in run input jack
-		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
-			sek[trkn].initRun();
+		seq.initRun();
 		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}	
 
@@ -265,20 +228,7 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 		// attached
 		json_object_set_new(rootJ, "attached", json_boolean(attached));
 
-		// stepIndexEdit
-		json_object_set_new(rootJ, "stepIndexEdit", json_integer(stepIndexEdit));
-	
-		// seqIndexEdit
-		json_object_set_new(rootJ, "seqIndexEdit", json_integer(seqIndexEdit));
-
-		// phraseIndexEdit
-		json_object_set_new(rootJ, "phraseIndexEdit", json_integer(phraseIndexEdit));
-
-		// trackIndexEdit
-		json_object_set_new(rootJ, "trackIndexEdit", json_integer(trackIndexEdit));
-
-		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
-			sek[trkn].toJson(rootJ);
+		seq.toJson(rootJ);
 		
 		return rootJ;
 	}
@@ -335,28 +285,7 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 		if (attachedJ)
 			attached = json_is_true(attachedJ);
 		
-		// stepIndexEdit
-		json_t *stepIndexEditJ = json_object_get(rootJ, "stepIndexEdit");
-		if (stepIndexEditJ)
-			stepIndexEdit = json_integer_value(stepIndexEditJ);
-		
-		// phraseIndexEdit
-		json_t *phraseIndexEditJ = json_object_get(rootJ, "phraseIndexEdit");
-		if (phraseIndexEditJ)
-			phraseIndexEdit = json_integer_value(phraseIndexEditJ);
-		
-		// seqIndexEdit
-		json_t *seqIndexEditJ = json_object_get(rootJ, "seqIndexEdit");
-		if (seqIndexEditJ)
-			seqIndexEdit = json_integer_value(seqIndexEditJ);
-		
-		// trackIndexEdit
-		json_t *trackIndexEditJ = json_object_get(rootJ, "trackIndexEdit");
-		if (trackIndexEditJ)
-			trackIndexEdit = json_integer_value(trackIndexEditJ);
-		
-		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
-			sek[trkn].fromJson(rootJ);
+		seq.fromJson(rootJ);
 		
 		// Initialize dependants after everything loaded
 		initRun();
@@ -365,7 +294,6 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 
 	void step() override {
 		const float sampleRate = engineGetSampleRate();
-		static const float gateTime = 0.4f;// seconds
 		static const float revertDisplayTime = 0.7f;// seconds
 		static const float tiedWarningTime = 0.7f;// seconds
 		static const float showLenInStepsTime = 2.0f;// seconds
@@ -395,22 +323,22 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			if (inputs[SEQCV_INPUT].active) {
 				if (seqCVmethod == 0) {// 0-10 V
 					int newSeq = (int)( inputs[SEQCV_INPUT].value * ((float)SequencerKernel::MAX_SEQS - 1.0f) / 10.0f + 0.5f );
-					seqIndexEdit = clamp(newSeq, 0, SequencerKernel::MAX_SEQS - 1);
+					seq.setSeqIndexEdit(clamp(newSeq, 0, SequencerKernel::MAX_SEQS - 1));
 				}
 				else if (seqCVmethod == 1) {// C2-D7#
 					int newSeq = (int)( (inputs[SEQCV_INPUT].value + 2.0f) * 12.0f + 0.5f );
-					seqIndexEdit = clamp(newSeq, 0, SequencerKernel::MAX_SEQS - 1);
+					seq.setSeqIndexEdit(clamp(newSeq, 0, SequencerKernel::MAX_SEQS - 1));
 				}
 				else {// TrigIncr
 					if (seqCVTrigger.process(inputs[SEQCV_INPUT].value))
-						seqIndexEdit = clamp(seqIndexEdit + 1, 0, SequencerKernel::MAX_SEQS - 1);
+						seq.setSeqIndexEdit(clamp(seq.getSeqIndexEdit() + 1, 0, SequencerKernel::MAX_SEQS - 1));
 				}	
 			}
 			
 			// Track CV input
 			if (inputs[TRKCV_INPUT].active) {
-				int newTrk = (int)( inputs[TRKCV_INPUT].value * ((float)NUM_TRACKS - 1.0f) / 10.0f + 0.5f );
-				trackIndexEdit = clamp(newTrk, 0, NUM_TRACKS - 1);
+				int newTrk = (int)( inputs[TRKCV_INPUT].value * ((float)Sequencer::NUM_TRACKS - 1.0f) / 10.0f + 0.5f );
+				seq.setTrackIndexEdit(clamp(newTrk, 0, Sequencer::NUM_TRACKS - 1));
 			}
 			
 			// Attach button
@@ -420,9 +348,7 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 				multiSteps = false;
 			}
 			if (attached) {//if (running && attached) {
-				phraseIndexEdit = sek[trackIndexEdit].getPhraseIndexRun();
-				seqIndexEdit = sek[trackIndexEdit].getPhraseSeq(phraseIndexEdit);
-				stepIndexEdit = sek[trackIndexEdit].getStepIndexRun();
+				seq.attach();
 			}
 			
 	
@@ -431,7 +357,7 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 				if (!attached) {
 					revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					if (editingSequence) {// copying sequence steps
-						startCP = stepIndexEdit;
+						startCP = seq.getStepIndexEdit();
 						countCP = SequencerKernel::MAX_STEPS;
 						if (cpMode == SequencerKernel::MAX_STEPS)// all
 							startCP = 0;
@@ -439,11 +365,11 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 							countCP = min(4, countCP - startCP);
 						else// 8
 							countCP = min(8, countCP - startCP);
-						sek[trackIndexEdit].copySequence(cvCPbuffer, attribCPbuffer, &seqPhraseAttribCPbuffer, seqIndexEdit, startCP, countCP);						
+						seq.copySequence(startCP, countCP);						
 						displayState = DISP_COPY_SEQ;
 					}
 					else {// copying song phrases
-						startCP = phraseIndexEdit;
+						startCP = seq.getPhraseIndexEdit();
 						countCP = SequencerKernel::MAX_PHRASES;
 						if (cpMode == SequencerKernel::MAX_STEPS)// all
 							startCP = 0;
@@ -451,7 +377,7 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 							countCP = min(4, countCP - startCP);
 						else// 8
 							countCP = min(8, countCP - startCP);
-						sek[trackIndexEdit].copyPhrase(phraseCPbuffer, &seqPhraseAttribCPbuffer, startCP, countCP);
+						seq.copyPhrase(startCP, countCP);
 						displayState = DISP_COPY_SONG;
 					}
 				}
@@ -459,23 +385,23 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			// Paste 
 			if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 				if (!attached) {
-					if (editingSequence && seqPhraseAttribCPbuffer.getTranspose() == -1) {// pasting sequence steps
+					if (editingSequence && seq.copyPasteHoldsSequence()) {// pasting sequence steps
 						startCP = 0;
 						if (countCP <= 8) {
-							startCP = stepIndexEdit;
+							startCP = seq.getStepIndexEdit();
 							countCP = min(countCP, SequencerKernel::MAX_STEPS - startCP);
 						}
-						sek[trackIndexEdit].pasteSequence(cvCPbuffer, attribCPbuffer, &seqPhraseAttribCPbuffer, seqIndexEdit, startCP, countCP);
+						seq.pasteSequence(startCP, countCP);
 						displayState = DISP_PASTE_SEQ;
 						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
-					else if (!editingSequence && seqPhraseAttribCPbuffer.getTranspose() != -1) {// pasting song phrases
+					else if (!editingSequence && !seq.copyPasteHoldsSequence()) {// pasting song phrases
 						startCP = 0;
 						if (countCP <= 8) {
-							startCP = phraseIndexEdit;
+							startCP = seq.getPhraseIndexEdit();
 							countCP = min(countCP, SequencerKernel::MAX_PHRASES - startCP);
 						}
-						sek[trackIndexEdit].pastePhrase(phraseCPbuffer, &seqPhraseAttribCPbuffer, startCP, countCP);
+						seq.pastePhrase(startCP, countCP);
 						displayState = DISP_PASTE_SONG;
 						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
@@ -488,24 +414,19 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 			if (writeTrig) {
 				if (editingSequence && ! attached) {
-					for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
+					for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
 						if (inputs[CV_INPUTS + trkn].active) {
 							int multiStepsCount = multiSteps ? cpMode : 1;
-							editingGateCV[trkn] = sek[trkn].writeCV(seqIndexEdit, stepIndexEdit, inputs[CV_INPUTS + trkn].value, multiStepsCount);
-							editingGate[trkn] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+							seq.writeCV(trkn, inputs[CV_INPUTS + trkn].value, multiStepsCount, sampleRate);
 							if (inputs[VEL_INPUT].active) {	
-								int intVal = (int)(inputs[VEL_INPUT].value * ((float)StepAttributes::MAX_VELOCITY) / 10.0f + 0.5f);// no velocityMode taken into account here, VEL input is always 0-10V
-								sek[trkn].setVelocityVal(seqIndexEdit, stepIndexEdit, intVal, multiStepsCount);
+								int intVel = (int)(inputs[VEL_INPUT].value * ((float)StepAttributes::MAX_VELOCITY) / 10.0f + 0.5f);// no velocityMode taken into account here, VEL input is always 0-10V
+								seq.setVelocityVal(trkn, intVel, multiStepsCount);
 							}
 						}
 					}
-					editingGateKeyLight = -1;
-					// Autostep (after grab all active inputs)
-					if (params[AUTOSTEP_PARAM].value > 0.5f) {
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
-						if (stepIndexEdit == 0 && autoseq && !inputs[SEQCV_INPUT].active)
-							seqIndexEdit = moveIndex(seqIndexEdit, seqIndexEdit + 1, SequencerKernel::MAX_SEQS);			
-					}
+					seq.setEditingGateKeyLight(-1);
+					if (params[AUTOSTEP_PARAM].value > 0.5f)
+						seq.autostep(autoseq && !inputs[SEQCV_INPUT].active);
 				}
 			}
 			// Left and right CV inputs
@@ -519,16 +440,7 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			if (delta != 0) {
 				if (editingSequence && !attached) {
 					if (displayState == DISP_NORMAL) {
-						stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + delta, SequencerKernel::MAX_STEPS);
-						for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
-							if (!sek[trkn].getTied(seqIndexEdit, stepIndexEdit)) {// play if non-tied step
-								if (!writeTrig) {// in case autostep when simultaneous writeCV and stepCV (keep what was done in Write Input block above)
-									editingGate[trkn] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
-									editingGateCV[trkn] = sek[trkn].getCV(seqIndexEdit, stepIndexEdit);
-									editingGateKeyLight = -1;
-								}
-							}
-						}
+						seq.moveStepIndexEditWithEditingGate(delta, writeTrig, sampleRate);
 					}
 				}
 			}
@@ -542,19 +454,14 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			if (stepPressed != -1) {
 				if (editingSequence && !attached) {
 					if (displayState == DISP_LEN) {
-						sek[trackIndexEdit].setLength(seqIndexEdit, stepPressed + 1);
+						seq.setLength(stepPressed + 1);
 						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
 					else {
 						showLenInSteps = (long) (showLenInStepsTime * sampleRate / displayRefreshStepSkips);
-						stepIndexEdit = stepPressed;
-						if (!sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit)) {// play if non-tied step
-							editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
-							editingGateCV[trackIndexEdit] = sek[trackIndexEdit].getCV(seqIndexEdit, stepIndexEdit);
-							editingGateKeyLight = -1;
-						}
+						seq.setStepIndexEdit(stepPressed, sampleRate);
+						displayState = DISP_NORMAL; // leave this here, the if has it also, but through the revert mechanism
 					}
-					displayState = DISP_NORMAL;
 				}
 			} 
 			
@@ -598,13 +505,13 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			// Begin/End buttons
 			if (beginTrigger.process(params[BEGIN_PARAM].value)) {
 				if (!editingSequence && !attached) {
-					sek[trackIndexEdit].setBegin(phraseIndexEdit);
+					seq.setBegin();
 					displayState = DISP_NORMAL;
 				}
 			}	
 			if (endTrigger.process(params[END_PARAM].value)) {
 				if (!editingSequence && !attached) {
-					sek[trackIndexEdit].setEnd(phraseIndexEdit);
+					seq.setEnd();
 					displayState = DISP_NORMAL;
 				}
 			}	
@@ -622,19 +529,13 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			// Track Inc/Dec buttons
 			if (trackIncTrigger.process(params[TRACKUP_PARAM].value)) {
 				if (!inputs[TRKCV_INPUT].active) {
-					if (trackIndexEdit < (NUM_TRACKS - 1)) 
-						trackIndexEdit++;
-					else
-						trackIndexEdit = 0;
+					seq.incTrackIndexEdit();
 				}
 				displayState = DISP_NORMAL;
 			}
 			if (trackDeccTrigger.process(params[TRACKDOWN_PARAM].value)) {
 				if (!inputs[TRKCV_INPUT].active) {
-					if (trackIndexEdit > 0) 
-						trackIndexEdit--;
-					else
-						trackIndexEdit = NUM_TRACKS - 1;
+					seq.decTrackIndexEdit();
 				}
 				displayState = DISP_NORMAL;
 			}
@@ -659,13 +560,13 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 					if (editingSequence && !attached) {
 						int mutliStepsCount = multiSteps ? cpMode : 1;
 						if (params[VELMODE_PARAM].value > 1.5f) {
-							sek[trackIndexEdit].modSlideVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
+							seq.modSlideVal(deltaVelKnob, mutliStepsCount);
 						}
 						else if (params[VELMODE_PARAM].value > 0.5f) {
-							sek[trackIndexEdit].modGatePVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
+							seq.modGatePVal(deltaVelKnob, mutliStepsCount);
 						}
 						else {
-							sek[trackIndexEdit].modVelocityVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
+							seq.modVelocityVal(deltaVelKnob, mutliStepsCount);
 						}
 						displayState = DISP_NORMAL;
 					}
@@ -683,10 +584,10 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			if (deltaPhrKnob != 0) {
 				if (abs(deltaPhrKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (displayState == DISP_MODE_SONG) {
-						sek[trackIndexEdit].modRunModeSong(deltaPhrKnob);
+						seq.modRunModeSong(deltaPhrKnob);
 					}
 					else if (!editingSequence && !attached) {
-						phraseIndexEdit = moveIndex(phraseIndexEdit, phraseIndexEdit + deltaPhrKnob, SequencerKernel::MAX_PHRASES);
+						seq.movePhraseIndexEdit(deltaPhrKnob);
 						displayState = DISP_NORMAL;
 					}
 				}
@@ -703,33 +604,33 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			if (deltaSeqKnob != 0) {
 				if (abs(deltaSeqKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					if (displayState == DISP_PPQN) {
-						sek[trackIndexEdit].modPulsesPerStep(deltaSeqKnob);
+						seq.modPulsesPerStep(deltaSeqKnob);
 					}
 					else if (displayState == DISP_DELAY) {
-						sek[trackIndexEdit].modDelay(deltaSeqKnob);
+						seq.modDelay(deltaSeqKnob);
 					}
 					else if (displayState == DISP_MODE_SEQ) {
-						sek[trackIndexEdit].modRunModeSeq(seqIndexEdit, deltaSeqKnob);
+						seq.modRunModeSeq(deltaSeqKnob);
 					}
 					else if (displayState == DISP_LEN) {
-						sek[trackIndexEdit].modLength(seqIndexEdit, deltaSeqKnob);
+						seq.modLength(deltaSeqKnob);
 					}
 					else if (displayState == DISP_TRANSPOSE) {
-						sek[trackIndexEdit].transposeSeq(seqIndexEdit, deltaSeqKnob);
+						seq.transposeSeq(deltaSeqKnob);
 					}
 					else if (displayState == DISP_ROTATE) {
-						sek[trackIndexEdit].rotateSeq(&rotateOffset, seqIndexEdit, deltaSeqKnob);
+						seq.rotateSeq(&rotateOffset, deltaSeqKnob);
 					}							
 					else if (displayState == DISP_REPS) {
-						sek[trackIndexEdit].modPhraseReps(phraseIndexEdit, deltaSeqKnob);
+						seq.modPhraseReps(deltaSeqKnob);
 					}
 					else if (!attached) {
 						if (editingSequence) {
 							if (!inputs[SEQCV_INPUT].active)
-								seqIndexEdit = moveIndex(seqIndexEdit, seqIndexEdit + deltaSeqKnob, SequencerKernel::MAX_SEQS);
+								seq.moveSeqIndexEdit(deltaSeqKnob);
 						}
 						else {// editing song
-							sek[trackIndexEdit].modPhraseSeqNum(phraseIndexEdit, deltaSeqKnob);
+							seq.modPhraseSeqNum(deltaSeqKnob);
 						}
 						displayState = DISP_NORMAL;
 					}
@@ -741,14 +642,8 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			for (int octn = 0; octn < 7; octn++) {
 				if (octTriggers[octn].process(params[OCTAVE_PARAM + octn].value)) {
 					if (editingSequence && !attached && displayState != DISP_PPQN) {
-						if (sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit)) {
+						if (seq.applyNewOctave(6 - octn, multiSteps ? cpMode : 1, sampleRate))
 							tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
-						}
-						else {			
-							editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewOctave(seqIndexEdit, stepIndexEdit, 6 - octn, multiSteps ? cpMode : 1);
-							editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
-							editingGateKeyLight = -1;
-						}
 					}
 					displayState = DISP_NORMAL;
 				}
@@ -759,31 +654,15 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 				if (keyTriggers[keyn].process(params[KEY_PARAMS + keyn].value)) {
 					displayState = DISP_NORMAL;
 					if (editingSequence && !attached && displayState != DISP_PPQN) {
+						bool autostepClick = params[KEY_PARAMS + keyn].value > 1.5f;
 						if (isEditingGates()) {
-							int newMode = sek[trackIndexEdit].keyIndexToGateTypeEx(keyn);
-							if (newMode != -1) {
-								sek[trackIndexEdit].setGateType(seqIndexEdit, stepIndexEdit, newMode, multiSteps ? cpMode : 1);
-								if (params[KEY_PARAMS + keyn].value > 1.5f) // if right-click then move to next step
-									stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
-							}
-							else
+							if (!seq.setGateType(keyn, multiSteps ? cpMode : 1, autostepClick))
 								displayState = DISP_PPQN;
 						}
-						else if (sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit)) {
-							if (params[KEY_PARAMS + keyn].value > 1.5f)
-								stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
-							else
+						else {
+							if (seq.applyNewKey(keyn, multiSteps ? cpMode : 1, sampleRate, autostepClick))
 								tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
-						}
-						else {	
-							editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewKey(seqIndexEdit, stepIndexEdit, keyn, multiSteps ? cpMode : 1);
-							editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
-							editingGateKeyLight = -1;
-							if (params[KEY_PARAMS + keyn].value > 1.5f) {// if right-click then move to next step
-								stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, SequencerKernel::MAX_STEPS);
-								editingGateKeyLight = keyn;
-							}
-						}						
+						}							
 					}
 				}
 			}
@@ -791,33 +670,27 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			// Gate, GateProb, Slide and Tied buttons
 			if (gate1Trigger.process(params[GATE_PARAM].value + inputs[GATECV_INPUT].value)) {
 				if (editingSequence && !attached ) {
-					sek[trackIndexEdit].toggleGate(seqIndexEdit, stepIndexEdit, multiSteps ? cpMode : 1);
+					seq.toggleGate(multiSteps ? cpMode : 1);
 				}
 				displayState = DISP_NORMAL;
 			}		
 			if (gateProbTrigger.process(params[GATE_PROB_PARAM].value + inputs[GATEPCV_INPUT].value)) {
 				if (editingSequence && !attached ) {
-					if (sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit))
+					if (seq.toggleGateP(multiSteps ? cpMode : 1)) 
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
-					else {
-						sek[trackIndexEdit].toggleGateP(seqIndexEdit, stepIndexEdit, multiSteps ? cpMode : 1);
-					}
 				}
 				displayState = DISP_NORMAL;
 			}		
 			if (slideTrigger.process(params[SLIDE_BTN_PARAM].value + inputs[SLIDECV_INPUT].value)) {
 				if (editingSequence && !attached ) {
-					if (sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit))
+					if (seq.toggleSlide(multiSteps ? cpMode : 1))
 						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
-					else {
-						sek[trackIndexEdit].toggleSlide(seqIndexEdit, stepIndexEdit, multiSteps ? cpMode : 1);
-					}
 				}
 				displayState = DISP_NORMAL;
 			}		
 			if (tiedTrigger.process(params[TIE_PARAM].value + inputs[TIEDCV_INPUT].value)) {
 				if (editingSequence && !attached ) {
-					sek[trackIndexEdit].toggleTied(seqIndexEdit, stepIndexEdit, multiSteps ? cpMode : 1);// will clear other attribs if new state is on
+					seq.toggleTied(multiSteps ? cpMode : 1);// will clear other attribs if new state is on
 				}
 				displayState = DISP_NORMAL;
 			}		
@@ -831,8 +704,7 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 		// Clock
 		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
 			if (running && clockIgnoreOnReset == 0l) {
-				for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
-					sek[trkn].clockStep(clockPeriod);
+				seq.clockStep(clockPeriod);
 			}
 			clockPeriod = 0ul;
 		}
@@ -845,7 +717,7 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			displayState = DISP_NORMAL;
 			multiSteps = false;
 			if (inputs[SEQCV_INPUT].active && seqCVmethod == 2)
-				seqIndexEdit = 0;
+				seq.setSeqIndexEdit(0);
 		}
 		
 		
@@ -853,22 +725,14 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 				
 		
 		
-		// CV and gates outputs
-		for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
-			if (running) {
-				outputs[CV_OUTPUTS + trkn].value = sek[trkn].getCVRun() - sek[trkn].calcSlideOffset();
-				outputs[GATE_OUTPUTS + trkn].value = (sek[trkn].calcGate(clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f);
-				outputs[VEL_OUTPUTS + trkn].value = calcVelocityVoltage(sek[trkn].getVelocityValRun());
-			}
-			else {// not running 
-				outputs[CV_OUTPUTS + trkn].value = (editingGate[trkn] > 0ul) ? editingGateCV[trkn] : sek[trkn].getCV(seqIndexEdit, stepIndexEdit);
-				outputs[GATE_OUTPUTS + trkn].value = (editingGate[trkn] > 0ul) ? 10.0f : 0.0f;
-				outputs[VEL_OUTPUTS + trkn].value = (editingGate[trkn] > 0ul) ? 7.874f : calcVelocityVoltage(sek[trkn].getVelocityVal(seqIndexEdit, stepIndexEdit));
-			}
-			sek[trkn].decSlideStepsRemain();
+		// CV, gate and velocity outputs
+		for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
+			outputs[CV_OUTPUTS + trkn].value = seq.calcCvOutputAndDecSlideStepsRemain(trkn, running);
+			outputs[GATE_OUTPUTS + trkn].value = seq.calcGateOutput(trkn, running, clockTrigger, clockPeriod, sampleRate);
+			outputs[VEL_OUTPUTS + trkn].value = seq.calcVelOutput(trkn, running, velocityMode);			
 		}
 
-		
+		// lights
 		lightRefreshCounter++;
 		if (lightRefreshCounter >= displayRefreshStepSkips) {
 			lightRefreshCounter = 0;
@@ -882,7 +746,7 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 						green = 0.5f;// Green when copy interval
 				}
 				else if (displayState == DISP_LEN) {
-					int seqEnd = sek[trackIndexEdit].getLength(seqIndexEdit) - 1;
+					int seqEnd = seq.getLength() - 1;
 					if (stepn < seqEnd)
 						green = 0.1f;
 					else if (stepn == seqEnd)
@@ -890,25 +754,25 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 				}				
 				else if (editingSequence && !attached) {
 					if (multiSteps) {
-						if (cpMode == SequencerKernel::MAX_STEPS || (stepn >= stepIndexEdit && stepn < (stepIndexEdit + cpMode)))
+						if (cpMode == SequencerKernel::MAX_STEPS || (stepn >= seq.getStepIndexEdit() && stepn < (seq.getStepIndexEdit() + cpMode)))
 							red = 1.0f;
 					}
-					else if (stepn == stepIndexEdit) {
+					else if (stepn == seq.getStepIndexEdit()) {
 						red = 1.0f;
 					}
-					else if (!attached && showLenInSteps > 0l && stepn < sek[trackIndexEdit].getLength(seqIndexEdit)) {
+					else if (!attached && showLenInSteps > 0l && stepn < seq.getLength()) {
 						green = 0.01f;
 					}
 				}
 				else if (attached) {
 					// all active light green, current track is bright yellow
-					for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
-						if (stepn == sek[trkn].getStepIndexRun()) 
+					for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
+						if (stepn == seq.getStepIndexRun(trkn)) 
 							green = 0.05f;	
 					}
 					if (green > 0.1f) 
 						green = 0.1f;
-					if (stepn == stepIndexEdit) {
+					if (stepn == seq.getStepIndexEdit()) {
 						green = 1.0f;
 						red = 1.0f;
 					}
@@ -921,8 +785,8 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			StepAttributes attributesVisual;
 			float cvVisual;
 			if (editingSequence || attached) {
-				attributesVisual = sek[trackIndexEdit].getAttribute(seqIndexEdit, stepIndexEdit);
-				cvVisual = sek[trackIndexEdit].getCV(seqIndexEdit, stepIndexEdit);
+				attributesVisual = seq.getAttribute();
+				cvVisual = seq.getCV();
 			}
 			else {
 				attributesVisual.clear();// clears everything, but just buttons used below
@@ -952,14 +816,14 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 				float red = 0.0f;
 				float green = 0.0f;
 				if (displayState == DISP_PPQN) {
-					if (sek[trackIndexEdit].keyIndexToGateTypeEx(i) != -1) {
+					if (seq.keyIndexToGateTypeEx(i) != -1) {
 						red = 1.0f;
 						green =	1.0f;
 					}
 				}
 				else if (editingSequence || attached) {			
 					if (isEditingGates()) {
-						int modeLightIndex = sek[trackIndexEdit].getGateType(seqIndexEdit, stepIndexEdit);
+						int modeLightIndex = seq.getGateType();
 						if (i == modeLightIndex) {
 							red = 1.0f;
 							green =	1.0f;
@@ -973,10 +837,7 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 							red = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
 						}
 						else {
-							if (editingGate[trackIndexEdit] > 0ul && editingGateKeyLight != -1)
-								red = (i == editingGateKeyLight ? ((float) editingGate[trackIndexEdit] / (float)(gateTime * sampleRate / displayRefreshStepSkips)) : 0.0f);
-							else
-								red = (i == keyLightIndex ? 1.0f : 0.0f);
+							red = seq.calcKeyLightWithEditing(i, keyLightIndex, sampleRate);
 						}
 					}
 				}
@@ -985,7 +846,7 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 
 			// Gate, GateProb, Slide and Tied lights 
 			if (attributesVisual.getGate())
-				setGreenRed(GATE_LIGHT, (sek[trackIndexEdit].getPulsesPerStep() == 1 ? 0.0f : 1.0f), 1.0f);
+				setGreenRed(GATE_LIGHT, (seq.getPulsesPerStep() == 1 ? 0.0f : 1.0f), 1.0f);
 			else 
 				setGreenRed(GATE_LIGHT, 0.0f, 0.0f);
 			lights[GATE_PROB_LIGHT].value = attributesVisual.getGateP() ? 1.0f : 0.0f;
@@ -1007,10 +868,7 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 			// Attach light
 			lights[ATTACH_LIGHT].value = (attached ? 1.0f : 0.0f);
 			
-			for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
-				if (editingGate[trkn] > 0ul)
-					editingGate[trkn]--;
-			}
+			seq.stepEditingGate();
 			if (tiedWarning > 0l)
 				tiedWarning--;
 			if (showLenInSteps > 0l)
@@ -1033,11 +891,6 @@ SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, ho
 		lights[id + 1].value = red;
 	}
 	
-	inline float calcVelocityVoltage(int vVal) {
-		if (velocityMode == 1)
-			return min(((float)vVal) / 12.0f, 10.0f);
-		return ((float)vVal)* 10.0f / ((float)StepAttributes::MAX_VELOCITY);
-	}
 };
 
 
@@ -1095,7 +948,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		VelocityDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
 		char printText() override {
 			if (module->isEditingSequence() || module->attached) {
-				StepAttributes attributesVal = module->sek[module->trackIndexEdit].getAttribute(module->seqIndexEdit, module->stepIndexEdit);
+				StepAttributes attributesVal = module->seq.getAttribute();
 				if (module->params[PhraseSeq32Ex::VELMODE_PARAM].value > 1.5f) {
 					int slide = attributesVal.getSlideVal();						
 					if ( slide>= 100)
@@ -1131,7 +984,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	struct TrackDisplayWidget : DisplayWidget<2> {
 		TrackDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
 		char printText() override {
-			snprintf(displayStr, 3, " %c", (unsigned)(module->trackIndexEdit + 0x41));
+			snprintf(displayStr, 3, " %c", (unsigned)(module->seq.getTrackIndexEdit() + 0x41));
 			return 0;
 		}
 	};
@@ -1150,17 +1003,17 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				snprintf(displayStr, 4, "PST");
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_MODE_SONG) {
-				runModeToStr(module->sek[module->trackIndexEdit].getRunModeSong());
+				runModeToStr(module->seq.getRunModeSong());
 			}
 			else { 
 				if (module->isEditingSequence()) {
 					snprintf(displayStr, 4, " - ");
 				}
 				else { // editing song
-					int phrn = module->phraseIndexEdit; // good whether attached or not
+					int phrn = module->seq.getPhraseIndexEdit(); // good whether attached or not
 					snprintf(displayStr, 4, " %2u", (unsigned)(phrn + 1));
-					bool begHere = (phrn == module->sek[module->trackIndexEdit].getBegin());
-					bool endHere = (phrn == module->sek[module->trackIndexEdit].getEnd());
+					bool begHere = (phrn == module->seq.getBegin());
+					bool endHere = (phrn == module->seq.getEnd());
 					if (begHere) {
 						displayStr[0] = '{';
 						if (endHere)
@@ -1181,16 +1034,14 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		SeqEditDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
 		
 		char printText() override {
-			int trkn = module->trackIndexEdit;
-
 			if (module->displayState == PhraseSeq32Ex::DISP_PPQN) {
-				snprintf(displayStr, 4, "x%2u", (unsigned) module->sek[trkn].getPulsesPerStep());
+				snprintf(displayStr, 4, "x%2u", (unsigned) module->seq.getPulsesPerStep());
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_DELAY) {
-				snprintf(displayStr, 4, "D%2u", (unsigned) module->sek[trkn].getDelay());
+				snprintf(displayStr, 4, "D%2u", (unsigned) module->seq.getDelay());
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_REPS) {
-				snprintf(displayStr, 4, "R%2u", (unsigned) abs(module->sek[trkn].getPhraseReps(module->phraseIndexEdit)));
+				snprintf(displayStr, 4, "R%2u", (unsigned) abs(module->seq.getPhraseReps()));
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_COPY_SEQ) {
 				snprintf(displayStr, 4, "CPY");
@@ -1199,13 +1050,13 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				snprintf(displayStr, 4, "PST");
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_MODE_SEQ) {
-				runModeToStr(module->sek[trkn].getRunModeSeq(module->seqIndexEdit));
+				runModeToStr(module->seq.getRunModeSeq());
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_LEN) {
-				snprintf(displayStr, 4, "L%2u", (unsigned) module->sek[trkn].getLength(module->seqIndexEdit));
+				snprintf(displayStr, 4, "L%2u", (unsigned) module->seq.getLength());
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_TRANSPOSE) {
-				int tranOffset = module->sek[trkn].getTransposeOffset(module->seqIndexEdit);
+				int tranOffset = module->seq.getTransposeOffset();
 				snprintf(displayStr, 4, "+%2u", (unsigned) abs(tranOffset));
 				if (tranOffset < 0)
 					displayStr[0] = '-';
@@ -1218,9 +1069,9 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			else {
 				// two paths below are equivalent when attached, so no need to check attached
 				if (module->isEditingSequence())
-					snprintf(displayStr, 4, " %2u", (unsigned)(module->seqIndexEdit + 1) );
+					snprintf(displayStr, 4, " %2u", (unsigned)(module->seq.getSeqIndexEdit() + 1) );
 				else {
-					int seqn = module->sek[trkn].getPhraseSeq(module->phraseIndexEdit);
+					int seqn = module->seq.getPhraseSeq();
 					snprintf(displayStr, 4, " %2u", (unsigned)(seqn + 1) );
 				}
 			}
@@ -1382,18 +1233,15 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		void onMouseDown(EventMouseDown &e) override {// from ParamWidget.cpp
 			if (e.button == 1) {
 				float vparam = ((PhraseSeq32Ex*)(module))->params[PhraseSeq32Ex::VELMODE_PARAM].value;
-				int trkn = ((PhraseSeq32Ex*)(module))->trackIndexEdit;
-				int seqn = ((PhraseSeq32Ex*)(module))->seqIndexEdit;
-				int stepn = ((PhraseSeq32Ex*)(module))->stepIndexEdit;
 				int multiStepsCount = ((PhraseSeq32Ex*)(module))->multiSteps ? ((PhraseSeq32Ex*)(module))->getCPMode() : 1;
 				if (vparam > 1.5f) {
-					((PhraseSeq32Ex*)(module))->sek[trkn].setSlideVal(seqn, stepn, StepAttributes::INIT_SLIDE, multiStepsCount);
+					((PhraseSeq32Ex*)(module))->seq.setSlideVal(multiStepsCount);
 				}
 				else if (vparam > 0.5f) {
-					((PhraseSeq32Ex*)(module))->sek[trkn].setGatePVal(seqn, stepn, StepAttributes::INIT_PROB, multiStepsCount);
+					((PhraseSeq32Ex*)(module))->seq.setGatePVal(multiStepsCount);
 				}
 				else {
-					((PhraseSeq32Ex*)(module))->sek[trkn].setVelocityVal(seqn, stepn, StepAttributes::INIT_VELOCITY, multiStepsCount);
+					((PhraseSeq32Ex*)(module))->seq.setVelocityVal(multiStepsCount);
 				}
 			}
 			ParamWidget::onMouseDown(e);

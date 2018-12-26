@@ -739,7 +739,7 @@ struct PhraseSeq16 : Module {
 					else {// crossed paste to seq (seq vs song)
 						if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init steps)
 							for (int s = 0; s < 16; s++) {
-								cv[sequence][s] = 0.0f;
+								//cv[sequence][s] = 0.0f;
 								attributes[sequence][s].init();
 							}
 							transposeOffsets[sequence] = 0;
@@ -1895,6 +1895,7 @@ allow pulsesPerStep setting of 1 and all even values from 2 to 24, and allow all
 add two extra modes for Seq CV input (right-click menu): note-voltage-levels and trigger-increment
 fix tied bug that prevented correct tied propagation when editing beyond sequence length less than 16
 implement held tied notes option
+do not re-initialize CVs when cross-paste to seq ALL (init only gate1, gate2, tied, prob, slide)
 
 0.6.12:
 input refresh optimization
