@@ -549,7 +549,7 @@ struct PhraseSeq32Ex : Module {
 			}	
 			
 		
-			// Velocity knob 
+			// Velocity edit knob 
 			float velParamValue = params[VEL_KNOB_PARAM].value;
 			int newVelocityKnob = (int)roundf(velParamValue * 30.0f);
 			if (velParamValue == 0.0f)// true when constructor or fromJson() occured
@@ -557,6 +557,7 @@ struct PhraseSeq32Ex : Module {
 			int deltaVelKnob = newVelocityKnob - velocityKnob;
 			if (deltaVelKnob != 0) {
 				if (abs(deltaVelKnob) <= 3) {// avoid discontinuous step (initialize for example)
+					// any changes in here should may also require right click behavior to be updated in the knob's onMouseDown()
 					if (editingSequence && !attached) {
 						int mutliStepsCount = multiSteps ? cpMode : 1;
 						if (params[VELMODE_PARAM].value > 1.5f) {
@@ -583,6 +584,7 @@ struct PhraseSeq32Ex : Module {
 			int deltaPhrKnob = newPhraseKnob - phraseKnob;
 			if (deltaPhrKnob != 0) {
 				if (abs(deltaPhrKnob) <= 3) {// avoid discontinuous step (initialize for example)
+					// any changes in here should may also require right click behavior to be updated in the knob's onMouseDown()
 					if (displayState == DISP_MODE_SONG) {
 						seq.modRunModeSong(deltaPhrKnob);
 					}
@@ -603,6 +605,7 @@ struct PhraseSeq32Ex : Module {
 			int deltaSeqKnob = newSequenceKnob - sequenceKnob;
 			if (deltaSeqKnob != 0) {
 				if (abs(deltaSeqKnob) <= 3) {// avoid discontinuous step (initialize for example)
+					// any changes in here should may also require right click behavior to be updated in the knob's onMouseDown()
 					if (displayState == DISP_PPQN) {
 						seq.modPulsesPerStep(deltaSeqKnob);
 					}
@@ -1228,25 +1231,89 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			SVGSwitch::onChange(e);		
 		}
 	};
-	struct Velocityknob : IMMediumKnobInf {
-		Velocityknob() {};
+	struct VelocityKnob : IMMediumKnobInf {
+		VelocityKnob() {};		
 		void onMouseDown(EventMouseDown &e) override {// from ParamWidget.cpp
+			PhraseSeq32Ex* module = dynamic_cast<PhraseSeq32Ex*>(this->module);
 			if (e.button == 1) {
-				float vparam = ((PhraseSeq32Ex*)(module))->params[PhraseSeq32Ex::VELMODE_PARAM].value;
-				int multiStepsCount = ((PhraseSeq32Ex*)(module))->multiSteps ? ((PhraseSeq32Ex*)(module))->getCPMode() : 1;
-				if (vparam > 1.5f) {
-					((PhraseSeq32Ex*)(module))->seq.setSlideVal(multiStepsCount);
-				}
-				else if (vparam > 0.5f) {
-					((PhraseSeq32Ex*)(module))->seq.setGatePVal(multiStepsCount);
-				}
-				else {
-					((PhraseSeq32Ex*)(module))->seq.setVelocityVal(multiStepsCount);
+				// same code structure below as in velocity knob in main step()
+				if (module->isEditingSequence() && !module->attached) {
+					float vparam = module->params[PhraseSeq32Ex::VELMODE_PARAM].value;
+					int multiStepsCount = module->multiSteps ? module->getCPMode() : 1;
+					if (vparam > 1.5f) {
+						module->seq.initSlideVal(multiStepsCount);
+					}
+					else if (vparam > 0.5f) {
+						module->seq.initGatePVal(multiStepsCount);
+					}
+					else {
+						module->seq.initVelocityVal(multiStepsCount);
+					}
+					module->displayState = PhraseSeq32Ex::DISP_NORMAL;
 				}
 			}
 			ParamWidget::onMouseDown(e);
 		}
 	};
+	struct PhraseKnob : IMMediumKnobInf {
+		PhraseKnob() {};		
+		void onMouseDown(EventMouseDown &e) override {// from ParamWidget.cpp
+			PhraseSeq32Ex* module = dynamic_cast<PhraseSeq32Ex*>(this->module);
+			if (e.button == 1) {
+				// same code structure below as in phrase knob in main step()
+				if (module->displayState == PhraseSeq32Ex::DISP_MODE_SONG) {
+					module->seq.initRunModeSong();
+				}
+				else if (!module->isEditingSequence() && !module->attached) {
+					module->seq.setPhraseIndexEdit(0);
+					module->displayState = PhraseSeq32Ex::DISP_NORMAL;
+				}
+			}
+			ParamWidget::onMouseDown(e);
+		}
+	};
+	struct SequenceKnob : IMMediumKnobInf {
+		SequenceKnob() {};		
+		void onMouseDown(EventMouseDown &e) override {// from ParamWidget.cpp
+			PhraseSeq32Ex* module = dynamic_cast<PhraseSeq32Ex*>(this->module);
+			if (e.button == 1) {
+				// same code structure below as in sequence knob in main step()
+				if (module->displayState == PhraseSeq32Ex::DISP_PPQN) {
+					module->seq.initPulsesPerStep();
+				}
+				else if (module->displayState == PhraseSeq32Ex::DISP_DELAY) {
+					module->seq.initDelay();
+				}
+				else if (module->displayState == PhraseSeq32Ex::DISP_MODE_SEQ) {
+					module->seq.initRunModeSeq();
+				}
+				else if (module->displayState == PhraseSeq32Ex::DISP_LEN) {
+					module->seq.initLength();
+				}
+				else if (module->displayState == PhraseSeq32Ex::DISP_TRANSPOSE) {
+					// nothing
+				}
+				else if (module->displayState == PhraseSeq32Ex::DISP_ROTATE) {
+					// nothing
+				}							
+				else if (module->displayState == PhraseSeq32Ex::DISP_REPS) {
+					module->seq.initPhraseReps();
+				}
+				else if (!module->attached) {
+					if (module->isEditingSequence()) {
+						if (!module->inputs[PhraseSeq32Ex::SEQCV_INPUT].active)
+							module->seq.setSeqIndexEdit(0);
+					}
+					else {// editing song
+						module->seq.initPhraseSeqNum();
+					}
+					module->displayState = PhraseSeq32Ex::DISP_NORMAL;
+				}
+			}
+			ParamWidget::onMouseDown(e);
+		}
+	};
+
 		
 	PhraseSeq32ExWidget(PhraseSeq32Ex *module) : ModuleWidget(module) {
 		this->module = module;
@@ -1372,7 +1439,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int colRulerVel = 288;
 		addChild(new VelocityDisplayWidget(Vec(colRulerVel, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 3 characters
 		// Velocity knob
-		addParam(createDynamicParamCentered<Velocityknob>(Vec(colRulerVel, rowRulerKnobs), module, PhraseSeq32Ex::VEL_KNOB_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));	
+		addParam(createDynamicParamCentered<VelocityKnob>(Vec(colRulerVel, rowRulerKnobs), module, PhraseSeq32Ex::VEL_KNOB_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));	
 		// Veocity mode switch (3 position)
 		addParam(createParamCentered<CKSSHThreeNotify>(Vec(colRulerVel, rowRulerSmallButtons), module, PhraseSeq32Ex::VELMODE_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
 		
@@ -1382,7 +1449,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int trkButtonsOffsetX = 14;
 		addChild(new PhrEditDisplayWidget(Vec(colRulerEditPhr, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 5 characters
 		// Phrase knob
-		addParam(createDynamicParamCentered<IMMediumKnobInf>(Vec(colRulerEditPhr, rowRulerKnobs), module, PhraseSeq32Ex::PHRASE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
+		addParam(createDynamicParamCentered<PhraseKnob>(Vec(colRulerEditPhr, rowRulerKnobs), module, PhraseSeq32Ex::PHRASE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
 		// Begin/end buttons
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditPhr - trkButtonsOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::BEGIN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditPhr + trkButtonsOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::END_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
@@ -1392,7 +1459,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int colRulerEditSeq = colRulerEditPhr + displaySpacingX + 1;
 		addChild(new SeqEditDisplayWidget(Vec(colRulerEditSeq, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 5 characters
 		// Sequence-edit knob
-		addParam(createDynamicParamCentered<IMMediumKnobInf>(Vec(colRulerEditSeq, rowRulerKnobs), module, PhraseSeq32Ex::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
+		addParam(createDynamicParamCentered<SequenceKnob>(Vec(colRulerEditSeq, rowRulerKnobs), module, PhraseSeq32Ex::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
 		// Transpose/rotate button
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditSeq, rowRulerSmallButtons), module, PhraseSeq32Ex::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 	

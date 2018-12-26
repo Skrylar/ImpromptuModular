@@ -762,6 +762,7 @@ struct SemiModularSynth : Module {
 							for (int s = 0; s < 16; s++) {
 								//cv[sequence][s] = 0.0f;
 								attributes[sequence][s].init();
+								attributes[sequence][s].setGate1(false);
 							}
 							transposeOffsets[sequence] = 0;
 						}
@@ -2092,7 +2093,7 @@ fix initRun() timing bug when turn off-and-then-on running button (it was resett
 allow pulsesPerStep setting of 1 and all even values from 2 to 24, and allow all gate types that work in these
 fix tied bug that prevented correct tied propagation when editing beyond sequence length less than 16
 implement held tied notes option
-do not re-initialize CVs when cross-paste to seq ALL (init only gate1, gate2, tied, prob, slide)
+clear all attributes (gates, gatep, tied, slide) when cross-paste to seq ALL (CVs not affected)
 
 0.6.12:
 input refresh optimization

@@ -196,8 +196,8 @@ void SequencerKernel::pastePhrase(Phrase* phraseCPbuffer, SeqAttributes* seqPhra
 
 
 void SequencerKernel::reset() {
-	pulsesPerStep = 1;
-	delay = 0;
+	initPulsesPerStep();
+	initDelay();
 	initSong();
 	for (int seqn = 0; seqn < MAX_SEQS; seqn++) {
 		initSequence(seqn);		
