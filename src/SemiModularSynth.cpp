@@ -940,6 +940,7 @@ struct SemiModularSynth : Module {
 			int deltaKnob = newSequenceKnob - sequenceKnob;
 			if (deltaKnob != 0) {
 				if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
+					// any changes in here should may also require right click behavior to be updated in the knob's onMouseDown()
 					if (editingPpqn != 0) {
 						pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
 						editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
@@ -1774,6 +1775,53 @@ struct SemiModularSynthWidget : ModuleWidget {
 		return menu;
 	}	
 	
+	struct SequenceKnob : IMBigKnobInf {
+		SequenceKnob() {};		
+		void onMouseDown(EventMouseDown &e) override {// from ParamWidget.cpp
+			SemiModularSynth* module = dynamic_cast<SemiModularSynth*>(this->module);
+			if (e.button == 1) {
+				// same code structure below as in sequence knob in main step()
+				if (module->editingPpqn != 0) {
+					module->pulsesPerStep = 1;
+					//editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+				}
+				else if (module->displayState == SemiModularSynth::DISP_MODE) {
+					if (module->isEditingSequence()) {
+						module->runModeSeq[module->sequence] = MODE_FWD;
+					}
+					else {
+						module->runModeSong = MODE_FWD;
+					}
+				}
+				else if (module->displayState == SemiModularSynth::DISP_LENGTH) {
+					if (module->isEditingSequence()) {
+						module->lengths[module->sequence] = 16;
+					}
+					else {
+						module->phrases = 4;
+					}
+				}
+				else if (module->displayState == SemiModularSynth::DISP_TRANSPOSE) {
+					// nothing
+				}
+				else if (module->displayState == SemiModularSynth::DISP_ROTATE) {
+					// nothing			
+				}
+				else {// DISP_NORMAL
+					if (module->isEditingSequence()) {
+						if (!module->inputs[SemiModularSynth::SEQCV_INPUT].active) {
+							module->sequence = 0;;
+						}
+					}
+					else {
+						module->phrase[module->phraseIndexEdit] = 0;
+					}
+				}
+			}
+			ParamWidget::onMouseDown(e);
+		}
+	};		
+	
 	SemiModularSynthWidget(SemiModularSynth *module) : ModuleWidget(module) {
 		this->module = module;
 		
@@ -1900,7 +1948,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		addParam(createParam<LEDBezel>(Vec(columnRulerMK0 + offsetLEDbezel, rowRulerMK1 + 7 + offsetLEDbezel), module, SemiModularSynth::RUN_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(createLight<MuteLight<GreenLight>>(Vec(columnRulerMK0 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK1 + 7 + offsetLEDbezel + offsetLEDbezelLight), module, SemiModularSynth::RUN_LIGHT));
 		// Sequence knob
-		addParam(createDynamicParam<IMBigKnobInf>(Vec(columnRulerMK1 + 1 + offsetIMBigKnob, rowRulerMK0 + 55 + offsetIMBigKnob), module, SemiModularSynth::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->portTheme));		
+		addParam(createDynamicParam<SequenceKnob>(Vec(columnRulerMK1 + 1 + offsetIMBigKnob, rowRulerMK0 + 55 + offsetIMBigKnob), module, SemiModularSynth::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->portTheme));		
 		// Transpose/rotate button
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK1 + 4 + offsetCKD6b), module, SemiModularSynth::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		
@@ -2094,6 +2142,7 @@ allow pulsesPerStep setting of 1 and all even values from 2 to 24, and allow all
 fix tied bug that prevented correct tied propagation when editing beyond sequence length less than 16
 implement held tied notes option
 clear all attributes (gates, gatep, tied, slide) when cross-paste to seq ALL (CVs not affected)
+implement right-click initialization on main knob
 
 0.6.12:
 input refresh optimization

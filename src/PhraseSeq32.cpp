@@ -902,6 +902,7 @@ struct PhraseSeq32 : Module {
 			int deltaKnob = newSequenceKnob - sequenceKnob;
 			if (deltaKnob != 0) {
 				if (abs(deltaKnob) <= 3) {// avoid discontinuous step (initialize for example)
+					// any changes in here should may also require right click behavior to be updated in the knob's onMouseDown()
 					if (editingPpqn != 0) {
 						pulsesPerStep = indexToPps(ppsToIndex(pulsesPerStep) + deltaKnob);// indexToPps() does clamping
 						editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
@@ -1726,6 +1727,55 @@ struct PhraseSeq32Widget : ModuleWidget {
 		}	
 	};
 	
+	struct SequenceKnob : IMBigKnobInf {
+		SequenceKnob() {};		
+		void onMouseDown(EventMouseDown &e) override {// from ParamWidget.cpp
+			PhraseSeq32* module = dynamic_cast<PhraseSeq32*>(this->module);
+			if (e.button == 1) {
+				// same code structure below as in sequence knob in main step()
+				if (module->editingPpqn != 0) {
+					module->pulsesPerStep = 1;
+					//editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);
+				}
+				else if (module->displayState == PhraseSeq32::DISP_MODE) {
+					if (module->isEditingSequence()) {
+						if (!module->inputs[PhraseSeq32::MODECV_INPUT].active) {
+							module->runModeSeq[module->sequence] = MODE_FWD;
+						}
+					}
+					else {
+						module->runModeSong = MODE_FWD;
+					}
+				}
+				else if (module->displayState == PhraseSeq32::DISP_LENGTH) {
+					if (module->isEditingSequence()) {
+						module->lengths[module->sequence] = 16;
+					}
+					else {
+						module->phrases = 4;
+					}
+				}
+				else if (module->displayState == PhraseSeq32::DISP_TRANSPOSE) {
+					// nothing
+				}
+				else if (module->displayState == PhraseSeq32::DISP_ROTATE) {
+					// nothing			
+				}
+				else {// DISP_NORMAL
+					if (module->isEditingSequence()) {
+						if (!module->inputs[PhraseSeq32::SEQCV_INPUT].active) {
+							module->sequence = 0;;
+						}
+					}
+					else {
+						module->phrase[module->phraseIndexEdit] = 0;
+					}
+				}
+			}
+			ParamWidget::onMouseDown(e);
+		}
+	};		
+	
 	PhraseSeq32Widget(PhraseSeq32 *module) : ModuleWidget(module) {
 		this->module = module;
 		oldExpansion = -1;
@@ -1854,7 +1904,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 		// Autostep
 		addParam(createParam<CKSS>(Vec(columnRulerMK0 + 2 + hOffsetCKSS, rowRulerMK1 + 7 + vOffsetCKSS), module, PhraseSeq32::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
 		// Sequence knob
-		addParam(createDynamicParam<IMBigKnobInf>(Vec(columnRulerMK1 + 1 + offsetIMBigKnob, rowRulerMK0 + 55 + offsetIMBigKnob), module, PhraseSeq32::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
+		addParam(createDynamicParam<SequenceKnob>(Vec(columnRulerMK1 + 1 + offsetIMBigKnob, rowRulerMK0 + 55 + offsetIMBigKnob), module, PhraseSeq32::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
 		// Transpose/rotate button
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK1 + 4 + offsetCKD6b), module, PhraseSeq32::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		
@@ -1971,6 +2021,7 @@ add two extra modes for Seq CV input (right-click menu): note-voltage-levels and
 fix tied bug that prevented correct tied propagation when editing beyond sequence length less than 16
 implement held tied notes option
 clear all attributes (gates, gatep, tied, slide) when cross-paste to seq ALL (CVs not affected)
+implement right-click initialization on main knob
 
 0.6.12:
 input refresh optimization
