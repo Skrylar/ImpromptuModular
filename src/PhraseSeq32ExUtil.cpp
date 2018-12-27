@@ -48,10 +48,22 @@ void SequencerKernel::toggleGate(int seqn, int stepn, int count) {
 	for (int i = starti; i < endi; i++)
 		attributes[seqn][i].setGate(newGate);
 }
+void SequencerKernel::setGate(int seqn, int stepn, bool newGate, int count) {
+	int starti = (count == MAX_STEPS ? 0 : stepn);
+	int endi = min(MAX_STEPS, stepn + count);
+	for (int i = starti; i < endi; i++)
+		attributes[seqn][i].setGate(newGate);
+}
 void SequencerKernel::toggleGateP(int seqn, int stepn, int count) {
 	attributes[seqn][stepn].toggleGateP();
 	bool newGateP = attributes[seqn][stepn].getGateP();
 	int starti = (count == MAX_STEPS ? 0 : (stepn + 1));
+	int endi = min(MAX_STEPS, stepn + count);
+	for (int i = starti; i < endi; i++)
+		attributes[seqn][i].setGateP(newGateP);
+}
+void SequencerKernel::setGateP(int seqn, int stepn, bool newGateP, int count) {
+	int starti = (count == MAX_STEPS ? 0 : stepn);
 	int endi = min(MAX_STEPS, stepn + count);
 	for (int i = starti; i < endi; i++)
 		attributes[seqn][i].setGateP(newGateP);
@@ -64,10 +76,31 @@ void SequencerKernel::toggleSlide(int seqn, int stepn, int count) {
 	for (int i = starti; i < endi; i++)
 		attributes[seqn][i].setSlide(newSlide);
 }	
-void SequencerKernel::toggleTied(int seqn, int stepn, int count) {
+void SequencerKernel::setSlide(int seqn, int stepn, bool newSlide, int count) {
+	int starti = (count == MAX_STEPS ? 0 : stepn);
+	int endi = min(MAX_STEPS, stepn + count);
+	for (int i = starti; i < endi; i++)
+		attributes[seqn][i].setSlide(newSlide);
+}
+void SequencerKernel::toggleTied(int seqn, int stepn, int count) {// TODO: apply this optimization to three above and remove three toggles in attributes
+	setTied(seqn, stepn, !attributes[seqn][stepn].getTied(), count);
+	// int starti = (count == MAX_STEPS ? 0 : (stepn + 1));
+	// int endi = min(MAX_STEPS, stepn + count);
+	// if (attributes[seqn][stepn].getTied()) {
+		// deactivateTiedStep(seqn, stepn);
+		// for (int i = starti; i < endi; i++)
+			// deactivateTiedStep(seqn, i);
+	// }
+	// else {
+		// activateTiedStep(seqn, stepn);
+		// for (int i = starti; i < endi; i++)
+			// activateTiedStep(seqn, i);
+	// }
+}
+void SequencerKernel::setTied(int seqn, int stepn, bool newTied, int count) {
 	int starti = (count == MAX_STEPS ? 0 : (stepn + 1));
 	int endi = min(MAX_STEPS, stepn + count);
-	if (attributes[seqn][stepn].getTied()) {
+	if (!newTied) {
 		deactivateTiedStep(seqn, stepn);
 		for (int i = starti; i < endi; i++)
 			deactivateTiedStep(seqn, i);
@@ -584,13 +617,6 @@ bool SequencerKernel::moveIndexRunMode(bool moveSequence) {
 		runMode = runModeSong;
 		endStep = songEndIndex;
 		startStep = songBeginIndex;
-		if ((*index > endStep) || (*index < startStep)) {
-			if (runMode == MODE_REV)
-				*index = endStep;
-			else
-				*index = startStep;
-			(*history) = 0;
-		}
 	}
 	
 	bool crossBoundary = false;
@@ -603,6 +629,8 @@ bool SequencerKernel::moveIndexRunMode(bool moveSequence) {
 			if ((*history) < 0x2001 || (*history) > 0x2FFF)
 				(*history) = 0x2000 + reps;
 			(*index)--;
+			if ((*index) > endStep)// handle song jumped
+				(*index) = endStep;
 			if ((*index) < startStep) {
 				(*index) = endStep;
 				(*history)--;
@@ -616,6 +644,8 @@ bool SequencerKernel::moveIndexRunMode(bool moveSequence) {
 				(*history) = 0x3000 + reps * 2;
 			if (((*history) & 0x1) == 0) {// even so forward phase
 				(*index)++;
+				if ((*index) < startStep)// handle song jumped
+					(*index) = startStep;
 				if ((*index) > endStep) {
 					(*index) = endStep;
 					(*history)--;
@@ -623,6 +653,8 @@ bool SequencerKernel::moveIndexRunMode(bool moveSequence) {
 			}
 			else {// odd so reverse phase
 				(*index)--;
+				if ((*index) > endStep)// handle song jumped
+					(*index) = endStep;
 				if ((*index) < startStep) {
 					(*index) = startStep;
 					(*history)--;
@@ -637,6 +669,8 @@ bool SequencerKernel::moveIndexRunMode(bool moveSequence) {
 				(*history) = 0x4000 + reps * 2;
 			if (((*history) & 0x1) == 0) {// even so forward phase
 				(*index)++;
+				if ((*index) < startStep)// handle song jumped
+					(*index) = startStep;
 				if ((*index) > endStep) {
 					(*index) = endStep - 1;
 					(*history)--;
@@ -650,6 +684,8 @@ bool SequencerKernel::moveIndexRunMode(bool moveSequence) {
 			}
 			else {// odd so reverse phase
 				(*index)--;
+				if ((*index) > endStep)// handle song jumped
+					(*index) = endStep;
 				if ((*index) <= startStep) {
 					(*index) = startStep;
 					(*history)--;
@@ -709,6 +745,8 @@ bool SequencerKernel::moveIndexRunMode(bool moveSequence) {
 			if ((*history) < 0x1001 || (*history) > 0x1FFF)
 				(*history) = 0x1000 + reps;
 			(*index)++;
+			if ((*index) < startStep)// handle song jumped
+				(*index) = startStep;
 			if ((*index) > endStep) {
 				(*index) = startStep;
 				(*history)--;

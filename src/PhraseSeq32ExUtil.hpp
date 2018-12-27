@@ -231,12 +231,12 @@ class SequencerKernel {
 	inline void setPhraseSeqNum(int phrn, int _seqn) {phrases[phrn].setSeqNum(_seqn);}
 	inline void setBegin(int phrn) {songBeginIndex = phrn; songEndIndex = max(phrn, songEndIndex);}
 	inline void setEnd(int phrn) {songEndIndex = phrn; songBeginIndex = min(phrn, songBeginIndex);}
-	inline void setGate(int seqn, int stepn, bool gate) {attributes[seqn][stepn].setGate(gate);}
-	inline void setGateP(int seqn, int stepn, bool gateP) {attributes[seqn][stepn].setGateP(gateP);}
-	inline void setSlide(int seqn, int stepn, bool slide) {attributes[seqn][stepn].setSlide(slide);}
 	inline void setRunModeSong(int _runMode) {runModeSong = _runMode;}
 	inline void setRunModeSeq(int seqn, int _runMode) {sequences[seqn].setRunMode(_runMode);}
-	inline void setTied(int seqn, int stepn, bool tied) {attributes[seqn][stepn].setTied(tied);}// gate, gateP and slide will get cleared if true
+	void setGate(int seqn, int stepn, bool newGate, int count);
+	void setGateP(int seqn, int stepn, bool newGateP, int count);
+	void setSlide(int seqn, int stepn, bool newSlide, int count);
+	void setTied(int seqn, int stepn, bool newTied, int count);
 	void setGatePVal(int seqn, int stepn, int gatePval, int count) {
 		int starti = (count == MAX_STEPS ? 0 : stepn);
 		int endi = min(MAX_STEPS, stepn + count);
@@ -411,7 +411,6 @@ class Sequencer {
 	float cvCPbuffer[SequencerKernel::MAX_STEPS];// copy paste buffer for CVs
 	StepAttributes attribCPbuffer[SequencerKernel::MAX_STEPS];
 	Phrase phraseCPbuffer[SequencerKernel::MAX_PHRASES];
-	int repCPbuffer[SequencerKernel::MAX_PHRASES];
 	SeqAttributes seqPhraseAttribCPbuffer;// transpose is -1 when seq was copied, holds songEnd when song was copied; len holds songBeg when song
 
 	
@@ -450,8 +449,14 @@ class Sequencer {
 	inline void setSeqIndexEdit(int _seqIndexEdit) {seqIndexEdit = _seqIndexEdit;}
 	inline void setPhraseIndexEdit(int _phraseIndexEdit) {phraseIndexEdit = _phraseIndexEdit;}
 	inline void setTrackIndexEdit(int _trackIndexEdit) {trackIndexEdit = _trackIndexEdit;}
-	inline void setVelocityVal(int trkn, int intVel, int multiStepsCount) {
+	inline void setVelocityVal(int trkn, int intVel, int multiStepsCount, bool multiTracks) {
 		sek[trkn].setVelocityVal(seqIndexEdit, stepIndexEdit, intVel, multiStepsCount);
+		if (multiTracks) {
+			for (int i = 0; i < NUM_TRACKS; i++) {
+				if (i == trkn) continue;
+				sek[i].setVelocityVal(seqIndexEdit, stepIndexEdit, intVel, multiStepsCount);
+			}
+		}
 	}
 	inline void setEditingGateKeyLight(int _editingGateKeyLight) {editingGateKeyLight = _editingGateKeyLight;}
 	inline void setLength(int length) {
@@ -463,15 +468,20 @@ class Sequencer {
 	inline void setEnd() {
 		sek[trackIndexEdit].setEnd(phraseIndexEdit);
 	}
-	inline bool setGateType(int keyn, int multiSteps, bool autostepClick) {// Third param is for right-click autostep. Returns success
+	inline bool setGateType(int keyn, int multiSteps, bool autostepClick, bool multiTracks) {// Third param is for right-click autostep. Returns success
 		int newMode = keyIndexToGateTypeEx(keyn);
-		if (newMode != -1) {
-			sek[trackIndexEdit].setGateType(seqIndexEdit, stepIndexEdit, newMode, multiSteps);
-			if (autostepClick) // if right-click then move to next step
-				moveStepIndexEdit(1);
-			return true;
+		if (newMode == -1) 
+			return false;
+		sek[trackIndexEdit].setGateType(seqIndexEdit, stepIndexEdit, newMode, multiSteps);
+		if (multiTracks) {
+			for (int i = 0; i < NUM_TRACKS; i++) {
+				if (i == trackIndexEdit) continue;
+				sek[i].setGateType(seqIndexEdit, stepIndexEdit, newMode, multiSteps);
+			}
 		}
-		return false;
+		if (autostepClick) // if right-click then move to next step
+			moveStepIndexEdit(1);
+		return true;
 	}
 	
 	
@@ -522,9 +532,15 @@ class Sequencer {
 	}
 	
 	
-	inline void writeCV(int trkn, float cvVal, int multiStepsCount, float sampleRate) {
+	inline void writeCV(int trkn, float cvVal, int multiStepsCount, float sampleRate, bool multiTracks) {
 		editingGateCV[trkn] = sek[trkn].writeCV(seqIndexEdit, stepIndexEdit, cvVal, multiStepsCount);
 		editingGate[trkn] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
+		if (multiTracks) {
+			for (int i = 0; i < NUM_TRACKS; i++) {
+				if (i == trkn) continue;
+				sek[i].writeCV(seqIndexEdit, stepIndexEdit, cvVal, multiStepsCount);
+			}
+		}
 	}
 	inline void autostep(bool autoseq) {
 		moveStepIndexEdit(1);
@@ -532,15 +548,21 @@ class Sequencer {
 			seqIndexEdit = moveIndex(seqIndexEdit, seqIndexEdit + 1, SequencerKernel::MAX_SEQS);	
 	}	
 
-	inline bool applyNewOctave(int octn, int multiSteps, float sampleRate) { // returns true if tied
+	inline bool applyNewOctave(int octn, int multiSteps, float sampleRate, bool multiTracks) { // returns true if tied
 		if (sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit))
 			return true;
 		editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewOctave(seqIndexEdit, stepIndexEdit, octn, multiSteps);
 		editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 		editingGateKeyLight = -1;
+		if (multiTracks) {
+			for (int i = 0; i < NUM_TRACKS; i++) {
+				if (i == trackIndexEdit) continue;
+				sek[i].applyNewOctave(seqIndexEdit, stepIndexEdit, octn, multiSteps);
+			}
+		}
 		return false;
 	}
-	inline bool applyNewKey(int keyn, int multiSteps, float sampleRate, bool autostepClick) { // returns true if tied
+	inline bool applyNewKey(int keyn, int multiSteps, float sampleRate, bool autostepClick, bool multiTracks) { // returns true if tied
 		bool ret = false;
 		if (sek[trackIndexEdit].getTied(seqIndexEdit, stepIndexEdit)) {
 			if (autostepClick)
@@ -552,6 +574,12 @@ class Sequencer {
 			editingGateCV[trackIndexEdit] = sek[trackIndexEdit].applyNewKey(seqIndexEdit, stepIndexEdit, keyn, multiSteps);
 			editingGate[trackIndexEdit] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 			editingGateKeyLight = -1;
+			if (multiTracks) {
+				for (int i = 0; i < NUM_TRACKS; i++) {
+					if (i == trackIndexEdit) continue;
+					sek[i].applyNewKey(seqIndexEdit, stepIndexEdit, keyn, multiSteps);
+				}
+			}
 			if (autostepClick) {// if right-click then move to next step
 				moveStepIndexEdit(1);
 				editingGateKeyLight = keyn;
@@ -583,14 +611,35 @@ class Sequencer {
 	}
 
 	
-	inline void modSlideVal(int deltaVelKnob, int mutliStepsCount) {
+	inline void modSlideVal(int deltaVelKnob, int mutliStepsCount, bool multiTracks) {
 		sek[trackIndexEdit].modSlideVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
+		if (multiTracks) {
+			int sVal = sek[trackIndexEdit].getSlideVal(seqIndexEdit, stepIndexEdit);
+			for (int i = 0; i < NUM_TRACKS; i++) {
+				if (i == trackIndexEdit) continue;
+				sek[i].setSlideVal(seqIndexEdit, stepIndexEdit, sVal, mutliStepsCount);
+			}
+		}		
 	}
-	inline void modGatePVal(int deltaVelKnob, int mutliStepsCount) {
+	inline void modGatePVal(int deltaVelKnob, int mutliStepsCount, bool multiTracks) {
 		sek[trackIndexEdit].modGatePVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
+		if (multiTracks) {
+			int gpVal = sek[trackIndexEdit].getGatePVal(seqIndexEdit, stepIndexEdit);
+			for (int i = 0; i < NUM_TRACKS; i++) {
+				if (i == trackIndexEdit) continue;
+				sek[i].setGatePVal(seqIndexEdit, stepIndexEdit, gpVal, mutliStepsCount);
+			}
+		}		
 	}
-	inline void modVelocityVal(int deltaVelKnob, int mutliStepsCount) {
+	inline void modVelocityVal(int deltaVelKnob, int mutliStepsCount, bool multiTracks) {
 		sek[trackIndexEdit].modVelocityVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
+		if (multiTracks) {
+			int vVal = sek[trackIndexEdit].getVelocityVal(seqIndexEdit, stepIndexEdit);
+			for (int i = 0; i < NUM_TRACKS; i++) {
+				if (i == trackIndexEdit) continue;
+				sek[i].setVelocityVal(seqIndexEdit, stepIndexEdit, vVal, mutliStepsCount);
+			}
+		}		
 	}
 	inline void modRunModeSong(int deltaPhrKnob) {
 		sek[trackIndexEdit].modRunModeSong(deltaPhrKnob);
@@ -620,22 +669,43 @@ class Sequencer {
 		sek[trackIndexEdit].modPhraseSeqNum(phraseIndexEdit, deltaSeqKnob);
 	}
 
-	inline void toggleGate(int multiSteps) {
+	inline void toggleGate(int multiSteps, bool multiTracks) {
 		sek[trackIndexEdit].toggleGate(seqIndexEdit, stepIndexEdit, multiSteps);
+		if (multiTracks) {
+			bool gState = sek[trackIndexEdit].getGate(seqIndexEdit, stepIndexEdit);
+			for (int i = 0; i < NUM_TRACKS; i++) {
+				if (i == trackIndexEdit) continue;			
+				sek[i].setGate(seqIndexEdit, stepIndexEdit, gState, multiSteps);
+			}
+		}		
 	}
-	inline bool toggleGateP(int multiSteps) { // returns true if tied
+	inline bool toggleGateP(int multiSteps, bool multiTracks) { // returns true if tied
 		if (sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit))
 			return true;
 		sek[trackIndexEdit].toggleGateP(seqIndexEdit, stepIndexEdit, multiSteps);
+		if (multiTracks) {
+			bool gpState = sek[trackIndexEdit].getGateP(seqIndexEdit, stepIndexEdit);
+			for (int i = 0; i < NUM_TRACKS; i++) {
+				if (i == trackIndexEdit) continue;			
+				sek[i].setGateP(seqIndexEdit, stepIndexEdit, gpState, multiSteps);
+			}
+		}				
 		return false;
 	}
-	inline bool toggleSlide(int multiSteps) {
+	inline bool toggleSlide(int multiSteps, bool multiTracks) { // returns true if tied
 		if (sek[trackIndexEdit].getTied(seqIndexEdit,stepIndexEdit))
 			return true;
 		sek[trackIndexEdit].toggleSlide(seqIndexEdit, stepIndexEdit, multiSteps);
+		if (multiTracks) {
+			bool sState = sek[trackIndexEdit].getSlide(seqIndexEdit, stepIndexEdit);
+			for (int i = 0; i < NUM_TRACKS; i++) {
+				if (i == trackIndexEdit) continue;			
+				sek[i].setSlide(seqIndexEdit, stepIndexEdit, sState, multiSteps);
+			}
+		}				
 		return false;
 	}
-	inline void toggleTied(int multiSteps) { 
+	inline void toggleTied(int multiSteps, bool multiTracks) { // TODO multiTracks
 		sek[trackIndexEdit].toggleTied(seqIndexEdit, stepIndexEdit, multiSteps);// will clear other attribs if new state is on
 	}
 
