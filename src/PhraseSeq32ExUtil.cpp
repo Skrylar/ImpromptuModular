@@ -40,27 +40,12 @@ void SequencerKernel::construct(int _id, uint32_t* seqPtr, uint32_t* songPtr, bo
 }
 
 
-void SequencerKernel::toggleGate(int seqn, int stepn, int count) {
-	attributes[seqn][stepn].toggleGate();
-	bool newGate = attributes[seqn][stepn].getGate();
-	int starti = (count == MAX_STEPS ? 0 : (stepn + 1));
-	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = starti; i < endi; i++)
-		attributes[seqn][i].setGate(newGate);
-}
+
 void SequencerKernel::setGate(int seqn, int stepn, bool newGate, int count) {
 	int starti = (count == MAX_STEPS ? 0 : stepn);
 	int endi = min(MAX_STEPS, stepn + count);
 	for (int i = starti; i < endi; i++)
 		attributes[seqn][i].setGate(newGate);
-}
-void SequencerKernel::toggleGateP(int seqn, int stepn, int count) {
-	attributes[seqn][stepn].toggleGateP();
-	bool newGateP = attributes[seqn][stepn].getGateP();
-	int starti = (count == MAX_STEPS ? 0 : (stepn + 1));
-	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = starti; i < endi; i++)
-		attributes[seqn][i].setGateP(newGateP);
 }
 void SequencerKernel::setGateP(int seqn, int stepn, bool newGateP, int count) {
 	int starti = (count == MAX_STEPS ? 0 : stepn);
@@ -68,34 +53,11 @@ void SequencerKernel::setGateP(int seqn, int stepn, bool newGateP, int count) {
 	for (int i = starti; i < endi; i++)
 		attributes[seqn][i].setGateP(newGateP);
 }
-void SequencerKernel::toggleSlide(int seqn, int stepn, int count) {
-	attributes[seqn][stepn].toggleSlide();
-	bool newSlide = attributes[seqn][stepn].getSlide();
-	int starti = (count == MAX_STEPS ? 0 : (stepn + 1));
-	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = starti; i < endi; i++)
-		attributes[seqn][i].setSlide(newSlide);
-}	
 void SequencerKernel::setSlide(int seqn, int stepn, bool newSlide, int count) {
 	int starti = (count == MAX_STEPS ? 0 : stepn);
 	int endi = min(MAX_STEPS, stepn + count);
 	for (int i = starti; i < endi; i++)
 		attributes[seqn][i].setSlide(newSlide);
-}
-void SequencerKernel::toggleTied(int seqn, int stepn, int count) {// TODO: apply this optimization to three above and remove three toggles in attributes
-	setTied(seqn, stepn, !attributes[seqn][stepn].getTied(), count);
-	// int starti = (count == MAX_STEPS ? 0 : (stepn + 1));
-	// int endi = min(MAX_STEPS, stepn + count);
-	// if (attributes[seqn][stepn].getTied()) {
-		// deactivateTiedStep(seqn, stepn);
-		// for (int i = starti; i < endi; i++)
-			// deactivateTiedStep(seqn, i);
-	// }
-	// else {
-		// activateTiedStep(seqn, stepn);
-		// for (int i = starti; i < endi; i++)
-			// activateTiedStep(seqn, i);
-	// }
 }
 void SequencerKernel::setTied(int seqn, int stepn, bool newTied, int count) {
 	int starti = (count == MAX_STEPS ? 0 : (stepn + 1));
@@ -111,6 +73,33 @@ void SequencerKernel::setTied(int seqn, int stepn, bool newTied, int count) {
 			activateTiedStep(seqn, i);
 	}
 }
+
+void SequencerKernel::setGatePVal(int seqn, int stepn, int gatePval, int count) {
+	int starti = (count == MAX_STEPS ? 0 : stepn);
+	int endi = min(MAX_STEPS, stepn + count);
+	for (int i = starti; i < endi; i++)
+		attributes[seqn][i].setGatePVal(gatePval);
+}
+void SequencerKernel::setSlideVal(int seqn, int stepn, int slideVal, int count) {
+	int starti = (count == MAX_STEPS ? 0 : stepn);
+	int endi = min(MAX_STEPS, stepn + count);
+	for (int i = starti; i < endi; i++)
+		attributes[seqn][i].setSlideVal(slideVal);
+}
+void SequencerKernel::setVelocityVal(int seqn, int stepn, int velocity, int count) {
+	int starti = (count == MAX_STEPS ? 0 : stepn);
+	int endi = min(MAX_STEPS, stepn + count);
+	for (int i = starti; i < endi; i++)
+		attributes[seqn][i].setVelocityVal(velocity);
+}
+void SequencerKernel::setGateType(int seqn, int stepn, int gateType, int count) {
+	int starti = (count == MAX_STEPS ? 0 : stepn);
+	int endi = min(MAX_STEPS, stepn + count);
+	for (int i = starti; i < endi; i++)
+		attributes[seqn][i].setGateType(gateType);
+}
+
+
 float SequencerKernel::applyNewOctave(int seqn, int stepn, int newOct, int count) {// does not overwrite tied steps
 	float newCV = cv[seqn][stepn] + 10.0f;//to properly handle negative note voltages
 	newCV = newCV - floor(newCV) + (float) (newOct - 3);
@@ -137,7 +126,6 @@ float SequencerKernel::applyNewKey(int seqn, int stepn, int newKeyIndex, int cou
 			propagateCVtoTied(seqn, i);		
 		}
 	}
-	
 	return newCV;
 }
 float SequencerKernel::writeCV(int seqn, int stepn, float newCV, int count) {// does not overwrite tied steps
@@ -757,4 +745,82 @@ bool SequencerKernel::moveIndexRunMode(bool moveSequence) {
 
 	return crossBoundary;
 }
+
+
+//*****************************************************************************
+// Sequencer
+//*****************************************************************************
+
+
+void Sequencer::construct(bool* _holdTiedNotesPtr) {// don't want regaular constructor mechanism
+	sek[0].construct(0, nullptr, nullptr, _holdTiedNotesPtr);
+	for (int trkn = 1; trkn < NUM_TRACKS; trkn++)
+		sek[trkn].construct(trkn, sek[0].getSeqRndLast(), sek[0].getSongRndLast(), _holdTiedNotesPtr);
+}
+
+	
+void Sequencer::reset() {
+	stepIndexEdit = 0;
+	phraseIndexEdit = 0;
+	seqIndexEdit = 0;
+	trackIndexEdit = 0;
+	for (int phrn = 0; phrn < SequencerKernel::MAX_PHRASES; phrn++) {
+		phraseCPbuffer[phrn].init();
+	}
+		
+	for (int stepn = 0; stepn < SequencerKernel::MAX_STEPS; stepn++) {
+		cvCPbuffer[stepn] = 0.0f;
+		attribCPbuffer[stepn].init();
+	}
+	seqPhraseAttribCPbuffer.init(SequencerKernel::MAX_STEPS, SequencerKernel::MODE_FWD);
+	seqPhraseAttribCPbuffer.setTranspose(-1);
+	
+	for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
+		editingGate[trkn] = 0ul;
+		sek[trkn].reset();
+	}
+}
+
+void Sequencer::toJson(json_t *rootJ) {
+	// stepIndexEdit
+	json_object_set_new(rootJ, "stepIndexEdit", json_integer(stepIndexEdit));
+
+	// seqIndexEdit
+	json_object_set_new(rootJ, "seqIndexEdit", json_integer(seqIndexEdit));
+
+	// phraseIndexEdit
+	json_object_set_new(rootJ, "phraseIndexEdit", json_integer(phraseIndexEdit));
+
+	// trackIndexEdit
+	json_object_set_new(rootJ, "trackIndexEdit", json_integer(trackIndexEdit));
+
+	for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+		sek[trkn].toJson(rootJ);
+}
+
+void Sequencer::fromJson(json_t *rootJ) {
+	// stepIndexEdit
+	json_t *stepIndexEditJ = json_object_get(rootJ, "stepIndexEdit");
+	if (stepIndexEditJ)
+		stepIndexEdit = json_integer_value(stepIndexEditJ);
+	
+	// phraseIndexEdit
+	json_t *phraseIndexEditJ = json_object_get(rootJ, "phraseIndexEdit");
+	if (phraseIndexEditJ)
+		phraseIndexEdit = json_integer_value(phraseIndexEditJ);
+	
+	// seqIndexEdit
+	json_t *seqIndexEditJ = json_object_get(rootJ, "seqIndexEdit");
+	if (seqIndexEditJ)
+		seqIndexEdit = json_integer_value(seqIndexEditJ);
+	
+	// trackIndexEdit
+	json_t *trackIndexEditJ = json_object_get(rootJ, "trackIndexEdit");
+	if (trackIndexEditJ)
+		trackIndexEdit = json_integer_value(trackIndexEditJ);
+	
+	for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
+		sek[trkn].fromJson(rootJ);
+}
+
 

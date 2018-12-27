@@ -396,7 +396,7 @@ struct PhraseSeq32Ex : Module {
 							startCP = seq.getStepIndexEdit();
 							countCP = min(countCP, SequencerKernel::MAX_STEPS - startCP);
 						}
-						seq.pasteSequence(startCP, countCP);
+						seq.pasteSequence(startCP, countCP, multiTracks);
 						displayState = DISP_PASTE_SEQ;
 						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
@@ -406,7 +406,7 @@ struct PhraseSeq32Ex : Module {
 							startCP = seq.getPhraseIndexEdit();
 							countCP = min(countCP, SequencerKernel::MAX_PHRASES - startCP);
 						}
-						seq.pastePhrase(startCP, countCP);
+						seq.pastePhrase(startCP, countCP, multiTracks);
 						displayState = DISP_PASTE_SONG;
 						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
@@ -459,7 +459,7 @@ struct PhraseSeq32Ex : Module {
 			if (stepPressed != -1) {
 				if (editingSequence && !attached) {
 					if (displayState == DISP_LEN) {
-						seq.setLength(stepPressed + 1);
+						seq.setLength(stepPressed + 1, multiTracks);
 						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
 					else {
@@ -510,13 +510,13 @@ struct PhraseSeq32Ex : Module {
 			// Begin/End buttons
 			if (beginTrigger.process(params[BEGIN_PARAM].value)) {
 				if (!editingSequence && !attached) {
-					seq.setBegin();
+					seq.setBegin(multiTracks);
 					displayState = DISP_NORMAL;
 				}
 			}	
 			if (endTrigger.process(params[END_PARAM].value)) {
 				if (!editingSequence && !attached) {
-					seq.setEnd();
+					seq.setEnd(multiTracks);
 					displayState = DISP_NORMAL;
 				}
 			}	
@@ -598,7 +598,7 @@ struct PhraseSeq32Ex : Module {
 				if (abs(deltaPhrKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					// any changes in here should may also require right click behavior to be updated in the knob's onMouseDown()
 					if (displayState == DISP_MODE_SONG) {
-						seq.modRunModeSong(deltaPhrKnob);
+						seq.modRunModeSong(deltaPhrKnob, multiTracks);
 					}
 					else if (!editingSequence && !attached) {
 						seq.movePhraseIndexEdit(deltaPhrKnob);
@@ -619,25 +619,25 @@ struct PhraseSeq32Ex : Module {
 				if (abs(deltaSeqKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					// any changes in here should may also require right click behavior to be updated in the knob's onMouseDown()
 					if (displayState == DISP_PPQN) {
-						seq.modPulsesPerStep(deltaSeqKnob);
+						seq.modPulsesPerStep(deltaSeqKnob, multiTracks);
 					}
 					else if (displayState == DISP_DELAY) {
-						seq.modDelay(deltaSeqKnob);
+						seq.modDelay(deltaSeqKnob, multiTracks);
 					}
 					else if (displayState == DISP_MODE_SEQ) {
-						seq.modRunModeSeq(deltaSeqKnob);
+						seq.modRunModeSeq(deltaSeqKnob, multiTracks);
 					}
 					else if (displayState == DISP_LEN) {
-						seq.modLength(deltaSeqKnob);
+						seq.modLength(deltaSeqKnob, multiTracks);
 					}
 					else if (displayState == DISP_TRANSPOSE) {
-						seq.transposeSeq(deltaSeqKnob);
+						seq.transposeSeq(deltaSeqKnob);// multiTracks TODO
 					}
 					else if (displayState == DISP_ROTATE) {
-						seq.rotateSeq(&rotateOffset, deltaSeqKnob);
+						seq.rotateSeq(&rotateOffset, deltaSeqKnob); // multiTracks TODO
 					}							
 					else if (displayState == DISP_REPS) {
-						seq.modPhraseReps(deltaSeqKnob);
+						seq.modPhraseReps(deltaSeqKnob, multiTracks);
 					}
 					else if (!attached) {
 						if (editingSequence) {
@@ -645,7 +645,7 @@ struct PhraseSeq32Ex : Module {
 								seq.moveSeqIndexEdit(deltaSeqKnob);
 						}
 						else {// editing song
-							seq.modPhraseSeqNum(deltaSeqKnob);
+							seq.modPhraseSeqNum(deltaSeqKnob, multiTracks);
 						}
 						displayState = DISP_NORMAL;
 					}
@@ -1264,13 +1264,13 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 					float vparam = module->params[PhraseSeq32Ex::VELMODE_PARAM].value;
 					int multiStepsCount = module->multiSteps ? module->getCPMode() : 1;
 					if (vparam > 1.5f) {
-						module->seq.initSlideVal(multiStepsCount);// TODO multiTracks
+						module->seq.initSlideVal(multiStepsCount, module->multiTracks);
 					}
 					else if (vparam > 0.5f) {
-						module->seq.initGatePVal(multiStepsCount);// TODO multiTracks
+						module->seq.initGatePVal(multiStepsCount, module->multiTracks);
 					}
 					else {
-						module->seq.initVelocityVal(multiStepsCount);// TODO multiTracks
+						module->seq.initVelocityVal(multiStepsCount, module->multiTracks);
 					}
 					module->displayState = PhraseSeq32Ex::DISP_NORMAL;
 				}
@@ -1285,7 +1285,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			if (e.button == 1) {
 				// same code structure below as in phrase knob in main step()
 				if (module->displayState == PhraseSeq32Ex::DISP_MODE_SONG) {
-					module->seq.initRunModeSong();
+					module->seq.initRunModeSong(module->multiTracks);
 				}
 				else if (!module->isEditingSequence() && !module->attached) {
 					module->seq.setPhraseIndexEdit(0);
@@ -1302,25 +1302,25 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			if (e.button == 1) {
 				// same code structure below as in sequence knob in main step()
 				if (module->displayState == PhraseSeq32Ex::DISP_PPQN) {
-					module->seq.initPulsesPerStep();
+					module->seq.initPulsesPerStep(module->multiTracks);
 				}
 				else if (module->displayState == PhraseSeq32Ex::DISP_DELAY) {
-					module->seq.initDelay();
+					module->seq.initDelay(module->multiTracks);
 				}
 				else if (module->displayState == PhraseSeq32Ex::DISP_MODE_SEQ) {
-					module->seq.initRunModeSeq();
+					module->seq.initRunModeSeq(module->multiTracks);
 				}
 				else if (module->displayState == PhraseSeq32Ex::DISP_LEN) {
-					module->seq.initLength();
+					module->seq.initLength(module->multiTracks);
 				}
 				else if (module->displayState == PhraseSeq32Ex::DISP_TRANSPOSE) {
-					// nothing
+					// TODO
 				}
 				else if (module->displayState == PhraseSeq32Ex::DISP_ROTATE) {
-					// nothing
+					// TODO
 				}							
 				else if (module->displayState == PhraseSeq32Ex::DISP_REPS) {
-					module->seq.initPhraseReps();
+					module->seq.initPhraseReps(module->multiTracks);
 				}
 				else if (!module->attached) {
 					if (module->isEditingSequence()) {
@@ -1328,7 +1328,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 							module->seq.setSeqIndexEdit(0);
 					}
 					else {// editing song
-						module->seq.initPhraseSeqNum();
+						module->seq.initPhraseSeqNum(module->multiTracks);
 					}
 					module->displayState = PhraseSeq32Ex::DISP_NORMAL;
 				}
