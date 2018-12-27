@@ -584,6 +584,13 @@ bool SequencerKernel::moveIndexRunMode(bool moveSequence) {
 		runMode = runModeSong;
 		endStep = songEndIndex;
 		startStep = songBeginIndex;
+		if ((*index > endStep) || (*index < startStep)) {
+			if (runMode == MODE_REV)
+				*index = endStep;
+			else
+				*index = startStep;
+			(*history) = 0;
+		}
 	}
 	
 	bool crossBoundary = false;

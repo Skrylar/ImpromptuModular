@@ -657,7 +657,7 @@ class Sequencer {
 	inline float calcVelOutput(int trkn, bool running, int velocityMode) {
 		if (running)
 			return calcVelocityVoltage(sek[trkn].getVelocityValRun(), velocityMode);
-		return (editingGate[trkn] > 0ul) ? 7.874f : calcVelocityVoltage(sek[trkn].getVelocityVal(seqIndexEdit, stepIndexEdit), velocityMode);
+		return calcVelocityVoltage(sek[trkn].getVelocityVal(seqIndexEdit, stepIndexEdit), velocityMode);
 	}
 	inline float calcVelocityVoltage(int vVal, int velocityMode) {
 		if (velocityMode == 1)
