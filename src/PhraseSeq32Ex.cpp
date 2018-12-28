@@ -9,7 +9,7 @@
 //Acknowledgements: please see README.md
 //***********************************************************************************************
 
-
+#include <algorithm>
 #include "ImpromptuModular.hpp"
 #include "PhraseSeq32ExUtil.hpp"
 
@@ -46,13 +46,14 @@ struct PhraseSeq32Ex : Module {
 		END_PARAM,
 		KEY_GATE_PARAM,
 		ATTACH_PARAM,
+		VELALL_A_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
 		WRITE_INPUT,
 		ENUMS(CV_INPUTS, Sequencer::NUM_TRACKS),
 		RESET_INPUT,
-		CLOCK_INPUT,
+		ENUMS(CLOCK_INPUTS, Sequencer::NUM_TRACKS),
 		LEFTCV_INPUT,
 		RIGHTCV_INPUT,
 		RUNCV_INPUT,
@@ -60,7 +61,7 @@ struct PhraseSeq32Ex : Module {
 		GATEPCV_INPUT,
 		TIEDCV_INPUT,
 		SLIDECV_INPUT,
-		VEL_INPUT,
+		ENUMS(VEL_INPUTS, Sequencer::NUM_TRACKS),
 		SEQCV_INPUT,
 		TRKCV_INPUT,
 		NUM_INPUTS
@@ -419,14 +420,16 @@ struct PhraseSeq32Ex : Module {
 			bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 			if (writeTrig) {
 				if (editingSequence && ! attached) {
+					bool velAllA = params[VELALL_A_PARAM].value < 0.5f;
+					int multiStepsCount = multiSteps ? cpMode : 1;
 					for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
 						if (inputs[CV_INPUTS + trkn].active) {
-							int multiStepsCount = multiSteps ? cpMode : 1;
 							seq.writeCV(trkn, inputs[CV_INPUTS + trkn].value, multiStepsCount, sampleRate, multiTracks);
-							if (inputs[VEL_INPUT].active) {	
-								int intVel = (int)(inputs[VEL_INPUT].value * ((float)StepAttributes::MAX_VELOCITY) / 10.0f + 0.5f);// no velocityMode taken into account here, VEL input is always 0-10V
-								seq.setVelocityVal(trkn, intVel, multiStepsCount, multiTracks);
-							}
+						}
+						int srcVel = velAllA ? 0 : trkn;
+						if (inputs[VEL_INPUTS + srcVel].active) {	
+							int intVel = (int)(inputs[VEL_INPUTS + srcVel].value * ((float)StepAttributes::MAX_VELOCITY) / 10.0f + 0.5f);// no velocityMode taken into account here, VEL input is always 0-10V
+							seq.setVelocityVal(trkn, intVel, multiStepsCount, multiTracks);
 						}
 					}
 					seq.setEditingGateKeyLight(-1);
@@ -717,7 +720,7 @@ struct PhraseSeq32Ex : Module {
 		//********** Clock and reset **********
 		
 		// Clock
-		if (clockTrigger.process(inputs[CLOCK_INPUT].value)) {
+		if (clockTrigger.process(inputs[CLOCK_INPUTS + 0].value)) {
 			if (running && clockIgnoreOnReset == 0l) {
 				seq.clockStep(clockPeriod);
 			}
@@ -916,8 +919,8 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	PhraseSeq32Ex *module;
 	DynamicSVGPanel *panel;
 	int oldExpansion;
-	int expWidth = 60;
-	IMPort* expPorts[6];
+	int expWidth = 105;
+	IMPort* expPorts[12];
 	
 	template <int NUMCHAR>
 	struct DisplayWidget : TransparentWidget {// a centered display, must derive from this
@@ -1218,7 +1221,9 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		expansionLabel->text = "Expansion module";
 		menu->addChild(expansionLabel);
 
-		ExpansionItem *expItem = MenuItem::create<ExpansionItem>(expansionMenuLabel, CHECKMARK(module->expansion != 0));
+		std::string expansionMenuLabel32EX(expansionMenuLabel);
+		std::replace( expansionMenuLabel32EX.begin(), expansionMenuLabel32EX.end(), '4', '7');
+		ExpansionItem *expItem = MenuItem::create<ExpansionItem>(expansionMenuLabel32EX, CHECKMARK(module->expansion != 0));
 		expItem->module = module;
 		menu->addChild(expItem);
 		
@@ -1228,7 +1233,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	void step() override {
 		if(module->expansion != oldExpansion) {
 			if (oldExpansion!= -1 && module->expansion == 0) {// if just removed expansion panel, disconnect wires to those jacks
-				for (int i = 0; i < 6; i++)
+				for (int i = 0; i < 12; i++)
 					gRackWidget->wireContainer->removeAllWires(expPorts[i]);
 			}
 			oldExpansion = module->expansion;		
@@ -1359,6 +1364,8 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30, 365), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30-expWidth, 0), &module->panelTheme));
 		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-30-expWidth, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-expWidth + 15, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(panel->box.size.x-expWidth + 15, 365), &module->panelTheme));
 
 		
 		
@@ -1369,7 +1376,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int columnRulerT1 = 373;// Select (steps) 
 		static const int columnRulerT2 = 422;// Copy paste and select mode switch
 		//static const int columnRulerT3 = 463;// Copy paste buttons (not needed when align to track display)
-		static const int columnRulerT5 = 539;// Edit mode switch (and overview switch also)
+		static const int columnRulerT5 = 538;// Edit mode switch (and overview switch also)
 		static const int stepsOffsetY = 10;
 		static const int posLEDvsButton = 26;
 
@@ -1553,25 +1560,25 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int rowRulerBLow = 335;
 		static const int rowRulerBHigh = 286;
 		
-		static const int inputJackSpacingX = 50;
-		static const int columnRulerB0 = 28;
-		static const int columnRulerB1 = columnRulerB0 + inputJackSpacingX;
-		static const int columnRulerB2 = columnRulerB1 + inputJackSpacingX;
-		static const int columnRulerB3 = columnRulerB2 + inputJackSpacingX;
-		static const int columnRulerB4 = columnRulerB3 + inputJackSpacingX;
-		static const int columnRulerB5 = columnRulerB4 + inputJackSpacingX;// clock and reset
+		static const int bottomJackSpacingX = 46;
+		static const int columnRulerB0 = 27;
+		static const int columnRulerB1 = columnRulerB0 + bottomJackSpacingX + 2;
+		static const int columnRulerB2 = columnRulerB1 + bottomJackSpacingX + 2;
+		static const int columnRulerB3 = columnRulerB2 + bottomJackSpacingX;
+		static const int columnRulerB4 = columnRulerB3 + bottomJackSpacingX + 1;
+		static const int columnRulerB5 = columnRulerB4 + bottomJackSpacingX;
 		
-		static const int outputJackSpacingX = 42;
-		static const int columnRulerB6 = columnRulerB5 + inputJackSpacingX - 2;// outputs
-		static const int columnRulerB7 = columnRulerB6 + outputJackSpacingX;// outputs
-		static const int columnRulerB8 = columnRulerB7 + outputJackSpacingX;// outputs
-		static const int columnRulerB9 = columnRulerB8 + outputJackSpacingX + 3;// outputs
-		static const int columnRulerB10 = columnRulerB9 + outputJackSpacingX;// outputs
-		static const int columnRulerB11 = columnRulerB10 + outputJackSpacingX;// outputs
+		static const int columnRulerB6 = columnRulerB5 + bottomJackSpacingX;
+		static const int columnRulerB7 = columnRulerB6 + bottomJackSpacingX;
+		static const int columnRulerB8 = columnRulerB7 + bottomJackSpacingX;
+		static const int columnRulerB9 = columnRulerB8 + bottomJackSpacingX;
+		static const int columnRulerB10 = columnRulerB9 + bottomJackSpacingX;
+		static const int columnRulerB11 = columnRulerB10 + bottomJackSpacingX;
 		
-		// Step arrow CV inputs
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB0, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::LEFTCV_INPUT, &module->panelTheme));
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB0, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::RIGHTCV_INPUT, &module->panelTheme));
+		// Run and reset inputs
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB0, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::RUNCV_INPUT, &module->panelTheme));
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB0, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::RESET_INPUT, &module->panelTheme));
+		
 
 		// Autostep and write
 		addParam(createParamCentered<CKSS>(Vec(columnRulerB1, rowRulerBHigh), module, PhraseSeq32Ex::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
@@ -1583,26 +1590,25 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB2, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::CV_INPUTS + 2, &module->panelTheme));
 		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB3, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::CV_INPUTS + 3, &module->panelTheme));
 		
-		// Velocity input and run CV input
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB4, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::VEL_INPUT, &module->panelTheme));
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB4, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::RUNCV_INPUT, &module->panelTheme));
-		
-		
-		// Clock and reset inputs
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB5, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::CLOCK_INPUT, &module->panelTheme));
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB5, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::RESET_INPUT, &module->panelTheme));
-
-		// CV+Gate+Vel outputs
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB6, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::CV_OUTPUTS + 0, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB7, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::GATE_OUTPUTS + 0, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB8, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::VEL_OUTPUTS + 0, &module->panelTheme));
+		// Clock+CV+Gate+Vel outputs
+		// Track A
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB4, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::CLOCK_INPUTS + 0, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB5, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::CV_OUTPUTS + 0, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB6, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::GATE_OUTPUTS + 0, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB7, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::VEL_OUTPUTS + 0, &module->panelTheme));
+		// Track B
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB8, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::CLOCK_INPUTS + 1, &module->panelTheme));
 		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB9, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::CV_OUTPUTS + 1, &module->panelTheme));
 		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB10, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::GATE_OUTPUTS + 1, &module->panelTheme));
 		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB11, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::VEL_OUTPUTS + 1, &module->panelTheme));
 		//
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB6, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::CV_OUTPUTS + 2, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB7, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::GATE_OUTPUTS + 2, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB8, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::VEL_OUTPUTS + 2, &module->panelTheme));
+		// Track C
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB4, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::CLOCK_INPUTS + 2, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB5, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::CV_OUTPUTS + 2, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB6, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::GATE_OUTPUTS + 2, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB7, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::VEL_OUTPUTS + 2, &module->panelTheme));
+		// Track D
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB8, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::CLOCK_INPUTS + 3, &module->panelTheme));
 		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB9, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::CV_OUTPUTS + 3, &module->panelTheme));
 		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB10, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::GATE_OUTPUTS + 3, &module->panelTheme));
 		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB11, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::VEL_OUTPUTS + 3, &module->panelTheme));
@@ -1610,15 +1616,31 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		
 		
 		// Expansion module
-		static const int rowRulerExpTop = 73;
+		static const int rowRulerExpTop = 65;
 		static const int rowSpacingExp = 50;
 		static const int colRulerExp = panel->box.size.x - expWidth / 2;
-		addInput(expPorts[0] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, PhraseSeq32Ex::GATECV_INPUT, &module->panelTheme));
-		addInput(expPorts[1] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, PhraseSeq32Ex::GATEPCV_INPUT, &module->panelTheme));
-		addInput(expPorts[2] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, PhraseSeq32Ex::TIEDCV_INPUT, &module->panelTheme));
-		addInput(expPorts[3] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, PhraseSeq32Ex::SLIDECV_INPUT, &module->panelTheme));
-		addInput(expPorts[4] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 4), Port::INPUT, module, PhraseSeq32Ex::SEQCV_INPUT, &module->panelTheme));
-		addInput(expPorts[5] = createDynamicPortCentered<IMPort>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 5), Port::INPUT, module, PhraseSeq32Ex::TRKCV_INPUT, &module->panelTheme));
+		static const int colOffsetX = 23;
+		addInput(expPorts[0] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, PhraseSeq32Ex::GATECV_INPUT, &module->panelTheme));
+		addInput(expPorts[1] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, PhraseSeq32Ex::TIEDCV_INPUT, &module->panelTheme));
+		
+		addInput(expPorts[2] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, PhraseSeq32Ex::GATEPCV_INPUT, &module->panelTheme));
+		addInput(expPorts[3] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, PhraseSeq32Ex::SLIDECV_INPUT, &module->panelTheme));
+		
+		addInput(expPorts[4] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, PhraseSeq32Ex::SEQCV_INPUT, &module->panelTheme));
+		addInput(expPorts[5] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, PhraseSeq32Ex::TRKCV_INPUT, &module->panelTheme));
+		
+		// Step arrow CV inputs
+		addInput(expPorts[6] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, PhraseSeq32Ex::LEFTCV_INPUT, &module->panelTheme));
+		addInput(expPorts[7] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, PhraseSeq32Ex::RIGHTCV_INPUT, &module->panelTheme));
+		
+		// Vel all A switch
+		addParam(createParamCentered<CKSSH>(Vec(colRulerExp, rowRulerExpTop + rowSpacingExp * 4 - 25), module, PhraseSeq32Ex::VELALL_A_PARAM, 0.0f, 1.0f, 0.0f));	// 0.0f is left position
+		
+		// Velocity inputs 
+		addInput(expPorts[8] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::VEL_INPUTS + 0, &module->panelTheme));
+		addInput(expPorts[9] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::VEL_INPUTS + 1, &module->panelTheme));
+		addInput(expPorts[10] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::VEL_INPUTS + 2, &module->panelTheme));
+		addInput(expPorts[11] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::VEL_INPUTS + 3, &module->panelTheme));
 	}
 };
 
