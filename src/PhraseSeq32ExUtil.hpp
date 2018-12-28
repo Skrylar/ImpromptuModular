@@ -360,6 +360,9 @@ class SequencerKernel {
 	void clockStep(unsigned long clockPeriod);
 	int keyIndexToGateTypeEx(int keyIndex);
 	void transposeSeq(int seqn, int delta);
+	void unTransposeSeq(int seqn) {
+		transposeSeq(seqn, getTransposeOffset(seqn) * -1);
+	}
 	void rotateSeq(int* rotateOffset, int seqn, int delta);	
 
 	
@@ -812,15 +815,31 @@ class Sequencer {
 			}
 		}		
 	}
-	inline void transposeSeq(int deltaSeqKnob) {
+	inline void transposeSeq(int deltaSeqKnob, bool multiTracks) {
 		sek[trackIndexEdit].transposeSeq(seqIndexEdit, deltaSeqKnob);
+		if (multiTracks) {
+			for (int i = 0; i < NUM_TRACKS; i++) {
+				if (i == trackIndexEdit) continue;
+				sek[i].transposeSeq(seqIndexEdit, deltaSeqKnob);
+			}
+		}		
+	}
+	inline void unTransposeSeq(bool multiTracks) {
+		sek[trackIndexEdit].unTransposeSeq(seqIndexEdit);
+		if (multiTracks) {
+			for (int i = 0; i < NUM_TRACKS; i++) {
+				if (i == trackIndexEdit) continue;
+				sek[i].unTransposeSeq(seqIndexEdit);
+			}
+		}		
 	}
 	inline void rotateSeq(int *rotateOffsetPtr, int deltaSeqKnob, bool multiTracks) {
 		sek[trackIndexEdit].rotateSeq(rotateOffsetPtr, seqIndexEdit, deltaSeqKnob);
 		if (multiTracks) {
 			for (int i = 0; i < NUM_TRACKS; i++) {
+				int rotateOffset = *rotateOffsetPtr;// dummy so not to affect the original pointer
 				if (i == trackIndexEdit) continue;
-				sek[i].rotateSeq(rotateOffsetPtr, seqIndexEdit, deltaSeqKnob);
+				sek[i].rotateSeq(&rotateOffset, seqIndexEdit, deltaSeqKnob);
 			}
 		}		
 	}

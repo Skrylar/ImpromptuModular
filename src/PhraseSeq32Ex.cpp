@@ -640,7 +640,7 @@ struct PhraseSeq32Ex : Module {
 						seq.modLength(deltaSeqKnob, multiTracks);
 					}
 					else if (displayState == DISP_TRANSPOSE) {
-						seq.transposeSeq(deltaSeqKnob);// multiTracks TODO
+						seq.transposeSeq(deltaSeqKnob, multiTracks);
 					}
 					else if (displayState == DISP_ROTATE) {
 						seq.rotateSeq(&rotateOffset, deltaSeqKnob, multiTracks);
@@ -1365,10 +1365,10 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 					module->seq.initLength(module->multiTracks);
 				}
 				else if (module->displayState == PhraseSeq32Ex::DISP_TRANSPOSE) {
-					// TODO
+					module->seq.unTransposeSeq(module->multiTracks);
 				}
 				else if (module->displayState == PhraseSeq32Ex::DISP_ROTATE) {
-					// nothing
+					module->seq.rotateSeq(&(module->rotateOffset), module->rotateOffset * -1, module->multiTracks);
 				}							
 				else if (module->displayState == PhraseSeq32Ex::DISP_REPS) {
 					module->seq.initPhraseReps(module->multiTracks);
