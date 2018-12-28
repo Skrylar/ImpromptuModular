@@ -398,7 +398,7 @@ struct PhraseSeq32Ex : Module {
 			// Paste 
 			if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 				if (!attached) {
-					if (editingSequence && seq.copyPasteHoldsSequence()) {// pasting sequence steps
+					if (editingSequence && seq.isValidCopySeq()) {// pasting sequence steps
 						startCP = 0;
 						if (countCP <= 8) {
 							startCP = seq.getStepIndexEdit();
@@ -408,7 +408,7 @@ struct PhraseSeq32Ex : Module {
 						displayState = DISP_PASTE_SEQ;
 						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
-					else if (!editingSequence && !seq.copyPasteHoldsSequence()) {// pasting song phrases
+					else if (!editingSequence && seq.isValidCopyPhrase()) {// pasting song phrases
 						startCP = 0;
 						if (countCP <= 8) {
 							startCP = seq.getPhraseIndexEdit();
