@@ -92,7 +92,7 @@ struct PhraseSeq32Ex : Module {
 
 	// Need to save
 	int panelTheme = 0;
-	int expansion = 0;
+	int expansion = 1;
 	int velocityMode = 0;
 	bool holdTiedNotes = true;
 	bool autoseq;
@@ -111,6 +111,7 @@ struct PhraseSeq32Ex : Module {
 	long clockIgnoreOnReset;
 	unsigned long clockPeriod[Sequencer::NUM_TRACKS];// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
+	long attachedWarning;// 0 when no warning, positive downward step counter timer when warning
 	long revertDisplay;
 	long showLenInSteps;
 	bool multiSteps;
@@ -157,7 +158,7 @@ struct PhraseSeq32Ex : Module {
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
 	inline bool isEditingGates(void) {return params[KEY_GATE_PARAM].value < 0.5f;}
 	inline int getCPMode(void) {
-		if (params[CPMODE_PARAM].value > 1.5f) return SequencerKernel::MAX_STEPS;
+		if (params[CPMODE_PARAM].value > 1.5f) return 2000;// this means end, and code should never loop up to this count. This value should be bigger than max(MAX_STEPS, MAX_PHRASES)
 		if (params[CPMODE_PARAM].value < 0.5f) return 4;
 		return 8;
 	}
@@ -177,7 +178,8 @@ struct PhraseSeq32Ex : Module {
 		countCP = SequencerKernel::MAX_STEPS;
 		startCP = 0;
 		displayState = DISP_NORMAL;
-		tiedWarning = 0ul;
+		tiedWarning = 0l;
+		attachedWarning = 0l;
 		revertDisplay = 0l;
 		showLenInSteps = 0l;
 		resetOnRun = false;
@@ -306,7 +308,7 @@ struct PhraseSeq32Ex : Module {
 	void step() override {
 		const float sampleRate = engineGetSampleRate();
 		static const float revertDisplayTime = 0.7f;// seconds
-		static const float tiedWarningTime = 0.7f;// seconds
+		static const float warningTime = 0.7f;// seconds
 		static const float showLenInStepsTime = 2.0f;// seconds
 		
 		
@@ -371,54 +373,40 @@ struct PhraseSeq32Ex : Module {
 					revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					if (editingSequence) {// copying sequence steps
 						startCP = seq.getStepIndexEdit();
-						countCP = SequencerKernel::MAX_STEPS;
-						if (cpMode == SequencerKernel::MAX_STEPS)// all
-							startCP = 0;
-						else if (cpMode == 4)
-							countCP = min(4, countCP - startCP);
-						else// 8
-							countCP = min(8, countCP - startCP);
+						countCP = min(cpMode, SequencerKernel::MAX_STEPS - startCP);
 						seq.copySequence(startCP, countCP);						
 						displayState = DISP_COPY_SEQ;
 					}
 					else {// copying song phrases
 						startCP = seq.getPhraseIndexEdit();
-						countCP = SequencerKernel::MAX_PHRASES;
-						if (cpMode == SequencerKernel::MAX_STEPS)// all
-							startCP = 0;
-						else if (cpMode == 4)
-							countCP = min(4, countCP - startCP);
-						else// 8
-							countCP = min(8, countCP - startCP);
-						seq.copyPhrase(startCP, countCP);
+						countCP = min(cpMode, SequencerKernel::MAX_PHRASES - startCP);
+						seq.copySong(startCP, countCP);
 						displayState = DISP_COPY_SONG;
 					}
 				}
+				else
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 			}
 			// Paste 
 			if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 				if (!attached) {
-					if (editingSequence && seq.isValidCopySeq()) {// pasting sequence steps
-						startCP = 0;
-						if (countCP <= 8) {
-							startCP = seq.getStepIndexEdit();
-							countCP = min(countCP, SequencerKernel::MAX_STEPS - startCP);
-						}
+					if (editingSequence) {// pasting sequence steps
+						startCP = seq.getStepIndexEdit();;
+						countCP = min(countCP, SequencerKernel::MAX_STEPS - startCP);
 						seq.pasteSequence(startCP, countCP, multiTracks);
 						displayState = DISP_PASTE_SEQ;
 						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
-					else if (!editingSequence && seq.isValidCopyPhrase()) {// pasting song phrases
-						startCP = 0;
-						if (countCP <= 8) {
-							startCP = seq.getPhraseIndexEdit();
-							countCP = min(countCP, SequencerKernel::MAX_PHRASES - startCP);
-						}
-						seq.pastePhrase(startCP, countCP, multiTracks);
+					else {// pasting song phrases
+						startCP = seq.getPhraseIndexEdit();
+						countCP = min(countCP, SequencerKernel::MAX_PHRASES - startCP);
+						seq.pasteSong(startCP, countCP, multiTracks);
 						displayState = DISP_PASTE_SONG;
 						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
 				}
+				else
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 			}			
 			
 
@@ -427,7 +415,7 @@ struct PhraseSeq32Ex : Module {
 			calcVelInSources();
 			bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 			if (writeTrig) {
-				if (editingSequence && ! attached) {
+				if (editingSequence && !attached) {
 					int multiStepsCount = multiSteps ? cpMode : 1;
 					for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
 						if (inputs[CV_INPUTS + trkn].active) {
@@ -442,6 +430,8 @@ struct PhraseSeq32Ex : Module {
 					if (params[AUTOSTEP_PARAM].value > 0.5f)
 						seq.autostep(autoseq && !inputs[SEQCV_INPUT].active);
 				}
+				else if (attached)
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 			}
 			// Left and right CV inputs
 			int delta = 0;
@@ -457,6 +447,8 @@ struct PhraseSeq32Ex : Module {
 						seq.moveStepIndexEditWithEditingGate(delta, writeTrig, sampleRate);
 					}
 				}
+				else if (attached)
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 			}
 
 			// Step button presses
@@ -477,6 +469,8 @@ struct PhraseSeq32Ex : Module {
 						displayState = DISP_NORMAL; // leave this here, the if has it also, but through the revert mechanism
 					}
 				}
+				else if (attached)
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 			} 
 			
 			// Mode button
@@ -487,6 +481,8 @@ struct PhraseSeq32Ex : Module {
 					else
 						displayState = DISP_NORMAL;
 				}
+				else
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 			}
 			
 			// Clk res/delay button
@@ -499,6 +495,8 @@ struct PhraseSeq32Ex : Module {
 					else
 						displayState = DISP_NORMAL;
 				}
+				else
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 			}
 			
 			// Transpose/Rotate button
@@ -514,6 +512,8 @@ struct PhraseSeq32Ex : Module {
 					else 
 						displayState = DISP_NORMAL;
 				}
+				else if (attached)
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 			}			
 
 			// Begin/End buttons
@@ -522,12 +522,16 @@ struct PhraseSeq32Ex : Module {
 					seq.setBegin(multiTracks);
 					displayState = DISP_NORMAL;
 				}
+				else if (attached)
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 			}	
 			if (endTrigger.process(params[END_PARAM].value)) {
 				if (!editingSequence && !attached) {
 					seq.setEnd(multiTracks);
 					displayState = DISP_NORMAL;
 				}
+				else if (attached)
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 			}	
 
 			// Rep/Len button
@@ -538,6 +542,8 @@ struct PhraseSeq32Ex : Module {
 					else
 						displayState = DISP_NORMAL;
 				}
+				else
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 			}	
 
 			// Track Inc/Dec buttons
@@ -557,16 +563,20 @@ struct PhraseSeq32Ex : Module {
 			if (allTrigger.process(params[ALLTRACKS_PARAM].value)) {
 				if (!attached)
 					multiTracks = !multiTracks;
-				else
+				else {
 					multiTracks = false;
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
+				}
 			}	
 			
 			// Sel button
 			if (selTrigger.process(params[SEL_PARAM].value)) {
 				if (!attached && editingSequence)
 					multiSteps = !multiSteps;
-				else
+				else {
 					multiSteps = false;
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
+				}
 			}	
 			
 		
@@ -592,6 +602,8 @@ struct PhraseSeq32Ex : Module {
 						}
 						displayState = DISP_NORMAL;
 					}
+					else if (attached)
+						attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 				}
 				velocityKnob = newVelocityKnob;
 			}	
@@ -613,6 +625,8 @@ struct PhraseSeq32Ex : Module {
 						seq.movePhraseIndexEdit(deltaPhrKnob);
 						displayState = DISP_NORMAL;
 					}
+					else if (attached)
+						attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 				}
 				phraseKnob = newPhraseKnob;
 			}	
@@ -658,6 +672,8 @@ struct PhraseSeq32Ex : Module {
 						}
 						displayState = DISP_NORMAL;
 					}
+					else if (attached)
+						attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 				}
 				sequenceKnob = newSequenceKnob;
 			}	
@@ -667,8 +683,10 @@ struct PhraseSeq32Ex : Module {
 				if (octTriggers[octn].process(params[OCTAVE_PARAM + octn].value)) {
 					if (editingSequence && !attached && displayState != DISP_PPQN) {
 						if (seq.applyNewOctave(6 - octn, multiSteps ? cpMode : 1, sampleRate, multiTracks))
-							tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
+							tiedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 					}
+					else if (attached)
+						attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 					displayState = DISP_NORMAL;
 				}
 			}
@@ -685,9 +703,11 @@ struct PhraseSeq32Ex : Module {
 						}
 						else {
 							if (seq.applyNewKey(keyn, multiSteps ? cpMode : 1, sampleRate, autostepClick, multiTracks))
-								tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
+								tiedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 						}							
 					}
+					else if (attached)
+						attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 				}
 			}
 			
@@ -696,26 +716,34 @@ struct PhraseSeq32Ex : Module {
 				if (editingSequence && !attached ) {
 					seq.toggleGate(multiSteps ? cpMode : 1, multiTracks);
 				}
+				else if (attached)
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 				displayState = DISP_NORMAL;
 			}		
 			if (gateProbTrigger.process(params[GATE_PROB_PARAM].value + inputs[GATEPCV_INPUT].value)) {
 				if (editingSequence && !attached ) {
 					if (seq.toggleGateP(multiSteps ? cpMode : 1, multiTracks)) 
-						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
+						tiedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 				}
+				else if (attached)
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 				displayState = DISP_NORMAL;
 			}		
 			if (slideTrigger.process(params[SLIDE_BTN_PARAM].value + inputs[SLIDECV_INPUT].value)) {
 				if (editingSequence && !attached ) {
 					if (seq.toggleSlide(multiSteps ? cpMode : 1, multiTracks))
-						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
+						tiedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 				}
+				else if (attached)
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 				displayState = DISP_NORMAL;
 			}		
 			if (tiedTrigger.process(params[TIE_PARAM].value + inputs[TIEDCV_INPUT].value)) {
 				if (editingSequence && !attached ) {
 					seq.toggleTied(multiSteps ? cpMode : 1, multiTracks);// will clear other attribs if new state is on
 				}
+				else if (attached)
+					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 				displayState = DISP_NORMAL;
 			}		
 			
@@ -787,7 +815,7 @@ struct PhraseSeq32Ex : Module {
 				}				
 				else if (editingSequence && !attached) {
 					if (multiSteps) {
-						if (cpMode == SequencerKernel::MAX_STEPS || (stepn >= seq.getStepIndexEdit() && stepn < (seq.getStepIndexEdit() + cpMode)))
+						if (stepn >= seq.getStepIndexEdit() && stepn < (seq.getStepIndexEdit() + cpMode))
 							red = 1.0f;
 					}
 					else if (stepn == seq.getStepIndexEdit()) {
@@ -834,7 +862,7 @@ struct PhraseSeq32Ex : Module {
 				float red = 0.0f;
 				if (editingSequence || attached) {
 					if (tiedWarning > 0l) {
-						bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+						bool warningFlashState = calcWarningFlash(tiedWarning, (long) (warningTime * sampleRate / displayRefreshStepSkips));
 						red = (warningFlashState && (i == (6 - octLightIndex))) ? 1.0f : 0.0f;
 					}
 					else				
@@ -867,7 +895,7 @@ struct PhraseSeq32Ex : Module {
 					}
 					else {
 						if (tiedWarning > 0l) {
-							bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+							bool warningFlashState = calcWarningFlash(tiedWarning, (long) (warningTime * sampleRate / displayRefreshStepSkips));
 							red = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
 						}
 						else {
@@ -886,7 +914,7 @@ struct PhraseSeq32Ex : Module {
 			lights[GATE_PROB_LIGHT].value = attributesVisual.getGateP() ? 1.0f : 0.0f;
 			lights[SLIDE_LIGHT].value = attributesVisual.getSlide() ? 1.0f : 0.0f;
 			if (tiedWarning > 0l) {
-				bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+				bool warningFlashState = calcWarningFlash(tiedWarning, (long) (warningTime * sampleRate / displayRefreshStepSkips));
 				lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
 			}
 			else
@@ -900,6 +928,11 @@ struct PhraseSeq32Ex : Module {
 			lights[RUN_LIGHT].value = (running ? 1.0f : 0.0f);
 
 			// Attach light
+			if (attachedWarning > 0l) {
+				bool warningFlashState = calcWarningFlash(attachedWarning, (long) (warningTime * sampleRate / displayRefreshStepSkips));
+				lights[ATTACH_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
+			}
+			else
 			lights[ATTACH_LIGHT].value = (attached ? 1.0f : 0.0f);
 			
 			// Vel lights
@@ -917,6 +950,8 @@ struct PhraseSeq32Ex : Module {
 			seq.stepEditingGate();
 			if (tiedWarning > 0l)
 				tiedWarning--;
+			if (attachedWarning > 0l)
+				attachedWarning--;
 			if (showLenInSteps > 0l)
 				showLenInSteps--;
 			if (revertDisplay > 0l) {
@@ -1249,17 +1284,17 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		aseqItem->module = module;
 		menu->addChild(aseqItem);
 
-		SeqCVmethodItem *seqcvItem = MenuItem::create<SeqCVmethodItem>("Seq CV in: ", "");
-		seqcvItem->module = module;
-		menu->addChild(seqcvItem);
-		
 		HoldTiedItem *holdItem = MenuItem::create<HoldTiedItem>("Hold tied notes", CHECKMARK(module->holdTiedNotes));
 		holdItem->module = module;
 		menu->addChild(holdItem);
 
-		VelModeItem *velItem = MenuItem::create<VelModeItem>("Velocity semitone scaling (outputs only)", CHECKMARK(module->velocityMode != 0));
+		VelModeItem *velItem = MenuItem::create<VelModeItem>("Semitone scaling of velocity outputs", CHECKMARK(module->velocityMode != 0));
 		velItem->module = module;
 		menu->addChild(velItem);
+		
+		SeqCVmethodItem *seqcvItem = MenuItem::create<SeqCVmethodItem>("Seq CV in: ", "");
+		seqcvItem->module = module;
+		menu->addChild(seqcvItem);
 		
 		menu->addChild(new MenuLabel());// empty line
 		

@@ -125,7 +125,12 @@ class SeqAttributes {
 
 
 //*****************************************************************************
+// SequencerKernel
+//*****************************************************************************
 
+
+struct SeqCPbuffer;
+struct SongCPbuffer;
 
 class SequencerKernel {
 	public: 
@@ -137,7 +142,7 @@ class SequencerKernel {
 	// Sequencer kernel dimensions
 	static const int MAX_STEPS = 32;// must be a power of two (some multi select loops have bitwise "& (MAX_STEPS - 1)")
 	static const int MAX_SEQS = 64;
-	static const int MAX_PHRASES = 99;// maximum value is 99 (disp will be 1 to 99)
+	static const int MAX_PHRASES = 99;// maximum value is 99 (index value is 0 to 98; disp will be 1 to 99)
 
 	// Run modes
 	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, MODE_ARN, NUM_MODES};
@@ -342,10 +347,10 @@ class SequencerKernel {
 	void randomizeSequence(int seqn);
 	void randomizeSong();	
 
-	void copySequence(float* cvCPbuffer, StepAttributes* attribCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int seqn, int startCP, int countCP);
-	void pasteSequence(float* cvCPbuffer, StepAttributes* attribCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int seqn, int startCP, int countCP);
-	void copyPhrase(Phrase* phraseCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int startCP, int countCP);
-	void pastePhrase(Phrase* phraseCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int startCP, int countCP);
+	void copySequence(SeqCPbuffer* seqCPbuf, int seqn, int startCP, int countCP);
+	void pasteSequence(SeqCPbuffer* seqCPbuf, int seqn, int startCP, int countCP);
+	void copySong(SongCPbuffer* songCPbuf, int startCP, int countCP);
+	void pasteSong(SongCPbuffer* songCPbuf, int startCP, int countCP);
 	
 	
 	// Main methods
@@ -382,7 +387,44 @@ class SequencerKernel {
 };// class SequencerKernel 
 
 
+struct SeqCPbuffer {
+	float cvCPbuffer[SequencerKernel::MAX_STEPS];// copy paste buffer for CVs
+	StepAttributes attribCPbuffer[SequencerKernel::MAX_STEPS];
+	SeqAttributes seqAttribCPbuffer;
+	int storedLength;// number of steps that contain actual cp data
+	
+	SeqCPbuffer() {reset();}
+	void reset() {		
+		for (int stepn = 0; stepn < SequencerKernel::MAX_STEPS; stepn++) {
+			cvCPbuffer[stepn] = 0.0f;
+			attribCPbuffer[stepn].init();
+		}
+		seqAttribCPbuffer.init(SequencerKernel::MAX_STEPS, SequencerKernel::MODE_FWD);
+		storedLength = SequencerKernel::MAX_STEPS;// number of steps that contain actual cp data
+	}
+};// struct SeqCPbuffer
 
+struct SongCPbuffer {
+	Phrase phraseCPbuffer[SequencerKernel::MAX_PHRASES];
+	int beginIndex;
+	int endIndex;
+	int runModeSong;
+	int storedLength;// number of steps that contain actual cp data
+	
+	SongCPbuffer() {reset();}
+	void reset() {
+		for (int phrn = 0; phrn < SequencerKernel::MAX_PHRASES; phrn++)
+			phraseCPbuffer[phrn].init();
+		beginIndex = 0;
+		endIndex = 0;
+		runModeSong = SequencerKernel::MODE_FWD;
+		storedLength = SequencerKernel::MAX_PHRASES;
+	}
+};// song SeqCPbuffer
+
+
+//*****************************************************************************
+// Sequencer
 //*****************************************************************************
 
 
@@ -415,12 +457,8 @@ class Sequencer {
 	unsigned long editingGate[NUM_TRACKS];// 0 when no edit gate, downward step counter timer when edit gate
 	float editingGateCV[NUM_TRACKS];// no need to initialize, this goes with editingGate (output this only when editingGate > 0)
 	int editingGateKeyLight;// no need to initialize, this goes with editingGate (use this only when editingGate > 0)
-	float cvCPbuffer[SequencerKernel::MAX_STEPS];// copy paste buffer for CVs
-	StepAttributes attribCPbuffer[SequencerKernel::MAX_STEPS];
-	Phrase phraseCPbuffer[SequencerKernel::MAX_PHRASES];
-	SeqAttributes seqPhraseAttribCPbuffer;
-	bool validCopySeq;
-	bool validCopyPhrase;
+	SeqCPbuffer seqCPbuf;
+	SongCPbuffer songCPbuf;
 
 	
 	public: 
@@ -491,12 +529,10 @@ class Sequencer {
 	}
 	
 	
-	inline bool isValidCopySeq() {return validCopySeq;}
-	inline bool isValidCopyPhrase() {return validCopyPhrase;}
 	void copySequence(int startCP, int countCP);
 	void pasteSequence(int startCP, int countCP, bool multiTracks);
-	void copyPhrase(int startCP, int countCP);
-	void pastePhrase(int startCP, int countCP, bool multiTracks);
+	void copySong(int startCP, int countCP);
+	void pasteSong(int startCP, int countCP, bool multiTracks);
 	
 	
 	void writeCV(int trkn, float cvVal, int multiStepsCount, float sampleRate, bool multiTracks);

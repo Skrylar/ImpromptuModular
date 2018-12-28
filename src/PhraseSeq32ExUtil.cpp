@@ -42,60 +42,50 @@ void SequencerKernel::construct(int _id, uint32_t* seqPtr, uint32_t* songPtr, bo
 
 
 void SequencerKernel::setGate(int seqn, int stepn, bool newGate, int count) {
-	int starti = (count == MAX_STEPS ? 0 : stepn);
 	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = starti; i < endi; i++)
+	for (int i = stepn; i < endi; i++)
 		attributes[seqn][i].setGate(newGate);
 }
 void SequencerKernel::setGateP(int seqn, int stepn, bool newGateP, int count) {
-	int starti = (count == MAX_STEPS ? 0 : stepn);
 	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = starti; i < endi; i++)
+	for (int i = stepn; i < endi; i++)
 		attributes[seqn][i].setGateP(newGateP);
 }
 void SequencerKernel::setSlide(int seqn, int stepn, bool newSlide, int count) {
-	int starti = (count == MAX_STEPS ? 0 : stepn);
 	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = starti; i < endi; i++)
+	for (int i = stepn; i < endi; i++)
 		attributes[seqn][i].setSlide(newSlide);
 }
 void SequencerKernel::setTied(int seqn, int stepn, bool newTied, int count) {
-	int starti = (count == MAX_STEPS ? 0 : (stepn + 1));
 	int endi = min(MAX_STEPS, stepn + count);
 	if (!newTied) {
-		deactivateTiedStep(seqn, stepn);
-		for (int i = starti; i < endi; i++)
+		for (int i = stepn; i < endi; i++)
 			deactivateTiedStep(seqn, i);
 	}
 	else {
-		activateTiedStep(seqn, stepn);
-		for (int i = starti; i < endi; i++)
+		for (int i = stepn; i < endi; i++)
 			activateTiedStep(seqn, i);
 	}
 }
 
 void SequencerKernel::setGatePVal(int seqn, int stepn, int gatePval, int count) {
-	int starti = (count == MAX_STEPS ? 0 : stepn);
 	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = starti; i < endi; i++)
+	for (int i = stepn; i < endi; i++)
 		attributes[seqn][i].setGatePVal(gatePval);
 }
 void SequencerKernel::setSlideVal(int seqn, int stepn, int slideVal, int count) {
-	int starti = (count == MAX_STEPS ? 0 : stepn);
 	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = starti; i < endi; i++)
+	for (int i = stepn; i < endi; i++)
 		attributes[seqn][i].setSlideVal(slideVal);
 }
 void SequencerKernel::setVelocityVal(int seqn, int stepn, int velocity, int count) {
-	int starti = (count == MAX_STEPS ? 0 : stepn);
 	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = starti; i < endi; i++)
+	for (int i = stepn; i < endi; i++)
 		attributes[seqn][i].setVelocityVal(velocity);
 }
 void SequencerKernel::setGateType(int seqn, int stepn, int gateType, int count) {
-	int starti = (count == MAX_STEPS ? 0 : stepn);
 	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = starti; i < endi; i++)
+	for (int i = stepn; i < endi; i++)
 		attributes[seqn][i].setGateType(gateType);
 }
 
@@ -104,9 +94,8 @@ float SequencerKernel::applyNewOctave(int seqn, int stepn, int newOct, int count
 	float newCV = cv[seqn][stepn] + 10.0f;//to properly handle negative note voltages
 	newCV = newCV - floor(newCV) + (float) (newOct - 3);
 	
-	int starti = (count == MAX_STEPS ? 0 : stepn);
 	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = starti; i < endi; i++) {
+	for (int i = stepn; i < endi; i++) {
 		if (!attributes[seqn][i].getTied()) {
 			cv[seqn][i] = newCV;
 			propagateCVtoTied(seqn, i);		
@@ -118,9 +107,8 @@ float SequencerKernel::applyNewOctave(int seqn, int stepn, int newOct, int count
 float SequencerKernel::applyNewKey(int seqn, int stepn, int newKeyIndex, int count) {// does not overwrite tied steps
 	float newCV = floor(cv[seqn][stepn]) + ((float) newKeyIndex) / 12.0f;
 	
-	int starti = (count == MAX_STEPS ? 0 : stepn);
 	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = starti; i < endi; i++) {
+	for (int i = stepn; i < endi; i++) {
 		if (!attributes[seqn][i].getTied()) {
 			cv[seqn][i] = newCV;
 			propagateCVtoTied(seqn, i);		
@@ -129,9 +117,8 @@ float SequencerKernel::applyNewKey(int seqn, int stepn, int newKeyIndex, int cou
 	return newCV;
 }
 float SequencerKernel::writeCV(int seqn, int stepn, float newCV, int count) {// does not overwrite tied steps
-	int starti = (count == MAX_STEPS ? 0 : stepn);
 	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = starti; i < endi; i++) {
+	for (int i = stepn; i < endi; i++) {
 		if (!attributes[seqn][i].getTied()) {
 			cv[seqn][i] = newCV;
 			propagateCVtoTied(seqn, i);
@@ -178,39 +165,37 @@ void SequencerKernel::randomizeSong() {
 }	
 
 
-void SequencerKernel::copySequence(float* cvCPbuffer, StepAttributes* attribCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int seqn, int startCP, int countCP) {
+void SequencerKernel::copySequence(SeqCPbuffer* seqCPbuf, int seqn, int startCP, int countCP) {
 	for (int i = 0, stepn = startCP; i < countCP; i++, stepn++) {
-		cvCPbuffer[i] = cv[seqn][stepn];
-		attribCPbuffer[i] = attributes[seqn][stepn];
+		seqCPbuf->cvCPbuffer[i] = cv[seqn][stepn];
+		seqCPbuf->attribCPbuffer[i] = attributes[seqn][stepn];
 	}
-	*seqPhraseAttribCPbuffer = sequences[seqn];
+	seqCPbuf->seqAttribCPbuffer = sequences[seqn];
+	seqCPbuf->storedLength = countCP;
 }
-void SequencerKernel::pasteSequence(float* cvCPbuffer, StepAttributes* attribCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int seqn, int startCP, int countCP) {
-	for (int i = 0, stepn = startCP; i < countCP; i++, stepn++) {
-		cv[seqn][stepn] = cvCPbuffer[i];
-		attributes[seqn][stepn] = attribCPbuffer[i];
+void SequencerKernel::pasteSequence(SeqCPbuffer* seqCPbuf, int seqn, int startCP, int countCP) {
+	for (int i = 0, stepn = startCP; i < min(countCP, seqCPbuf->storedLength); i++, stepn++) {
+		cv[seqn][stepn] = seqCPbuf->cvCPbuffer[i];
+		attributes[seqn][stepn] = seqCPbuf->attribCPbuffer[i];
 	}
-	if (countCP == MAX_STEPS) {// all
-		sequences[seqn] = *seqPhraseAttribCPbuffer;
-	}
+	sequences[seqn] = seqCPbuf->seqAttribCPbuffer;
 }
-void SequencerKernel::copyPhrase(Phrase* phraseCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int startCP, int countCP) {	
+void SequencerKernel::copySong(SongCPbuffer* songCPbuf, int startCP, int countCP) {	
 	for (int i = 0, phrn = startCP; i < countCP; i++, phrn++) {
-		phraseCPbuffer[i] = phrases[phrn];
+		songCPbuf->phraseCPbuffer[i] = phrases[phrn];
 	}
-	seqPhraseAttribCPbuffer->setLength(songBeginIndex);
-	seqPhraseAttribCPbuffer->setTranspose(songEndIndex);
-	seqPhraseAttribCPbuffer->setRunMode(runModeSong);
+	songCPbuf->beginIndex = songBeginIndex;
+	songCPbuf->endIndex = songEndIndex;
+	songCPbuf->runModeSong = runModeSong;
+	songCPbuf->storedLength = countCP;
 }
-void SequencerKernel::pastePhrase(Phrase* phraseCPbuffer, SeqAttributes* seqPhraseAttribCPbuffer, int startCP, int countCP) {	
-	for (int i = 0, phrn = startCP; i < countCP; i++, phrn++) {
-		phrases[phrn] = phraseCPbuffer[i];
+void SequencerKernel::pasteSong(SongCPbuffer* songCPbuf, int startCP, int countCP) {	
+	for (int i = 0, phrn = startCP; i < min(countCP, songCPbuf->storedLength); i++, phrn++) {
+		phrases[phrn] = songCPbuf->phraseCPbuffer[i];
 	}
-	if (countCP == MAX_PHRASES) {// all
-		songBeginIndex = seqPhraseAttribCPbuffer->getLength();
-		songEndIndex = seqPhraseAttribCPbuffer->getTranspose();
-		runModeSong = seqPhraseAttribCPbuffer->getRunMode();
-	}
+	songBeginIndex = songCPbuf->beginIndex;
+	songEndIndex = songCPbuf->endIndex;
+	runModeSong = songCPbuf->runModeSong;
 }
 
 
@@ -903,28 +888,26 @@ void Sequencer::initPhraseSeqNum(bool multiTracks) {
 }
 
 void Sequencer::copySequence(int startCP, int countCP) {
-	validCopySeq = true;
-	sek[trackIndexEdit].copySequence(cvCPbuffer, attribCPbuffer, &seqPhraseAttribCPbuffer, seqIndexEdit, startCP, countCP);
+	sek[trackIndexEdit].copySequence(&seqCPbuf, seqIndexEdit, startCP, countCP);
 }
 void Sequencer::pasteSequence(int startCP, int countCP, bool multiTracks) {
-	sek[trackIndexEdit].pasteSequence(cvCPbuffer, attribCPbuffer, &seqPhraseAttribCPbuffer, seqIndexEdit, startCP, countCP);
+	sek[trackIndexEdit].pasteSequence(&seqCPbuf, seqIndexEdit, startCP, countCP);
 	if (multiTracks) {
 		for (int i = 0; i < NUM_TRACKS; i++) {
 			if (i == trackIndexEdit) continue;
-			sek[i].pasteSequence(cvCPbuffer, attribCPbuffer, &seqPhraseAttribCPbuffer, seqIndexEdit, startCP, countCP);
+			sek[i].pasteSequence(&seqCPbuf, seqIndexEdit, startCP, countCP);
 		}
 	}
 }
-void Sequencer::copyPhrase(int startCP, int countCP) {
-	validCopyPhrase = true;
-	sek[trackIndexEdit].copyPhrase(phraseCPbuffer, &seqPhraseAttribCPbuffer, startCP, countCP);
+void Sequencer::copySong(int startCP, int countCP) {
+	sek[trackIndexEdit].copySong(&songCPbuf, startCP, countCP);
 }
-void Sequencer::pastePhrase(int startCP, int countCP, bool multiTracks) {
-	sek[trackIndexEdit].pastePhrase(phraseCPbuffer, &seqPhraseAttribCPbuffer, startCP, countCP);
+void Sequencer::pasteSong(int startCP, int countCP, bool multiTracks) {
+	sek[trackIndexEdit].pasteSong(&songCPbuf, startCP, countCP);
 	if (multiTracks) {
 		for (int i = 0; i < NUM_TRACKS; i++) {
 			if (i == trackIndexEdit) continue;
-			sek[i].pastePhrase(phraseCPbuffer, &seqPhraseAttribCPbuffer, startCP, countCP);
+			sek[i].pasteSong(&songCPbuf, startCP, countCP);
 		}
 	}
 }
@@ -1170,17 +1153,8 @@ void Sequencer::reset() {
 	phraseIndexEdit = 0;
 	seqIndexEdit = 0;
 	trackIndexEdit = 0;
-	for (int phrn = 0; phrn < SequencerKernel::MAX_PHRASES; phrn++) {
-		phraseCPbuffer[phrn].init();
-	}
-		
-	for (int stepn = 0; stepn < SequencerKernel::MAX_STEPS; stepn++) {
-		cvCPbuffer[stepn] = 0.0f;
-		attribCPbuffer[stepn].init();
-	}
-	seqPhraseAttribCPbuffer.init(SequencerKernel::MAX_STEPS, SequencerKernel::MODE_FWD);
-	validCopySeq = false;
-	validCopyPhrase = false;
+	seqCPbuf.reset();
+	songCPbuf.reset();
 
 	for (int trkn = 0; trkn < NUM_TRACKS; trkn++) {
 		editingGate[trkn] = 0ul;
