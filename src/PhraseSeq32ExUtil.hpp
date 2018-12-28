@@ -815,8 +815,14 @@ class Sequencer {
 	inline void transposeSeq(int deltaSeqKnob) {
 		sek[trackIndexEdit].transposeSeq(seqIndexEdit, deltaSeqKnob);
 	}
-	inline void rotateSeq(int *rotateOffsetPtr, int deltaSeqKnob) {
+	inline void rotateSeq(int *rotateOffsetPtr, int deltaSeqKnob, bool multiTracks) {
 		sek[trackIndexEdit].rotateSeq(rotateOffsetPtr, seqIndexEdit, deltaSeqKnob);
+		if (multiTracks) {
+			for (int i = 0; i < NUM_TRACKS; i++) {
+				if (i == trackIndexEdit) continue;
+				sek[i].rotateSeq(rotateOffsetPtr, seqIndexEdit, deltaSeqKnob);
+			}
+		}		
 	}
 
 	void toggleGate(int multiSteps, bool multiTracks) {
@@ -927,9 +933,8 @@ class Sequencer {
 	void toJson(json_t *rootJ);
 	void fromJson(json_t *rootJ);
 
-	inline void clockStep(unsigned long clockPeriod) {
-		for (int trkn = 0; trkn < NUM_TRACKS; trkn++)
-			sek[trkn].clockStep(clockPeriod);
+	inline void clockStep(int trkn, unsigned long clockPeriod) {
+		sek[trkn].clockStep(clockPeriod);
 	}
 	
 };// class Sequencer 
