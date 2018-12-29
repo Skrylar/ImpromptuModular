@@ -94,26 +94,13 @@ float SequencerKernel::applyNewOctave(int seqn, int stepn, int newOct, int count
 	float newCV = cv[seqn][stepn] + 10.0f;//to properly handle negative note voltages
 	newCV = newCV - floor(newCV) + (float) (newOct - 3);
 	
-	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = stepn; i < endi; i++) {
-		if (!attributes[seqn][i].getTied()) {
-			cv[seqn][i] = newCV;
-			propagateCVtoTied(seqn, i);		
-		}
-	}
-	
+	writeCV(seqn, stepn, newCV, count);
 	return newCV;
 }
 float SequencerKernel::applyNewKey(int seqn, int stepn, int newKeyIndex, int count) {// does not overwrite tied steps
 	float newCV = floor(cv[seqn][stepn]) + ((float) newKeyIndex) / 12.0f;
 	
-	int endi = min(MAX_STEPS, stepn + count);
-	for (int i = stepn; i < endi; i++) {
-		if (!attributes[seqn][i].getTied()) {
-			cv[seqn][i] = newCV;
-			propagateCVtoTied(seqn, i);		
-		}
-	}
+	writeCV(seqn, stepn, newCV, count);
 	return newCV;
 }
 float SequencerKernel::writeCV(int seqn, int stepn, float newCV, int count) {// does not overwrite tied steps
