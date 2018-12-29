@@ -166,6 +166,7 @@ void SequencerKernel::randomizeSong() {
 
 
 void SequencerKernel::copySequence(SeqCPbuffer* seqCPbuf, int seqn, int startCP, int countCP) {
+	countCP = min(countCP, MAX_STEPS - startCP);
 	for (int i = 0, stepn = startCP; i < countCP; i++, stepn++) {
 		seqCPbuf->cvCPbuffer[i] = cv[seqn][stepn];
 		seqCPbuf->attribCPbuffer[i] = attributes[seqn][stepn];
@@ -173,14 +174,16 @@ void SequencerKernel::copySequence(SeqCPbuffer* seqCPbuf, int seqn, int startCP,
 	seqCPbuf->seqAttribCPbuffer = sequences[seqn];
 	seqCPbuf->storedLength = countCP;
 }
-void SequencerKernel::pasteSequence(SeqCPbuffer* seqCPbuf, int seqn, int startCP, int countCP) {
-	for (int i = 0, stepn = startCP; i < min(countCP, seqCPbuf->storedLength); i++, stepn++) {
+void SequencerKernel::pasteSequence(SeqCPbuffer* seqCPbuf, int seqn, int startCP) {
+	int countCP = min(seqCPbuf->storedLength, MAX_STEPS - startCP);
+	for (int i = 0, stepn = startCP; i < countCP; i++, stepn++) {
 		cv[seqn][stepn] = seqCPbuf->cvCPbuffer[i];
 		attributes[seqn][stepn] = seqCPbuf->attribCPbuffer[i];
 	}
 	sequences[seqn] = seqCPbuf->seqAttribCPbuffer;
 }
 void SequencerKernel::copySong(SongCPbuffer* songCPbuf, int startCP, int countCP) {	
+	countCP = min(countCP, MAX_PHRASES - startCP);
 	for (int i = 0, phrn = startCP; i < countCP; i++, phrn++) {
 		songCPbuf->phraseCPbuffer[i] = phrases[phrn];
 	}
@@ -189,8 +192,9 @@ void SequencerKernel::copySong(SongCPbuffer* songCPbuf, int startCP, int countCP
 	songCPbuf->runModeSong = runModeSong;
 	songCPbuf->storedLength = countCP;
 }
-void SequencerKernel::pasteSong(SongCPbuffer* songCPbuf, int startCP, int countCP) {	
-	for (int i = 0, phrn = startCP; i < min(countCP, songCPbuf->storedLength); i++, phrn++) {
+void SequencerKernel::pasteSong(SongCPbuffer* songCPbuf, int startCP) {	
+	int countCP = min(songCPbuf->storedLength, MAX_PHRASES - startCP);
+	for (int i = 0, phrn = startCP; i < countCP; i++, phrn++) {
 		phrases[phrn] = songCPbuf->phraseCPbuffer[i];
 	}
 	songBeginIndex = songCPbuf->beginIndex;
@@ -729,6 +733,25 @@ bool SequencerKernel::moveIndexRunMode(bool moveSequence) {
 	return crossBoundary;
 }
 
+ 
+void SeqCPbuffer::reset() {		
+	for (int stepn = 0; stepn < SequencerKernel::MAX_STEPS; stepn++) {
+		cvCPbuffer[stepn] = 0.0f;
+		attribCPbuffer[stepn].init();
+	}
+	seqAttribCPbuffer.init(SequencerKernel::MAX_STEPS, SequencerKernel::MODE_FWD);
+	storedLength = SequencerKernel::MAX_STEPS;// number of steps that contain actual cp data
+}
+
+void SongCPbuffer::reset() {
+	for (int phrn = 0; phrn < SequencerKernel::MAX_PHRASES; phrn++)
+		phraseCPbuffer[phrn].init();
+	beginIndex = 0;
+	endIndex = 0;
+	runModeSong = SequencerKernel::MODE_FWD;
+	storedLength = SequencerKernel::MAX_PHRASES;
+}
+
 
 //*****************************************************************************
 // Sequencer
@@ -887,27 +910,29 @@ void Sequencer::initPhraseSeqNum(bool multiTracks) {
 	}		
 }
 
-void Sequencer::copySequence(int startCP, int countCP) {
+void Sequencer::copySequence(int countCP) {
+	int startCP = stepIndexEdit;
 	sek[trackIndexEdit].copySequence(&seqCPbuf, seqIndexEdit, startCP, countCP);
 }
-void Sequencer::pasteSequence(int startCP, int countCP, bool multiTracks) {
-	sek[trackIndexEdit].pasteSequence(&seqCPbuf, seqIndexEdit, startCP, countCP);
+void Sequencer::pasteSequence(bool multiTracks) {
+	int startCP = stepIndexEdit;
+	sek[trackIndexEdit].pasteSequence(&seqCPbuf, seqIndexEdit, startCP);
 	if (multiTracks) {
 		for (int i = 0; i < NUM_TRACKS; i++) {
 			if (i == trackIndexEdit) continue;
-			sek[i].pasteSequence(&seqCPbuf, seqIndexEdit, startCP, countCP);
+			sek[i].pasteSequence(&seqCPbuf, seqIndexEdit, startCP);
 		}
 	}
 }
-void Sequencer::copySong(int startCP, int countCP) {
-	sek[trackIndexEdit].copySong(&songCPbuf, startCP, countCP);
+void Sequencer::copySong(int countCP) {
+	sek[trackIndexEdit].copySong(&songCPbuf, phraseIndexEdit, countCP);
 }
-void Sequencer::pasteSong(int startCP, int countCP, bool multiTracks) {
-	sek[trackIndexEdit].pasteSong(&songCPbuf, startCP, countCP);
+void Sequencer::pasteSong(bool multiTracks) {
+	sek[trackIndexEdit].pasteSong(&songCPbuf, phraseIndexEdit);
 	if (multiTracks) {
 		for (int i = 0; i < NUM_TRACKS; i++) {
 			if (i == trackIndexEdit) continue;
-			sek[i].pasteSong(&songCPbuf, startCP, countCP);
+			sek[i].pasteSong(&songCPbuf, phraseIndexEdit);
 		}
 	}
 }

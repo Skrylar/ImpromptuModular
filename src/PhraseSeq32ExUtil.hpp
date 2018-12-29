@@ -348,9 +348,9 @@ class SequencerKernel {
 	void randomizeSong();	
 
 	void copySequence(SeqCPbuffer* seqCPbuf, int seqn, int startCP, int countCP);
-	void pasteSequence(SeqCPbuffer* seqCPbuf, int seqn, int startCP, int countCP);
+	void pasteSequence(SeqCPbuffer* seqCPbuf, int seqn, int startCP);
 	void copySong(SongCPbuffer* songCPbuf, int startCP, int countCP);
-	void pasteSong(SongCPbuffer* songCPbuf, int startCP, int countCP);
+	void pasteSong(SongCPbuffer* songCPbuf, int startCP);
 	
 	
 	// Main methods
@@ -394,15 +394,9 @@ struct SeqCPbuffer {
 	int storedLength;// number of steps that contain actual cp data
 	
 	SeqCPbuffer() {reset();}
-	void reset() {		
-		for (int stepn = 0; stepn < SequencerKernel::MAX_STEPS; stepn++) {
-			cvCPbuffer[stepn] = 0.0f;
-			attribCPbuffer[stepn].init();
-		}
-		seqAttribCPbuffer.init(SequencerKernel::MAX_STEPS, SequencerKernel::MODE_FWD);
-		storedLength = SequencerKernel::MAX_STEPS;// number of steps that contain actual cp data
-	}
+	void reset();
 };// struct SeqCPbuffer
+
 
 struct SongCPbuffer {
 	Phrase phraseCPbuffer[SequencerKernel::MAX_PHRASES];
@@ -412,14 +406,7 @@ struct SongCPbuffer {
 	int storedLength;// number of steps that contain actual cp data
 	
 	SongCPbuffer() {reset();}
-	void reset() {
-		for (int phrn = 0; phrn < SequencerKernel::MAX_PHRASES; phrn++)
-			phraseCPbuffer[phrn].init();
-		beginIndex = 0;
-		endIndex = 0;
-		runModeSong = SequencerKernel::MODE_FWD;
-		storedLength = SequencerKernel::MAX_PHRASES;
-	}
+	void reset();
 };// song SeqCPbuffer
 
 
@@ -529,10 +516,11 @@ class Sequencer {
 	}
 	
 	
-	void copySequence(int startCP, int countCP);
-	void pasteSequence(int startCP, int countCP, bool multiTracks);
-	void copySong(int startCP, int countCP);
-	void pasteSong(int startCP, int countCP, bool multiTracks);
+	int getLengthSeqCPbug() {return seqCPbuf.storedLength;}
+	void copySequence(int countCP);
+	void pasteSequence(bool multiTracks);
+	void copySong(int countCP);
+	void pasteSong(bool multiTracks);
 	
 	
 	void writeCV(int trkn, float cvVal, int multiStepsCount, float sampleRate, bool multiTracks);

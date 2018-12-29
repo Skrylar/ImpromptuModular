@@ -105,8 +105,6 @@ struct PhraseSeq32Ex : Module {
 
 	// No need to save
 	int displayState;
-	int countCP;// number of steps to paste (in case CPMODE_PARAM changes between copy and paste)
-	int startCP;
 	int rotateOffset;// no need to initialize, this goes with displayMode = DISP_ROTATE
 	long clockIgnoreOnReset;
 	unsigned long clockPeriod[Sequencer::NUM_TRACKS];// counts number of step() calls upward from last clock (reset after clock processed)
@@ -175,8 +173,6 @@ struct PhraseSeq32Ex : Module {
 	void onReset() override {
 		autoseq = false;
 		running = false;
-		countCP = SequencerKernel::MAX_STEPS;
-		startCP = 0;
 		displayState = DISP_NORMAL;
 		tiedWarning = 0l;
 		attachedWarning = 0l;
@@ -370,19 +366,15 @@ struct PhraseSeq32Ex : Module {
 			// Copy 
 			if (copyTrigger.process(params[COPY_PARAM].value)) {
 				if (!attached) {
-					revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
-					if (editingSequence) {// copying sequence steps
-						startCP = seq.getStepIndexEdit();
-						countCP = min(cpMode, SequencerKernel::MAX_STEPS - startCP);
-						seq.copySequence(startCP, countCP);						
+					if (editingSequence) {
+						seq.copySequence(cpMode);					
 						displayState = DISP_COPY_SEQ;
 					}
-					else {// copying song phrases
-						startCP = seq.getPhraseIndexEdit();
-						countCP = min(cpMode, SequencerKernel::MAX_PHRASES - startCP);
-						seq.copySong(startCP, countCP);
+					else {
+						seq.copySong(cpMode);
 						displayState = DISP_COPY_SONG;
 					}
+					revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 				}
 				else
 					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
@@ -390,20 +382,15 @@ struct PhraseSeq32Ex : Module {
 			// Paste 
 			if (pasteTrigger.process(params[PASTE_PARAM].value)) {
 				if (!attached) {
-					if (editingSequence) {// pasting sequence steps
-						startCP = seq.getStepIndexEdit();;
-						countCP = min(countCP, SequencerKernel::MAX_STEPS - startCP);
-						seq.pasteSequence(startCP, countCP, multiTracks);
+					if (editingSequence) {
+						seq.pasteSequence(multiTracks);
 						displayState = DISP_PASTE_SEQ;
-						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
-					else {// pasting song phrases
-						startCP = seq.getPhraseIndexEdit();
-						countCP = min(countCP, SequencerKernel::MAX_PHRASES - startCP);
-						seq.pasteSong(startCP, countCP, multiTracks);
+					else {
+						seq.pasteSong(multiTracks);
 						displayState = DISP_PASTE_SONG;
-						revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 					}
+					revertDisplay = (long) (revertDisplayTime * sampleRate / displayRefreshStepSkips);
 				}
 				else
 					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
@@ -803,7 +790,8 @@ struct PhraseSeq32Ex : Module {
 				float red = 0.0f;
 				float green = 0.0f;		
 				if ((displayState == DISP_COPY_SEQ) || (displayState == DISP_PASTE_SEQ)) {
-					if (stepn >= startCP && stepn < (startCP + countCP))
+					int startCP = seq.getStepIndexEdit();
+					if (stepn >= startCP && stepn < (startCP + seq.getLengthSeqCPbug()))
 						green = 0.5f;// Green when copy interval
 				}
 				else if (displayState == DISP_LEN) {
