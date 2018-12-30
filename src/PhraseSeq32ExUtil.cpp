@@ -103,7 +103,7 @@ float SequencerKernel::applyNewKey(int seqn, int stepn, int newKeyIndex, int cou
 	writeCV(seqn, stepn, newCV, count);
 	return newCV;
 }
-float SequencerKernel::writeCV(int seqn, int stepn, float newCV, int count) {// does not overwrite tied steps
+void SequencerKernel::writeCV(int seqn, int stepn, float newCV, int count) {// does not overwrite tied steps
 	int endi = min(MAX_STEPS, stepn + count);
 	for (int i = stepn; i < endi; i++) {
 		if (!attributes[seqn][i].getTied()) {
@@ -111,7 +111,6 @@ float SequencerKernel::writeCV(int seqn, int stepn, float newCV, int count) {// 
 			propagateCVtoTied(seqn, i);
 		}
 	}
-	return newCV;
 }
 
 
@@ -926,7 +925,8 @@ void Sequencer::pasteSong(bool multiTracks) {
 
 
 void Sequencer::writeCV(int trkn, float cvVal, int multiStepsCount, float sampleRate, bool multiTracks) {
-	editingGateCV[trkn] = sek[trkn].writeCV(seqIndexEdit, stepIndexEdit, cvVal, multiStepsCount);
+	sek[trkn].writeCV(seqIndexEdit, stepIndexEdit, cvVal, multiStepsCount);
+	editingGateCV[trkn] = cvVal;
 	editingGate[trkn] = (unsigned long) (gateTime * sampleRate / displayRefreshStepSkips);
 	if (multiTracks) {
 		for (int i = 0; i < NUM_TRACKS; i++) {

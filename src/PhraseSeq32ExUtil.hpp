@@ -325,7 +325,7 @@ class SequencerKernel {
 	}	
 	float applyNewOctave(int seqn, int stepn, int newOct, int count);
 	float applyNewKey(int seqn, int stepn, int newKeyIndex, int count);
-	float writeCV(int seqn, int stepn, float newCV, int count);
+	void writeCV(int seqn, int stepn, float newCV, int count);
 	
 	
 	inline float calcSlideOffset() {return (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);}
