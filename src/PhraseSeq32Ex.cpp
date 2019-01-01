@@ -92,7 +92,7 @@ struct PhraseSeq32Ex : Module {
 
 	// Need to save
 	int panelTheme = 0;
-	int expansion = 1;
+	int expansion = 0;
 	int velocityMode = 0;
 	bool holdTiedNotes = true;
 	bool autoseq;

@@ -25,8 +25,6 @@ extern Model *modelTact;
 extern Model *modelTact1;
 extern Model *modelTwelveKey;
 extern Model *modelClocked;
-extern Model *modelClockedLFO;
-extern Model *modelMidiFile;
 extern Model *modelPhraseSeq16;
 extern Model *modelPhraseSeq32;
 extern Model *modelPhraseSeq32Ex;
