@@ -71,7 +71,7 @@ class Phrase {
 	public:
 
 	static const unsigned long PHR_MSK_SEQNUM = 0x00FF;
-	static const unsigned long PHR_MSK_REPS =   0xFF00, repShift = 8;// a rep is 1 to 99
+	static const unsigned long PHR_MSK_REPS =   0xFF00, repShift = 8;// a rep is 0 to 99
 	
 	inline void init() {phrase = (1 << repShift);}
 	inline void randomize(int maxSeqs) {phrase = ((randomu32() % maxSeqs) | ((randomu32() % 4 + 1) << repShift));}
@@ -270,7 +270,7 @@ class SequencerKernel {
 	}
 	inline int modPhraseReps(int phrn, int delta) {
 		int rVal = phrases[phrn].getReps();
-		rVal = clamp(rVal + delta, 1, 99);
+		rVal = clamp(rVal + delta, 0, 99);
 		phrases[phrn].setReps(rVal);
 		return rVal;
 	}		
@@ -382,7 +382,8 @@ class SequencerKernel {
 	void activateTiedStep(int seqn, int stepn);
 	void deactivateTiedStep(int seqn, int stepn);
 	void calcGateCodeEx(int seqn);
-	bool moveIndexRunMode(bool moveSequence);
+	bool moveSeqIndexRunMode();
+	void moveSongIndexRunMode();
 	
 };// class SequencerKernel 
 

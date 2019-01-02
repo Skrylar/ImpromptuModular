@@ -560,7 +560,7 @@ struct PhraseSeq32Ex : Module {
 			if (selTrigger.process(params[SEL_PARAM].value)) {
 				if (!attached && editingSequence)
 					multiSteps = !multiSteps;
-				else {
+				else if (attached) {
 					multiSteps = false;
 					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 				}

@@ -379,8 +379,8 @@ void SequencerKernel::clockStep(unsigned long clockPeriod) {
 			ppqnCount = 0;
 		if (ppqnCount == 0) {
 			float slideFromCV = getCVRun();
-			if (moveIndexRunMode(true)) {// true means seq
-				moveIndexRunMode(false); // false means song
+			if (moveSeqIndexRunMode()) {
+				moveSongIndexRunMode();
 				SeqAttributes newSeq = sequences[phrases[phraseIndexRun].getSeqNum()];
 				stepIndexRun = (newSeq.getRunMode() == MODE_REV ? newSeq.getLength() - 1 : 0);// must always refresh after phraseIndexRun has changed
 			}
@@ -553,32 +553,11 @@ void SequencerKernel::calcGateCodeEx(int seqn) {// uses stepIndexRun as the step
 }
 	
 
-bool SequencerKernel::moveIndexRunMode(bool moveSequence) {	
+bool SequencerKernel::moveSeqIndexRunMode() {	
+	int reps = phrases[phraseIndexRun].getReps();// 0-rep seqs should be filtered elsewhere and should never happen here. If they do, they will be played (this can be the case when all of the song has 0-rep seqs, or the song is started (reset) into a first phrase that has 0 reps)
 	// assert((reps * MAX_STEPS) <= 0xFFF); // for BRN and RND run modes, history is not a span count but a step count
-	
-	int* index;
-	unsigned long* history;
-	int reps;
-	int runMode;
-	int endStep;
-	int startStep;
-	
-	if (moveSequence) {
-		index = &stepIndexRun;
-		history = &stepIndexRunHistory;
-		reps = phrases[phraseIndexRun].getReps();
-		runMode = sequences[phrases[phraseIndexRun].getSeqNum()].getRunMode();
-		endStep = sequences[phrases[phraseIndexRun].getSeqNum()].getLength() - 1;
-		startStep = 0;
-	}
-	else {// move song
-		index = &phraseIndexRun;
-		history = &phraseIndexRunHistory;
-		reps = 1;// 1 count is enough in song, since the return boundaryCross boolean is ignored (it will loop the song continually)
-		runMode = runModeSong;
-		endStep = songEndIndex;
-		startStep = songBeginIndex;
-	}
+	int runMode = sequences[phrases[phraseIndexRun].getSeqNum()].getRunMode();
+	int endStep = sequences[phrases[phraseIndexRun].getSeqNum()].getLength() - 1;
 	
 	bool crossBoundary = false;
 	
@@ -587,137 +566,242 @@ bool SequencerKernel::moveIndexRunMode(bool moveSequence) {
 		// history 0x0000 is reserved for reset
 		
 		case MODE_REV :// reverse; history base is 0x2000
-			if ((*history) < 0x2001 || (*history) > 0x2FFF)
-				(*history) = 0x2000 + reps;
-			(*index)--;
-			if ((*index) > endStep)// handle song jumped
-				(*index) = endStep;
-			if ((*index) < startStep) {
-				(*index) = endStep;
-				(*history)--;
-				if ((*history) <= 0x2000)
+			if (stepIndexRunHistory < 0x2001 || stepIndexRunHistory > 0x2FFF)
+				stepIndexRunHistory = 0x2000 + reps;
+			stepIndexRun--;
+			if (stepIndexRun < 0) {
+				stepIndexRun = endStep;
+				stepIndexRunHistory--;
+				if (stepIndexRunHistory <= 0x2000)
 					crossBoundary = true;
 			}
 		break;
 		
 		case MODE_PPG :// forward-reverse; history base is 0x3000
-			if ((*history) < 0x3001 || (*history) > 0x3FFF) // even means going forward, odd means going reverse
-				(*history) = 0x3000 + reps * 2;
-			if (((*history) & 0x1) == 0) {// even so forward phase
-				(*index)++;
-				if ((*index) < startStep)// handle song jumped
-					(*index) = startStep;
-				if ((*index) > endStep) {
-					(*index) = endStep;
-					(*history)--;
+			if (stepIndexRunHistory < 0x3001 || stepIndexRunHistory > 0x3FFF) // even means going forward, odd means going reverse
+				stepIndexRunHistory = 0x3000 + reps * 2;
+			if ((stepIndexRunHistory & 0x1) == 0) {// even so forward phase
+				stepIndexRun++;
+				if (stepIndexRun > endStep) {
+					stepIndexRun = endStep;
+					stepIndexRunHistory--;
 				}
 			}
 			else {// odd so reverse phase
-				(*index)--;
-				if ((*index) > endStep)// handle song jumped
-					(*index) = endStep;
-				if ((*index) < startStep) {
-					(*index) = startStep;
-					(*history)--;
-					if ((*history) <= 0x3000)
+				stepIndexRun--;
+				if (stepIndexRun < 0) {
+					stepIndexRun = 0;
+					stepIndexRunHistory--;
+					if (stepIndexRunHistory <= 0x3000)
 						crossBoundary = true;
 				}
 			}
 		break;
 
 		case MODE_PEN :// forward-reverse; history base is 0x4000
-			if ((*history) < 0x4001 || (*history) > 0x4FFF) // even means going forward, odd means going reverse
-				(*history) = 0x4000 + reps * 2;
-			if (((*history) & 0x1) == 0) {// even so forward phase
-				(*index)++;
-				if ((*index) < startStep)// handle song jumped
-					(*index) = startStep;
-				if ((*index) > endStep) {
-					(*index) = endStep - 1;
-					(*history)--;
-					if ((*index) <= startStep) {// if back at start after turnaround, then no reverse phase needed
-						(*index) = startStep;
-						(*history)--;
-						if ((*history) <= 0x4000)
+			if (stepIndexRunHistory < 0x4001 || stepIndexRunHistory > 0x4FFF) // even means going forward, odd means going reverse
+				stepIndexRunHistory = 0x4000 + reps * 2;
+			if ((stepIndexRunHistory & 0x1) == 0) {// even so forward phase
+				stepIndexRun++;
+				if (stepIndexRun > endStep) {
+					stepIndexRun = endStep - 1;
+					stepIndexRunHistory--;
+					if (stepIndexRun <= 0) {// if back at start after turnaround, then no reverse phase needed
+						stepIndexRun = 0;
+						stepIndexRunHistory--;
+						if (stepIndexRunHistory <= 0x4000)
 							crossBoundary = true;
 					}
 				}
 			}
 			else {// odd so reverse phase
-				(*index)--;
-				if ((*index) > endStep)// handle song jumped
-					(*index) = endStep;
-				if ((*index) <= startStep) {
-					(*index) = startStep;
-					(*history)--;
-					if ((*history) <= 0x4000)
+				stepIndexRun--;
+				if (stepIndexRun > endStep)// handle song jumped
+					stepIndexRun = endStep;
+				if (stepIndexRun <= 0) {
+					stepIndexRun = 0;
+					stepIndexRunHistory--;
+					if (stepIndexRunHistory <= 0x4000)
 						crossBoundary = true;
 				}
 			}
 		break;
 		
 		case MODE_BRN :// brownian random; history base is 0x5000
-			if ((*history) < 0x5001 || (*history) > 0x5FFF) 
-				(*history) = 0x5000 + (endStep - startStep + 1) * reps;
-			(*index) += (randomu32() % 3) - 1;
-			if ((*index) > endStep) {
-				(*index) = startStep;
+			if (stepIndexRunHistory < 0x5001 || stepIndexRunHistory > 0x5FFF) 
+				stepIndexRunHistory = 0x5000 + (endStep + 1) * reps;
+			stepIndexRun += (randomu32() % 3) - 1;
+			if (stepIndexRun > endStep) {
+				stepIndexRun = 0;
 			}
-			if ((*index) < startStep) {
-				(*index) = endStep;
+			if (stepIndexRun < 0) {
+				stepIndexRun = endStep;
 			}
-			(*history)--;
-			if ((*history) <= 0x5000) {
+			stepIndexRunHistory--;
+			if (stepIndexRunHistory <= 0x5000) {
 				crossBoundary = true;
 			}
 		break;
 		
 		case MODE_RND :// random; history base is 0x6000
-		case MODE_ARN :// use track A's random number for seq/song depending on moveSequence bool value
-			if ((*history) < 0x6001 || (*history) > 0x6FFF) {
-				(*history) = 0x6000 + (endStep - startStep + 1) * reps;
+		case MODE_ARN :// use track A's random number for seq
+			if (stepIndexRunHistory < 0x6001 || stepIndexRunHistory > 0x6FFF) {
+				stepIndexRunHistory = 0x6000 + (endStep + 1) * reps;
 			}
 
 			{
 				uint32_t randomToUseHere = 0ul;
 				if (runMode == MODE_ARN && slaveSeqRndLast != nullptr) {// must test both since MODE_ARN allowed for track 0 (defaults to RND)
-					if (moveSequence)
-						randomToUseHere = *slaveSeqRndLast;
-					else
-						randomToUseHere = *slaveSongRndLast;
+					randomToUseHere = *slaveSeqRndLast;
 				}
 				else {
 					randomToUseHere = randomu32();
-					if (moveSequence)
-						seqRndLast = randomToUseHere;
-					else
-						songRndLast = randomToUseHere;
+					seqRndLast = randomToUseHere;
 				}
 				
-				(*index) = startStep + (randomToUseHere % (endStep - startStep + 1)) ;
+				stepIndexRun = (randomToUseHere % (endStep + 1)) ;
 			}
-			(*history)--;
-			if ((*history) <= 0x6000) {
+			stepIndexRunHistory--;
+			if (stepIndexRunHistory <= 0x6000) {
 				crossBoundary = true;
 			}
 		break;
 		
 		default :// MODE_FWD  forward; history base is 0x1000
-			if ((*history) < 0x1001 || (*history) > 0x1FFF)
-				(*history) = 0x1000 + reps;
-			(*index)++;
-			if ((*index) < startStep)// handle song jumped
-				(*index) = startStep;
-			if ((*index) > endStep) {
-				(*index) = startStep;
-				(*history)--;
-				if ((*history) <= 0x1000)
+			if (stepIndexRunHistory < 0x1001 || stepIndexRunHistory > 0x1FFF)
+				stepIndexRunHistory = 0x1000 + reps;
+			stepIndexRun++;
+			if (stepIndexRun > endStep) {
+				stepIndexRun = 0;
+				stepIndexRunHistory--;
+				if (stepIndexRunHistory <= 0x1000)
 					crossBoundary = true;
 			}
 	}
 
 	return crossBoundary;
 }
+
+// TODO in SequencerKernel::initRun(), the start point is not good for REV, nor FWD, since it can start on 0-rep seq
+void SequencerKernel::moveSongIndexRunMode() {	
+	int phrn = 0;
+	switch (runModeSong) {
+	
+		// history 0x0000 is reserved for reset
+		
+		case MODE_REV :// reverse; history base is 0x2000
+			phraseIndexRunHistory = 0x2000;
+			// search backward for next non 0-rep seq, ends up in same phrase if all reps in the song are 0
+			phrn = min(phraseIndexRun - 1, songEndIndex);// handle song jumped
+			for (; phrn >= songBeginIndex && phrases[phrn].getReps() == 0; phrn--);
+			if (phrn < songBeginIndex)
+				for (phrn = songEndIndex; phrn > phraseIndexRun && phrases[phrn].getReps() == 0; phrn--);
+			phraseIndexRun = phrn;
+			
+			// old method
+			// phraseIndexRun--;
+			// if (phraseIndexRun > songEndIndex)// handle song jumped
+				// phraseIndexRun = songEndIndex;
+			// if (phraseIndexRun < songBeginIndex)
+				// phraseIndexRun = songEndIndex;
+		break;
+		
+		case MODE_PPG :// forward-reverse; history base is 0x3000
+			if (phraseIndexRunHistory < 0x3001 || phraseIndexRunHistory > 0x3002) // even means going forward, odd means going reverse
+				phraseIndexRunHistory = 0x3002;
+			if (phraseIndexRunHistory == 0x3002) {// even so forward phase
+				phraseIndexRun++;
+				if (phraseIndexRun < songBeginIndex)// handle song jumped
+					phraseIndexRun = songBeginIndex;
+				if (phraseIndexRun > songEndIndex) {
+					phraseIndexRun = songEndIndex;
+					phraseIndexRunHistory--;
+				}
+			}
+			else {// odd so reverse phase
+				phraseIndexRun--;
+				if (phraseIndexRun > songEndIndex)// handle song jumped
+					phraseIndexRun = songEndIndex;
+				if (phraseIndexRun < songBeginIndex) {
+					phraseIndexRun = songBeginIndex;
+					phraseIndexRunHistory--;
+				}
+			}
+		break;
+
+		case MODE_PEN :// forward-reverse; history base is 0x4000
+			if (phraseIndexRunHistory < 0x4001 || phraseIndexRunHistory > 0x4002) // even means going forward, odd means going reverse
+				phraseIndexRunHistory = 0x4002;
+			if (phraseIndexRunHistory == 0x4002) {// even so forward phase
+				phraseIndexRun++;
+				if (phraseIndexRun < songBeginIndex)// handle song jumped
+					phraseIndexRun = songBeginIndex;
+				if (phraseIndexRun > songEndIndex) {
+					phraseIndexRun = songEndIndex - 1;
+					phraseIndexRunHistory--;
+					if (phraseIndexRun <= songBeginIndex) {// if back at start after turnaround, then no reverse phase needed
+						phraseIndexRun = songBeginIndex;
+						phraseIndexRunHistory--;
+					}
+				}
+			}
+			else {// odd so reverse phase
+				phraseIndexRun--;
+				if (phraseIndexRun > songEndIndex)// handle song jumped
+					phraseIndexRun = songEndIndex;
+				if (phraseIndexRun <= songBeginIndex) {
+					phraseIndexRun = songBeginIndex;
+					phraseIndexRunHistory--;
+				}
+			}
+		break;
+		
+		case MODE_BRN :// brownian random; history base is 0x5000
+			phraseIndexRunHistory = 0x5000;
+			phraseIndexRun += (randomu32() % 3) - 1;
+			if (phraseIndexRun > songEndIndex) {
+				phraseIndexRun = songBeginIndex;
+			}
+			if (phraseIndexRun < songBeginIndex) {
+				phraseIndexRun = songEndIndex;
+			}
+		break;
+		
+		case MODE_RND :// random; history base is 0x6000
+		case MODE_ARN :// use track A's random number for song
+			phraseIndexRunHistory = 0x6000;
+			{
+				uint32_t randomToUseHere = 0ul;
+				if (runModeSong == MODE_ARN && slaveSeqRndLast != nullptr) {// must test both since MODE_ARN allowed for track 0 (defaults to RND)
+					randomToUseHere = *slaveSongRndLast;
+				}
+				else {
+					randomToUseHere = randomu32();
+					songRndLast = randomToUseHere;
+				}
+				
+				phraseIndexRun = songBeginIndex + (randomToUseHere % (songEndIndex - songBeginIndex + 1)) ;
+			}
+		break;
+		
+		default :// MODE_FWD  forward; history base is 0x1000
+			phraseIndexRunHistory = 0x1000;
+			// search fowrard for next non 0-rep seq, ends up in same phrase if all reps in the song are 0
+			phrn = max(phraseIndexRun + 1, songBeginIndex);// handle song jumped
+			for (; phrn <= songEndIndex && phrases[phrn].getReps() == 0; phrn++);
+			if (phrn > songEndIndex)
+				for (phrn = songBeginIndex; phrn < phraseIndexRun && phrases[phrn].getReps() == 0; phrn++);
+			phraseIndexRun = phrn;
+			
+			// old method
+			// phraseIndexRun++;
+			// if (phraseIndexRun < songBeginIndex)// handle song jumped
+				// phraseIndexRun = songBeginIndex;
+			// if (phraseIndexRun > songEndIndex)
+				// phraseIndexRun = songBeginIndex;
+	}
+}
+
 
  
 void SeqCPbuffer::reset() {		
