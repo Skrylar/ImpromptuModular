@@ -145,7 +145,7 @@ class SequencerKernel {
 	static const int MAX_PHRASES = 99;// maximum value is 99 (index value is 0 to 98; disp will be 1 to 99)
 
 	// Run modes
-	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, MODE_ARN, NUM_MODES};
+	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, MODE_ARN, MODE_ABR, NUM_MODES};
 	static const std::string modeLabels[NUM_MODES];
 	
 	// Gate types
@@ -382,9 +382,13 @@ class SequencerKernel {
 	void activateTiedStep(int seqn, int stepn);
 	void deactivateTiedStep(int seqn, int stepn);
 	void calcGateCodeEx(int seqn);
-	bool moveSeqIndexRunMode();
-	void moveSongIndexRunMode();
-	
+	bool moveStepIndexRun();
+	void moveSongIndexBackward(bool init, bool rollover);
+	void moveSongIndexForeward(bool init, bool rollover);
+	int tempPhraseIndexes[MAX_PHRASES];// used only in next method	
+	void moveSongIndexRandom(bool init, uint32_t randomValue);	
+	void moveSongIndexBrownian(bool init, uint32_t randomValue);	
+	void movePhraseIndexRun(bool init);
 };// class SequencerKernel 
 
 

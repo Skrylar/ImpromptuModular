@@ -14,7 +14,7 @@ using namespace rack;
 //*****************************************************************************
 
 
-const std::string SequencerKernel::modeLabels[NUM_MODES] = {"FWD", "REV", "PPG", "PEN", "BRN", "RND", "ARN"};
+const std::string SequencerKernel::modeLabels[NUM_MODES] = {"FWD", "REV", "PPG", "PEN", "BRN", "RND", "ARN", "ABR"};
 
 
 const uint64_t SequencerKernel::advGateHitMaskLow[NUM_GATES] = 
@@ -166,7 +166,8 @@ void SequencerKernel::pasteSequence(SeqCPbuffer* seqCPbuf, int seqn, int startCP
 		cv[seqn][stepn] = seqCPbuf->cvCPbuffer[i];
 		attributes[seqn][stepn] = seqCPbuf->attribCPbuffer[i];
 	}
-	sequences[seqn] = seqCPbuf->seqAttribCPbuffer;
+	if (startCP == 0 && countCP == MAX_STEPS)
+		sequences[seqn] = seqCPbuf->seqAttribCPbuffer;
 }
 void SequencerKernel::copySong(SongCPbuffer* songCPbuf, int startCP, int countCP) {	
 	countCP = min(countCP, MAX_PHRASES - startCP);
@@ -183,9 +184,11 @@ void SequencerKernel::pasteSong(SongCPbuffer* songCPbuf, int startCP) {
 	for (int i = 0, phrn = startCP; i < countCP; i++, phrn++) {
 		phrases[phrn] = songCPbuf->phraseCPbuffer[i];
 	}
-	songBeginIndex = songCPbuf->beginIndex;
-	songEndIndex = songCPbuf->endIndex;
-	runModeSong = songCPbuf->runModeSong;
+	if (startCP == 0 && countCP == MAX_PHRASES) {
+		songBeginIndex = songCPbuf->beginIndex;
+		songEndIndex = songCPbuf->endIndex;
+		runModeSong = songCPbuf->runModeSong;
+	}
 }
 
 
@@ -211,8 +214,8 @@ void SequencerKernel::randomize() {
 	
 
 void SequencerKernel::initRun() {
-	phraseIndexRun = (runModeSong == MODE_REV ? songEndIndex : songBeginIndex);
-	phraseIndexRunHistory = 0;
+	movePhraseIndexRun(true);// true means init 
+	//phraseIndexRun = (runModeSong == MODE_REV ? songEndIndex : songBeginIndex);	
 
 	int seqn = phrases[phraseIndexRun].getSeqNum();
 	stepIndexRun = (sequences[seqn].getRunMode() == MODE_REV ? sequences[seqn].getLength() - 1 : 0);
@@ -379,8 +382,8 @@ void SequencerKernel::clockStep(unsigned long clockPeriod) {
 			ppqnCount = 0;
 		if (ppqnCount == 0) {
 			float slideFromCV = getCVRun();
-			if (moveSeqIndexRunMode()) {
-				moveSongIndexRunMode();
+			if (moveStepIndexRun()) {
+				movePhraseIndexRun(false);// false means normal (not init)
 				SeqAttributes newSeq = sequences[phrases[phraseIndexRun].getSeqNum()];
 				stepIndexRun = (newSeq.getRunMode() == MODE_REV ? newSeq.getLength() - 1 : 0);// must always refresh after phraseIndexRun has changed
 			}
@@ -553,7 +556,7 @@ void SequencerKernel::calcGateCodeEx(int seqn) {// uses stepIndexRun as the step
 }
 	
 
-bool SequencerKernel::moveSeqIndexRunMode() {	
+bool SequencerKernel::moveStepIndexRun() {	
 	int reps = phrases[phraseIndexRun].getReps();// 0-rep seqs should be filtered elsewhere and should never happen here. If they do, they will be played (this can be the case when all of the song has 0-rep seqs, or the song is started (reset) into a first phrase that has 0 reps)
 	// assert((reps * MAX_STEPS) <= 0xFFF); // for BRN and RND run modes, history is not a span count but a step count
 	int runMode = sequences[phrases[phraseIndexRun].getSeqNum()].getRunMode();
@@ -628,14 +631,27 @@ bool SequencerKernel::moveSeqIndexRunMode() {
 		break;
 		
 		case MODE_BRN :// brownian random; history base is 0x5000
+		case MODE_ABR :// use track A's random number for seq
 			if (stepIndexRunHistory < 0x5001 || stepIndexRunHistory > 0x5FFF) 
 				stepIndexRunHistory = 0x5000 + (endStep + 1) * reps;
-			stepIndexRun += (randomu32() % 3) - 1;
-			if (stepIndexRun > endStep) {
-				stepIndexRun = 0;
-			}
-			if (stepIndexRun < 0) {
-				stepIndexRun = endStep;
+			
+			{
+				uint32_t randomToUseHere = 0ul;
+				if (runMode == MODE_ABR && slaveSeqRndLast != nullptr) {// must test both since MODE_ABR allowed for track 0 (defaults to BRN)
+					randomToUseHere = *slaveSeqRndLast;
+				}
+				else {
+					randomToUseHere = randomu32();
+					seqRndLast = randomToUseHere;
+				}
+				
+				stepIndexRun += (randomToUseHere % 3) - 1;
+				if (stepIndexRun > endStep) {
+					stepIndexRun = 0;
+				}
+				if (stepIndexRun < 0) {
+					stepIndexRun = endStep;
+				}
 			}
 			stepIndexRunHistory--;
 			if (stepIndexRunHistory <= 0x5000) {
@@ -682,123 +698,162 @@ bool SequencerKernel::moveSeqIndexRunMode() {
 	return crossBoundary;
 }
 
-// TODO in SequencerKernel::initRun(), the start point is not good for REV, nor FWD, since it can start on 0-rep seq
-void SequencerKernel::moveSongIndexRunMode() {	
+
+void SequencerKernel::moveSongIndexBackward(bool init, bool rollover) {
 	int phrn = 0;
+
+	// search backward for next non 0-rep seq, ends up in same phrase if all reps in the song are 0
+	if (init) {
+		phraseIndexRun = songEndIndex;
+		phrn = phraseIndexRun;
+	}
+	else
+		phrn = min(phraseIndexRun - 1, songEndIndex);// handle song jumped
+	for (; phrn >= songBeginIndex && phrases[phrn].getReps() == 0; phrn--);
+	if (phrn < songBeginIndex) {
+		if (rollover)
+			for (phrn = songEndIndex; phrn > phraseIndexRun && phrases[phrn].getReps() == 0; phrn--);
+		else
+			phrn = phraseIndexRun;
+		phraseIndexRunHistory--;
+	}
+	phraseIndexRun = phrn;
+}
+
+
+void SequencerKernel::moveSongIndexForeward(bool init, bool rollover) {
+	int phrn = 0;
+	
+	// search fowrard for next non 0-rep seq, ends up in same phrase if all reps in the song are 0
+	if (init) {
+		phraseIndexRun = songBeginIndex;
+		phrn = phraseIndexRun;
+	}
+	else
+		phrn = max(phraseIndexRun + 1, songBeginIndex);// handle song jumped
+	for (; phrn <= songEndIndex && phrases[phrn].getReps() == 0; phrn++);
+	if (phrn > songEndIndex) {
+		if (rollover)
+			for (phrn = songBeginIndex; phrn < phraseIndexRun && phrases[phrn].getReps() == 0; phrn++);
+		else
+			phrn = phraseIndexRun;
+		phraseIndexRunHistory--;
+	}
+	phraseIndexRun = phrn;
+}
+
+
+void SequencerKernel::moveSongIndexRandom(bool init, uint32_t randomValue) {
+	int phrn = songBeginIndex;
+	int tpi = 0;
+	
+	for (;phrn <= songEndIndex; phrn++) {
+		if (phrases[phrn].getReps() != 0) {
+			tempPhraseIndexes[tpi] = phrn;
+			tpi++;
+			if (init) break;
+		}
+	}
+	
+	if (init) {
+		phraseIndexRun = (tpi == 0 ? songBeginIndex : tempPhraseIndexes[0]);
+	}
+	else {
+		phraseIndexRun = tempPhraseIndexes[randomValue % tpi];
+	}
+}
+
+
+void SequencerKernel::moveSongIndexBrownian(bool init, uint32_t randomValue) {	
+	randomValue = randomValue % 3;// 0 = left, 1 = stay, 2 = right
+	
+	if (init) {
+		moveSongIndexForeward(init, true);
+	}
+	else if (randomValue == 1) {// stay
+		if (phraseIndexRun > songEndIndex || phraseIndexRun < songBeginIndex)
+			moveSongIndexForeward(false, true);	
+	}
+	else if (randomValue == 0) {// left
+		moveSongIndexBackward(false, true);
+	}
+	else {// right
+		moveSongIndexForeward(false, true);
+	}
+}
+
+
+void SequencerKernel::movePhraseIndexRun(bool init) {	
+	uint32_t randomToUseHere = 0ul;
+	
+	if (init)
+		phraseIndexRunHistory = 0;
+	
 	switch (runModeSong) {
 	
 		// history 0x0000 is reserved for reset
 		
 		case MODE_REV :// reverse; history base is 0x2000
 			phraseIndexRunHistory = 0x2000;
-			// search backward for next non 0-rep seq, ends up in same phrase if all reps in the song are 0
-			phrn = min(phraseIndexRun - 1, songEndIndex);// handle song jumped
-			for (; phrn >= songBeginIndex && phrases[phrn].getReps() == 0; phrn--);
-			if (phrn < songBeginIndex)
-				for (phrn = songEndIndex; phrn > phraseIndexRun && phrases[phrn].getReps() == 0; phrn--);
-			phraseIndexRun = phrn;
-			
-			// old method
-			// phraseIndexRun--;
-			// if (phraseIndexRun > songEndIndex)// handle song jumped
-				// phraseIndexRun = songEndIndex;
-			// if (phraseIndexRun < songBeginIndex)
-				// phraseIndexRun = songEndIndex;
+			moveSongIndexBackward(init, true);
 		break;
 		
 		case MODE_PPG :// forward-reverse; history base is 0x3000
 			if (phraseIndexRunHistory < 0x3001 || phraseIndexRunHistory > 0x3002) // even means going forward, odd means going reverse
 				phraseIndexRunHistory = 0x3002;
 			if (phraseIndexRunHistory == 0x3002) {// even so forward phase
-				phraseIndexRun++;
-				if (phraseIndexRun < songBeginIndex)// handle song jumped
-					phraseIndexRun = songBeginIndex;
-				if (phraseIndexRun > songEndIndex) {
-					phraseIndexRun = songEndIndex;
-					phraseIndexRunHistory--;
-				}
+				moveSongIndexForeward(init, false);
 			}
 			else {// odd so reverse phase
-				phraseIndexRun--;
-				if (phraseIndexRun > songEndIndex)// handle song jumped
-					phraseIndexRun = songEndIndex;
-				if (phraseIndexRun < songBeginIndex) {
-					phraseIndexRun = songBeginIndex;
-					phraseIndexRunHistory--;
-				}
+				moveSongIndexBackward(false, false);
 			}
 		break;
 
 		case MODE_PEN :// forward-reverse; history base is 0x4000
 			if (phraseIndexRunHistory < 0x4001 || phraseIndexRunHistory > 0x4002) // even means going forward, odd means going reverse
 				phraseIndexRunHistory = 0x4002;
-			if (phraseIndexRunHistory == 0x4002) {// even so forward phase
-				phraseIndexRun++;
-				if (phraseIndexRun < songBeginIndex)// handle song jumped
-					phraseIndexRun = songBeginIndex;
-				if (phraseIndexRun > songEndIndex) {
-					phraseIndexRun = songEndIndex - 1;
-					phraseIndexRunHistory--;
-					if (phraseIndexRun <= songBeginIndex) {// if back at start after turnaround, then no reverse phase needed
-						phraseIndexRun = songBeginIndex;
-						phraseIndexRunHistory--;
-					}
-				}
+			if (phraseIndexRunHistory == 0x4002) {// even so forward phase	
+				moveSongIndexForeward(init, false);
+				if (phraseIndexRunHistory == 0x4001)
+					moveSongIndexBackward(false, false);
 			}
 			else {// odd so reverse phase
-				phraseIndexRun--;
-				if (phraseIndexRun > songEndIndex)// handle song jumped
-					phraseIndexRun = songEndIndex;
-				if (phraseIndexRun <= songBeginIndex) {
-					phraseIndexRun = songBeginIndex;
-					phraseIndexRunHistory--;
-				}
-			}
+				moveSongIndexBackward(false, false);
+				if (phraseIndexRunHistory == 0x4000)
+					moveSongIndexForeward(false, false);
+			}			
 		break;
 		
 		case MODE_BRN :// brownian random; history base is 0x5000
+		case MODE_ABR :// use track A's random number for song
 			phraseIndexRunHistory = 0x5000;
-			phraseIndexRun += (randomu32() % 3) - 1;
-			if (phraseIndexRun > songEndIndex) {
-				phraseIndexRun = songBeginIndex;
+			
+			if (runModeSong == MODE_ABR && slaveSongRndLast != nullptr) {// must test both since MODE_ABR allowed for track 0 (defaults to BRN)
+				randomToUseHere = *slaveSongRndLast;
 			}
-			if (phraseIndexRun < songBeginIndex) {
-				phraseIndexRun = songEndIndex;
+			else {
+				randomToUseHere = randomu32();
+				songRndLast = randomToUseHere;
 			}
+			moveSongIndexBrownian(init, randomToUseHere);
 		break;
 		
 		case MODE_RND :// random; history base is 0x6000
 		case MODE_ARN :// use track A's random number for song
 			phraseIndexRunHistory = 0x6000;
-			{
-				uint32_t randomToUseHere = 0ul;
-				if (runModeSong == MODE_ARN && slaveSeqRndLast != nullptr) {// must test both since MODE_ARN allowed for track 0 (defaults to RND)
-					randomToUseHere = *slaveSongRndLast;
-				}
-				else {
-					randomToUseHere = randomu32();
-					songRndLast = randomToUseHere;
-				}
-				
-				phraseIndexRun = songBeginIndex + (randomToUseHere % (songEndIndex - songBeginIndex + 1)) ;
+			if (runModeSong == MODE_ARN && slaveSongRndLast != nullptr) {// must test both since MODE_ARN allowed for track 0 (defaults to RND)
+				randomToUseHere = *slaveSongRndLast;
 			}
+			else {
+				randomToUseHere = randomu32();
+				songRndLast = randomToUseHere;
+			}
+			moveSongIndexRandom(init, randomToUseHere);
 		break;
 		
 		default :// MODE_FWD  forward; history base is 0x1000
 			phraseIndexRunHistory = 0x1000;
-			// search fowrard for next non 0-rep seq, ends up in same phrase if all reps in the song are 0
-			phrn = max(phraseIndexRun + 1, songBeginIndex);// handle song jumped
-			for (; phrn <= songEndIndex && phrases[phrn].getReps() == 0; phrn++);
-			if (phrn > songEndIndex)
-				for (phrn = songBeginIndex; phrn < phraseIndexRun && phrases[phrn].getReps() == 0; phrn++);
-			phraseIndexRun = phrn;
-			
-			// old method
-			// phraseIndexRun++;
-			// if (phraseIndexRun < songBeginIndex)// handle song jumped
-				// phraseIndexRun = songBeginIndex;
-			// if (phraseIndexRun > songEndIndex)
-				// phraseIndexRun = songBeginIndex;
+			moveSongIndexForeward(init, true);
 	}
 }
 
