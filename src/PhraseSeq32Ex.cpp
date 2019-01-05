@@ -163,7 +163,7 @@ struct PhraseSeq32Ex : Module {
 
 	
 	PhraseSeq32Ex() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
-		seq.construct(&holdTiedNotes);
+		seq.construct(&holdTiedNotes, &velocityMode);
 		onReset();
 	}
 
@@ -408,8 +408,9 @@ struct PhraseSeq32Ex : Module {
 						if (inputs[CV_INPUTS + trkn].active) {
 							seq.writeCV(trkn, inputs[CV_INPUTS + trkn].value, multiStepsCount, sampleRate, multiTracks);
 							if (velInSources[trkn] != -1 && inputs[VEL_INPUTS + velInSources[trkn]].active) {	
-								int intVel = (int)(inputs[VEL_INPUTS + velInSources[trkn]].value * ((float)StepAttributes::MAX_VELOCITY) / 10.0f + 0.5f);// no velocityMode taken into account here, VEL input is always 0-10V
-								seq.setVelocityVal(trkn, intVel, multiStepsCount, multiTracks);
+								float maxVel = (velocityMode > 0 ? 127.0f : 200.0f);
+								int intVel = (int)(inputs[VEL_INPUTS + velInSources[trkn]].value * maxVel / 10.0f + 0.5f);
+								seq.setVelocityVal(trkn, min(intVel, 200), multiStepsCount, multiTracks);
 							}
 						}
 					}
@@ -777,7 +778,7 @@ struct PhraseSeq32Ex : Module {
 		for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
 			outputs[CV_OUTPUTS + trkn].value = seq.calcCvOutputAndDecSlideStepsRemain(trkn, running);
 			outputs[GATE_OUTPUTS + trkn].value = seq.calcGateOutput(trkn, running, clockTriggers[clkInSources[trkn]], clockPeriod[clkInSources[trkn]], sampleRate);
-			outputs[VEL_OUTPUTS + trkn].value = seq.calcVelOutput(trkn, running, velocityMode);			
+			outputs[VEL_OUTPUTS + trkn].value = seq.calcVelOutput(trkn, running);			
 		}
 
 		// lights
@@ -1017,7 +1018,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			nvgTextLetterSpacing(vg, -0.4);
 
 			Vec textPos = Vec(5.7f, textOffsetY);
-			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
+			nvgFillColor(vg, nvgTransRGBA(textColor, 25));
 			std::string initString(NUMCHAR,'~');
 			nvgText(vg, textPos.x, textPos.y, initString.c_str(), NULL);
 			nvgFillColor(vg, textColor);
@@ -1033,39 +1034,73 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		virtual char printText() = 0;
 	};
 	
-	struct VelocityDisplayWidget : DisplayWidget<3> {
+	struct VelocityDisplayWidget : DisplayWidget<4> {
 		VelocityDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
+
+		void draw(NVGcontext *vg) override {
+			static const int offsetXfrac = 3.8f;
+			NVGcolor textColor = prepareDisplay(vg, &box, textFontSize);
+			nvgFontFaceId(vg, font->handle);
+			nvgTextLetterSpacing(vg, -0.4);
+
+			Vec textPos = Vec(6.6f, textOffsetY);
+			nvgFillColor(vg, nvgTransRGBA(textColor, 25));
+			nvgText(vg, textPos.x, textPos.y, "~", NULL);
+			std::string initString(".~~");
+			nvgText(vg, textPos.x + offsetXfrac, textPos.y, initString.c_str(), NULL);
+			nvgFillColor(vg, textColor);
+			printText();
+			nvgText(vg, textPos.x + offsetXfrac, textPos.y, &displayStr[1], NULL);
+			displayStr[1] = 0;
+			nvgText(vg, textPos.x, textPos.y, displayStr, NULL);
+		}
+
 		char printText() override {
 			if (module->isEditingSequence() || module->attached) {
 				StepAttributes attributesVal = module->seq.getAttribute();
 				if (module->params[PhraseSeq32Ex::VELMODE_PARAM].value > 1.5f) {
 					int slide = attributesVal.getSlideVal();						
 					if ( slide>= 100)
-						snprintf(displayStr, 4, "1,0");
+						snprintf(displayStr, 5, "   1");
 					else if (slide >= 10)
-						snprintf(displayStr, 4, ",%2u", (unsigned) slide);
+						snprintf(displayStr, 5, "0.%2u", (unsigned) slide);
 					else if (slide >= 1)
-						snprintf(displayStr, 4, " ,%1u", (unsigned) slide);
+						snprintf(displayStr, 5, "0.0%1u", (unsigned) slide);
 					else
-						snprintf(displayStr, 4, "  0");
+						snprintf(displayStr, 5, "   0");
 				}
 				else if (module->params[PhraseSeq32Ex::VELMODE_PARAM].value > 0.5f) {
 					int prob = attributesVal.getGatePVal();
 					if ( prob>= 100)
-						snprintf(displayStr, 4, "1,0");
+						snprintf(displayStr, 5, "   1");
 					else if (prob >= 10)
-						snprintf(displayStr, 4, ",%2u", (unsigned) prob);
+						snprintf(displayStr, 5, "0.%2u", (unsigned) prob);
 					else if (prob >= 1)
-						snprintf(displayStr, 4, " ,%1u", (unsigned) prob);
+						snprintf(displayStr, 5, "0.0%1u", (unsigned) prob);
 					else
-						snprintf(displayStr, 4, "  0");
+						snprintf(displayStr, 5, "   0");
 				}
 				else {
-					snprintf(displayStr, 4, "%3u", (unsigned)(attributesVal.getVelocityVal()));
+					unsigned int velocityDisp = (unsigned)(attributesVal.getVelocityVal());
+					if (module->velocityMode > 0) {
+						snprintf(displayStr, 5, " %3u", min(velocityDisp, 127));
+						displayStr[0] = displayStr[1];
+						displayStr[1] = ' ';
+					}
+					else {
+						float cvValPrint = (float)velocityDisp;
+						cvValPrint /= 20.0f;
+						if (cvValPrint > 9.975f)
+							snprintf(displayStr, 5, "  10");
+						else {
+							snprintf(displayStr, 5, "%3.2f", cvValPrint);// Three-wide, two positions after the decimal, left-justified
+							displayStr[1] = '.';// in case locals in printf
+						}							
+					}
 				}
 			}
 			else 				
-				snprintf(displayStr, 4, " - ");
+				snprintf(displayStr, 5, "  - ");
 			return 0;
 		}
 	};
@@ -1224,8 +1259,18 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	struct VelModeItem : MenuItem {
 		PhraseSeq32Ex *module;
 		void onAction(EventAction &e) override {
-			module->velocityMode = module->velocityMode == 1 ? 0 : 1;
+			module->velocityMode++;
+			if (module->velocityMode > 2)
+				module->velocityMode = 0;
 		}
+		void step() override {
+			if (module->velocityMode == 0)
+				text = "CV2 mode: <volts>,  0-127,  0-127semitone";
+			else if (module->velocityMode == 1)
+				text = "CV2 mode: volts,  <0-127>,  0-127semitone";
+			else
+				text = "CV2 mode: volts,  0-127,  <0-127semitone>";
+		}	
 	};
 	struct HoldTiedItem : MenuItem {
 		PhraseSeq32Ex *module;
@@ -1276,7 +1321,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		holdItem->module = module;
 		menu->addChild(holdItem);
 
-		VelModeItem *velItem = MenuItem::create<VelModeItem>("Semitone scaling of velocity outputs", CHECKMARK(module->velocityMode != 0));
+		VelModeItem *velItem = MenuItem::create<VelModeItem>("CV2 mode: ", "");
 		velItem->module = module;
 		menu->addChild(velItem);
 		
@@ -1442,8 +1487,8 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		
 		static const int rowRulerT0 = 56;
 		static const int columnRulerT0 = 25;// Step/Phase LED buttons
-		static const int columnRulerT1 = 373;// Select (steps) 
-		static const int columnRulerT2 = 422;// Copy paste and select mode switch
+		static const int columnRulerT1 = 373;// Select (multi-steps) 
+		static const int columnRulerT2 = 424;// Copy-paste-select mode switch
 		//static const int columnRulerT3 = 463;// Copy paste buttons (not needed when align to track display)
 		static const int columnRulerT5 = 538;// Edit mode switch (and overview switch also)
 		static const int stepsOffsetY = 10;
@@ -1535,8 +1580,8 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int displaySpacingX = 62;
 
 		// Velocity display
-		static const int colRulerVel = 288;
-		addChild(new VelocityDisplayWidget(Vec(colRulerVel, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 3 characters
+		static const int colRulerVel = 289;
+		addChild(new VelocityDisplayWidget(Vec(colRulerVel, rowRulerDisp), Vec(displayWidths + 4, displayHeights), module));// 3 characters
 		// Velocity knob
 		addParam(createDynamicParamCentered<VelocityKnob>(Vec(colRulerVel, rowRulerKnobs), module, PhraseSeq32Ex::VEL_KNOB_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));	
 		// Veocity mode switch (3 position)
@@ -1544,7 +1589,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		
 
 		// Phrase edit display 
-		static const int colRulerEditPhr = colRulerVel + displaySpacingX + 1;
+		static const int colRulerEditPhr = colRulerVel + displaySpacingX + 3;
 		static const int trkButtonsOffsetX = 14;
 		addChild(new PhrEditDisplayWidget(Vec(colRulerEditPhr, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 5 characters
 		// Phrase knob
@@ -1564,7 +1609,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	
 			
 		// Track display
-		static const int colRulerTrk = colRulerEditSeq + displaySpacingX + 1;
+		static const int colRulerTrk = colRulerEditSeq + displaySpacingX;
 		addChild(new TrackDisplayWidget(Vec(colRulerTrk, rowRulerDisp), Vec(displayWidths - 13, displayHeights), module));// 2 characters
 		// Track buttons
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk + trkButtonsOffsetX, rowRulerKnobs), module, PhraseSeq32Ex::TRACKUP_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));

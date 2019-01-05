@@ -211,7 +211,7 @@ struct TwelveKeyWidget : ModuleWidget {
 			//nvgTextLetterSpacing(vg, 2.5);
 
 			Vec textPos = Vec(6, 24);
-			nvgFillColor(vg, nvgTransRGBA(textColor, 16));
+			nvgFillColor(vg, nvgTransRGBA(textColor, 25));
 			nvgText(vg, textPos.x, textPos.y, "~", NULL);
 			nvgFillColor(vg, textColor);
 			char displayStr[2];

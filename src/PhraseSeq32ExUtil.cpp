@@ -844,7 +844,8 @@ void SongCPbuffer::reset() {
 //*****************************************************************************
 
 
-void Sequencer::construct(bool* _holdTiedNotesPtr) {// don't want regaular constructor mechanism
+void Sequencer::construct(bool* _holdTiedNotesPtr, int* _velocityModePtr) {// don't want regaular constructor mechanism
+	velocityModePtr = _velocityModePtr;
 	sek[0].construct(0, nullptr, _holdTiedNotesPtr);
 	for (int trkn = 1; trkn < NUM_TRACKS; trkn++)
 		sek[trkn].construct(trkn, &sek[0], _holdTiedNotesPtr);
@@ -1114,7 +1115,8 @@ void Sequencer::modGatePVal(int deltaVelKnob, int mutliStepsCount, bool multiTra
 	}		
 }
 void Sequencer::modVelocityVal(int deltaVelKnob, int mutliStepsCount, bool multiTracks) {
-	int vVal = sek[trackIndexEdit].modVelocityVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, mutliStepsCount);
+	int upperLimit = ((*velocityModePtr) == 0 ? 200 : 127);
+	int vVal = sek[trackIndexEdit].modVelocityVal(seqIndexEdit, stepIndexEdit, deltaVelKnob, upperLimit, mutliStepsCount);
 	if (multiTracks) {
 		for (int i = 0; i < NUM_TRACKS; i++) {
 			if (i == trackIndexEdit) continue;

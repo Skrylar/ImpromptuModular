@@ -23,7 +23,7 @@ class StepAttributes {
 	static const unsigned long ATT_MSK_SLIDE_VAL = 0x00FF0000, slideValShift = 16;
 
 	static const int INIT_VELOCITY = 100;
-	static const int MAX_VELOCITY = 0x7F;// also used as a bit mask
+	static const int MAX_VELOCITY = 200;
 	static const int INIT_PROB = 50;// range is 0 to 100
 	static const int INIT_SLIDE = 10;// range is 0 to 100
 	
@@ -31,7 +31,7 @@ class StepAttributes {
 
 	inline void clear() {attributes = 0ul;}
 	inline void init() {attributes = ATT_MSK_INITSTATE;}
-	inline void randomize() {attributes = ( (randomu32() & (ATT_MSK_GATE | ATT_MSK_GATEP | ATT_MSK_SLIDE | ATT_MSK_TIED)) | ((randomu32() % 101) << gatePValShift) | ((randomu32() % 101) << slideValShift) | (randomu32() & MAX_VELOCITY) ) ;}
+	inline void randomize() {attributes = ( (randomu32() & (ATT_MSK_GATE | ATT_MSK_GATEP | ATT_MSK_SLIDE | ATT_MSK_TIED)) | ((randomu32() % 101) << gatePValShift) | ((randomu32() % 101) << slideValShift) | (randomu32() % (MAX_VELOCITY + 1)) ) ;}
 	
 	inline bool getGate() {return (attributes & ATT_MSK_GATE) != 0;}
 	inline int getGateType() {return (int)((attributes & ATT_MSK_GATETYPE) >> gateTypeShift);}
@@ -290,9 +290,9 @@ class SequencerKernel {
 		setSlideVal(seqn, stepn, sVal, count);
 		return sVal;
 	}		
-	inline int modVelocityVal(int seqn, int stepn, int delta, int count) {
+	inline int modVelocityVal(int seqn, int stepn, int delta, int upperLimit, int count) {
 		int vVal = getVelocityVal(seqn, stepn);
-		vVal = clamp(vVal + delta, 0, 127);
+		vVal = clamp(vVal + delta, 0, upperLimit);
 		setVelocityVal(seqn, stepn, vVal, count);
 		return vVal;
 	}		
@@ -445,12 +445,13 @@ class Sequencer {
 	int editingGateKeyLight;// no need to initialize, this goes with editingGate (use this only when editingGate > 0)
 	SeqCPbuffer seqCPbuf;
 	SongCPbuffer songCPbuf;
-
+	int* velocityModePtr;
+	
 	
 	public: 
 	
 	
-	void construct(bool* _holdTiedNotesPtr);
+	void construct(bool* _holdTiedNotesPtr, int* _velocityModePtr);
 	
 
 	inline int getStepIndexEdit() {return stepIndexEdit;}
@@ -573,15 +574,20 @@ class Sequencer {
 			return (sek[trkn].calcGate(clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f);
 		return (editingGate[trkn] > 0ul) ? 10.0f : 0.0f;
 	}
-	inline float calcVelOutput(int trkn, bool running, int velocityMode) {
+	inline float calcVelOutput(int trkn, bool running) {
 		if (running)
-			return calcVelocityVoltage(sek[trkn].getVelocityValRun(), velocityMode);
-		return calcVelocityVoltage(sek[trkn].getVelocityVal(seqIndexEdit, stepIndexEdit), velocityMode);
+			return calcVelocityVoltage(sek[trkn].getVelocityValRun());
+		return calcVelocityVoltage(sek[trkn].getVelocityVal(seqIndexEdit, stepIndexEdit));
 	}
-	inline float calcVelocityVoltage(int vVal, int velocityMode) {
-		if (velocityMode == 1)
-			return min(((float)vVal) / 12.0f, 10.0f);
-		return ((float)vVal)* 10.0f / ((float)StepAttributes::MAX_VELOCITY);
+	inline float calcVelocityVoltage(int vVal) {// internal use only, used by: calcVelOutput()
+		float velRet = (float)vVal;
+		if (*velocityModePtr == 0)
+			velRet = velRet * 10.0f / 200.0f;
+		else if (*velocityModePtr == 1)
+			velRet = velRet * 10.0f / 127.0f;
+		else
+			velRet = velRet / 12.0f;
+		return min(velRet, 10.0f);
 	}
 	inline float calcKeyLightWithEditing(int keyScanIndex, int keyLightIndex, float sampleRate) {
 		if (editingGate[trackIndexEdit] > 0ul && editingGateKeyLight != -1)
