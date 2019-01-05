@@ -46,7 +46,6 @@ struct PhraseSeq32Ex : Module {
 		END_PARAM,
 		KEY_GATE_PARAM,
 		ATTACH_PARAM,
-		VELALL_A_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -114,7 +113,6 @@ struct PhraseSeq32Ex : Module {
 	long showLenInSteps;
 	bool multiSteps;
 	bool multiTracks;
-	int velInSources[Sequencer::NUM_TRACKS];
 	int clkInSources[Sequencer::NUM_TRACKS];// first index is always 0 and will never change
 	
 
@@ -184,7 +182,6 @@ struct PhraseSeq32Ex : Module {
 		multiTracks = false;
 		for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
 			clockPeriod[trkn] = 0ul;
-			velInSources[trkn] = -1;
 			clkInSources[trkn] = 0;
 		}
 		seq.reset();
@@ -399,19 +396,18 @@ struct PhraseSeq32Ex : Module {
 
 			// Write input (must be before Left and Right in case route gate simultaneously to Right and Write for example)
 			//  (write must be to correct step)
-			calcVelInSources();
 			bool writeTrig = writeTrigger.process(inputs[WRITE_INPUT].value);
 			if (writeTrig) {
 				if (editingSequence && !attached) {
 					int multiStepsCount = multiSteps ? cpMode : 1;
 					for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
 						if (inputs[CV_INPUTS + trkn].active) {
-							seq.writeCV(trkn, inputs[CV_INPUTS + trkn].value, multiStepsCount, sampleRate, multiTracks);
-							if (velInSources[trkn] != -1 && inputs[VEL_INPUTS + velInSources[trkn]].active) {	
-								float maxVel = (velocityMode > 0 ? 127.0f : 200.0f);
-								int intVel = (int)(inputs[VEL_INPUTS + velInSources[trkn]].value * maxVel / 10.0f + 0.5f);
-								seq.setVelocityVal(trkn, min(intVel, 200), multiStepsCount, multiTracks);
-							}
+							seq.writeCV(trkn, clamp(inputs[CV_INPUTS + trkn].value, -10.0f, 10.0f), multiStepsCount, sampleRate, multiTracks);
+						}
+						if (inputs[VEL_INPUTS + trkn].active) {	
+							float maxVel = (velocityMode > 0 ? 127.0f : 200.0f);
+							int intVel = (int)(inputs[VEL_INPUTS + trkn].value * maxVel / 10.0f + 0.5f);
+							seq.setVelocityVal(trkn, clamp(intVel, 0, 200), multiStepsCount, multiTracks);
 						}
 					}
 					seq.setEditingGateKeyLight(-1);
@@ -922,20 +918,8 @@ struct PhraseSeq32Ex : Module {
 				lights[ATTACH_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
 			}
 			else
-			lights[ATTACH_LIGHT].value = (attached ? 1.0f : 0.0f);
-			
-			// Vel lights
-			bool velLight0 = false;
-			for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
-				if (velInSources[trkn] == 0) {
-					velLight0 = true;
-					break;
-				}
-			}
-			lights[VEL_LIGHTS + 0].value = (velLight0 ? 1.0f : 0.0f);	
-			for (int trkn = 1; trkn < Sequencer::NUM_TRACKS; trkn++)
-				lights[VEL_LIGHTS + trkn].value = (velInSources[trkn] == trkn ? 1.0f : 0.0f);
-	
+				lights[ATTACH_LIGHT].value = (attached ? 1.0f : 0.0f);
+				
 			seq.stepEditingGate();
 			if (tiedWarning > 0l)
 				tiedWarning--;
@@ -971,15 +955,6 @@ struct PhraseSeq32Ex : Module {
 		}
 	}
 	
-	inline void calcVelInSources() {
-		bool velAllA = params[VELALL_A_PARAM].value < 0.5f;
-		for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
-			if (inputs[CV_INPUTS + trkn].active)
-				velInSources[trkn] = velAllA ? 0 : trkn;
-			else
-				velInSources[trkn] = -1;
-		}
-	}
 	
 };
 
@@ -1092,6 +1067,8 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 						cvValPrint /= 20.0f;
 						if (cvValPrint > 9.975f)
 							snprintf(displayStr, 5, "  10");
+						else if (cvValPrint < 0.025f)
+							snprintf(displayStr, 5, "   0");
 						else {
 							snprintf(displayStr, 5, "%3.2f", cvValPrint);// Three-wide, two positions after the decimal, left-justified
 							displayStr[1] = '.';// in case locals in printf
@@ -1265,11 +1242,11 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		}
 		void step() override {
 			if (module->velocityMode == 0)
-				text = "CV2 mode: <volts>,  0-127,  0-127semitone";
+				text = "CV2 mode: <Volts>,  0-127,  0-127semitone";
 			else if (module->velocityMode == 1)
-				text = "CV2 mode: volts,  <0-127>,  0-127semitone";
+				text = "CV2 mode: Volts,  <0-127>,  0-127semitone";
 			else
-				text = "CV2 mode: volts,  0-127,  <0-127semitone>";
+				text = "CV2 mode: Volts,  0-127,  <0-127semitone>";
 		}	
 	};
 	struct HoldTiedItem : MenuItem {
@@ -1730,8 +1707,8 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		
 		
 		// Expansion module
-		static const int rowRulerExpTop = 65;
-		static const int rowSpacingExp = 50;
+		static const int rowRulerExpTop = 67;
+		static const int rowSpacingExp = 55;
 		static const int colRulerExp = panel->box.size.x - expWidth / 2;
 		static const int colOffsetX = 23;
 		addInput(expPorts[0] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, PhraseSeq32Ex::GATECV_INPUT, &module->panelTheme));
@@ -1747,22 +1724,14 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		addInput(expPorts[6] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, PhraseSeq32Ex::LEFTCV_INPUT, &module->panelTheme));
 		addInput(expPorts[7] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, PhraseSeq32Ex::RIGHTCV_INPUT, &module->panelTheme));
 		
-		// Vel all A switch
-		addParam(createParamCentered<CKSSH>(Vec(colRulerExp, 242), module, PhraseSeq32Ex::VELALL_A_PARAM, 0.0f, 1.0f, 0.0f));	// 0.0f is left position
-		
 		// Velocity inputs 
-		static const int velLightOffset = 13;
 		addInput(expPorts[8] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::VEL_INPUTS + 0, &module->panelTheme));
-		addChild(createLightCentered<TinyLight<GreenLight>>(Vec(colRulerExp - colOffsetX - velLightOffset, rowRulerBHigh - velLightOffset), module, PhraseSeq32Ex::VEL_LIGHTS + 0));
 		
 		addInput(expPorts[9] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::VEL_INPUTS + 2, &module->panelTheme));
-		addChild(createLightCentered<TinyLight<GreenLight>>(Vec(colRulerExp + colOffsetX + velLightOffset, rowRulerBHigh - velLightOffset), module, PhraseSeq32Ex::VEL_LIGHTS + 2));
 
 		addInput(expPorts[10] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::VEL_INPUTS + 1, &module->panelTheme));
-		addChild(createLightCentered<TinyLight<GreenLight>>(Vec(colRulerExp - colOffsetX - velLightOffset, rowRulerBLow - velLightOffset), module, PhraseSeq32Ex::VEL_LIGHTS + 1));
 
 		addInput(expPorts[11] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::VEL_INPUTS + 3, &module->panelTheme));
-		addChild(createLightCentered<TinyLight<GreenLight>>(Vec(colRulerExp + colOffsetX + velLightOffset, rowRulerBLow - velLightOffset), module, PhraseSeq32Ex::VEL_LIGHTS + 3));
 	}
 };
 
