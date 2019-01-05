@@ -145,7 +145,7 @@ class SequencerKernel {
 	static const int MAX_PHRASES = 99;// maximum value is 99 (index value is 0 to 98; disp will be 1 to 99)
 
 	// Run modes
-	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, MODE_ARN, MODE_ABR, NUM_MODES};
+	enum RunModeIds {MODE_FWD, MODE_REV, MODE_PPG, MODE_PEN, MODE_BRN, MODE_RND, MODE_TKA, NUM_MODES};
 	static const std::string modeLabels[NUM_MODES];
 	
 	// Gate types
@@ -185,17 +185,14 @@ class SequencerKernel {
 	int gateCode;// -1 = Killed for all pulses of step, 0 = Low for current pulse of step, 1 = High for current pulse of step, 2 = Clk high pulse, 3 = 1ms trig
 	unsigned long slideStepsRemain;// 0 when no slide under way, downward step counter when sliding
 	float slideCVdelta;// no need to initialize, this is only used when slideStepsRemain is not 0
-	uint32_t* slaveSeqRndLast;// nullprt for track 0
-	uint32_t* slaveSongRndLast;// nullprt for track 0
-	uint32_t seqRndLast;// slaved random seq on tracks 2-4
-	uint32_t songRndLast;// slaved random song on tracks 2-4
+	SequencerKernel *masterKernel;// nullprt for track 0, used for grouped run modes (tracks B,C,D follow A when random, for example)
 	bool* holdTiedNotesPtr;
 	
 	
 	public: 
 	
 	
-	void construct(int _id, uint32_t* seqPtr, uint32_t* songPtr, bool* _holdTiedNotesPtr); // don't want regaular constructor mechanism
+	void construct(int _id, SequencerKernel *_masterKernel, bool* _holdTiedNotesPtr); // don't want regaular constructor mechanism
 	
 	
 	inline int getRunModeSong() {return runModeSong;}
@@ -222,10 +219,7 @@ class SequencerKernel {
 	inline int getSlideVal(int seqn, int stepn) {return attributes[seqn][stepn].getSlideVal();}
 	inline int getVelocityVal(int seqn, int stepn) {return attributes[seqn][stepn].getVelocityVal();}
 	inline int getVelocityValRun() {return getAttributeRun().getVelocityVal();}
-	inline int getGateType(int seqn, int stepn) {return attributes[seqn][stepn].getGateType();}
-	inline uint32_t* getSeqRndLast() {return &seqRndLast;}
-	inline uint32_t* getSongRndLast() {return &songRndLast;}
-	
+	inline int getGateType(int seqn, int stepn) {return attributes[seqn][stepn].getGateType();}	
 	
 	inline void setPulsesPerStep(int _pps) {pulsesPerStep = _pps;}
 	inline void setDelay(int _delay) {delay = _delay;}

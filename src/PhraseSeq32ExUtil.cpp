@@ -14,7 +14,7 @@ using namespace rack;
 //*****************************************************************************
 
 
-const std::string SequencerKernel::modeLabels[NUM_MODES] = {"FWD", "REV", "PPG", "PEN", "BRN", "RND", "ARN", "ABR"};
+const std::string SequencerKernel::modeLabels[NUM_MODES] = {"FWD", "REV", "PPG", "PEN", "BRN", "RND", "TKA"};
 
 
 const uint64_t SequencerKernel::advGateHitMaskLow[NUM_GATES] = 
@@ -29,13 +29,10 @@ const uint64_t SequencerKernel::advGateHitMaskHigh[NUM_GATES] =
 //  			TR1 				DUO		  			TR2 	     		D2		  			TR3  TRIG		
 
 
-void SequencerKernel::construct(int _id, uint32_t* seqPtr, uint32_t* songPtr, bool* _holdTiedNotesPtr) {// don't want regaular constructor mechanism
+void SequencerKernel::construct(int _id, SequencerKernel *_masterKernel, bool* _holdTiedNotesPtr) {// don't want regaular constructor mechanism
 	id = _id;
 	ids = "id" + std::to_string(id) + "_";
-	
-	slaveSeqRndLast = seqPtr; 
-	slaveSongRndLast = songPtr;
-	
+	masterKernel = _masterKernel;
 	holdTiedNotesPtr = _holdTiedNotesPtr;
 }
 
@@ -631,58 +628,34 @@ bool SequencerKernel::moveStepIndexRun() {
 		break;
 		
 		case MODE_BRN :// brownian random; history base is 0x5000
-		case MODE_ABR :// use track A's random number for seq
 			if (stepIndexRunHistory < 0x5001 || stepIndexRunHistory > 0x5FFF) 
-				stepIndexRunHistory = 0x5000 + (endStep + 1) * reps;
-			
-			{
-				uint32_t randomToUseHere = 0ul;
-				if (runMode == MODE_ABR && slaveSeqRndLast != nullptr) {// must test both since MODE_ABR allowed for track 0 (defaults to BRN)
-					randomToUseHere = *slaveSeqRndLast;
-				}
-				else {
-					randomToUseHere = randomu32();
-					seqRndLast = randomToUseHere;
-				}
-				
-				stepIndexRun += (randomToUseHere % 3) - 1;
-				if (stepIndexRun > endStep) {
-					stepIndexRun = 0;
-				}
-				if (stepIndexRun < 0) {
-					stepIndexRun = endStep;
-				}
-			}
+				stepIndexRunHistory = 0x5000 + (endStep + 1) * reps;			
+			stepIndexRun += (randomu32() % 3) - 1;
+			if (stepIndexRun > endStep)
+				stepIndexRun = 0;
+			if (stepIndexRun < 0)
+				stepIndexRun = endStep;
 			stepIndexRunHistory--;
-			if (stepIndexRunHistory <= 0x5000) {
+			if (stepIndexRunHistory <= 0x5000)
 				crossBoundary = true;
-			}
 		break;
 		
 		case MODE_RND :// random; history base is 0x6000
-		case MODE_ARN :// use track A's random number for seq
-			if (stepIndexRunHistory < 0x6001 || stepIndexRunHistory > 0x6FFF) {
+			if (stepIndexRunHistory < 0x6001 || stepIndexRunHistory > 0x6FFF)
 				stepIndexRunHistory = 0x6000 + (endStep + 1) * reps;
-			}
-
-			{
-				uint32_t randomToUseHere = 0ul;
-				if (runMode == MODE_ARN && slaveSeqRndLast != nullptr) {// must test both since MODE_ARN allowed for track 0 (defaults to RND)
-					randomToUseHere = *slaveSeqRndLast;
-				}
-				else {
-					randomToUseHere = randomu32();
-					seqRndLast = randomToUseHere;
-				}
-				
-				stepIndexRun = (randomToUseHere % (endStep + 1)) ;
-			}
+			stepIndexRun = (randomu32() % (endStep + 1));
 			stepIndexRunHistory--;
-			if (stepIndexRunHistory <= 0x6000) {
+			if (stepIndexRunHistory <= 0x6000)
 				crossBoundary = true;
-			}
 		break;
 		
+		case MODE_TKA :// use track A's stepIndexRun; base is 0x7000
+			if (masterKernel != nullptr) {
+				stepIndexRunHistory = 0x7000;
+				stepIndexRun = masterKernel->getStepIndexRun();
+				break;
+			}
+			[[fallthrough]];
 		default :// MODE_FWD  forward; history base is 0x1000
 			if (stepIndexRunHistory < 0x1001 || stepIndexRunHistory > 0x1FFF)
 				stepIndexRunHistory = 0x1000 + reps;
@@ -784,8 +757,6 @@ void SequencerKernel::moveSongIndexBrownian(bool init, uint32_t randomValue) {
 
 
 void SequencerKernel::movePhraseIndexRun(bool init) {	
-	uint32_t randomToUseHere = 0ul;
-	
 	if (init)
 		phraseIndexRunHistory = 0;
 	
@@ -825,32 +796,22 @@ void SequencerKernel::movePhraseIndexRun(bool init) {
 		break;
 		
 		case MODE_BRN :// brownian random; history base is 0x5000
-		case MODE_ABR :// use track A's random number for song
 			phraseIndexRunHistory = 0x5000;
-			
-			if (runModeSong == MODE_ABR && slaveSongRndLast != nullptr) {// must test both since MODE_ABR allowed for track 0 (defaults to BRN)
-				randomToUseHere = *slaveSongRndLast;
-			}
-			else {
-				randomToUseHere = randomu32();
-				songRndLast = randomToUseHere;
-			}
-			moveSongIndexBrownian(init, randomToUseHere);
+			moveSongIndexBrownian(init, randomu32());
 		break;
 		
 		case MODE_RND :// random; history base is 0x6000
-		case MODE_ARN :// use track A's random number for song
 			phraseIndexRunHistory = 0x6000;
-			if (runModeSong == MODE_ARN && slaveSongRndLast != nullptr) {// must test both since MODE_ARN allowed for track 0 (defaults to RND)
-				randomToUseHere = *slaveSongRndLast;
-			}
-			else {
-				randomToUseHere = randomu32();
-				songRndLast = randomToUseHere;
-			}
-			moveSongIndexRandom(init, randomToUseHere);
+			moveSongIndexRandom(init, randomu32());
 		break;
 		
+		case MODE_TKA:// use track A's phraseIndexRun; base is 0x7000
+			if (masterKernel != nullptr) {
+				phraseIndexRunHistory = 0x7000;
+				phraseIndexRun = masterKernel->getPhraseIndexRun();
+				break;
+			}
+			[[fallthrough]];
 		default :// MODE_FWD  forward; history base is 0x1000
 			phraseIndexRunHistory = 0x1000;
 			moveSongIndexForeward(init, true);
@@ -884,11 +845,10 @@ void SongCPbuffer::reset() {
 
 
 void Sequencer::construct(bool* _holdTiedNotesPtr) {// don't want regaular constructor mechanism
-	sek[0].construct(0, nullptr, nullptr, _holdTiedNotesPtr);
+	sek[0].construct(0, nullptr, _holdTiedNotesPtr);
 	for (int trkn = 1; trkn < NUM_TRACKS; trkn++)
-		sek[trkn].construct(trkn, sek[0].getSeqRndLast(), sek[0].getSongRndLast(), _holdTiedNotesPtr);
+		sek[trkn].construct(trkn, &sek[0], _holdTiedNotesPtr);
 }
-
 
 
 void Sequencer::setVelocityVal(int trkn, int intVel, int multiStepsCount, bool multiTracks) {
