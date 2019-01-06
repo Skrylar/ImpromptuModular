@@ -424,8 +424,8 @@ struct Clocked : Module {
 			if (!(bpmDetectionMode && inputs[BPM_INPUT].active) || running) {// toggle when not BPM detect, turn off only when BPM detect (allows turn off faster than timeout if don't want any trailing beats after stoppage). If allow manually start in bpmDetectionMode   the clock will not know which pulse is the 1st of a ppqn set, so only allow stop
 				running = !running;
 				runPulse.trigger(0.001f);
-				resetClocked(false);// reset on any change of run state (will not re-launch if not running, thus clock railed low)
 				if (!running && emitResetOnStopRun) {
+				resetClocked(false);// ISSUE 25 FIX (to revert, move this up one line)
 					resetPulse.trigger(0.001f);
 				}
 			}
@@ -590,13 +590,13 @@ struct Clocked : Module {
 				}
 				outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples) ? 10.0f : 0.0f;
 			}
-		}
-		else {
-			for (int i = 0; i < 4; i++) 
-				outputs[CLK_OUTPUTS + i].value = 0.0f;
-		}
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < 4; i++)// ISSUE 25 FIX (to revert, move these three lines four lines down (to put after the else block))
 			clk[i].stepClock();
+		}
+		// else {// ISSUE 25 FIX (to revert, uncomment these four lines)
+			// for (int i = 0; i < 4; i++) 
+				// outputs[CLK_OUTPUTS + i].value = 0.0f;
+		// }
 			
 		// Chaining outputs
 		outputs[RESET_OUTPUT].value = (resetPulse.process((float)sampleTime) ? 10.0f : 0.0f);
