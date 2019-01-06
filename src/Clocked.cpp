@@ -426,8 +426,9 @@ struct Clocked : Module {
 				running = !running;
 				runPulse.trigger(0.001f);
 				if (!running && emitResetOnStopRun) {
-				resetClocked(false);// ISSUE 25 FIX (to revert, move this up one line)
+					resetClocked(false);// ISSUE 25 FIX (to revert, move this up one line)
 					resetPulse.trigger(0.001f);
+					resetLight = 1.0f;// ISSUE 25 FIX (to revert, remove this line)
 				}
 			}
 			else
@@ -500,8 +501,9 @@ struct Clocked : Module {
 						running = false;
 						runPulse.trigger(0.001f);
 						if (emitResetOnStopRun) {
-						resetClocked(false);// ISSUE 25 FIX (to revert, move this up one line)
+							resetClocked(false);// ISSUE 25 FIX (to revert, move this up one line)
 							resetPulse.trigger(0.001f);
+							resetLight = 1.0f;// ISSUE 25 FIX (to revert, remove this line)
 						}
 					}
 				}
@@ -591,8 +593,8 @@ struct Clocked : Module {
 				}
 				outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples) ? 10.0f : 0.0f;
 			}
-		for (int i = 0; i < 4; i++)// ISSUE 25 FIX (to revert, move these three lines four lines down (to put after the else block))
-			clk[i].stepClock();
+			for (int i = 0; i < 4; i++)// ISSUE 25 FIX (to revert, move these three lines four lines down (to put after the else block))
+				clk[i].stepClock();
 		}
 		// else {// ISSUE 25 FIX (to revert, uncomment these four lines)
 			// for (int i = 0; i < 4; i++) 
@@ -793,7 +795,7 @@ struct ClockedWidget : ModuleWidget {
 		ddnItem->module = module;
 		menu->addChild(ddnItem);
 
-		EmitResetItem *erItem = MenuItem::create<EmitResetItem>("Emit Reset when Run is Turned Off", CHECKMARK(module->emitResetOnStopRun));
+		EmitResetItem *erItem = MenuItem::create<EmitResetItem>("Reset when Run is Turned Off", CHECKMARK(module->emitResetOnStopRun));
 		erItem->module = module;
 		menu->addChild(erItem);
 
@@ -988,6 +990,10 @@ struct ClockedWidget : ModuleWidget {
 Model *modelClocked = Model::create<Clocked, ClockedWidget>("Impromptu Modular", "Clocked", "CLK - Clocked", CLOCK_TAG);
 
 /*CHANGE LOG
+
+0.6.13:
+run button now serves as a pause, and will not reset the internal counters in the clock (except when 
+Emit reset is checked, then a reset is done).
 
 0.6.12:
 fixed BPM memorization in BPM sync mode (i.e. when external clock stops, remember last BPM instead of revert to 120)

@@ -803,11 +803,17 @@ struct PhraseSeq32Ex : Module {
 						if (stepn >= seq.getStepIndexEdit() && stepn < (seq.getStepIndexEdit() + cpMode))
 							red = 1.0f;
 					}
+					else if (!running && showLenInSteps > 0l && stepn < seq.getLength()) {
+						green = 0.01f;
+					}
 					else if (stepn == seq.getStepIndexEdit()) {
 						red = 1.0f;
 					}
-					else if (!attached && showLenInSteps > 0l && stepn < seq.getLength()) {
-						green = 0.01f;
+					if (running && red == 0.0f && stepn == seq.getStepIndexRun(seq.getTrackIndexEdit())) {
+						if (green > 0.0f)
+							green = 0.0f;
+						else
+							green = 0.05f;
 					}
 				}
 				else if (attached) {
