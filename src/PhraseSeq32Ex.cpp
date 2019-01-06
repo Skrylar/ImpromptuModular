@@ -1013,7 +1013,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		VelocityDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
 
 		void draw(NVGcontext *vg) override {
-			static const int offsetXfrac = 3.8f;
+			static const float offsetXfrac = 3.0f;
 			NVGcolor textColor = prepareDisplay(vg, &box, textFontSize);
 			nvgFontFaceId(vg, font->handle);
 			nvgTextLetterSpacing(vg, -0.4);

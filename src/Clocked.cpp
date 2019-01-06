@@ -316,6 +316,7 @@ struct Clocked : Module {
 			delay[i].reset();
 			syncRatios[i] = false;
 			ratiosDoubled[i] = getRatioDoubled(i);
+			outputs[CLK_OUTPUTS + i].value = 0.0f;// ISSUE 25 FIX (to revert, remove this line)
 		}
 		extPulseNumber = -1;
 		extIntervalTime = 0.0;
@@ -498,8 +499,8 @@ struct Clocked : Module {
 					if (extIntervalTime > timeoutTime) {
 						running = false;
 						runPulse.trigger(0.001f);
-						resetClocked(false);
 						if (emitResetOnStopRun) {
+						resetClocked(false);// ISSUE 25 FIX (to revert, move this up one line)
 							resetPulse.trigger(0.001f);
 						}
 					}
