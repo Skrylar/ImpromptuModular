@@ -1535,7 +1535,7 @@ struct PhraseSeq32Widget : ModuleWidget {
 			bool editingSequence = module->isEditingSequence();
 
 			Vec textPos = Vec(6, 24);
-			nvgFillColor(vg, nvgTransRGBA(textColor, 25));
+			nvgFillColor(vg, nvgTransRGBA(textColor, displayAlpha));
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
 			if (module->infoCopyPaste != 0l) {

@@ -41,6 +41,7 @@ extern Model *modelBlankPanel;
 // General constants
 static constexpr float clockIgnoreOnResetDuration = 0.001f;// disable clock on powerup and reset for 1 ms (so that the first step plays)
 static const float lightLambda = 0.075f;
+static const int displayAlpha = 23;
 static const std::string lightPanelID = "Classic";
 static const std::string darkPanelID = "Dark-valor";
 static const std::string expansionMenuLabel = "Extra CVs (requires +4HP to the right!)";// note: PS32EX detects '4' and replaces it with '7'

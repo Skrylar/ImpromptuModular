@@ -531,7 +531,7 @@ struct WriteSeq64Widget : ModuleWidget {
 			nvgTextLetterSpacing(vg, -1.5);
 
 			Vec textPos = Vec(6, 24);
-			nvgFillColor(vg, nvgTransRGBA(textColor, 25));
+			nvgFillColor(vg, nvgTransRGBA(textColor, displayAlpha));
 			nvgText(vg, textPos.x, textPos.y, "~~~~~~", NULL);
 			nvgFillColor(vg, textColor);
 			cvToStr();
@@ -554,7 +554,7 @@ struct WriteSeq64Widget : ModuleWidget {
 			//nvgTextLetterSpacing(vg, 2.5);
 
 			Vec textPos = Vec(6, 24);
-			nvgFillColor(vg, nvgTransRGBA(textColor, 25));
+			nvgFillColor(vg, nvgTransRGBA(textColor, displayAlpha));
 			nvgText(vg, textPos.x, textPos.y, "~~", NULL);
 			nvgFillColor(vg, textColor);
 			char displayStr[3];
@@ -578,7 +578,7 @@ struct WriteSeq64Widget : ModuleWidget {
 			//nvgTextLetterSpacing(vg, 2.5);
 
 			Vec textPos = Vec(6, 24);
-			nvgFillColor(vg, nvgTransRGBA(textColor, 25));
+			nvgFillColor(vg, nvgTransRGBA(textColor, displayAlpha));
 			nvgText(vg, textPos.x, textPos.y, "~~", NULL);
 			nvgFillColor(vg, textColor);
 			char displayStr[3];
@@ -602,7 +602,7 @@ struct WriteSeq64Widget : ModuleWidget {
 			//nvgTextLetterSpacing(vg, 2.5);
 
 			Vec textPos = Vec(6, 24);
-			nvgFillColor(vg, nvgTransRGBA(textColor, 25));
+			nvgFillColor(vg, nvgTransRGBA(textColor, displayAlpha));
 			nvgText(vg, textPos.x, textPos.y, "~", NULL);
 			nvgFillColor(vg, textColor);
 			char displayStr[2];

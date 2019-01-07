@@ -118,7 +118,7 @@ struct FourViewWidget : ModuleWidget {
 
 			for (int i = 0; i < 2; i++) {
 				Vec textPos = Vec(7.0f + i * 46.0f, 23.4f);
-				nvgFillColor(vg, nvgTransRGBA(textColor, 25));
+				nvgFillColor(vg, nvgTransRGBA(textColor, displayAlpha));
 				nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 				nvgFillColor(vg, textColor);
 				cvToStr(i);

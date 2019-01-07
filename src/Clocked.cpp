@@ -475,7 +475,6 @@ struct Clocked : Module {
 					if (!running) {
 						// this must be the only way to start runnning when in bpmDetectionMode or else
 						//   when manually starting, the clock will not know which pulse is the 1st of a ppqn set
-						//runPulse.trigger(0.001f); don't need this since slaves will detect the same thing
 						running = true;
 						runPulse.trigger(0.001f);
 						resetClocked(false);
@@ -672,7 +671,7 @@ struct ClockedWidget : ModuleWidget {
 			//nvgTextLetterSpacing(vg, 2.5);
 
 			Vec textPos = Vec(6, 24);
-			nvgFillColor(vg, nvgTransRGBA(textColor, 25));
+			nvgFillColor(vg, nvgTransRGBA(textColor, displayAlpha));
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);
 			if (module->notifyInfo[knobIndex] > 0l)

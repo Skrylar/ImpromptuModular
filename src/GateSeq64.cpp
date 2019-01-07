@@ -1119,7 +1119,7 @@ struct GateSeq64Widget : ModuleWidget {
 			bool editingSequence = module->isEditingSequence();
 
 			Vec textPos = Vec(6, 24);
-			nvgFillColor(vg, nvgTransRGBA(textColor, 25));
+			nvgFillColor(vg, nvgTransRGBA(textColor, displayAlpha));
 			nvgText(vg, textPos.x, textPos.y, "~~~", NULL);
 			nvgFillColor(vg, textColor);				
 			if (module->infoCopyPaste != 0l) {
@@ -1152,10 +1152,8 @@ struct GateSeq64Widget : ModuleWidget {
 				int prob = module->getGatePVal(module->sequence, module->stepIndexEdit);
 				if ( prob>= 100)
 					snprintf(displayStr, 4, "1,0");
-				else if (prob >= 10)
-					snprintf(displayStr, 4, ",%2u", (unsigned) prob);
 				else if (prob >= 1)
-					snprintf(displayStr, 4, " ,%1u", (unsigned) prob);
+					snprintf(displayStr, 4, ",%02u", (unsigned) prob);
 				else
 					snprintf(displayStr, 4, "  0");
 			}

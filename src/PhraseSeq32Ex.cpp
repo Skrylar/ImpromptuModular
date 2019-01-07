@@ -999,7 +999,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			nvgTextLetterSpacing(vg, -0.4);
 
 			Vec textPos = Vec(5.7f, textOffsetY);
-			nvgFillColor(vg, nvgTransRGBA(textColor, 25));
+			nvgFillColor(vg, nvgTransRGBA(textColor, displayAlpha));
 			std::string initString(NUMCHAR,'~');
 			nvgText(vg, textPos.x, textPos.y, initString.c_str(), NULL);
 			nvgFillColor(vg, textColor);
@@ -1019,13 +1019,13 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		VelocityDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
 
 		void draw(NVGcontext *vg) override {
-			static const float offsetXfrac = 3.0f;
+			static const float offsetXfrac = 3.5f;
 			NVGcolor textColor = prepareDisplay(vg, &box, textFontSize);
 			nvgFontFaceId(vg, font->handle);
 			nvgTextLetterSpacing(vg, -0.4);
 
-			Vec textPos = Vec(6.6f, textOffsetY);
-			nvgFillColor(vg, nvgTransRGBA(textColor, 25));
+			Vec textPos = Vec(6.3f, textOffsetY);
+			nvgFillColor(vg, nvgTransRGBA(textColor, displayAlpha));
 			nvgText(vg, textPos.x, textPos.y, "~", NULL);
 			std::string initString(".~~");
 			nvgText(vg, textPos.x + offsetXfrac, textPos.y, initString.c_str(), NULL);
@@ -1041,23 +1041,19 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				StepAttributes attributesVal = module->seq.getAttribute();
 				if (module->params[PhraseSeq32Ex::VELMODE_PARAM].value > 1.5f) {
 					int slide = attributesVal.getSlideVal();						
-					if ( slide>= 100)
+					if ( slide >= 100)
 						snprintf(displayStr, 5, "   1");
-					else if (slide >= 10)
-						snprintf(displayStr, 5, "0.%2u", (unsigned) slide);
 					else if (slide >= 1)
-						snprintf(displayStr, 5, "0.0%1u", (unsigned) slide);
+						snprintf(displayStr, 5, "0.%02u", (unsigned) slide);
 					else
 						snprintf(displayStr, 5, "   0");
 				}
 				else if (module->params[PhraseSeq32Ex::VELMODE_PARAM].value > 0.5f) {
 					int prob = attributesVal.getGatePVal();
-					if ( prob>= 100)
+					if ( prob >= 100)
 						snprintf(displayStr, 5, "   1");
-					else if (prob >= 10)
-						snprintf(displayStr, 5, "0.%2u", (unsigned) prob);
 					else if (prob >= 1)
-						snprintf(displayStr, 5, "0.0%1u", (unsigned) prob);
+						snprintf(displayStr, 5, "0.%02u", (unsigned) prob);
 					else
 						snprintf(displayStr, 5, "   0");
 				}
