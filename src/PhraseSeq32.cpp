@@ -1131,6 +1131,8 @@ struct PhraseSeq32 : Module {
 							float slideToCV = cv[newSeq][(i * 16) + stepIndexRun[i]];
 							slideCVdelta[i] = (slideToCV - slideFromCV[i])/(float)slideStepsRemain[i];
 						}
+						else
+							slideStepsRemain[i] = 0ul;
 					}
 				}
 				else {

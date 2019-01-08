@@ -392,6 +392,8 @@ void SequencerKernel::clockStep(unsigned long clockPeriod) {
 				float slideToCV = getCVRun();
 				slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
 			}
+			else
+				slideStepsRemain = 0ul;
 		}
 		calcGateCodeEx(phrases[phraseIndexRun].getSeqNum());// uses stepIndexRun as the step		
 	}

@@ -41,11 +41,11 @@ struct PhraseSeq32Ex : Module {
 		SEL_PARAM,
 		ALLTRACKS_PARAM,
 		REP_LEN_PARAM,
-		VELMODE_PARAM,
 		BEGIN_PARAM,
 		END_PARAM,
 		KEY_GATE_PARAM,
 		ATTACH_PARAM,
+		VEL_EDIT_PARAM,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -82,7 +82,8 @@ struct PhraseSeq32Ex : Module {
 		GATE_PROB_LIGHT,
 		TIE_LIGHT,
 		ATTACH_LIGHT,
-		ENUMS(VEL_LIGHTS, Sequencer::NUM_TRACKS),
+		VEL_PROB_LIGHT,
+		VEL_SLIDE_LIGHT,
 		NUM_LIGHTS
 	};
 	
@@ -114,6 +115,7 @@ struct PhraseSeq32Ex : Module {
 	bool multiSteps;
 	bool multiTracks;
 	int clkInSources[Sequencer::NUM_TRACKS];// first index is always 0 and will never change
+	int velEditMode;// 0 is velocity, 1 is gate-prob, 2 is slide-rate
 	
 
 	unsigned int lightRefreshCounter = 0;
@@ -149,6 +151,7 @@ struct PhraseSeq32Ex : Module {
 	SchmittTrigger seqCVTrigger;
 	SchmittTrigger selTrigger;
 	SchmittTrigger allTrigger;
+	SchmittTrigger velEditTrigger;
 
 	
 	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
@@ -184,6 +187,7 @@ struct PhraseSeq32Ex : Module {
 			clockPeriod[trkn] = 0ul;
 			clkInSources[trkn] = 0;
 		}
+		velEditMode = 0;
 		seq.reset();
 		initRun();
 	}
@@ -563,6 +567,15 @@ struct PhraseSeq32Ex : Module {
 				}
 			}	
 			
+			// Vel mode button
+			if (velEditTrigger.process(params[VEL_EDIT_PARAM].value)) {
+				if (attached || editingSequence) {
+					if (velEditMode < 2)
+						velEditMode++;
+					else 
+						velEditMode = 0;
+				}
+			}
 		
 			// Velocity edit knob 
 			float velParamValue = params[VEL_KNOB_PARAM].value;
@@ -575,10 +588,10 @@ struct PhraseSeq32Ex : Module {
 					// any changes in here should may also require right click behavior to be updated in the knob's onMouseDown()
 					if (editingSequence && !attached) {
 						int mutliStepsCount = multiSteps ? cpMode : 1;
-						if (params[VELMODE_PARAM].value > 1.5f) {
+						if (velEditMode == 2) {
 							seq.modSlideVal(deltaVelKnob, mutliStepsCount, multiTracks);
 						}
-						else if (params[VELMODE_PARAM].value > 0.5f) {
+						else if (velEditMode == 1) {
 							seq.modGatePVal(deltaVelKnob, mutliStepsCount, multiTracks);
 						}
 						else {
@@ -708,6 +721,8 @@ struct PhraseSeq32Ex : Module {
 				if (editingSequence && !attached ) {
 					if (seq.toggleGateP(multiSteps ? cpMode : 1, multiTracks)) 
 						tiedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
+					else if (seq.getAttribute().getGateP())
+						velEditMode = 1;
 				}
 				else if (attached)
 					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
@@ -717,6 +732,8 @@ struct PhraseSeq32Ex : Module {
 				if (editingSequence && !attached ) {
 					if (seq.toggleSlide(multiSteps ? cpMode : 1, multiTracks))
 						tiedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
+					else if (seq.getAttribute().getSlide())
+						velEditMode = 2;
 				}
 				else if (attached)
 					attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
@@ -743,9 +760,6 @@ struct PhraseSeq32Ex : Module {
 		bool clockTrigs[Sequencer::NUM_TRACKS];
 		for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
 			clockTrigs[trkn] = clockTriggers[trkn].process(inputs[CLOCK_INPUTS + trkn].value);
-			if (clockTrigs[trkn])
-				clockPeriod[trkn] = 0ul;
-			clockPeriod[trkn]++;
 		}
 		if (running && clockIgnoreOnReset == 0l) {
 			for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
@@ -753,6 +767,12 @@ struct PhraseSeq32Ex : Module {
 					seq.clockStep(trkn, clockPeriod[clkInSources[trkn]]);
 			}
 		}
+		for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
+			if (clockTrigs[trkn])
+				clockPeriod[trkn] = 0ul;
+			clockPeriod[trkn]++;
+		}
+		
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
@@ -926,6 +946,16 @@ struct PhraseSeq32Ex : Module {
 			else
 				lights[ATTACH_LIGHT].value = (attached ? 1.0f : 0.0f);
 				
+			// Velocity edit mode lights
+			if (editingSequence || attached) {
+				lights[VEL_PROB_LIGHT].value = (velEditMode == 1 ? 1.0f : 0.0f);
+				lights[VEL_SLIDE_LIGHT].value = (velEditMode == 2 ? 1.0f : 0.0f);
+			}
+			else {
+				lights[VEL_PROB_LIGHT].value = 0.0f;
+				lights[VEL_SLIDE_LIGHT].value = 0.0f;
+			}
+				
 			seq.stepEditingGate();
 			if (tiedWarning > 0l)
 				tiedWarning--;
@@ -1039,7 +1069,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		char printText() override {
 			if (module->isEditingSequence() || module->attached) {
 				StepAttributes attributesVal = module->seq.getAttribute();
-				if (module->params[PhraseSeq32Ex::VELMODE_PARAM].value > 1.5f) {
+				if (module->velEditMode == 2) {
 					int slide = attributesVal.getSlideVal();						
 					if ( slide >= 100)
 						snprintf(displayStr, 5, "   1");
@@ -1048,7 +1078,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 					else
 						snprintf(displayStr, 5, "   0");
 				}
-				else if (module->params[PhraseSeq32Ex::VELMODE_PARAM].value > 0.5f) {
+				else if (module->velEditMode == 1) {
 					int prob = attributesVal.getGatePVal();
 					if ( prob >= 100)
 						snprintf(displayStr, 5, "   1");
@@ -1059,12 +1089,12 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				}
 				else {
 					unsigned int velocityDisp = (unsigned)(attributesVal.getVelocityVal());
-					if (module->velocityMode > 0) {
+					if (module->velocityMode > 0) {// velocity is 0-127
 						snprintf(displayStr, 5, " %3u", min(velocityDisp, 127));
 						displayStr[0] = displayStr[1];
 						displayStr[1] = ' ';
 					}
-					else {
+					else {// velocity is 0-10V
 						float cvValPrint = (float)velocityDisp;
 						cvValPrint /= 20.0f;
 						if (cvValPrint > 9.975f)
@@ -1364,12 +1394,11 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			if (e.button == 1) {
 				// same code structure below as in velocity knob in main step()
 				if (module->isEditingSequence() && !module->attached) {
-					float vparam = module->params[PhraseSeq32Ex::VELMODE_PARAM].value;
 					int multiStepsCount = module->multiSteps ? module->getCPMode() : 1;
-					if (vparam > 1.5f) {
+					if (module->velEditMode == 2) {
 						module->seq.initSlideVal(multiStepsCount, module->multiTracks);
 					}
-					else if (vparam > 0.5f) {
+					else if (module->velEditMode == 1) {
 						module->seq.initGatePVal(multiStepsCount, module->multiTracks);
 					}
 					else {
@@ -1565,16 +1594,18 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 
 		// Velocity display
 		static const int colRulerVel = 289;
+		static const int trkButtonsOffsetX = 14;
 		addChild(new VelocityDisplayWidget(Vec(colRulerVel, rowRulerDisp), Vec(displayWidths + 4, displayHeights), module));// 3 characters
 		// Velocity knob
 		addParam(createDynamicParamCentered<VelocityKnob>(Vec(colRulerVel, rowRulerKnobs), module, PhraseSeq32Ex::VEL_KNOB_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));	
-		// Veocity mode switch (3 position)
-		addParam(createParamCentered<CKSSHThreeNotify>(Vec(colRulerVel, rowRulerSmallButtons), module, PhraseSeq32Ex::VELMODE_PARAM, 0.0f, 2.0f, 0.0f));	// 0.0f is top position
+		// Veocity mode button and light(s)
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerVel - trkButtonsOffsetX - 2, rowRulerSmallButtons), module, PhraseSeq32Ex::VEL_EDIT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(createLightCentered<MediumLight<RedLight>>(Vec(colRulerVel + 4, rowRulerSmallButtons), module, PhraseSeq32Ex::VEL_PROB_LIGHT));
+		addChild(createLightCentered<MediumLight<RedLight>>(Vec(colRulerVel + 20, rowRulerSmallButtons), module, PhraseSeq32Ex::VEL_SLIDE_LIGHT));
 		
 
 		// Phrase edit display 
 		static const int colRulerEditPhr = colRulerVel + displaySpacingX + 3;
-		static const int trkButtonsOffsetX = 14;
 		addChild(new PhrEditDisplayWidget(Vec(colRulerEditPhr, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 5 characters
 		// Phrase knob
 		addParam(createDynamicParamCentered<PhraseKnob>(Vec(colRulerEditPhr, rowRulerKnobs), module, PhraseSeq32Ex::PHRASE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
@@ -1607,7 +1638,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	
 		// Attach button and light
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerT5 - 10, rowRulerDisp + 4), module, PhraseSeq32Ex::ATTACH_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerT5 + 10, rowRulerDisp + 4), module, PhraseSeq32Ex::ATTACH_LIGHT));		
+		addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerT5 + 10, rowRulerDisp + 4), module, PhraseSeq32Ex::ATTACH_LIGHT));
 	
 	
 		// ****** Gate and slide section ******

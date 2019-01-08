@@ -1152,6 +1152,8 @@ struct SemiModularSynth : Module {
 						float slideToCV = cv[newSeq][stepIndexRun];
 						slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
 					}
+					else 
+						slideStepsRemain = 0ul;
 				}
 				else {
 					if (!editingSequence)
