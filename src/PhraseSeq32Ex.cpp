@@ -765,17 +765,21 @@ struct PhraseSeq32Ex : Module {
 		//********** Clock and reset **********
 		
 		// Clock
-		bool clockTrigged[Sequencer::NUM_TRACKS];
+		bool clockTrigs[Sequencer::NUM_TRACKS];
 		for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
-			clockTrigged[trkn] = clockTriggers[trkn].process(inputs[CLOCK_INPUTS + trkn].value);
+			clockTrigs[trkn] = clockTriggers[trkn].process(inputs[CLOCK_INPUTS + trkn].value);
 		}
 		if (running && clockIgnoreOnReset == 0l) {
 			for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
-				if (clockTrigged[clkInSources[trkn]])
-					seq.clockStep(trkn);
+				if (clockTrigs[clkInSources[trkn]])
+					seq.clockStep(trkn, clockPeriod[clkInSources[trkn]]);
 			}
 		}
-		seq.step();
+		for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
+			if (clockTrigs[trkn])
+				clockPeriod[trkn] = 0ul;
+			clockPeriod[trkn]++;
+		}
 		
 		
 		// Reset
@@ -797,7 +801,7 @@ struct PhraseSeq32Ex : Module {
 		// CV, gate and velocity outputs
 		for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
 			outputs[CV_OUTPUTS + trkn].value = seq.calcCvOutputAndDecSlideStepsRemain(trkn, running);
-			outputs[GATE_OUTPUTS + trkn].value = seq.calcGateOutput(trkn, running, clockTriggers[clkInSources[trkn]], sampleRate);
+			outputs[GATE_OUTPUTS + trkn].value = seq.calcGateOutput(trkn, running, clockTriggers[clkInSources[trkn]], clockPeriod[clkInSources[trkn]], sampleRate);
 			outputs[VEL_OUTPUTS + trkn].value = seq.calcVelOutput(trkn, running);			
 		}
 

@@ -187,7 +187,6 @@ class SequencerKernel {
 	float slideCVdelta;// no need to initialize, this is only used when slideStepsRemain is not 0
 	SequencerKernel *masterKernel;// nullprt for track 0, used for grouped run modes (tracks B,C,D follow A when random, for example)
 	bool* holdTiedNotesPtr;
-	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
 	
 	
 	public: 
@@ -324,14 +323,14 @@ class SequencerKernel {
 	
 	
 	inline float calcSlideOffset() {return (slideStepsRemain > 0ul ? (slideCVdelta * (float)slideStepsRemain) : 0.0f);}
-	inline bool calcGate(SchmittTrigger clockTrigger, float sampleRate) {
+	inline bool calcGate(SchmittTrigger clockTrigger, unsigned long clockStep, float sampleRate) {
 		if (ppqnLeftToSkip != 0)
 			return false;
 		if (gateCode < 2) 
 			return gateCode == 1;
 		if (gateCode == 2)
 			return clockTrigger.isHigh();
-		return clockPeriod < (unsigned long) (sampleRate * 0.001f);
+		return clockStep < (unsigned long) (sampleRate * 0.001f);
 	}
 	
 	inline void initPulsesPerStep() {pulsesPerStep = 1;}
@@ -357,10 +356,7 @@ class SequencerKernel {
 	void initRun();
 	void toJson(json_t *rootJ);
 	void fromJson(json_t *rootJ);
-	void clockStep();
-	inline void step() {
-		clockPeriod++;
-	}
+	void clockStep(unsigned long clockPeriod);
 	int keyIndexToGateTypeEx(int keyIndex);
 	void transposeSeq(int seqn, int delta);
 	void unTransposeSeq(int seqn) {
@@ -573,9 +569,9 @@ class Sequencer {
 		sek[trkn].decSlideStepsRemain();
 		return cvout;
 	}
-	inline float calcGateOutput(int trkn, bool running, SchmittTrigger clockTrigger, float sampleRate) {
+	inline float calcGateOutput(int trkn, bool running, SchmittTrigger clockTrigger, unsigned long clockPeriod, float sampleRate) {
 		if (running) 
-			return (sek[trkn].calcGate(clockTrigger, sampleRate) ? 10.0f : 0.0f);
+			return (sek[trkn].calcGate(clockTrigger, clockPeriod, sampleRate) ? 10.0f : 0.0f);
 		return (editingGate[trkn] > 0ul) ? 10.0f : 0.0f;
 	}
 	inline float calcVelOutput(int trkn, bool running) {
@@ -633,12 +629,8 @@ class Sequencer {
 	void toJson(json_t *rootJ);
 	void fromJson(json_t *rootJ);
 
-	inline void clockStep(int trkn) {
-		sek[trkn].clockStep();
-	}
-	inline void step() {
-		for (int trkn = 0; trkn < NUM_TRACKS; trkn++) 
-			sek[trkn].step();
+	inline void clockStep(int trkn, unsigned long clockPeriod) {
+		sek[trkn].clockStep(clockPeriod);
 	}
 	
 };// class Sequencer 

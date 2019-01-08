@@ -366,7 +366,7 @@ void SequencerKernel::fromJson(json_t *rootJ) {
 }
 
 
-void SequencerKernel::clockStep() {
+void SequencerKernel::clockStep(unsigned long clockPeriod) {
 	if (ppqnLeftToSkip > 0) {
 		ppqnLeftToSkip--;
 	}
@@ -395,7 +395,6 @@ void SequencerKernel::clockStep() {
 		}
 		calcGateCodeEx(phrases[phraseIndexRun].getSeqNum());// uses stepIndexRun as the step		
 	}
-	clockPeriod = 0ul;
 }
 
 
