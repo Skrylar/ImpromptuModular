@@ -77,12 +77,12 @@ struct PhraseSeq32Ex : Module {
 		ENUMS(KEY_LIGHTS, 12 * 2),// room for GreenRed
 		RUN_LIGHT,
 		RESET_LIGHT,
-		ENUMS(GATE_LIGHT, 2),// room for GreenRed
+		GATE_LIGHT,
 		SLIDE_LIGHT,
-		GATE_PROB_LIGHT,
+		ENUMS(GATE_PROB_LIGHT, 2),// room for GreenRed
 		TIE_LIGHT,
 		ATTACH_LIGHT,
-		VEL_PROB_LIGHT,
+		ENUMS(VEL_PROB_LIGHT, 2),// room for GreenRed
 		VEL_SLIDE_LIGHT,
 		NUM_LIGHTS
 	};
@@ -101,6 +101,7 @@ struct PhraseSeq32Ex : Module {
 	bool running;
 	bool resetOnRun;
 	bool attached;
+	int velEditMode;// 0 is velocity, 1 is gate-prob, 2 is slide-rate
 	Sequencer seq;
 
 	// No need to save
@@ -115,7 +116,6 @@ struct PhraseSeq32Ex : Module {
 	bool multiSteps;
 	bool multiTracks;
 	int clkInSources[Sequencer::NUM_TRACKS];// first index is always 0 and will never change
-	int velEditMode;// 0 is velocity, 1 is gate-prob, 2 is slide-rate
 	
 
 	unsigned int lightRefreshCounter = 0;
@@ -238,6 +238,9 @@ struct PhraseSeq32Ex : Module {
 		// attached
 		json_object_set_new(rootJ, "attached", json_boolean(attached));
 
+		// velEditMode
+		json_object_set_new(rootJ, "velEditMode", json_integer(velEditMode));
+
 		seq.toJson(rootJ);
 		
 		return rootJ;
@@ -295,6 +298,11 @@ struct PhraseSeq32Ex : Module {
 		if (attachedJ)
 			attached = json_is_true(attachedJ);
 		
+		// velEditMode
+		json_t *velEditModeJ = json_object_get(rootJ, "velEditMode");
+		if (velEditModeJ)
+			velEditMode = json_integer_value(velEditModeJ);
+
 		seq.fromJson(rootJ);
 		
 		// Initialize dependants after everything loaded
@@ -826,8 +834,9 @@ struct PhraseSeq32Ex : Module {
 					else if (!running && showLenInSteps > 0l && stepn < seq.getLength()) {
 						green = 0.01f;
 					}
-					else if (stepn == seq.getStepIndexEdit()) {
+					if (stepn == seq.getStepIndexEdit()) {
 						red = 1.0f;
+						green = 0.0f;
 					}
 					if (running && red == 0.0f && stepn == seq.getStepIndexRun(seq.getTrackIndexEdit())) {
 						if (green > 0.0f)
@@ -917,19 +926,19 @@ struct PhraseSeq32Ex : Module {
 				setGreenRed(KEY_LIGHTS + i * 2, green, red);
 			}
 
-			// Gate, GateProb, Slide and Tied lights 
-			if (attributesVisual.getGate())
-				setGreenRed(GATE_LIGHT, (seq.getPulsesPerStep() == 1 ? 0.0f : 1.0f), 1.0f);
-			else 
-				setGreenRed(GATE_LIGHT, 0.0f, 0.0f);
-			lights[GATE_PROB_LIGHT].value = attributesVisual.getGateP() ? 1.0f : 0.0f;
-			lights[SLIDE_LIGHT].value = attributesVisual.getSlide() ? 1.0f : 0.0f;
+			// Gate, Tied, GateProb, and Slide lights 
+			lights[GATE_LIGHT].value = attributesVisual.getGate() ? 1.0f : 0.0f;
 			if (tiedWarning > 0l) {
 				bool warningFlashState = calcWarningFlash(tiedWarning, (long) (warningTime * sampleRate / displayRefreshStepSkips));
 				lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
 			}
 			else
 				lights[TIE_LIGHT].value = attributesVisual.getTied() ? 1.0f : 0.0f;			
+			if (attributesVisual.getGateP())
+				setGreenRed(GATE_PROB_LIGHT, 1.0f, 1.0f);
+			else 
+				setGreenRed(GATE_PROB_LIGHT, 0.0f, 0.0f);
+			lights[SLIDE_LIGHT].value = attributesVisual.getSlide() ? 1.0f : 0.0f;
 			
 			// Reset light
 			lights[RESET_LIGHT].value =	resetLight;
@@ -948,11 +957,11 @@ struct PhraseSeq32Ex : Module {
 				
 			// Velocity edit mode lights
 			if (editingSequence || attached) {
-				lights[VEL_PROB_LIGHT].value = (velEditMode == 1 ? 1.0f : 0.0f);
+				setGreenRed(VEL_PROB_LIGHT, velEditMode == 1 ? 1.0f : 0.0f, velEditMode == 1 ? 1.0f : 0.0f);
 				lights[VEL_SLIDE_LIGHT].value = (velEditMode == 2 ? 1.0f : 0.0f);
 			}
 			else {
-				lights[VEL_PROB_LIGHT].value = 0.0f;
+				setGreenRed(VEL_PROB_LIGHT, 0.0f, 0.0f);
 				lights[VEL_SLIDE_LIGHT].value = 0.0f;
 			}
 				
@@ -1598,9 +1607,9 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		addChild(new VelocityDisplayWidget(Vec(colRulerVel, rowRulerDisp), Vec(displayWidths + 4, displayHeights), module));// 3 characters
 		// Velocity knob
 		addParam(createDynamicParamCentered<VelocityKnob>(Vec(colRulerVel, rowRulerKnobs), module, PhraseSeq32Ex::VEL_KNOB_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));	
-		// Veocity mode button and light(s)
+		// Veocity mode button and lights
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerVel - trkButtonsOffsetX - 2, rowRulerSmallButtons), module, PhraseSeq32Ex::VEL_EDIT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addChild(createLightCentered<MediumLight<RedLight>>(Vec(colRulerVel + 4, rowRulerSmallButtons), module, PhraseSeq32Ex::VEL_PROB_LIGHT));
+		addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(colRulerVel + 4, rowRulerSmallButtons), module, PhraseSeq32Ex::VEL_PROB_LIGHT));
 		addChild(createLightCentered<MediumLight<RedLight>>(Vec(colRulerVel + 20, rowRulerSmallButtons), module, PhraseSeq32Ex::VEL_SLIDE_LIGHT));
 		
 
@@ -1653,13 +1662,13 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		addParam(createParamCentered<CKSSNotify>(Vec(colRulerKM, rowRulerMB0), module, PhraseSeq32Ex::KEY_GATE_PARAM, 0.0f, 1.0f, 1.0f));
 		
 		// Gate 1 light and button
-		addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(columnRulerMB1 + posLEDvsButton, rowRulerMB0), module, PhraseSeq32Ex::GATE_LIGHT));		
+		addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerMB1 + posLEDvsButton, rowRulerMB0), module, PhraseSeq32Ex::GATE_LIGHT));		
 		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB1, rowRulerMB0), module, PhraseSeq32Ex::GATE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Tie light and button
 		addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerMB2 + posLEDvsButton, rowRulerMB0), module, PhraseSeq32Ex::TIE_LIGHT));		
 		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB2, rowRulerMB0), module, PhraseSeq32Ex::TIE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Gate 1 probability light and button
-		addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerMB3 + posLEDvsButton, rowRulerMB0), module, PhraseSeq32Ex::GATE_PROB_LIGHT));		
+		addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(columnRulerMB3 + posLEDvsButton, rowRulerMB0), module, PhraseSeq32Ex::GATE_PROB_LIGHT));		
 		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB3, rowRulerMB0), module, PhraseSeq32Ex::GATE_PROB_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		
 		// Slide light and button

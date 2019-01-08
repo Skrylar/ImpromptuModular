@@ -196,7 +196,6 @@ void SequencerKernel::reset() {
 	for (int seqn = 0; seqn < MAX_SEQS; seqn++) {
 		initSequence(seqn);		
 	}
-	slideStepsRemain = 0ul;
 	// no need to call initRun() here since user of the kernel does it in its onReset() via its initRun()
 }
 
@@ -212,7 +211,6 @@ void SequencerKernel::randomize() {
 
 void SequencerKernel::initRun() {
 	movePhraseIndexRun(true);// true means init 
-	//phraseIndexRun = (runModeSong == MODE_REV ? songEndIndex : songBeginIndex);	
 
 	int seqn = phrases[phraseIndexRun].getSeqNum();
 	stepIndexRun = (sequences[seqn].getRunMode() == MODE_REV ? sequences[seqn].getLength() - 1 : 0);
