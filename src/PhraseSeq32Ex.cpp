@@ -605,7 +605,7 @@ struct PhraseSeq32Ex : Module {
 					if (displayState == DISP_MODE_SONG) {
 						seq.modRunModeSong(deltaPhrKnob, multiTracks);
 					}
-					else if (!editingSequence && !attached) {
+					else if (!editingSequence && !attached && displayState != DISP_PPQN && displayState != DISP_DELAY) {
 						seq.movePhraseIndexEdit(deltaPhrKnob);
 						displayState = DISP_NORMAL;
 					}
@@ -1111,6 +1111,9 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 			}
 			else if (module->displayState == PhraseSeq32Ex::DISP_MODE_SONG) {
 				runModeToStr(module->seq.getRunModeSong());
+			}
+			else if (module->displayState == PhraseSeq32Ex::DISP_PPQN || module->displayState == PhraseSeq32Ex::DISP_DELAY) {
+				snprintf(displayStr, 4, " - ");
 			}
 			else { 
 				if (module->isEditingSequence()) {
