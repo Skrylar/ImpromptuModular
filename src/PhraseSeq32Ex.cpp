@@ -1145,46 +1145,48 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		SeqEditDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
 		
 		char printText() override {
-			if (module->displayState == PhraseSeq32Ex::DISP_PPQN) {
-				snprintf(displayStr, 4, "x%2u", (unsigned) module->seq.getPulsesPerStep());
-			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_DELAY) {
-				snprintf(displayStr, 4, "D%2u", (unsigned) module->seq.getDelay());
-			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_REPS) {
-				snprintf(displayStr, 4, "R%2u", (unsigned) abs(module->seq.getPhraseReps()));
-			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_COPY_SEQ) {
-				snprintf(displayStr, 4, "CPY");
-			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_PASTE_SEQ) {
-				snprintf(displayStr, 4, "PST");
-			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_MODE_SEQ) {
-				runModeToStr(module->seq.getRunModeSeq());
-			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_LEN) {
-				snprintf(displayStr, 4, "L%2u", (unsigned) module->seq.getLength());
-			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_TRANSPOSE) {
-				int tranOffset = module->seq.getTransposeOffset();
-				snprintf(displayStr, 4, "+%2u", (unsigned) abs(tranOffset));
-				if (tranOffset < 0)
-					displayStr[0] = '-';
-			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_ROTATE) {
-				snprintf(displayStr, 4, ")%2u", (unsigned) abs(module->rotateOffset));
-				if (module->rotateOffset < 0)
-					displayStr[0] = '(';
-			}
-			else {
-				// two paths below are equivalent when attached, so no need to check attached
-				if (module->isEditingSequence())
-					snprintf(displayStr, 4, " %2u", (unsigned)(module->seq.getSeqIndexEdit() + 1) );
-				else {
-					int seqn = module->seq.getPhraseSeq();
-					snprintf(displayStr, 4, " %2u", (unsigned)(seqn + 1) );
+			switch (module->displayState) {
+			
+				case PhraseSeq32Ex::DISP_PPQN :
+					snprintf(displayStr, 4, "x%2u", (unsigned) module->seq.getPulsesPerStep());
+				break;
+				case PhraseSeq32Ex::DISP_DELAY :
+					snprintf(displayStr, 4, "D%2u", (unsigned) module->seq.getDelay());
+				break;
+				case PhraseSeq32Ex::DISP_REPS :
+					snprintf(displayStr, 4, "R%2u", (unsigned) module->seq.getPhraseReps());
+				break;
+				case PhraseSeq32Ex::DISP_COPY_SEQ :
+					snprintf(displayStr, 4, "CPY");
+				break;
+				case PhraseSeq32Ex::DISP_PASTE_SEQ :
+					snprintf(displayStr, 4, "PST");
+				break;
+				case PhraseSeq32Ex::DISP_MODE_SEQ :
+					runModeToStr(module->seq.getRunModeSeq());
+				break;
+				case PhraseSeq32Ex::DISP_LEN :
+					snprintf(displayStr, 4, "L%2u", (unsigned) module->seq.getLength());
+				break;
+				case PhraseSeq32Ex::DISP_TRANSPOSE :
+				{
+					int tranOffset = module->seq.getTransposeOffset();
+					snprintf(displayStr, 4, "+%2u", (unsigned) abs(tranOffset));
+					if (tranOffset < 0)
+						displayStr[0] = '-';
 				}
+				break;
+				case PhraseSeq32Ex::DISP_ROTATE :
+					snprintf(displayStr, 4, ")%2u", (unsigned) abs(module->rotateOffset));
+					if (module->rotateOffset < 0)
+						displayStr[0] = '(';
+				break;
+				default :
+					// two paths below are equivalent when attached, so no need to check attached
+					if (module->isEditingSequence())
+						snprintf(displayStr, 4, " %2u", (unsigned)(module->seq.getSeqIndexEdit() + 1) );
+					else
+						snprintf(displayStr, 4, " %2u", (unsigned)(module->seq.getPhraseSeq() + 1) );
 			}
 			return 0;
 		}
