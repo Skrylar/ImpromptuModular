@@ -11,10 +11,10 @@
 
 #include <algorithm>
 #include "ImpromptuModular.hpp"
-#include "PhraseSeq32ExUtil.hpp"
+#include "FoundryUtil.hpp"
 
 
-struct PhraseSeq32Ex : Module {	
+struct Foundry : Module {	
 	enum ParamIds {
 		EDIT_PARAM,
 		PHRASE_PARAM,
@@ -154,7 +154,7 @@ struct PhraseSeq32Ex : Module {
 	SchmittTrigger velEditTrigger;
 
 	
-	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value > 0.5f;}
+	inline bool isEditingSequence(void) {return params[EDIT_PARAM].value < 0.5f;}
 	inline bool isEditingGates(void) {return params[KEY_GATE_PARAM].value < 0.5f;}
 	inline int getCPMode(void) {
 		if (params[CPMODE_PARAM].value > 1.5f) return 2000;// this means end, and code should never loop up to this count. This value should be bigger than max(MAX_STEPS, MAX_PHRASES)
@@ -163,7 +163,7 @@ struct PhraseSeq32Ex : Module {
 	}
 
 	
-	PhraseSeq32Ex() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
+	Foundry() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
 		seq.construct(&holdTiedNotes, &velocityMode);
 		onReset();
 	}
@@ -1001,8 +1001,8 @@ struct PhraseSeq32Ex : Module {
 
 
 
-struct PhraseSeq32ExWidget : ModuleWidget {
-	PhraseSeq32Ex *module;
+struct FoundryWidget : ModuleWidget {
+	Foundry *module;
 	DynamicSVGPanel *panel;
 	int oldExpansion;
 	int expWidth = 105;
@@ -1010,7 +1010,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	
 	template <int NUMCHAR>
 	struct DisplayWidget : TransparentWidget {// a centered display, must derive from this
-		PhraseSeq32Ex *module;
+		Foundry *module;
 		std::shared_ptr<Font> font;
 		char displayStr[NUMCHAR + 1];
 		static const int textFontSize = 15;
@@ -1021,7 +1021,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 				snprintf(displayStr, 4, "%s", SequencerKernel::modeLabels[num].c_str());
 		}
 
-		DisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) {
+		DisplayWidget(Vec _pos, Vec _size, Foundry *_module) {
 			box.size = _size;
 			box.pos = _pos.minus(_size.div(2));
 			module = _module;
@@ -1051,7 +1051,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	};
 	
 	struct VelocityDisplayWidget : DisplayWidget<4> {
-		VelocityDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
+		VelocityDisplayWidget(Vec _pos, Vec _size, Foundry *_module) : DisplayWidget(_pos, _size, _module) {};
 
 		void draw(NVGcontext *vg) override {
 			static const float offsetXfrac = 3.5f;
@@ -1120,7 +1120,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	};
 	
 	struct TrackDisplayWidget : DisplayWidget<2> {
-		TrackDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
+		TrackDisplayWidget(Vec _pos, Vec _size, Foundry *_module) : DisplayWidget(_pos, _size, _module) {};
 		char printText() override {
 			int trkn = module->seq.getTrackIndexEdit();
 			if (module->multiTracks)
@@ -1133,21 +1133,21 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	
 
 	struct PhrEditDisplayWidget : DisplayWidget<3> {
-		PhrEditDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
+		PhrEditDisplayWidget(Vec _pos, Vec _size, Foundry *_module) : DisplayWidget(_pos, _size, _module) {};
 
 		char printText() override {
 			char overlayChar = 0;// extra char to print an end symbol overlaped (begin symbol done in here)
 
-			if (module->displayState == PhraseSeq32Ex::DISP_COPY_SONG) {
+			if (module->displayState == Foundry::DISP_COPY_SONG) {
 				snprintf(displayStr, 4, "CPY");
 			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_PASTE_SONG) {
+			else if (module->displayState == Foundry::DISP_PASTE_SONG) {
 				snprintf(displayStr, 4, "PST");
 			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_MODE_SONG) {
+			else if (module->displayState == Foundry::DISP_MODE_SONG) {
 				runModeToStr(module->seq.getRunModeSong());
 			}
-			else if (module->displayState == PhraseSeq32Ex::DISP_PPQN || module->displayState == PhraseSeq32Ex::DISP_DELAY) {
+			else if (module->displayState == Foundry::DISP_PPQN || module->displayState == Foundry::DISP_DELAY) {
 				snprintf(displayStr, 4, " - ");
 			}
 			else { 
@@ -1180,33 +1180,33 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	
 	
 	struct SeqEditDisplayWidget : DisplayWidget<3> {
-		SeqEditDisplayWidget(Vec _pos, Vec _size, PhraseSeq32Ex *_module) : DisplayWidget(_pos, _size, _module) {};
+		SeqEditDisplayWidget(Vec _pos, Vec _size, Foundry *_module) : DisplayWidget(_pos, _size, _module) {};
 		
 		char printText() override {
 			switch (module->displayState) {
 			
-				case PhraseSeq32Ex::DISP_PPQN :
+				case Foundry::DISP_PPQN :
 					snprintf(displayStr, 4, "x%2u", (unsigned) module->seq.getPulsesPerStep());
 				break;
-				case PhraseSeq32Ex::DISP_DELAY :
+				case Foundry::DISP_DELAY :
 					snprintf(displayStr, 4, "D%2u", (unsigned) module->seq.getDelay());
 				break;
-				case PhraseSeq32Ex::DISP_REPS :
+				case Foundry::DISP_REPS :
 					snprintf(displayStr, 4, "R%2u", (unsigned) module->seq.getPhraseReps());
 				break;
-				case PhraseSeq32Ex::DISP_COPY_SEQ :
+				case Foundry::DISP_COPY_SEQ :
 					snprintf(displayStr, 4, "CPY");
 				break;
-				case PhraseSeq32Ex::DISP_PASTE_SEQ :
+				case Foundry::DISP_PASTE_SEQ :
 					snprintf(displayStr, 4, "PST");
 				break;
-				case PhraseSeq32Ex::DISP_MODE_SEQ :
+				case Foundry::DISP_MODE_SEQ :
 					runModeToStr(module->seq.getRunModeSeq());
 				break;
-				case PhraseSeq32Ex::DISP_LEN :
+				case Foundry::DISP_LEN :
 					snprintf(displayStr, 4, "L%2u", (unsigned) module->seq.getLength());
 				break;
-				case PhraseSeq32Ex::DISP_TRANSPOSE :
+				case Foundry::DISP_TRANSPOSE :
 				{
 					int tranOffset = module->seq.getTransposeOffset();
 					snprintf(displayStr, 4, "+%2u", (unsigned) abs(tranOffset));
@@ -1214,7 +1214,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 						displayStr[0] = '-';
 				}
 				break;
-				case PhraseSeq32Ex::DISP_ROTATE :
+				case Foundry::DISP_ROTATE :
 					snprintf(displayStr, 4, ")%2u", (unsigned) abs(module->rotateOffset));
 					if (module->rotateOffset < 0)
 						displayStr[0] = '(';
@@ -1232,7 +1232,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	
 
 	struct PanelThemeItem : MenuItem {
-		PhraseSeq32Ex *module;
+		Foundry *module;
 		int theme;
 		void onAction(EventAction &e) override {
 			module->panelTheme = theme;
@@ -1242,25 +1242,25 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		}
 	};
 	struct ExpansionItem : MenuItem {
-		PhraseSeq32Ex *module;
+		Foundry *module;
 		void onAction(EventAction &e) override {
 			module->expansion = module->expansion == 1 ? 0 : 1;
 		}
 	};
 	struct ResetOnRunItem : MenuItem {
-		PhraseSeq32Ex *module;
+		Foundry *module;
 		void onAction(EventAction &e) override {
 			module->resetOnRun = !module->resetOnRun;
 		}
 	};
 	struct AutoseqItem : MenuItem {
-		PhraseSeq32Ex *module;
+		Foundry *module;
 		void onAction(EventAction &e) override {
 			module->autoseq = !module->autoseq;
 		}
 	};
 	struct SeqCVmethodItem : MenuItem {
-		PhraseSeq32Ex *module;
+		Foundry *module;
 		void onAction(EventAction &e) override {
 			module->seqCVmethod++;
 			if (module->seqCVmethod > 2)
@@ -1276,7 +1276,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		}	
 	};
 	struct VelModeItem : MenuItem {
-		PhraseSeq32Ex *module;
+		Foundry *module;
 		void onAction(EventAction &e) override {
 			module->velocityMode++;
 			if (module->velocityMode > 2)
@@ -1292,7 +1292,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		}	
 	};
 	struct HoldTiedItem : MenuItem {
-		PhraseSeq32Ex *module;
+		Foundry *module;
 		void onAction(EventAction &e) override {
 			module->holdTiedNotes = !module->holdTiedNotes;
 		}
@@ -1303,7 +1303,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		MenuLabel *spacerLabel = new MenuLabel();
 		menu->addChild(spacerLabel);
 
-		PhraseSeq32Ex *module = dynamic_cast<PhraseSeq32Ex*>(this->module);
+		Foundry *module = dynamic_cast<Foundry*>(this->module);
 		assert(module);
 
 		MenuLabel *themeLabel = new MenuLabel();
@@ -1378,9 +1378,9 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	struct CKSSNotify : CKSS {
 		CKSSNotify() {};
 		void onChange(EventChange &e) override {
-			((PhraseSeq32Ex*)(module))->displayState = PhraseSeq32Ex::DISP_NORMAL;
-			if (paramId != PhraseSeq32Ex::KEY_GATE_PARAM) {
-				((PhraseSeq32Ex*)(module))->multiSteps = false;
+			((Foundry*)(module))->displayState = Foundry::DISP_NORMAL;
+			if (paramId != Foundry::KEY_GATE_PARAM) {
+				((Foundry*)(module))->multiSteps = false;
 			}
 			SVGSwitch::onChange(e);		
 		}
@@ -1388,14 +1388,14 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	struct CKSSHThreeNotify : CKSSHThree {
 		CKSSHThreeNotify() {};
 		void onChange(EventChange &e) override {
-			((PhraseSeq32Ex*)(module))->displayState = PhraseSeq32Ex::DISP_NORMAL;
+			((Foundry*)(module))->displayState = Foundry::DISP_NORMAL;
 			SVGSwitch::onChange(e);		
 		}
 	};
 	struct VelocityKnob : IMMediumKnobInf {
 		VelocityKnob() {};		
 		void onMouseDown(EventMouseDown &e) override {// from ParamWidget.cpp
-			PhraseSeq32Ex* module = dynamic_cast<PhraseSeq32Ex*>(this->module);
+			Foundry* module = dynamic_cast<Foundry*>(this->module);
 			if (e.button == 1) {
 				// same code structure below as in velocity knob in main step()
 				if (module->isEditingSequence() && !module->attached) {
@@ -1409,7 +1409,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 					else {
 						module->seq.initVelocityVal(multiStepsCount, module->multiTracks);
 					}
-					module->displayState = PhraseSeq32Ex::DISP_NORMAL;
+					module->displayState = Foundry::DISP_NORMAL;
 				}
 			}
 			ParamWidget::onMouseDown(e);
@@ -1418,15 +1418,15 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	struct PhraseKnob : IMMediumKnobInf {
 		PhraseKnob() {};		
 		void onMouseDown(EventMouseDown &e) override {// from ParamWidget.cpp
-			PhraseSeq32Ex* module = dynamic_cast<PhraseSeq32Ex*>(this->module);
+			Foundry* module = dynamic_cast<Foundry*>(this->module);
 			if (e.button == 1) {
 				// same code structure below as in phrase knob in main step()
-				if (module->displayState == PhraseSeq32Ex::DISP_MODE_SONG) {
+				if (module->displayState == Foundry::DISP_MODE_SONG) {
 					module->seq.initRunModeSong(module->multiTracks);
 				}
 				else if (!module->isEditingSequence() && !module->attached) {
 					module->seq.setPhraseIndexEdit(0);
-					module->displayState = PhraseSeq32Ex::DISP_NORMAL;
+					module->displayState = Foundry::DISP_NORMAL;
 				}
 			}
 			ParamWidget::onMouseDown(e);
@@ -1435,39 +1435,39 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	struct SequenceKnob : IMMediumKnobInf {
 		SequenceKnob() {};		
 		void onMouseDown(EventMouseDown &e) override {// from ParamWidget.cpp
-			PhraseSeq32Ex* module = dynamic_cast<PhraseSeq32Ex*>(this->module);
+			Foundry* module = dynamic_cast<Foundry*>(this->module);
 			if (e.button == 1) {
 				// same code structure below as in sequence knob in main step()
-				if (module->displayState == PhraseSeq32Ex::DISP_PPQN) {
+				if (module->displayState == Foundry::DISP_PPQN) {
 					module->seq.initPulsesPerStep(module->multiTracks);
 				}
-				else if (module->displayState == PhraseSeq32Ex::DISP_DELAY) {
+				else if (module->displayState == Foundry::DISP_DELAY) {
 					module->seq.initDelay(module->multiTracks);
 				}
-				else if (module->displayState == PhraseSeq32Ex::DISP_MODE_SEQ) {
+				else if (module->displayState == Foundry::DISP_MODE_SEQ) {
 					module->seq.initRunModeSeq(module->multiTracks);
 				}
-				else if (module->displayState == PhraseSeq32Ex::DISP_LEN) {
+				else if (module->displayState == Foundry::DISP_LEN) {
 					module->seq.initLength(module->multiTracks);
 				}
-				else if (module->displayState == PhraseSeq32Ex::DISP_TRANSPOSE) {
+				else if (module->displayState == Foundry::DISP_TRANSPOSE) {
 					module->seq.unTransposeSeq(module->multiTracks);
 				}
-				else if (module->displayState == PhraseSeq32Ex::DISP_ROTATE) {
+				else if (module->displayState == Foundry::DISP_ROTATE) {
 					module->seq.rotateSeq(&(module->rotateOffset), module->rotateOffset * -1, module->multiTracks);
 				}							
-				else if (module->displayState == PhraseSeq32Ex::DISP_REPS) {
+				else if (module->displayState == Foundry::DISP_REPS) {
 					module->seq.initPhraseReps(module->multiTracks);
 				}
 				else if (!module->attached) {
 					if (module->isEditingSequence()) {
-						if (!module->inputs[PhraseSeq32Ex::SEQCV_INPUT].active)
+						if (!module->inputs[Foundry::SEQCV_INPUT].active)
 							module->seq.setSeqIndexEdit(0);
 					}
 					else {// editing song
 						module->seq.initPhraseSeqNum(module->multiTracks);
 					}
-					module->displayState = PhraseSeq32Ex::DISP_NORMAL;
+					module->displayState = Foundry::DISP_NORMAL;
 				}
 			}
 			ParamWidget::onMouseDown(e);
@@ -1475,7 +1475,7 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 	};
 
 		
-	PhraseSeq32ExWidget(PhraseSeq32Ex *module) : ModuleWidget(module) {
+	FoundryWidget(Foundry *module) : ModuleWidget(module) {
 		this->module = module;
 		oldExpansion = -1;
 		
@@ -1483,8 +1483,8 @@ struct PhraseSeq32ExWidget : ModuleWidget {
         panel = new DynamicSVGPanel();
         panel->mode = &module->panelTheme;
 		panel->expWidth = &expWidth;
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq32Ex.svg")));
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/PhraseSeq32Ex.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Foundry.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Foundry.svg")));
         box.size = panel->box.size;
 		box.size.x = box.size.x - (1 - module->expansion) * expWidth;
         addChild(panel);
@@ -1519,27 +1519,27 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		const int numX = SequencerKernel::MAX_STEPS / 2;
 		for (int x = 0; x < numX; x++) {
 			// First row
-			addParam(createParamCentered<LEDButton>(Vec(posX, rowRulerT0 - stepsOffsetY), module, PhraseSeq32Ex::STEP_PHRASE_PARAMS + x, 0.0f, 1.0f, 0.0f));
-			addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(posX, rowRulerT0 - stepsOffsetY), module, PhraseSeq32Ex::STEP_PHRASE_LIGHTS + (x * 2)));
+			addParam(createParamCentered<LEDButton>(Vec(posX, rowRulerT0 - stepsOffsetY), module, Foundry::STEP_PHRASE_PARAMS + x, 0.0f, 1.0f, 0.0f));
+			addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(posX, rowRulerT0 - stepsOffsetY), module, Foundry::STEP_PHRASE_LIGHTS + (x * 2)));
 			// Second row
-			addParam(createParamCentered<LEDButton>(Vec(posX, rowRulerT0 + stepsOffsetY), module, PhraseSeq32Ex::STEP_PHRASE_PARAMS + x + numX, 0.0f, 1.0f, 0.0f));
-			addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(posX, rowRulerT0 + stepsOffsetY), module, PhraseSeq32Ex::STEP_PHRASE_LIGHTS + ((x + numX) * 2)));
+			addParam(createParamCentered<LEDButton>(Vec(posX, rowRulerT0 + stepsOffsetY), module, Foundry::STEP_PHRASE_PARAMS + x + numX, 0.0f, 1.0f, 0.0f));
+			addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(posX, rowRulerT0 + stepsOffsetY), module, Foundry::STEP_PHRASE_LIGHTS + ((x + numX) * 2)));
 			// step position to next location and handle groups of four
 			posX += spacingSteps;
 			if ((x + 1) % 4 == 0)
 				posX += spacingSteps4;
 		}
 		// Sel button
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerT1, rowRulerT0), module, PhraseSeq32Ex::SEL_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerT1, rowRulerT0), module, Foundry::SEL_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		
 		// Copy-paste and select mode switch (3 position)
-		addParam(createParamCentered<CKSSThreeInv>(Vec(columnRulerT2, rowRulerT0), module, PhraseSeq32Ex::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));	// 0.0f is top position
+		addParam(createParamCentered<CKSSThreeInv>(Vec(columnRulerT2, rowRulerT0), module, Foundry::CPMODE_PARAM, 0.0f, 2.0f, 2.0f));	// 0.0f is top position
 		
 		// Copy/paste buttons
 		// see under Track display
 		
 		// Main switch
-		addParam(createParamCentered<CKSSNotify>(Vec(columnRulerT5, rowRulerT0), module, PhraseSeq32Ex::EDIT_PARAM, 0.0f, 1.0f, 1.0f));// 1.0f is top position
+		addParam(createParamCentered<CKSSNotify>(Vec(columnRulerT5, rowRulerT0), module, Foundry::EDIT_PARAM, 0.0f, 1.0f, 0.0f));// 1.0f is top position
 
 		
 		
@@ -1549,8 +1549,8 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int octLightsIntY = 20;
 		static const int rowRulerOct = 111;
 		for (int i = 0; i < 7; i++) {
-			addParam(createParamCentered<LEDButton>(Vec(columnRulerT0, rowRulerOct + i * octLightsIntY), module, PhraseSeq32Ex::OCTAVE_PARAM + i, 0.0f, 1.0f, 0.0f));
-			addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerT0, rowRulerOct + i * octLightsIntY), module, PhraseSeq32Ex::OCTAVE_LIGHTS + i));
+			addParam(createParamCentered<LEDButton>(Vec(columnRulerT0, rowRulerOct + i * octLightsIntY), module, Foundry::OCTAVE_PARAM + i, 0.0f, 1.0f, 0.0f));
+			addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerT0, rowRulerOct + i * octLightsIntY), module, Foundry::OCTAVE_LIGHTS + i));
 		}
 		
 		// Keys and Key lights
@@ -1560,31 +1560,31 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int offsetKeyLEDx = 6;
 		static const int offsetKeyLEDy = 16;
 		// Black keys and lights
-		addParam(createParam<InvisibleKeySmall>(			Vec(65+keyNudgeX, KeyBlackY), module, PhraseSeq32Ex::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(65+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, PhraseSeq32Ex::KEY_LIGHTS + 1 * 2));
-		addParam(createParam<InvisibleKeySmall>(			Vec(93+keyNudgeX, KeyBlackY), module, PhraseSeq32Ex::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(93+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, PhraseSeq32Ex::KEY_LIGHTS + 3 * 2));
-		addParam(createParam<InvisibleKeySmall>(			Vec(150+keyNudgeX, KeyBlackY), module, PhraseSeq32Ex::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(150+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, PhraseSeq32Ex::KEY_LIGHTS + 6 * 2));
-		addParam(createParam<InvisibleKeySmall>(			Vec(178+keyNudgeX, KeyBlackY), module, PhraseSeq32Ex::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(178+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, PhraseSeq32Ex::KEY_LIGHTS + 8 * 2));
-		addParam(createParam<InvisibleKeySmall>(			Vec(206+keyNudgeX, KeyBlackY), module, PhraseSeq32Ex::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(206+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, PhraseSeq32Ex::KEY_LIGHTS + 10 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(65+keyNudgeX, KeyBlackY), module, Foundry::KEY_PARAMS + 1, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(65+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, Foundry::KEY_LIGHTS + 1 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(93+keyNudgeX, KeyBlackY), module, Foundry::KEY_PARAMS + 3, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(93+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, Foundry::KEY_LIGHTS + 3 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(150+keyNudgeX, KeyBlackY), module, Foundry::KEY_PARAMS + 6, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(150+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, Foundry::KEY_LIGHTS + 6 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(178+keyNudgeX, KeyBlackY), module, Foundry::KEY_PARAMS + 8, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(178+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, Foundry::KEY_LIGHTS + 8 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(206+keyNudgeX, KeyBlackY), module, Foundry::KEY_PARAMS + 10, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(206+keyNudgeX+offsetKeyLEDx, KeyBlackY+offsetKeyLEDy), module, Foundry::KEY_LIGHTS + 10 * 2));
 		// White keys and lights
-		addParam(createParam<InvisibleKeySmall>(			Vec(51+keyNudgeX, KeyWhiteY), module, PhraseSeq32Ex::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(51+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq32Ex::KEY_LIGHTS + 0 * 2));
-		addParam(createParam<InvisibleKeySmall>(			Vec(79+keyNudgeX, KeyWhiteY), module, PhraseSeq32Ex::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(79+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq32Ex::KEY_LIGHTS + 2 * 2));
-		addParam(createParam<InvisibleKeySmall>(			Vec(107+keyNudgeX, KeyWhiteY), module, PhraseSeq32Ex::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(107+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq32Ex::KEY_LIGHTS + 4 * 2));
-		addParam(createParam<InvisibleKeySmall>(			Vec(136+keyNudgeX, KeyWhiteY), module, PhraseSeq32Ex::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(136+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq32Ex::KEY_LIGHTS + 5 * 2));
-		addParam(createParam<InvisibleKeySmall>(			Vec(164+keyNudgeX, KeyWhiteY), module, PhraseSeq32Ex::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(164+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq32Ex::KEY_LIGHTS + 7 * 2));
-		addParam(createParam<InvisibleKeySmall>(			Vec(192+keyNudgeX, KeyWhiteY), module, PhraseSeq32Ex::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(192+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq32Ex::KEY_LIGHTS + 9 * 2));
-		addParam(createParam<InvisibleKeySmall>(			Vec(220+keyNudgeX, KeyWhiteY), module, PhraseSeq32Ex::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
-		addChild(createLight<MediumLight<GreenRedLight>>(Vec(220+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, PhraseSeq32Ex::KEY_LIGHTS + 11 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(51+keyNudgeX, KeyWhiteY), module, Foundry::KEY_PARAMS + 0, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(51+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, Foundry::KEY_LIGHTS + 0 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(79+keyNudgeX, KeyWhiteY), module, Foundry::KEY_PARAMS + 2, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(79+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, Foundry::KEY_LIGHTS + 2 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(107+keyNudgeX, KeyWhiteY), module, Foundry::KEY_PARAMS + 4, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(107+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, Foundry::KEY_LIGHTS + 4 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(136+keyNudgeX, KeyWhiteY), module, Foundry::KEY_PARAMS + 5, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(136+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, Foundry::KEY_LIGHTS + 5 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(164+keyNudgeX, KeyWhiteY), module, Foundry::KEY_PARAMS + 7, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(164+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, Foundry::KEY_LIGHTS + 7 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(192+keyNudgeX, KeyWhiteY), module, Foundry::KEY_PARAMS + 9, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(192+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, Foundry::KEY_LIGHTS + 9 * 2));
+		addParam(createParam<InvisibleKeySmall>(			Vec(220+keyNudgeX, KeyWhiteY), module, Foundry::KEY_PARAMS + 11, 0.0, 1.0, 0.0));
+		addChild(createLight<MediumLight<GreenRedLight>>(Vec(220+keyNudgeX+offsetKeyLEDx, KeyWhiteY+offsetKeyLEDy), module, Foundry::KEY_LIGHTS + 11 * 2));
 
 
 
@@ -1602,48 +1602,48 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int trkButtonsOffsetX = 14;
 		addChild(new VelocityDisplayWidget(Vec(colRulerVel, rowRulerDisp), Vec(displayWidths + 4, displayHeights), module));// 3 characters
 		// Velocity knob
-		addParam(createDynamicParamCentered<VelocityKnob>(Vec(colRulerVel, rowRulerKnobs), module, PhraseSeq32Ex::VEL_KNOB_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));	
+		addParam(createDynamicParamCentered<VelocityKnob>(Vec(colRulerVel, rowRulerKnobs), module, Foundry::VEL_KNOB_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));	
 		// Veocity mode button and lights
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerVel - trkButtonsOffsetX - 2, rowRulerSmallButtons), module, PhraseSeq32Ex::VEL_EDIT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(colRulerVel + 4, rowRulerSmallButtons), module, PhraseSeq32Ex::VEL_PROB_LIGHT));
-		addChild(createLightCentered<MediumLight<RedLight>>(Vec(colRulerVel + 20, rowRulerSmallButtons), module, PhraseSeq32Ex::VEL_SLIDE_LIGHT));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerVel - trkButtonsOffsetX - 2, rowRulerSmallButtons), module, Foundry::VEL_EDIT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(colRulerVel + 4, rowRulerSmallButtons), module, Foundry::VEL_PROB_LIGHT));
+		addChild(createLightCentered<MediumLight<RedLight>>(Vec(colRulerVel + 20, rowRulerSmallButtons), module, Foundry::VEL_SLIDE_LIGHT));
 		
 
 		// Phrase edit display 
 		static const int colRulerEditPhr = colRulerVel + displaySpacingX + 3;
 		addChild(new PhrEditDisplayWidget(Vec(colRulerEditPhr, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 5 characters
 		// Phrase knob
-		addParam(createDynamicParamCentered<PhraseKnob>(Vec(colRulerEditPhr, rowRulerKnobs), module, PhraseSeq32Ex::PHRASE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
+		addParam(createDynamicParamCentered<PhraseKnob>(Vec(colRulerEditPhr, rowRulerKnobs), module, Foundry::PHRASE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
 		// Begin/end buttons
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditPhr - trkButtonsOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::BEGIN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditPhr + trkButtonsOffsetX, rowRulerSmallButtons), module, PhraseSeq32Ex::END_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditPhr - trkButtonsOffsetX, rowRulerSmallButtons), module, Foundry::BEGIN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditPhr + trkButtonsOffsetX, rowRulerSmallButtons), module, Foundry::END_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 
 				
 		// Seq edit display 
 		static const int colRulerEditSeq = colRulerEditPhr + displaySpacingX + 1;
 		addChild(new SeqEditDisplayWidget(Vec(colRulerEditSeq, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 5 characters
 		// Sequence-edit knob
-		addParam(createDynamicParamCentered<SequenceKnob>(Vec(colRulerEditSeq, rowRulerKnobs), module, PhraseSeq32Ex::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
+		addParam(createDynamicParamCentered<SequenceKnob>(Vec(colRulerEditSeq, rowRulerKnobs), module, Foundry::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
 		// Transpose/rotate button
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditSeq, rowRulerSmallButtons), module, PhraseSeq32Ex::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditSeq, rowRulerSmallButtons), module, Foundry::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 	
 			
 		// Track display
 		static const int colRulerTrk = colRulerEditSeq + displaySpacingX;
 		addChild(new TrackDisplayWidget(Vec(colRulerTrk, rowRulerDisp), Vec(displayWidths - 13, displayHeights), module));// 2 characters
 		// Track buttons
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk + trkButtonsOffsetX, rowRulerKnobs), module, PhraseSeq32Ex::TRACKUP_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk - trkButtonsOffsetX, rowRulerKnobs), module, PhraseSeq32Ex::TRACKDOWN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk + trkButtonsOffsetX, rowRulerKnobs), module, Foundry::TRACKUP_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk - trkButtonsOffsetX, rowRulerKnobs), module, Foundry::TRACKDOWN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// AllTracks button
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk, rowRulerSmallButtons - 12), module, PhraseSeq32Ex::ALLTRACKS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk, rowRulerSmallButtons - 12), module, Foundry::ALLTRACKS_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Copy/paste buttons
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk - trkButtonsOffsetX, rowRulerT0), module, PhraseSeq32Ex::COPY_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk + trkButtonsOffsetX, rowRulerT0), module, PhraseSeq32Ex::PASTE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk - trkButtonsOffsetX, rowRulerT0), module, Foundry::COPY_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk + trkButtonsOffsetX, rowRulerT0), module, Foundry::PASTE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 	
 	
 		// Attach button and light
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerT5 - 10, rowRulerDisp + 4), module, PhraseSeq32Ex::ATTACH_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-		addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerT5 + 10, rowRulerDisp + 4), module, PhraseSeq32Ex::ATTACH_LIGHT));
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(columnRulerT5 - 10, rowRulerDisp + 4), module, Foundry::ATTACH_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerT5 + 10, rowRulerDisp + 4), module, Foundry::ATTACH_LIGHT));
 	
 	
 		// ****** Gate and slide section ******
@@ -1655,36 +1655,36 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		
 		// Key mode LED buttons	
 		static const int colRulerKM = 61;
-		addParam(createParamCentered<CKSSNotify>(Vec(colRulerKM, rowRulerMB0), module, PhraseSeq32Ex::KEY_GATE_PARAM, 0.0f, 1.0f, 1.0f));
+		addParam(createParamCentered<CKSSNotify>(Vec(colRulerKM, rowRulerMB0), module, Foundry::KEY_GATE_PARAM, 0.0f, 1.0f, 1.0f));
 		
 		// Gate 1 light and button
-		addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerMB1 + posLEDvsButton, rowRulerMB0), module, PhraseSeq32Ex::GATE_LIGHT));		
-		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB1, rowRulerMB0), module, PhraseSeq32Ex::GATE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerMB1 + posLEDvsButton, rowRulerMB0), module, Foundry::GATE_LIGHT));		
+		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB1, rowRulerMB0), module, Foundry::GATE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Tie light and button
-		addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerMB2 + posLEDvsButton, rowRulerMB0), module, PhraseSeq32Ex::TIE_LIGHT));		
-		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB2, rowRulerMB0), module, PhraseSeq32Ex::TIE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(createLightCentered<MediumLight<RedLight>>(Vec(columnRulerMB2 + posLEDvsButton, rowRulerMB0), module, Foundry::TIE_LIGHT));		
+		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB2, rowRulerMB0), module, Foundry::TIE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Gate 1 probability light and button
-		addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(columnRulerMB3 + posLEDvsButton, rowRulerMB0), module, PhraseSeq32Ex::GATE_PROB_LIGHT));		
-		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB3, rowRulerMB0), module, PhraseSeq32Ex::GATE_PROB_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(createLightCentered<MediumLight<GreenRedLight>>(Vec(columnRulerMB3 + posLEDvsButton, rowRulerMB0), module, Foundry::GATE_PROB_LIGHT));		
+		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(columnRulerMB3, rowRulerMB0), module, Foundry::GATE_PROB_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		
 		// Slide light and button
-		addChild(createLightCentered<MediumLight<RedLight>>(Vec(colRulerVel + posLEDvsButton, rowRulerMB0), module, PhraseSeq32Ex::SLIDE_LIGHT));		
-		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(colRulerVel, rowRulerMB0), module, PhraseSeq32Ex::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addChild(createLightCentered<MediumLight<RedLight>>(Vec(colRulerVel + posLEDvsButton, rowRulerMB0), module, Foundry::SLIDE_LIGHT));		
+		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(colRulerVel, rowRulerMB0), module, Foundry::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Mode button
-		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(colRulerEditPhr, rowRulerMB0), module, PhraseSeq32Ex::MODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(colRulerEditPhr, rowRulerMB0), module, Foundry::MODE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Rep/Len button
-		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(colRulerEditSeq, rowRulerMB0), module, PhraseSeq32Ex::REP_LEN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(colRulerEditSeq, rowRulerMB0), module, Foundry::REP_LEN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Clk res
-		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(colRulerTrk, rowRulerMB0), module, PhraseSeq32Ex::CLKRES_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParamCentered<IMBigPushButton>(Vec(colRulerTrk, rowRulerMB0), module, Foundry::CLKRES_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		
 		// Reset and run LED buttons
 		static const int colRulerResetRun = columnRulerT5;
 		// Run LED bezel and light
-		addParam(createParamCentered<LEDBezel>(Vec(colRulerResetRun, rowRulerSmallButtons - 6), module, PhraseSeq32Ex::RUN_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(createLightCentered<MuteLight<GreenLight>>(Vec(colRulerResetRun, rowRulerSmallButtons - 6), module, PhraseSeq32Ex::RUN_LIGHT));
+		addParam(createParamCentered<LEDBezel>(Vec(colRulerResetRun, rowRulerSmallButtons - 6), module, Foundry::RUN_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLightCentered<MuteLight<GreenLight>>(Vec(colRulerResetRun, rowRulerSmallButtons - 6), module, Foundry::RUN_LIGHT));
 		// Reset LED bezel and light
-		addParam(createParamCentered<LEDBezel>(Vec(colRulerResetRun, rowRulerMB0), module, PhraseSeq32Ex::RESET_PARAM, 0.0f, 1.0f, 0.0f));
-		addChild(createLightCentered<MuteLight<GreenLight>>(Vec(colRulerResetRun, rowRulerMB0), module, PhraseSeq32Ex::RESET_LIGHT));
+		addParam(createParamCentered<LEDBezel>(Vec(colRulerResetRun, rowRulerMB0), module, Foundry::RESET_PARAM, 0.0f, 1.0f, 0.0f));
+		addChild(createLightCentered<MuteLight<GreenLight>>(Vec(colRulerResetRun, rowRulerMB0), module, Foundry::RESET_LIGHT));
 		
 
 
@@ -1711,41 +1711,41 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		
 
 		// Autostep and write
-		addParam(createParamCentered<CKSS>(Vec(columnRulerB0, rowRulerBHigh), module, PhraseSeq32Ex::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB0, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::WRITE_INPUT, &module->panelTheme));
+		addParam(createParamCentered<CKSS>(Vec(columnRulerB0, rowRulerBHigh), module, Foundry::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB0, rowRulerBLow), Port::INPUT, module, Foundry::WRITE_INPUT, &module->panelTheme));
 	
 		// CV IN inputs
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB1, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::CV_INPUTS + 0, &module->panelTheme));
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB2, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::CV_INPUTS + 2, &module->panelTheme));
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB1, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::CV_INPUTS + 1, &module->panelTheme));
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB2, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::CV_INPUTS + 3, &module->panelTheme));
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB1, rowRulerBHigh), Port::INPUT, module, Foundry::CV_INPUTS + 0, &module->panelTheme));
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB2, rowRulerBHigh), Port::INPUT, module, Foundry::CV_INPUTS + 2, &module->panelTheme));
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB1, rowRulerBLow), Port::INPUT, module, Foundry::CV_INPUTS + 1, &module->panelTheme));
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB2, rowRulerBLow), Port::INPUT, module, Foundry::CV_INPUTS + 3, &module->panelTheme));
 		
 		// Clock+CV+Gate+Vel outputs
 		// Track A
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB3, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::CLOCK_INPUTS + 0, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB4, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::CV_OUTPUTS + 0, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB5, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::GATE_OUTPUTS + 0, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB6, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::VEL_OUTPUTS + 0, &module->panelTheme));
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB3, rowRulerBHigh), Port::INPUT, module, Foundry::CLOCK_INPUTS + 0, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB4, rowRulerBHigh), Port::OUTPUT, module, Foundry::CV_OUTPUTS + 0, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB5, rowRulerBHigh), Port::OUTPUT, module, Foundry::GATE_OUTPUTS + 0, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB6, rowRulerBHigh), Port::OUTPUT, module, Foundry::VEL_OUTPUTS + 0, &module->panelTheme));
 		// Track C
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB7, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::CLOCK_INPUTS + 2, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB8, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::CV_OUTPUTS + 2, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB9, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::GATE_OUTPUTS + 2, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB10, rowRulerBHigh), Port::OUTPUT, module, PhraseSeq32Ex::VEL_OUTPUTS + 2, &module->panelTheme));
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB7, rowRulerBHigh), Port::INPUT, module, Foundry::CLOCK_INPUTS + 2, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB8, rowRulerBHigh), Port::OUTPUT, module, Foundry::CV_OUTPUTS + 2, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB9, rowRulerBHigh), Port::OUTPUT, module, Foundry::GATE_OUTPUTS + 2, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB10, rowRulerBHigh), Port::OUTPUT, module, Foundry::VEL_OUTPUTS + 2, &module->panelTheme));
 		//
 		// Track B
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB3, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::CLOCK_INPUTS + 1, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB4, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::CV_OUTPUTS + 1, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB5, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::GATE_OUTPUTS + 1, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB6, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::VEL_OUTPUTS + 1, &module->panelTheme));
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB3, rowRulerBLow), Port::INPUT, module, Foundry::CLOCK_INPUTS + 1, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB4, rowRulerBLow), Port::OUTPUT, module, Foundry::CV_OUTPUTS + 1, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB5, rowRulerBLow), Port::OUTPUT, module, Foundry::GATE_OUTPUTS + 1, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB6, rowRulerBLow), Port::OUTPUT, module, Foundry::VEL_OUTPUTS + 1, &module->panelTheme));
 		// Track D
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB7, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::CLOCK_INPUTS + 3, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB8, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::CV_OUTPUTS + 3, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB9, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::GATE_OUTPUTS + 3, &module->panelTheme));
-		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB10, rowRulerBLow), Port::OUTPUT, module, PhraseSeq32Ex::VEL_OUTPUTS + 3, &module->panelTheme));
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB7, rowRulerBLow), Port::INPUT, module, Foundry::CLOCK_INPUTS + 3, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB8, rowRulerBLow), Port::OUTPUT, module, Foundry::CV_OUTPUTS + 3, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB9, rowRulerBLow), Port::OUTPUT, module, Foundry::GATE_OUTPUTS + 3, &module->panelTheme));
+		addOutput(createDynamicPortCentered<IMPort>(Vec(columnRulerB10, rowRulerBLow), Port::OUTPUT, module, Foundry::VEL_OUTPUTS + 3, &module->panelTheme));
 
 		// Run and reset inputs
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB11, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::RUNCV_INPUT, &module->panelTheme));
-		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB11, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::RESET_INPUT, &module->panelTheme));
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB11, rowRulerBHigh), Port::INPUT, module, Foundry::RUNCV_INPUT, &module->panelTheme));
+		addInput(createDynamicPortCentered<IMPort>(Vec(columnRulerB11, rowRulerBLow), Port::INPUT, module, Foundry::RESET_INPUT, &module->panelTheme));
 		
 		
 		
@@ -1754,31 +1754,31 @@ struct PhraseSeq32ExWidget : ModuleWidget {
 		static const int rowSpacingExp = 55;
 		static const int colRulerExp = panel->box.size.x - expWidth / 2;
 		static const int colOffsetX = 23;
-		addInput(expPorts[0] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, PhraseSeq32Ex::GATECV_INPUT, &module->panelTheme));
-		addInput(expPorts[1] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, PhraseSeq32Ex::TIEDCV_INPUT, &module->panelTheme));
+		addInput(expPorts[0] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, Foundry::GATECV_INPUT, &module->panelTheme));
+		addInput(expPorts[1] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerExpTop + rowSpacingExp * 0), Port::INPUT, module, Foundry::TIEDCV_INPUT, &module->panelTheme));
 		
-		addInput(expPorts[2] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, PhraseSeq32Ex::GATEPCV_INPUT, &module->panelTheme));
-		addInput(expPorts[3] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, PhraseSeq32Ex::SLIDECV_INPUT, &module->panelTheme));
+		addInput(expPorts[2] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, Foundry::GATEPCV_INPUT, &module->panelTheme));
+		addInput(expPorts[3] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerExpTop + rowSpacingExp * 1), Port::INPUT, module, Foundry::SLIDECV_INPUT, &module->panelTheme));
 		
-		addInput(expPorts[4] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, PhraseSeq32Ex::SEQCV_INPUT, &module->panelTheme));
-		addInput(expPorts[5] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, PhraseSeq32Ex::TRKCV_INPUT, &module->panelTheme));
+		addInput(expPorts[4] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, Foundry::SEQCV_INPUT, &module->panelTheme));
+		addInput(expPorts[5] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerExpTop + rowSpacingExp * 2), Port::INPUT, module, Foundry::TRKCV_INPUT, &module->panelTheme));
 		
 		// Step arrow CV inputs
-		addInput(expPorts[6] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, PhraseSeq32Ex::LEFTCV_INPUT, &module->panelTheme));
-		addInput(expPorts[7] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, PhraseSeq32Ex::RIGHTCV_INPUT, &module->panelTheme));
+		addInput(expPorts[6] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, Foundry::LEFTCV_INPUT, &module->panelTheme));
+		addInput(expPorts[7] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerExpTop + rowSpacingExp * 3), Port::INPUT, module, Foundry::RIGHTCV_INPUT, &module->panelTheme));
 		
 		// Velocity inputs 
-		addInput(expPorts[8] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::VEL_INPUTS + 0, &module->panelTheme));
+		addInput(expPorts[8] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerBHigh), Port::INPUT, module, Foundry::VEL_INPUTS + 0, &module->panelTheme));
 		
-		addInput(expPorts[9] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerBHigh), Port::INPUT, module, PhraseSeq32Ex::VEL_INPUTS + 2, &module->panelTheme));
+		addInput(expPorts[9] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerBHigh), Port::INPUT, module, Foundry::VEL_INPUTS + 2, &module->panelTheme));
 
-		addInput(expPorts[10] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::VEL_INPUTS + 1, &module->panelTheme));
+		addInput(expPorts[10] = createDynamicPortCentered<IMPort>(Vec(colRulerExp - colOffsetX, rowRulerBLow), Port::INPUT, module, Foundry::VEL_INPUTS + 1, &module->panelTheme));
 
-		addInput(expPorts[11] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerBLow), Port::INPUT, module, PhraseSeq32Ex::VEL_INPUTS + 3, &module->panelTheme));
+		addInput(expPorts[11] = createDynamicPortCentered<IMPort>(Vec(colRulerExp + colOffsetX, rowRulerBLow), Port::INPUT, module, Foundry::VEL_INPUTS + 3, &module->panelTheme));
 	}
 };
 
-Model *modelPhraseSeq32Ex = Model::create<PhraseSeq32Ex, PhraseSeq32ExWidget>("Impromptu Modular", "Phrase-Seq-32Ex", "SEQ - Phrase-Seq-32Ex", SEQUENCER_TAG);
+Model *modelFoundry = Model::create<Foundry, FoundryWidget>("Impromptu Modular", "Foundry", "SEQ - Foundry", SEQUENCER_TAG);
 
 /*CHANGE LOG
 

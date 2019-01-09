@@ -3,7 +3,7 @@
 //***********************************************************************************************
 
 #include "dsp/digital.hpp"
-#include "PhraseSeq32ExUtil.hpp"
+#include "FoundryUtil.hpp"
 
 using namespace rack;
 

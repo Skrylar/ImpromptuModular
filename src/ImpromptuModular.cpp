@@ -22,10 +22,10 @@ void init(rack::Plugin *p) {
 	p->addModel(modelTact1);
 	p->addModel(modelTwelveKey);
 	p->addModel(modelClocked);
+	p->addModel(modelFoundry);
+	p->addModel(modelGateSeq64);
 	p->addModel(modelPhraseSeq16);
 	p->addModel(modelPhraseSeq32);
-	p->addModel(modelPhraseSeq32Ex);
-	p->addModel(modelGateSeq64);
 	p->addModel(modelWriteSeq32);
 	p->addModel(modelWriteSeq64);
 	p->addModel(modelBigButtonSeq);
