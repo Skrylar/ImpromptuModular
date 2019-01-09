@@ -623,7 +623,13 @@ struct Foundry : Module {
 			if (deltaPhrKnob != 0) {
 				if (abs(deltaPhrKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					// any changes in here should may also require right click behavior to be updated in the knob's onMouseDown()
-					if (displayState == DISP_MODE_SONG) {
+					if (displayState == DISP_PPQN) {
+						seq.modPulsesPerStep(deltaPhrKnob, multiTracks);
+					}
+					else if (displayState == DISP_DELAY) {
+						seq.modDelay(deltaPhrKnob, multiTracks);
+					}
+					else if (displayState == DISP_MODE_SONG) {
 						seq.modRunModeSong(deltaPhrKnob, multiTracks);
 					}
 					else if (!editingSequence && !attached && displayState != DISP_PPQN && displayState != DISP_DELAY) {
@@ -646,13 +652,7 @@ struct Foundry : Module {
 			if (deltaSeqKnob != 0) {
 				if (abs(deltaSeqKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					// any changes in here should may also require right click behavior to be updated in the knob's onMouseDown()
-					if (displayState == DISP_PPQN) {
-						seq.modPulsesPerStep(deltaSeqKnob, multiTracks);
-					}
-					else if (displayState == DISP_DELAY) {
-						seq.modDelay(deltaSeqKnob, multiTracks);
-					}
-					else if (displayState == DISP_MODE_SEQ) {
+					if (displayState == DISP_MODE_SEQ) {
 						seq.modRunModeSeq(deltaSeqKnob, multiTracks);
 					}
 					else if (displayState == DISP_LEN) {
@@ -1147,8 +1147,11 @@ struct FoundryWidget : ModuleWidget {
 			else if (module->displayState == Foundry::DISP_MODE_SONG) {
 				runModeToStr(module->seq.getRunModeSong());
 			}
-			else if (module->displayState == Foundry::DISP_PPQN || module->displayState == Foundry::DISP_DELAY) {
-				snprintf(displayStr, 4, " - ");
+			else if (module->displayState == Foundry::DISP_PPQN) {
+				snprintf(displayStr, 4, "x%2u", (unsigned) module->seq.getPulsesPerStep());
+			}
+			else if (module->displayState == Foundry::DISP_DELAY) {
+				snprintf(displayStr, 4, "D%2u", (unsigned) module->seq.getDelay());
 			}
 			else { 
 				if (module->isEditingSequence()) {
@@ -1186,10 +1189,8 @@ struct FoundryWidget : ModuleWidget {
 			switch (module->displayState) {
 			
 				case Foundry::DISP_PPQN :
-					snprintf(displayStr, 4, "x%2u", (unsigned) module->seq.getPulsesPerStep());
-				break;
 				case Foundry::DISP_DELAY :
-					snprintf(displayStr, 4, "D%2u", (unsigned) module->seq.getDelay());
+					snprintf(displayStr, 4, " - ");
 				break;
 				case Foundry::DISP_REPS :
 					snprintf(displayStr, 4, "R%2u", (unsigned) module->seq.getPhraseReps());
@@ -1284,11 +1285,11 @@ struct FoundryWidget : ModuleWidget {
 		}
 		void step() override {
 			if (module->velocityMode == 0)
-				text = "CV2 mode: <Volts>,  0-127,  0-127semitone";
+				text = "CV2: <Volts>,  0-127,  0-127semitone";
 			else if (module->velocityMode == 1)
-				text = "CV2 mode: Volts,  <0-127>,  0-127semitone";
+				text = "CV2: Volts,  <0-127>,  0-127semitone";
 			else
-				text = "CV2 mode: Volts,  0-127,  <0-127semitone>";
+				text = "CV2: Volts,  0-127,  <0-127semitone>";
 		}	
 	};
 	struct HoldTiedItem : MenuItem {
@@ -1340,7 +1341,7 @@ struct FoundryWidget : ModuleWidget {
 		holdItem->module = module;
 		menu->addChild(holdItem);
 
-		VelModeItem *velItem = MenuItem::create<VelModeItem>("CV2 mode: ", "");
+		VelModeItem *velItem = MenuItem::create<VelModeItem>("CV2: ", "");
 		velItem->module = module;
 		menu->addChild(velItem);
 		
@@ -1421,7 +1422,13 @@ struct FoundryWidget : ModuleWidget {
 			Foundry* module = dynamic_cast<Foundry*>(this->module);
 			if (e.button == 1) {
 				// same code structure below as in phrase knob in main step()
-				if (module->displayState == Foundry::DISP_MODE_SONG) {
+				if (module->displayState == Foundry::DISP_PPQN) {
+					module->seq.initPulsesPerStep(module->multiTracks);
+				}
+				else if (module->displayState == Foundry::DISP_DELAY) {
+					module->seq.initDelay(module->multiTracks);
+				}
+				else if (module->displayState == Foundry::DISP_MODE_SONG) {
 					module->seq.initRunModeSong(module->multiTracks);
 				}
 				else if (!module->isEditingSequence() && !module->attached) {
@@ -1438,13 +1445,7 @@ struct FoundryWidget : ModuleWidget {
 			Foundry* module = dynamic_cast<Foundry*>(this->module);
 			if (e.button == 1) {
 				// same code structure below as in sequence knob in main step()
-				if (module->displayState == Foundry::DISP_PPQN) {
-					module->seq.initPulsesPerStep(module->multiTracks);
-				}
-				else if (module->displayState == Foundry::DISP_DELAY) {
-					module->seq.initDelay(module->multiTracks);
-				}
-				else if (module->displayState == Foundry::DISP_MODE_SEQ) {
+				if (module->displayState == Foundry::DISP_MODE_SEQ) {
 					module->seq.initRunModeSeq(module->multiTracks);
 				}
 				else if (module->displayState == Foundry::DISP_LEN) {
@@ -1609,8 +1610,17 @@ struct FoundryWidget : ModuleWidget {
 		addChild(createLightCentered<MediumLight<RedLight>>(Vec(colRulerVel + 20, rowRulerSmallButtons), module, Foundry::VEL_SLIDE_LIGHT));
 		
 
+		// Seq edit display 
+		static const int colRulerEditSeq = colRulerVel + displaySpacingX + 3;
+		addChild(new SeqEditDisplayWidget(Vec(colRulerEditSeq, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 5 characters
+		// Sequence-edit knob
+		addParam(createDynamicParamCentered<SequenceKnob>(Vec(colRulerEditSeq, rowRulerKnobs), module, Foundry::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
+		// Transpose/rotate button
+		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditSeq, rowRulerSmallButtons), module, Foundry::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+	
+			
 		// Phrase edit display 
-		static const int colRulerEditPhr = colRulerVel + displaySpacingX + 3;
+		static const int colRulerEditPhr = colRulerEditSeq + displaySpacingX + 1;
 		addChild(new PhrEditDisplayWidget(Vec(colRulerEditPhr, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 5 characters
 		// Phrase knob
 		addParam(createDynamicParamCentered<PhraseKnob>(Vec(colRulerEditPhr, rowRulerKnobs), module, Foundry::PHRASE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
@@ -1619,17 +1629,8 @@ struct FoundryWidget : ModuleWidget {
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditPhr + trkButtonsOffsetX, rowRulerSmallButtons), module, Foundry::END_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 
 				
-		// Seq edit display 
-		static const int colRulerEditSeq = colRulerEditPhr + displaySpacingX + 1;
-		addChild(new SeqEditDisplayWidget(Vec(colRulerEditSeq, rowRulerDisp), Vec(displayWidths, displayHeights), module));// 5 characters
-		// Sequence-edit knob
-		addParam(createDynamicParamCentered<SequenceKnob>(Vec(colRulerEditSeq, rowRulerKnobs), module, Foundry::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
-		// Transpose/rotate button
-		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerEditSeq, rowRulerSmallButtons), module, Foundry::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
-	
-			
 		// Track display
-		static const int colRulerTrk = colRulerEditSeq + displaySpacingX;
+		static const int colRulerTrk = colRulerEditPhr + displaySpacingX;
 		addChild(new TrackDisplayWidget(Vec(colRulerTrk, rowRulerDisp), Vec(displayWidths - 13, displayHeights), module));// 2 characters
 		// Track buttons
 		addParam(createDynamicParamCentered<IMPushButton>(Vec(colRulerTrk + trkButtonsOffsetX, rowRulerKnobs), module, Foundry::TRACKUP_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
