@@ -612,6 +612,49 @@ struct Foundry : Module {
 			}	
 
 						
+			// Sequence edit knob 
+			float seqParamValue = params[SEQUENCE_PARAM].value;
+			int newSequenceKnob = (int)roundf(seqParamValue * 7.0f);
+			if (seqParamValue == 0.0f)// true when constructor or fromJson() occured
+				sequenceKnob = newSequenceKnob;
+			int deltaSeqKnob = newSequenceKnob - sequenceKnob;
+			if (deltaSeqKnob != 0) {
+				if (abs(deltaSeqKnob) <= 3) {// avoid discontinuous step (initialize for example)
+					// any changes in here should may also require right click behavior to be updated in the knob's onMouseDown()
+					if (displayState == DISP_LEN) {
+						seq.modLength(deltaSeqKnob, multiTracks);
+					}
+					else if (displayState == DISP_TRANSPOSE) {
+						seq.transposeSeq(deltaSeqKnob, multiTracks);
+					}
+					else if (displayState == DISP_ROTATE) {
+						seq.rotateSeq(&rotateOffset, deltaSeqKnob, multiTracks);
+					}							
+					else if (displayState == DISP_REPS) {
+						seq.modPhraseReps(deltaSeqKnob, multiTracks);
+					}
+					else if (displayState == DISP_PPQN || displayState == DISP_DELAY) {
+					}
+					else if (!attached) {
+						if (editingSequence) {
+							if (!inputs[SEQCV_INPUT].active) {
+								seq.moveSeqIndexEdit(deltaSeqKnob);
+								if (displayState != DISP_MODE_SEQ)
+									displayState = DISP_NORMAL;
+							}
+						}
+						else {// editing song
+							seq.modPhraseSeqNum(deltaSeqKnob, multiTracks);
+							displayState = DISP_NORMAL;
+						}
+					}
+					else if (attached)
+						attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
+				}
+				sequenceKnob = newSequenceKnob;
+			}	
+		
+
 			// Phrase edit knob 
 			float phraseParamValue = params[PHRASE_PARAM].value;
 			int newPhraseKnob = (int)roundf(phraseParamValue * 7.0f);
@@ -621,7 +664,10 @@ struct Foundry : Module {
 			if (deltaPhrKnob != 0) {
 				if (abs(deltaPhrKnob) <= 3) {// avoid discontinuous step (initialize for example)
 					// any changes in here should may also require right click behavior to be updated in the knob's onMouseDown()
-					if (displayState == DISP_PPQN) {
+					if (displayState == DISP_MODE_SEQ) {
+						seq.modRunModeSeq(deltaPhrKnob, multiTracks);
+					}
+					else if (displayState == DISP_PPQN) {
 						seq.modPulsesPerStep(deltaPhrKnob, multiTracks);
 					}
 					else if (displayState == DISP_DELAY) {
@@ -641,49 +687,7 @@ struct Foundry : Module {
 				phraseKnob = newPhraseKnob;
 			}	
 				
-				
-			// Sequence edit knob 
-			float seqParamValue = params[SEQUENCE_PARAM].value;
-			int newSequenceKnob = (int)roundf(seqParamValue * 7.0f);
-			if (seqParamValue == 0.0f)// true when constructor or fromJson() occured
-				sequenceKnob = newSequenceKnob;
-			int deltaSeqKnob = newSequenceKnob - sequenceKnob;
-			if (deltaSeqKnob != 0) {
-				if (abs(deltaSeqKnob) <= 3) {// avoid discontinuous step (initialize for example)
-					// any changes in here should may also require right click behavior to be updated in the knob's onMouseDown()
-					if (displayState == DISP_MODE_SEQ) {
-						seq.modRunModeSeq(deltaSeqKnob, multiTracks);
-					}
-					else if (displayState == DISP_LEN) {
-						seq.modLength(deltaSeqKnob, multiTracks);
-					}
-					else if (displayState == DISP_TRANSPOSE) {
-						seq.transposeSeq(deltaSeqKnob, multiTracks);
-					}
-					else if (displayState == DISP_ROTATE) {
-						seq.rotateSeq(&rotateOffset, deltaSeqKnob, multiTracks);
-					}							
-					else if (displayState == DISP_REPS) {
-						seq.modPhraseReps(deltaSeqKnob, multiTracks);
-					}
-					else if (displayState == DISP_PPQN || displayState == DISP_DELAY) {
-					}
-					else if (!attached) {
-						if (editingSequence) {
-							if (!inputs[SEQCV_INPUT].active)
-								seq.moveSeqIndexEdit(deltaSeqKnob);
-						}
-						else {// editing song
-							seq.modPhraseSeqNum(deltaSeqKnob, multiTracks);
-						}
-						displayState = DISP_NORMAL;
-					}
-					else if (attached)
-						attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
-				}
-				sequenceKnob = newSequenceKnob;
-			}	
-			
+	
 			// Octave buttons
 			for (int octn = 0; octn < 7; octn++) {
 				if (octTriggers[octn].process(params[OCTAVE_PARAM + octn].value)) {
@@ -1120,17 +1124,56 @@ struct FoundryWidget : ModuleWidget {
 		}
 	};
 	
-	struct TrackDisplayWidget : DisplayWidget<2> {
-		TrackDisplayWidget(Vec _pos, Vec _size, Foundry *_module) : DisplayWidget(_pos, _size, _module) {};
+
+	struct SeqEditDisplayWidget : DisplayWidget<3> {
+		SeqEditDisplayWidget(Vec _pos, Vec _size, Foundry *_module) : DisplayWidget(_pos, _size, _module) {};
+		
 		char printText() override {
-			int trkn = module->seq.getTrackIndexEdit();
-			if (module->multiTracks)
-				snprintf(displayStr, 3, "%c%c", (unsigned)(trkn + 0x41), ((module->multiTracks && (time(0) & 0x1)) ? '*' : ' '));
-			else {
-				snprintf(displayStr, 3, " %c", (unsigned)(trkn + 0x41));
-				if (module->displayState == Foundry::DISP_MODE_SONG || 
-					module->displayState == Foundry::DISP_PPQN || module->displayState == Foundry::DISP_DELAY)
-					displayStr[0] = '(';
+			switch (module->displayState) {
+			
+				case Foundry::DISP_PPQN :
+				case Foundry::DISP_DELAY :
+					snprintf(displayStr, 4, " - ");
+				break;
+				case Foundry::DISP_REPS :
+					snprintf(displayStr, 4, "R%2u", (unsigned) module->seq.getPhraseReps());
+				break;
+				case Foundry::DISP_COPY_SEQ :
+					snprintf(displayStr, 4, "CPY");
+				break;
+				case Foundry::DISP_PASTE_SEQ :
+					snprintf(displayStr, 4, "PST");
+				break;
+				case Foundry::DISP_LEN :
+					snprintf(displayStr, 4, "L%2u", (unsigned) module->seq.getLength());
+				break;
+				case Foundry::DISP_TRANSPOSE :
+				{
+					int tranOffset = module->seq.getTransposeOffset();
+					snprintf(displayStr, 4, "+%2u", (unsigned) abs(tranOffset));
+					if (tranOffset < 0)
+						displayStr[0] = '-';
+				}
+				break;
+				case Foundry::DISP_ROTATE :
+					snprintf(displayStr, 4, ")%2u", (unsigned) abs(module->rotateOffset));
+					if (module->rotateOffset < 0)
+						displayStr[0] = '(';
+				break;
+				default :
+					// two paths below are equivalent when attached, so no need to check attached
+					if (module->isEditingSequence()) {
+						snprintf(displayStr, 4, " %2u", (unsigned)(module->seq.getSeqIndexEdit() + 1) );
+						if (module->displayState == Foundry::DISP_MODE_SEQ) {
+							displayStr[0] = displayStr[1];
+							displayStr[1] = displayStr[2];
+							displayStr[2] = ')';
+						}
+				break;
+
+					}
+					else
+						snprintf(displayStr, 4, " %2u", (unsigned)(module->seq.getPhraseSeq() + 1) );
 			}
 			return 0;
 		}
@@ -1157,6 +1200,9 @@ struct FoundryWidget : ModuleWidget {
 			}
 			else if (module->displayState == Foundry::DISP_DELAY) {
 				snprintf(displayStr, 4, "D%2u", (unsigned) module->seq.getDelay());
+			}
+			else if (module->displayState == Foundry::DISP_MODE_SEQ) {
+				runModeToStr(module->seq.getRunModeSeq());
 			}
 			else { 
 				if (module->isEditingSequence()) {
@@ -1187,50 +1233,17 @@ struct FoundryWidget : ModuleWidget {
 	};
 	
 	
-	struct SeqEditDisplayWidget : DisplayWidget<3> {
-		SeqEditDisplayWidget(Vec _pos, Vec _size, Foundry *_module) : DisplayWidget(_pos, _size, _module) {};
-		
+	struct TrackDisplayWidget : DisplayWidget<2> {
+		TrackDisplayWidget(Vec _pos, Vec _size, Foundry *_module) : DisplayWidget(_pos, _size, _module) {};
 		char printText() override {
-			switch (module->displayState) {
-			
-				case Foundry::DISP_PPQN :
-				case Foundry::DISP_DELAY :
-					snprintf(displayStr, 4, " - ");
-				break;
-				case Foundry::DISP_REPS :
-					snprintf(displayStr, 4, "R%2u", (unsigned) module->seq.getPhraseReps());
-				break;
-				case Foundry::DISP_COPY_SEQ :
-					snprintf(displayStr, 4, "CPY");
-				break;
-				case Foundry::DISP_PASTE_SEQ :
-					snprintf(displayStr, 4, "PST");
-				break;
-				case Foundry::DISP_MODE_SEQ :
-					runModeToStr(module->seq.getRunModeSeq());
-				break;
-				case Foundry::DISP_LEN :
-					snprintf(displayStr, 4, "L%2u", (unsigned) module->seq.getLength());
-				break;
-				case Foundry::DISP_TRANSPOSE :
-				{
-					int tranOffset = module->seq.getTransposeOffset();
-					snprintf(displayStr, 4, "+%2u", (unsigned) abs(tranOffset));
-					if (tranOffset < 0)
-						displayStr[0] = '-';
-				}
-				break;
-				case Foundry::DISP_ROTATE :
-					snprintf(displayStr, 4, ")%2u", (unsigned) abs(module->rotateOffset));
-					if (module->rotateOffset < 0)
-						displayStr[0] = '(';
-				break;
-				default :
-					// two paths below are equivalent when attached, so no need to check attached
-					if (module->isEditingSequence())
-						snprintf(displayStr, 4, " %2u", (unsigned)(module->seq.getSeqIndexEdit() + 1) );
-					else
-						snprintf(displayStr, 4, " %2u", (unsigned)(module->seq.getPhraseSeq() + 1) );
+			int trkn = module->seq.getTrackIndexEdit();
+			if (module->multiTracks)
+				snprintf(displayStr, 3, "%c%c", (unsigned)(trkn + 0x41), ((module->multiTracks && (time(0) & 0x1)) ? '*' : ' '));
+			else {
+				snprintf(displayStr, 3, " %c", (unsigned)(trkn + 0x41));
+				if (module->displayState == Foundry::DISP_MODE_SONG || 
+					module->displayState == Foundry::DISP_PPQN || module->displayState == Foundry::DISP_DELAY)
+					displayStr[0] = '(';
 			}
 			return 0;
 		}
@@ -1421,39 +1434,13 @@ struct FoundryWidget : ModuleWidget {
 			ParamWidget::onMouseDown(e);
 		}
 	};
-	struct PhraseKnob : IMMediumKnobInf {
-		PhraseKnob() {};		
-		void onMouseDown(EventMouseDown &e) override {// from ParamWidget.cpp
-			Foundry* module = dynamic_cast<Foundry*>(this->module);
-			if (e.button == 1) {
-				// same code structure below as in phrase knob in main step()
-				if (module->displayState == Foundry::DISP_PPQN) {
-					module->seq.initPulsesPerStep(module->multiTracks);
-				}
-				else if (module->displayState == Foundry::DISP_DELAY) {
-					module->seq.initDelay(module->multiTracks);
-				}
-				else if (module->displayState == Foundry::DISP_MODE_SONG) {
-					module->seq.initRunModeSong(module->multiTracks);
-				}
-				else if (!module->isEditingSequence() && !module->attached) {
-					module->seq.setPhraseIndexEdit(0);
-					module->displayState = Foundry::DISP_NORMAL;
-				}
-			}
-			ParamWidget::onMouseDown(e);
-		}
-	};
 	struct SequenceKnob : IMMediumKnobInf {
 		SequenceKnob() {};		
 		void onMouseDown(EventMouseDown &e) override {// from ParamWidget.cpp
 			Foundry* module = dynamic_cast<Foundry*>(this->module);
 			if (e.button == 1) {
 				// same code structure below as in sequence knob in main step()
-				if (module->displayState == Foundry::DISP_MODE_SEQ) {
-					module->seq.initRunModeSeq(module->multiTracks);
-				}
-				else if (module->displayState == Foundry::DISP_LEN) {
+				if (module->displayState == Foundry::DISP_LEN) {
 					module->seq.initLength(module->multiTracks);
 				}
 				else if (module->displayState == Foundry::DISP_TRANSPOSE) {
@@ -1479,7 +1466,32 @@ struct FoundryWidget : ModuleWidget {
 			ParamWidget::onMouseDown(e);
 		}
 	};
-
+	struct PhraseKnob : IMMediumKnobInf {
+		PhraseKnob() {};		
+		void onMouseDown(EventMouseDown &e) override {// from ParamWidget.cpp
+			Foundry* module = dynamic_cast<Foundry*>(this->module);
+			if (e.button == 1) {
+				// same code structure below as in phrase knob in main step()
+				if (module->displayState == Foundry::DISP_MODE_SEQ) {
+					module->seq.initRunModeSeq(module->multiTracks);
+				}
+				else if (module->displayState == Foundry::DISP_PPQN) {
+					module->seq.initPulsesPerStep(module->multiTracks);
+				}
+				else if (module->displayState == Foundry::DISP_DELAY) {
+					module->seq.initDelay(module->multiTracks);
+				}
+				else if (module->displayState == Foundry::DISP_MODE_SONG) {
+					module->seq.initRunModeSong(module->multiTracks);
+				}
+				else if (!module->isEditingSequence() && !module->attached) {
+					module->seq.setPhraseIndexEdit(0);
+					module->displayState = Foundry::DISP_NORMAL;
+				}
+			}
+			ParamWidget::onMouseDown(e);
+		}
+	};
 		
 	FoundryWidget(Foundry *module) : ModuleWidget(module) {
 		this->module = module;
