@@ -225,6 +225,7 @@ struct SemiModularSynth : Module {
 	long clockIgnoreOnReset;
 	unsigned long clockPeriod;// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
+	long attachedWarning;// 0 when no warning, positive downward step counter timer when warning
 	int gate1Code;
 	int gate2Code;
 	long revertDisplay;
@@ -339,6 +340,7 @@ struct SemiModularSynth : Module {
 		attached = true;
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
+		attachedWarning = 0l;
 		revertDisplay = 0l;
 		resetOnRun = false;
 		editingGateLength = 0l;
@@ -668,7 +670,7 @@ struct SemiModularSynth : Module {
 		static const float gateTime = 0.4f;// seconds
 		static const float copyPasteInfoTime = 0.5f;// seconds
 		static const float revertDisplayTime = 0.7f;// seconds
-		static const float tiedWarningTime = 0.7f;// seconds
+		static const float warningTime = 0.7f;// seconds
 		static const float holdDetectTime = 2.0f;// seconds
 		static const float editGateLengthTime = 3.5f;// seconds
 		
@@ -900,6 +902,8 @@ struct SemiModularSynth : Module {
 								phraseIndexRun = stepPressed;
 						}
 					}
+					else if (attached)
+						attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 					displayState = DISP_NORMAL;
 				}
 			} 
@@ -1008,7 +1012,7 @@ struct SemiModularSynth : Module {
 			if (newOct >= 0 && newOct <= 6) {
 				if (editingSequence) {
 					if (attributes[sequence][stepIndexEdit].getTied())
-						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
+						tiedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 					else {			
 						cv[sequence][stepIndexEdit] = applyNewOct(cv[sequence][stepIndexEdit], newOct);
 						propagateCVtoTied(sequence, stepIndexEdit);
@@ -1041,7 +1045,7 @@ struct SemiModularSynth : Module {
 							if (params[KEY_PARAMS + i].value > 1.5f)
 								stepIndexEdit = moveIndex(stepIndexEdit, stepIndexEdit + 1, 16);
 							else
-								tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
+								tiedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 						}
 						else {			
 							cv[sequence][stepIndexEdit] = floor(cv[sequence][stepIndexEdit]) + ((float) i) / 12.0f;
@@ -1083,7 +1087,7 @@ struct SemiModularSynth : Module {
 			if (gate1ProbTrigger.process(params[GATE1_PROB_PARAM].value)) {
 				if (editingSequence) {
 					if (attributes[sequence][stepIndexEdit].getTied())
-						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
+						tiedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 					else
 						attributes[sequence][stepIndexEdit].toggleGate1P();
 				}
@@ -1098,7 +1102,7 @@ struct SemiModularSynth : Module {
 			if (slideTrigger.process(params[SLIDE_BTN_PARAM].value)) {
 				if (editingSequence) {
 					if (attributes[sequence][stepIndexEdit].getTied())
-						tiedWarning = (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips);
+						tiedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
 					else
 						attributes[sequence][stepIndexEdit].toggleSlide();
 				}
@@ -1264,7 +1268,7 @@ struct SemiModularSynth : Module {
 					lights[OCTAVE_LIGHTS + i].value = 0.0f;
 				else {
 					if (tiedWarning > 0l) {
-						bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+						bool warningFlashState = calcWarningFlash(tiedWarning, (long) (warningTime * sampleRate / displayRefreshStepSkips));
 						lights[OCTAVE_LIGHTS + i].value = (warningFlashState && (i == (6 - octLightIndex))) ? 1.0f : 0.0f;
 					}
 					else				
@@ -1316,7 +1320,7 @@ struct SemiModularSynth : Module {
 						lights[KEY_LIGHTS + i * 2 + 1].value = 0.0f;
 					else {
 						if (tiedWarning > 0l) {
-							bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+							bool warningFlashState = calcWarningFlash(tiedWarning, (long) (warningTime * sampleRate / displayRefreshStepSkips));
 							lights[KEY_LIGHTS + i * 2 + 1].value = (warningFlashState && i == keyLightIndex) ? 1.0f : 0.0f;
 						}
 						else {
@@ -1358,7 +1362,7 @@ struct SemiModularSynth : Module {
 				lights[GATE1_PROB_LIGHT].value = attributesVal.getGate1P() ? 1.0f : 0.0f;
 				lights[SLIDE_LIGHT].value = attributesVal.getSlide() ? 1.0f : 0.0f;
 				if (tiedWarning > 0l) {
-					bool warningFlashState = calcWarningFlash(tiedWarning, (long) (tiedWarningTime * sampleRate / displayRefreshStepSkips));
+					bool warningFlashState = calcWarningFlash(tiedWarning, (long) (warningTime * sampleRate / displayRefreshStepSkips));
 					lights[TIE_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
 				}
 				else
@@ -1366,7 +1370,12 @@ struct SemiModularSynth : Module {
 			}
 
 			// Attach light
-			lights[ATTACH_LIGHT].value = (attached ? 1.0f : 0.0f);
+			if (attachedWarning > 0l) {
+				bool warningFlashState = calcWarningFlash(attachedWarning, (long) (warningTime * sampleRate / displayRefreshStepSkips));
+				lights[ATTACH_LIGHT].value = (warningFlashState) ? 1.0f : 0.0f;
+			}
+			else
+				lights[ATTACH_LIGHT].value = (attached ? 1.0f : 0.0f);
 			
 			// Reset light
 			lights[RESET_LIGHT].value =	resetLight;	
@@ -1387,6 +1396,8 @@ struct SemiModularSynth : Module {
 				editingPpqn--;
 			if (tiedWarning > 0l)
 				tiedWarning--;
+			if (attachedWarning > 0l)
+				attachedWarning--;
 			if (modeHoldDetect.process(params[RUNMODE_PARAM].value)) {
 				displayState = DISP_NORMAL;
 				editingPpqn = (long) (editGateLengthTime * sampleRate / displayRefreshStepSkips);

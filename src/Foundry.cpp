@@ -547,13 +547,11 @@ struct Foundry : Module {
 				if (!inputs[TRKCV_INPUT].active) {
 					seq.incTrackIndexEdit();
 				}
-				displayState = DISP_NORMAL;
 			}
 			if (trackDeccTrigger.process(params[TRACKDOWN_PARAM].value)) {
 				if (!inputs[TRKCV_INPUT].active) {
 					seq.decTrackIndexEdit();
 				}
-				displayState = DISP_NORMAL;
 			}
 			// All button
 			if (allTrigger.process(params[ALLTRACKS_PARAM].value)) {
@@ -634,7 +632,8 @@ struct Foundry : Module {
 					}
 					else if (!editingSequence && !attached && displayState != DISP_PPQN && displayState != DISP_DELAY) {
 						seq.movePhraseIndexEdit(deltaPhrKnob);
-						displayState = DISP_NORMAL;
+						if (displayState != DISP_REPS)
+							displayState = DISP_NORMAL;
 					}
 					else if (attached)
 						attachedWarning = (long) (warningTime * sampleRate / displayRefreshStepSkips);
@@ -666,6 +665,8 @@ struct Foundry : Module {
 					}							
 					else if (displayState == DISP_REPS) {
 						seq.modPhraseReps(deltaSeqKnob, multiTracks);
+					}
+					else if (displayState == DISP_PPQN || displayState == DISP_DELAY) {
 					}
 					else if (!attached) {
 						if (editingSequence) {
@@ -1125,8 +1126,12 @@ struct FoundryWidget : ModuleWidget {
 			int trkn = module->seq.getTrackIndexEdit();
 			if (module->multiTracks)
 				snprintf(displayStr, 3, "%c%c", (unsigned)(trkn + 0x41), ((module->multiTracks && (time(0) & 0x1)) ? '*' : ' '));
-			else
+			else {
 				snprintf(displayStr, 3, " %c", (unsigned)(trkn + 0x41));
+				if (module->displayState == Foundry::DISP_MODE_SONG || 
+					module->displayState == Foundry::DISP_PPQN || module->displayState == Foundry::DISP_DELAY)
+					displayStr[0] = '(';
+			}
 			return 0;
 		}
 	};
