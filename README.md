@@ -164,9 +164,11 @@ When using external clock synchronization, Clocked syncs itself to the incoming 
 
 ## Foundry <a id="foundry"></a>
 
-Work in progress
-
 ![IM](res/img/Foundry.jpg)
+
+**Work in progress. This module will be available as of the 0.6.13 release.**
+
+The following block diagram shows how the different sequencer elements are hierarchically related. 
 
 ![IM](res/img/FoundryBlockDiag.jpg)
 
