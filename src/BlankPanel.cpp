@@ -8,7 +8,7 @@
 
 struct BlankPanel : Module {
 
-	int panelTheme = 0;
+	int panelTheme = 1;
 
 
 	BlankPanel() : Module(0, 0, 0, 0) {

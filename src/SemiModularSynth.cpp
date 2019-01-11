@@ -763,8 +763,8 @@ struct SemiModularSynth : Module {
 						if (params[CPMODE_PARAM].value > 1.5f) { // ALL (init steps)
 							for (int s = 0; s < 16; s++) {
 								//cv[sequence][s] = 0.0f;
-								attributes[sequence][s].init();
-								attributes[sequence][s].setGate1(false);
+								//attributes[sequence][s].init();
+								attributes[sequence][s].toggleGate1();
 							}
 							transposeOffsets[sequence] = 0;
 						}

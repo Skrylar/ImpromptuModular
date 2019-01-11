@@ -1164,11 +1164,11 @@ struct FoundryWidget : ModuleWidget {
 					// two paths below are equivalent when attached, so no need to check attached
 					if (module->isEditingSequence()) {
 						snprintf(displayStr, 4, " %2u", (unsigned)(module->seq.getSeqIndexEdit() + 1) );
-						if (module->displayState == Foundry::DISP_MODE_SEQ) {
-							displayStr[0] = displayStr[1];
-							displayStr[1] = displayStr[2];
-							displayStr[2] = ')';
-						}
+						// if (module->displayState == Foundry::DISP_MODE_SEQ) {// Arrow
+							// displayStr[0] = displayStr[1];
+							// displayStr[1] = displayStr[2];
+							// displayStr[2] = ')';
+						// }
 				break;
 
 					}
@@ -1241,9 +1241,9 @@ struct FoundryWidget : ModuleWidget {
 				snprintf(displayStr, 3, "%c%c", (unsigned)(trkn + 0x41), ((module->multiTracks && (time(0) & 0x1)) ? '*' : ' '));
 			else {
 				snprintf(displayStr, 3, " %c", (unsigned)(trkn + 0x41));
-				if (module->displayState == Foundry::DISP_MODE_SONG || 
-					module->displayState == Foundry::DISP_PPQN || module->displayState == Foundry::DISP_DELAY)
-					displayStr[0] = '(';
+				// if (module->displayState == Foundry::DISP_MODE_SONG || // Arrow
+					// module->displayState == Foundry::DISP_PPQN || module->displayState == Foundry::DISP_DELAY)
+					// displayStr[0] = '(';
 			}
 			return 0;
 		}
