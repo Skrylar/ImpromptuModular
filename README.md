@@ -34,6 +34,8 @@ Each module is available in light (Classic) or dark (Dark-valor) panels, selecta
 
 * [Clocked](#clocked): Chainable clock module with swing, clock delay and pulse width control.
 
+* [Foundry](#foundry): 4-track phrase sequencer with 32 steps per sequence, 64 sequences per track, 99 phrases per song/track.
+
 * [PhraseSeq16](#phrase-seq-16): 16-phrase sequencer with 16 steps per sequence, with onboard keyboard and CV input for easy sequence programming.
 
 * [PhraseSeq32](#phrase-seq-32): 32-phrase sequencer with 32 steps per sequence, with onboard keyboard and CV input for easy sequence programming (can be configured as 1x32 or 2x16).
@@ -155,6 +157,20 @@ When using external clock synchronization, Clocked syncs itself to the incoming 
 1. Clocked will automatically stop when the pulses stop, but in order to detect this, it take a small amount of time. To stop the clock quickly, you can simply send a pulse to the RUN CV input, and if the clock is running, it will turn off.
 1. The external clock must be capable of sending clocks at a minumum of 4 pulses per quarter note (PPQN) and should not have any swing.
 1. For low clock BPMs, synchronization may take some time if the external clock changes markedly from the last BPM it was synchronized to. Making gradual tempo changes is always recommended, and increasing the PPQN setting may also help. An other method consists in priming Clocked with is correct BPM first, to let it learn the new BPM, so that all further runs at that BPM will sync perfectly.
+
+([Back to module list](#modules))
+
+
+
+## Foundry <a id="foundry"></a>
+
+Work in progress
+
+![IM](res/img/Foundry.jpg)
+
+![IM](res/img/FoundryBlockDiag.jpg)
+
+TODO
 
 ([Back to module list](#modules))
 
