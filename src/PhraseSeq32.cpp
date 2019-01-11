@@ -1558,8 +1558,8 @@ struct PhraseSeq32Widget : ModuleWidget {
 					int lenCP = module->lengthCPbuffer;
 					float cpMode = module->params[PhraseSeq32::CPMODE_PARAM].value;
 					if (editingSequence && lenCP == -1) {// cross paste to seq
-						if (cpMode > 1.5f)// All = init
-							snprintf(displayStr, 4, "CLR");
+						if (cpMode > 1.5f)// All = toggle gate 1
+							snprintf(displayStr, 4, "TG1");
 						else if (cpMode < 0.5f)// 4 = random CV
 							snprintf(displayStr, 4, "RCV");
 						else// 8 = random gate 1
