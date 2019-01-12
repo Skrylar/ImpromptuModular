@@ -762,12 +762,10 @@ struct Foundry : Module {
 		//********** Clock and reset **********
 		
 		// Clock
+		bool realClockEdgeToHandle = running && clockIgnoreOnReset == 0l;
 		bool clockTrigged[Sequencer::NUM_TRACKS];
 		for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
 			clockTrigged[trkn] = clockTriggers[trkn].process(inputs[CLOCK_INPUTS + trkn].value);
-		}
-		bool realClockEdgeToHandle = running && clockIgnoreOnReset == 0l;
-		for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
 			if (clockTrigged[clkInSources[trkn]])
 				seq.clockStep(trkn, realClockEdgeToHandle);
 		}
