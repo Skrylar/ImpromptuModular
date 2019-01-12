@@ -108,7 +108,6 @@ struct Foundry : Module {
 	int displayState;
 	int rotateOffset;// no need to initialize, this goes with displayMode = DISP_ROTATE
 	long clockIgnoreOnReset;
-	unsigned long clockPeriod[Sequencer::NUM_TRACKS];// counts number of step() calls upward from last clock (reset after clock processed)
 	long tiedWarning;// 0 when no warning, positive downward step counter timer when warning
 	long attachedWarning;// 0 when no warning, positive downward step counter timer when warning
 	long revertDisplay;
@@ -184,26 +183,19 @@ struct Foundry : Module {
 		multiSteps = false;
 		multiTracks = false;
 		for (int trkn = 0; trkn < Sequencer::NUM_TRACKS; trkn++) {
-			clockPeriod[trkn] = 0ul;
 			clkInSources[trkn] = 0;
 		}
 		velEditMode = 0;
 		seq.reset();
-		initRun();
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 	
 	
 	void onRandomize() override {
 		seq.randomize();
-		initRun();
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 	
-	
-	void initRun() {// run button activated or run edge in run input jack
-		seq.initRun();
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
-	}	
-
 	
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
@@ -306,7 +298,8 @@ struct Foundry : Module {
 		seq.fromJson(rootJ);
 		
 		// Initialize dependants after everything loaded
-		initRun();
+		seq.initRun();
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
 
@@ -326,10 +319,9 @@ struct Foundry : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
 			if (running) {
+				clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
 				if (resetOnRun)
-					initRun();
-				else
-					clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
+					seq.initRun();
 			}
 			displayState = DISP_NORMAL;
 			multiSteps = false;
@@ -785,7 +777,8 @@ struct Foundry : Module {
 		
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
-			initRun();
+			seq.initRun();
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
 			multiSteps = false;

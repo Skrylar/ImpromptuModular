@@ -196,7 +196,8 @@ void SequencerKernel::reset() {
 	for (int seqn = 0; seqn < MAX_SEQS; seqn++) {
 		initSequence(seqn);		
 	}
-	// no need to call initRun() here since user of the kernel does it in its onReset() via its initRun()
+	clockPeriod = 0ul;
+	initRun();
 }
 
 
@@ -205,7 +206,7 @@ void SequencerKernel::randomize() {
 	for (int seqn = 0; seqn < MAX_SEQS; seqn++) {
 		randomizeSequence(seqn);
 	}
-	// no need to call initRun() here since user of the kernel does it in its onRandomize() via its initRun()
+	initRun();
 }
 	
 
@@ -387,8 +388,10 @@ void SequencerKernel::clockStep() {
 			StepAttributes attribRun = getAttributeRun();
 			if (attribRun.getSlide()) {
 				slideStepsRemain = (unsigned long) (((float)clockPeriod * ppsFiltered) * ((float)attribRun.getSlideVal() / 100.0f));
-				float slideToCV = getCVRun();
-				slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
+				if (slideStepsRemain != 0ul) {
+					float slideToCV = getCVRun();
+					slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
+				}
 			}
 			else
 				slideStepsRemain = 0ul;

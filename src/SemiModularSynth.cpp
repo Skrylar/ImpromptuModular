@@ -1153,8 +1153,10 @@ struct SemiModularSynth : Module {
 					// Slide
 					if (attributes[newSeq][stepIndexRun].getSlide()) {
 						slideStepsRemain =   (unsigned long) (((float)clockPeriod * pulsesPerStep) * params[SLIDE_KNOB_PARAM].value / 2.0f);
-						float slideToCV = cv[newSeq][stepIndexRun];
-						slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
+						if (slideStepsRemain != 0ul) {
+							float slideToCV = cv[newSeq][stepIndexRun];
+							slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
+						}
 					}
 					else 
 						slideStepsRemain = 0ul;

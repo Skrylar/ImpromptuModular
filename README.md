@@ -168,9 +168,9 @@ When using external clock synchronization, Clocked syncs itself to the incoming 
 
 **Work in progress. This module will be available as of the 0.6.13 release.** 
 
-A 4-track phrase sequencer with 32 steps per sequence, 64 sequences per track, 99 phrases per song/track. Each track can be independanly clocked and edited. The SEL and ALL buttons allow the selection and simulaneous editing across multiple steps and tracks respectively; however, since there is currently no undo feature in the sequencer; patches should be saved often. 
+A 4-track phrase sequencer with 32 steps per sequence, 64 sequences per track, 99 phrases per song. Each track holds one song and can be independanly clocked and edited. The SEL and ALL buttons allow the selection and simulaneous editing across multiple steps and tracks respectively; however, since there is currently no undo feature in the sequencer; patches should be saved often. 
 
-CVs can be entered into the sequencer via CV inputs when using an external keyboard controller or via the built-in controls on the module itself. When notes are entered with the **right mouse button** instead of the left button on the builtin keyboard, the sequencer automatically moves to the next step. When writing using the CV IN and CV2 IN inputs, all writes are done to current step and sequence number; unconnected inputs are ignored. Thus when planning a project, all sequences that are to hold chords must have same sequence numbers across all tracks. 
+CVs can be entered into the sequencer via CV inputs when using an external keyboard controller or via the built-in controls on the module itself. When notes are entered with the **right mouse button** on the builtin keyboard (instead of the left mouse button), the sequencer automatically moves to the next step. Right-click defaults are also supported on the three main knobs.
 
 Although this sequencer has many similarities to [PhraseSeq32](#phrase-seq-32), many differences must also be kept in mind for existing PhraseSeq users. Notably:
 
@@ -188,7 +188,15 @@ Here are some further details on the different functions of the sequencer.
 
 * **BEG/END**: The BEG and END buttons set the endpoints of the song, such that when working on a long song, we can more easily work on a section of it, which is more practical.
 
+* **CV2**: This second CV output can be used for accents, velocity or any other auxiliary control voltage. Three modes are available in the right click menu:
+    * 0-10V: direct control of the CV2 output voltages, with 0.05V resolution;
+    * 0-127: midi-like numbered levels, mapped to 0-10V on the CV2 outputs;
+    * 0-127semitone: same as 0-127 but rescales the CV2 outputs to semitones. The mapping is as follows: `0 = C4 (0V), 1 = C4# (0.08V), 2 - D4 (0.17V) ... 120 = 10V`. Values from 121 to 127 are clamped to 10V.
+	
+* **CV IN and CV2 IN**: These inputs can be used for programming the sequencer from external sources. When a trigger is sent to the WRITE input, the states of the inputs is witten into the sequencer at the current step/sequence. Unconnected inputs are ignored. When planning a project, all sequences that are to hold chords must have same sequence numbers across all tracks. AUTOSTEP automatically moves to the next step in the sequence when a write occurs.
 
+* **CLK RES / DELAY**: Settings for clock resolution and clock delay. The clock resolution funtions similarly to that of the [PhraseSequencers](#advanced-gate-mode-ps). Clock delay is used to delay the clock of (TODO check clock delay for 1ms trigger gate type)
+(TODO check idea to remove run switch and input)
 
 ([Back to module list](#modules))
 

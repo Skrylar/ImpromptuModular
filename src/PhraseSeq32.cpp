@@ -1131,9 +1131,11 @@ struct PhraseSeq32 : Module {
 					// Slide
 					for (int i = 0; i < 2; i += stepConfig) {
 						if (attributes[newSeq][(i * 16) + stepIndexRun[i]].getSlide()) {
-							slideStepsRemain[i] =   (unsigned long) (((float)clockPeriod  * pulsesPerStep) * params[SLIDE_KNOB_PARAM].value / 2.0f);
-							float slideToCV = cv[newSeq][(i * 16) + stepIndexRun[i]];
-							slideCVdelta[i] = (slideToCV - slideFromCV[i])/(float)slideStepsRemain[i];
+							slideStepsRemain[i] = (unsigned long) (((float)clockPeriod  * pulsesPerStep) * params[SLIDE_KNOB_PARAM].value / 2.0f);
+							if (slideStepsRemain[i] != 0ul) {
+								float slideToCV = cv[newSeq][(i * 16) + stepIndexRun[i]];
+								slideCVdelta[i] = (slideToCV - slideFromCV[i])/(float)slideStepsRemain[i];
+							}
 						}
 						else
 							slideStepsRemain[i] = 0ul;

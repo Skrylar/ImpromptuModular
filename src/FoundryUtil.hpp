@@ -331,7 +331,7 @@ class SequencerKernel {
 			return gateCode == 1;
 		if (gateCode == 2)
 			return clockTrigger.isHigh();
-		return clockPeriod < (unsigned long) (sampleRate * 0.001f);
+		return clockPeriod < (unsigned long) (sampleRate * 0.3f);
 	}
 	
 	inline void initPulsesPerStep() {pulsesPerStep = 1;}
