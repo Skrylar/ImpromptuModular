@@ -166,13 +166,29 @@ When using external clock synchronization, Clocked syncs itself to the incoming 
 
 ![IM](res/img/Foundry.jpg)
 
-**Work in progress. This module will be available as of the 0.6.13 release.**
+**Work in progress. This module will be available as of the 0.6.13 release.** 
 
-The following block diagram shows how the different sequencer elements are hierarchically related. 
+A 4-track phrase sequencer with 32 steps per sequence, 64 sequences per track, 99 phrases per song/track. Each track can be independanly clocked and edited. The SEL and ALL buttons allow the selection and simulaneous editing across multiple steps and tracks respectively; however, since there is currently no undo feature in the sequencer; patches should be saved often. 
+
+CVs can be entered into the sequencer via CV inputs when using an external keyboard controller or via the built-in controls on the module itself. When notes are entered with the **right mouse button** instead of the left button on the builtin keyboard, the sequencer automatically moves to the next step. When writing using the CV IN and CV2 IN inputs, all writes are done to current step and sequence number; unconnected inputs are ignored. Thus when planning a project, all sequences that are to hold chords must have same sequence numbers across all tracks. 
+
+Although this sequencer has many similarities to [PhraseSeq32](#phrase-seq-32), many differences must also be kept in mind for existing PhraseSeq users. Notably:
+
+* No editing can be performed when attached is turned on.
+* Song phrases are now in a separate display/knob instead of the 32 steps at the top left.
+* The Copy/Paste ALL setting was replaced with an END setting, which, when properly used, allows insert and delete to be performed more efficiently. In order to copy paste all steps/phrases, the edit head (cursor) must now always be in the first step/phrase.
+* The sequence repetitions are no longer in the run modes (formerly FW2, FW3, FW4), but are instead specified in the phrases. This allows the repitition of any run mode we want, anywhere between 0 and 99 times (0 skips the phrase).
+* Only the song can be run. For example, when attached is turned off and the main switch is in SEQ mode, changing the current sequence number will have no effect on the running sequencer, and serves only to select the sequence that is to be edited. Thus, the SEQ CV input (now located in the expansion panel) is only used for editing sequences, when run is off and the main switch is set to SEQ. In other PhraseSeqs, the SEQ CV input can be used to actually control the playing of the phrases.	
+
+The following block diagram shows how the different sequencer elements are hierarchically related. Curly braces pointing to a specific block in an array are for illustrative purposes only and should be understood to apply similarly to all blocks of the same array (for example: each of the 32 steps in a sequence posesses all of the step attributes listed in the first line of the diagram).
 
 ![IM](res/img/FoundryBlockDiag.jpg)
 
-TODO
+Here are some further details on the different functions of the sequencer.
+
+* **BEG/END**: The BEG and END buttons set the endpoints of the song, such that when working on a long song, we can more easily work on a section of it, which is more practical.
+
+
 
 ([Back to module list](#modules))
 

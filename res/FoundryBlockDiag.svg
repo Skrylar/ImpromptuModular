@@ -14,7 +14,7 @@
    id="svg221"
    sodipodi:docname="FoundryBlockDiag.svg"
    inkscape:version="0.92.3 (2405546, 2018-03-11)"
-   inkscape:export-filename="C:\msys64\home\mboule\Rack\dev\Rack\plugins\ImpromptuModular\res\img\FoundryBlockDiag.png"
+   inkscape:export-filename="C:\msys64\home\Admin\Rack\dev\Rack\plugins\ImpromptuModular\res\img\bitmap.png"
    inkscape:export-xdpi="143.60001"
    inkscape:export-ydpi="143.60001">
   <metadata
@@ -42,9 +42,9 @@
      inkscape:window-height="1017"
      id="namedview223"
      showgrid="false"
-     inkscape:zoom="1.7785546"
-     inkscape:cx="178.34619"
-     inkscape:cy="179.28408"
+     inkscape:zoom="1.7995192"
+     inkscape:cx="177.27713"
+     inkscape:cy="239.57346"
      inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
@@ -536,13 +536,13 @@
      sodipodi:nodetypes="cc"
      inkscape:connector-curvature="0"
      id="path1014"
-     d="m 13.358204,15.00781 c -0.177851,6.61758 35.747913,0.30544 35.836838,6.61759"
+     d="m 13.621184,15.00781 c -0.177851,6.61758 35.747913,0.30544 35.836838,6.61759"
      style="fill:none;stroke:#000000;stroke-width:0.26458272px;stroke-linecap:butt;stroke-linejoin:bevel;stroke-opacity:1" />
   <path
      sodipodi:nodetypes="cc"
      inkscape:connector-curvature="0"
      id="path1014-6"
-     d="m 104.23525,15.00781 c 0.27297,6.61758 -54.865574,0.30544 -55.002055,6.61759"
+     d="m 103.65837,15.00781 c 0.26881,6.61758 -54.029433,0.30544 -54.163835,6.61759"
      style="fill:none;stroke:#000000;stroke-width:0.26458272px;stroke-linecap:butt;stroke-linejoin:bevel;stroke-opacity:1" />
   <text
      id="text972-4"
@@ -696,13 +696,13 @@
      sodipodi:nodetypes="cc"
      inkscape:connector-curvature="0"
      id="path1014-3"
-     d="m 21.030541,31.1186 c -0.199942,6.61758 40.188221,0.30544 40.288193,6.61759"
+     d="m 20.767457,31.1186 c -0.171888,6.61758 34.549364,0.30544 34.635309,6.61759"
      style="fill:none;stroke:#000000;stroke-width:0.26458272px;stroke-linecap:butt;stroke-linejoin:bevel;stroke-opacity:1" />
   <path
      sodipodi:nodetypes="cc"
      inkscape:connector-curvature="0"
      id="path1014-6-1"
-     d="m 113.83274,31.1186 c 0.26038,6.61758 -52.336339,0.30544 -52.466526,6.61759"
+     d="m 113.56963,31.1186 c 0.28867,6.61758 -58.022534,0.30544 -58.166865,6.61759"
      style="fill:none;stroke:#000000;stroke-width:0.26458272px;stroke-linecap:butt;stroke-linejoin:bevel;stroke-opacity:1" />
   <text
      id="text972-8"
@@ -874,13 +874,13 @@
      sodipodi:nodetypes="cc"
      inkscape:connector-curvature="0"
      id="path1014-3-2"
-     d="m 16.630277,56.51603 c -0.104955,6.61758 21.095979,0.30544 21.148457,6.61759"
+     d="m 16.89336,56.51603 c -0.132583,6.61758 26.649393,0.30544 26.715685,6.61759"
      style="fill:none;stroke:#000000;stroke-width:0.26458272px;stroke-linecap:butt;stroke-linejoin:bevel;stroke-opacity:1" />
   <path
      sodipodi:nodetypes="cc"
      inkscape:connector-curvature="0"
      id="path1014-6-0"
-     d="m 68.308213,56.51603 c 0.151277,6.61758 -30.407235,0.30544 -30.482874,6.61759"
+     d="m 68.257187,56.51603 c 0.122328,6.61758 -24.588435,0.30544 -24.6496,6.61759"
      style="fill:none;stroke:#000000;stroke-width:0.26458272px;stroke-linecap:butt;stroke-linejoin:bevel;stroke-opacity:1" />
   <text
      id="text972-4-6-5"
