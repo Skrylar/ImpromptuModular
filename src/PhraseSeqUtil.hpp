@@ -88,7 +88,7 @@ inline bool calcGate(int gateCode, SchmittTrigger clockTrigger, unsigned long cl
 		return gateCode == 1;
 	if (gateCode == 2)
 		return clockTrigger.isHigh();
-	return clockStep < (unsigned long) (sampleRate * 0.001f);
+	return clockStep < (unsigned long) (sampleRate * 0.01f);
 }
 
 inline int getAdvGate(int ppqnCount, int pulsesPerStep, int gateMode) { 

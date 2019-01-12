@@ -367,36 +367,38 @@ void SequencerKernel::fromJson(json_t *rootJ) {
 }
 
 
-void SequencerKernel::clockStep() {
-	if (ppqnLeftToSkip > 0) {
-		ppqnLeftToSkip--;
-	}
-	else {
-		ppqnCount++;
-		int ppsFiltered = getPulsesPerStep();// must use method
-		if (ppqnCount >= ppsFiltered)
-			ppqnCount = 0;
-		if (ppqnCount == 0) {
-			float slideFromCV = getCVRun();
-			if (moveStepIndexRun()) {
-				movePhraseIndexRun(false);// false means normal (not init)
-				SeqAttributes newSeq = sequences[phrases[phraseIndexRun].getSeqNum()];
-				stepIndexRun = (newSeq.getRunMode() == MODE_REV ? newSeq.getLength() - 1 : 0);// must always refresh after phraseIndexRun has changed
-			}
-
-			// Slide
-			StepAttributes attribRun = getAttributeRun();
-			if (attribRun.getSlide()) {
-				slideStepsRemain = (unsigned long) (((float)clockPeriod * ppsFiltered) * ((float)attribRun.getSlideVal() / 100.0f));
-				if (slideStepsRemain != 0ul) {
-					float slideToCV = getCVRun();
-					slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
-				}
-			}
-			else
-				slideStepsRemain = 0ul;
+void SequencerKernel::clockStep(bool realClockEdgeToHandle) {
+	if (realClockEdgeToHandle) {
+		if (ppqnLeftToSkip > 0) {
+			ppqnLeftToSkip--;
 		}
-		calcGateCodeEx(phrases[phraseIndexRun].getSeqNum());// uses stepIndexRun as the step		
+		else {
+			ppqnCount++;
+			int ppsFiltered = getPulsesPerStep();// must use method
+			if (ppqnCount >= ppsFiltered)
+				ppqnCount = 0;
+			if (ppqnCount == 0) {
+				float slideFromCV = getCVRun();
+				if (moveStepIndexRun()) {
+					movePhraseIndexRun(false);// false means normal (not init)
+					SeqAttributes newSeq = sequences[phrases[phraseIndexRun].getSeqNum()];
+					stepIndexRun = (newSeq.getRunMode() == MODE_REV ? newSeq.getLength() - 1 : 0);// must always refresh after phraseIndexRun has changed
+				}
+
+				// Slide
+				StepAttributes attribRun = getAttributeRun();
+				if (attribRun.getSlide()) {
+					slideStepsRemain = (unsigned long) (((float)clockPeriod * ppsFiltered) * ((float)attribRun.getSlideVal() / 100.0f));
+					if (slideStepsRemain != 0ul) {
+						float slideToCV = getCVRun();
+						slideCVdelta = (slideToCV - slideFromCV)/(float)slideStepsRemain;
+					}
+				}
+				else
+					slideStepsRemain = 0ul;
+			}
+			calcGateCodeEx(phrases[phraseIndexRun].getSeqNum());// uses stepIndexRun as the step		
+		}
 	}
 	clockPeriod = 0ul;
 }

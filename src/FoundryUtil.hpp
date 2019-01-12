@@ -331,7 +331,7 @@ class SequencerKernel {
 			return gateCode == 1;
 		if (gateCode == 2)
 			return clockTrigger.isHigh();
-		return clockPeriod < (unsigned long) (sampleRate * 0.3f);
+		return clockPeriod < (unsigned long) (sampleRate * 0.01f);
 	}
 	
 	inline void initPulsesPerStep() {pulsesPerStep = 1;}
@@ -357,7 +357,7 @@ class SequencerKernel {
 	void initRun();
 	void toJson(json_t *rootJ);
 	void fromJson(json_t *rootJ);
-	void clockStep();
+	void clockStep(bool realClockEdgeToHandle);
 	inline void step() {
 		clockPeriod++;
 	}
@@ -633,8 +633,8 @@ class Sequencer {
 	void toJson(json_t *rootJ);
 	void fromJson(json_t *rootJ);
 
-	inline void clockStep(int trkn) {
-		sek[trkn].clockStep();
+	inline void clockStep(int trkn, bool realClockEdgeToHandle) {
+		sek[trkn].clockStep(realClockEdgeToHandle);
 	}
 	inline void step() {
 		for (int trkn = 0; trkn < NUM_TRACKS; trkn++) 

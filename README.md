@@ -195,8 +195,9 @@ Here are some further details on the different functions of the sequencer.
 	
 * **CV IN and CV2 IN**: These inputs can be used for programming the sequencer from external sources. When a trigger is sent to the WRITE input, the states of the inputs is witten into the sequencer at the current step/sequence. Unconnected inputs are ignored. When planning a project, all sequences that are to hold chords must have same sequence numbers across all tracks. AUTOSTEP automatically moves to the next step in the sequence when a write occurs.
 
-* **CLK RES / DELAY**: Settings for clock resolution and clock delay. The clock resolution funtions similarly to that of the [PhraseSequencers](#advanced-gate-mode-ps). Clock delay is used to delay the clock of (TODO check clock delay for 1ms trigger gate type)
-(TODO check idea to remove run switch and input)
+* **CLK RES / DELAY**: Settings for clock resolution and clock delay. The clock resolution funtions similarly to that of the [PhraseSequencers](#advanced-gate-mode-ps). Clock delay is used to delay the clock of a track by a given number of clock pulses (0 to 99). When clock resolutions greater than one are used, the clock can be delayed by fractions of a step. For example, with a clock resolution of 4 and a clock delay of 1, a track will be delayed by one quarter of a step.
+
+
 
 ([Back to module list](#modules))
 
@@ -253,7 +254,7 @@ In the advanced gate mode, the Gate1 and Gate2 lights will be a different color,
 
 ![IM](res/img/AdvancedGateDetails.jpg)
 
-All PPS settings will work for the half and full gates (the D and F keys) as well as triggers (the B key). A full gate remains high during the entire step, and if the next step's gate is active, then the gate continues without interruption into that next step. When PPS requirements are not met, the sequencer will not allow invalid gate types to be entered on the keyboard. For example, if PPS is set to 6, then the 75% gate (the E key) can not be selected. Selecting a PPS value of 12 or 24 will ensure that all gate types can be used (i.e. that all PPS requirements are met irrespective of the gate type chosen).
+All PPS settings will work for the half and full gates (the D and F keys) as well as triggers (the B key). Triggers are 10ms in duration. A full gate remains high during the entire step, and if the next step's gate is active, then the gate continues without interruption into that next step. When PPS requirements are not met, the sequencer will not allow invalid gate types to be entered on the keyboard. For example, if PPS is set to 6, then the 75% gate (the E key) can not be selected. Selecting a PPS value of 12 or 24 will ensure that all gate types can be used (i.e. that all PPS requirements are met irrespective of the gate type chosen).
 
 
 ### Cross paste<a id="cross-paste-ps"></a>
@@ -265,7 +266,7 @@ Cross paste from Song to Seq
 Type   Display   Result
 4      RCV       Randomizes the CVs (pitches) of the current sequence
 8      RG1       Randomizes all gates #1 of the current sequence
-ALL    CLR       Clears (initializes) the steps of the current sequence
+ALL    TG1       Toggles all gates #1 of the current sequence (modified for upcoming 0.6.13)
 
 Cross paste from Seq to Song
 Type   Display   Result
