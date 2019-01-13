@@ -74,7 +74,7 @@ A concept related to AutoStep, which is called "**AutoSeq** when writing via CV 
 
 Many modules feature an **Expansion panel** to provide additional CV inputs for the module (available in the right-click menu of the module). The expansion panel is added to the right side of the module, thus it is advisable to first make room in your Rack for this (4 to 7 HP depending on the module).
 
-Many sequencers feature a **SEQ# CV input**, which can be used to select the active sequence (Seq mode only), and in all PhraseSeq and GateSeq sequencers it can even be used to externally control the playing order of the sequences. Three different modes are available for this input in the right click menu under **Seq CV in**.
+Many sequencers feature a **SEQ# CV input**, which can be used to select the active sequence (Seq mode only), and in all PhraseSeq and GateSeq sequencers it can even be used to externally control the playing order of the sequences. Three different modes are available for this input in the right click menu under **Seq CV in** (new in upcoming version 0.6.13). 
 * 0-10V: a 0 to 10V input is proportionally mapped to the 1 to N sequence numbers (1 to 16 in the case of PhraseSeq16, for example);
 * C4-D5# (or other note intervals): CV levels corresponding to the note voltages are mapped to the 1 to N sequence numbers;
 * Trig-Incr: the input is trigger sensitive and moves to the next sequence number every time a trigger is received. A reset can be used to move back to the first sequence.
@@ -171,38 +171,60 @@ When using external clock synchronization, Clocked syncs itself to the incoming 
 
 ![IM](res/img/Foundry.jpg)
 
-**Work in progress. This module will be available as of the 0.6.13 release.** 
+**This module will be available as of the 0.6.13 release.** 
 
-A 4-track phrase sequencer with 32 steps per sequence, 64 sequences per track, 99 phrases per song. Each track holds one song and can be independanly clocked and edited. The SEL and ALL buttons allow the selection and simulaneous editing across multiple steps and tracks respectively; however, since there is currently no undo feature in the sequencer; patches should be saved often. 
+A 4-track phrase sequencer with 32 steps per sequence, 64 sequences per track, 99 phrases per song. A phrase is a sequence number and a repetition count. Each track holds one song and can be independenly clocked and edited. The SEL and ALL buttons allow the selection and simulaneous editing across multiple steps and tracks respectively. 
 
 CVs can be entered into the sequencer via CV inputs when using an external keyboard controller or via the built-in controls on the module itself. When notes are entered with the **right mouse button** on the builtin keyboard (instead of the left mouse button), the sequencer automatically moves to the next step. Right-click defaults are also supported on the three main knobs.
 
 Although this sequencer has many similarities to [PhraseSeq32](#phrase-seq-32), many differences must also be kept in mind for existing PhraseSeq users. Notably:
 
 * No editing can be performed when attached is turned on.
-* Song phrases are now in a separate display/knob instead of the 32 steps at the top left.
-* The Copy/Paste ALL setting was replaced with an END setting, which, when properly used, allows insert and delete to be performed more efficiently. In order to copy paste all steps/phrases, the edit head (cursor) must now always be in the first step/phrase.
-* The sequence repetitions are no longer in the run modes (formerly FW2, FW3, FW4), but are instead specified in the phrases. This allows the repitition of any run mode we want, anywhere between 0 and 99 times (0 skips the phrase).
-* Only the song can be run. For example, when attached is turned off and the main switch is in SEQ mode, changing the current sequence number will have no effect on the running sequencer, and serves only to select the sequence that is to be edited. Thus, the SEQ CV input (now located in the expansion panel) is only used for editing sequences, when run is off and the main switch is set to SEQ. In other PhraseSeqs, the SEQ CV input can be used to actually control the playing of the phrases.	
+* Song phrases are now in a separate display/knob instead of the step at the top left.
+* The Copy/Paste ALL setting was replaced with an END setting (more details are given below).
+* The sequence repetitions are no longer in the run modes (formerly FW2, FW3, FW4), but are instead specified in the phrases. This allows the repitition of any run mode up to 99 times.
+* Only the song can be run. For example, when attached is turned off and the main switch is in SEQ mode, changing the current sequence number will have no effect on the running sequencer, and serves only to select the sequence that is to be edited. Thus, the SEQ CV input (now located in the expansion panel) is only used for editing sequences. In other PhraseSeqs, the SEQ CV input can be used to actually control the playing of the phrases.	
 
-The following block diagram shows how the different sequencer elements are hierarchically related. Curly braces pointing to a specific block in an array are for illustrative purposes only and should be understood to apply similarly to all blocks of the same array (for example: each of the 32 steps in a sequence posesses all of the step attributes listed in the first line of the diagram).
+The following block diagram shows how the different sequencer elements are hierarchically related.
 
 ![IM](res/img/FoundryBlockDiag.jpg)
 
 Here are some further details on the different functions of the sequencer.
 
+* **SEQ/SONG**: This is the main mode switch for the sequencer. It is used to determine whether a sequence or the song are to be edited (attach must be turned off for editing, see next item).
+
+* **ATTACH**: The sequencer has one edit head, and four run heads. When attach is turned on, the sequencer is in view-only mode, and no editing can be performed. In this case the effect of the SEQ/SONG switch is limited to either hiding or showing the phrase number. When attach is turned off, editing becomes possible. In this case the edit head can be positionned to at any given step/sequence/phrase for editing, according to the SEQ/SONG switch.
+
 * **BEG/END**: The BEG and END buttons set the endpoints of the song, such that when working on a long song, we can more easily work on a section of it, which is more practical.
 
-* **CV2**: This second CV output can be used for accents, velocity or any other auxiliary control voltage. Three modes are available in the right click menu:
+* **LEN/REP**: Sequence lengths can be set by clicking the button when when in SEQ mode, and then either turning the main knob below the main display or clicking the desired length directly in the steps (the second method is the recommended way since the display will automatically return to its default state afterwards). The sequences can have different lengths. When in Song mode, the same button instead serves to set the number of repetitions of the currely phrase. To skip the give phrase when the song plays, set the number of repetitions to 0.
+
+* **CV2**: These secondary CV outputs can be used for accents, velocities or any other auxiliary control voltage. Three modes are available in the right click menu:
     * 0-10V: direct control of the CV2 output voltages, with 0.05V resolution;
     * 0-127: midi-like numbered levels, mapped to 0-10V on the CV2 outputs;
-    * 0-127semitone: same as 0-127 but rescales the CV2 outputs to semitones. The mapping is as follows: `0 = C4 (0V), 1 = C4# (0.08V), 2 - D4 (0.17V) ... 120 = 10V`. Values from 121 to 127 are clamped to 10V.
+    * 0-127semitone: same as 0-127 but rescales the CV2 outputs to semitones. The mapping is as follows: `0 = C4 = 0V, 1 = C4# = 0.08V, 2 = D4 = 0.17V, ... 120 = 10V`. Values from 121 to 127 are clamped to 10V.
 	
-* **CV IN and CV2 IN**: These inputs can be used for programming the sequencer from external sources. When a trigger is sent to the WRITE input, the states of the inputs is witten into the sequencer at the current step/sequence. Unconnected inputs are ignored. When planning a project, all sequences that are to hold chords must have same sequence numbers across all tracks. AUTOSTEP automatically moves to the next step in the sequence when a write occurs.
+* **CV IN and CV2 IN**: These inputs can be used for programming the sequencer from external sources. The CV2 IN inputs are located in the expansion panel (see right click menu). When a trigger is sent to the WRITE input, the states of the inputs is witten into the sequencer at the current step/sequence. Unconnected inputs are ignored. When planning a project, all sequences that are to hold chords must have the same sequence numbers across all tracks. AUTOSTEP automatically moves to the next step in the sequence when a write occurs.
 
-* **CLK RES / DELAY**: Settings for clock resolution and clock delay. The clock resolution funtions similarly to that of the [PhraseSequencers](#advanced-gate-mode-ps). Clock delay is used to delay the clock of a track by a given number of clock pulses (0 to 99). When clock resolutions greater than one are used, the clock can be delayed by fractions of a step. For example, with a clock resolution of 4 and a clock delay of 1, a track will be delayed by one quarter of a step. A reset must be performed in order for a new clock delay value to take effect.
+* **CLK RES / DELAY**: Settings for clock resolution and clock delay. The clock resolution allows [advanced gate types](#advanced-gate-mode-ps) to be used, and funtions similarly to that found in the PhraseSequencers. Clock delay is used to delay the clock of a track by a given number of clock pulses (0 to 99). When clock resolutions above 1 are used, the clock can be delayed by fractions of a step. For example, with a clock resolution of 4 and a clock delay of 1, a track will be delayed by one quarter of a step. A reset must be performed in order for a new clock delay value to take effect.
 
+* **SEL and ALL**:  The SEL and ALL buttons allow the selection and simulaneous editing across multiple steps and tracks respectively; however, since there is currently no undo feature in the sequencer; patches should be saved often. The number of steps selected by SEL is specified using the 4/8/END switch. 
 
+* **COPY / PASTE**: Copies part or all of a sequence to the sequence buffer when main switch is set to SEQ, copies part or all of a song to the song buffer when the main switch is set to SONG. The number of steps/phrases copy-pasted is given by the 4/8/END switch. When copy-pasting sequence steps, they do not need to be selected with the SEL button. The END setting, when properly used, allows insert and delete to be performed more efficiently. In order to copy paste all steps/phrases, the edit head (cursor) must be in the first step/phrase. 
+
+* **SEQ# CV input**: This CV input is located in the expansion panel. Please see [general concepts](general-concepts) above.
+
+* **TRACK input**: This CV input is located in the expansion panel, and allows the selection of the track number (0-10V mapped to A-D).
+
+* **TIED**: Please see [PhraseSeq16](#phrase-seq-16).
+
+* **GATEP**: Activates the use of probability in the current step's gate. The probability controls the chance that when the gate is active it is actually sent to its output jack. The probability for the step can be set using the CV2/p/r section (press the button below CV2 until the yellow LED below the "p" lights up). The probability ranges from 0 to 1, where 0 is no chance to fire and 1 is 100% chance to fire (the default is 0.5 for 50% chance). 
+
+* **SLIDE**: Portamento between CVs of successive steps. Slide can be activated for a given step using the slide button. The slide duration for the step can be set using the CV2/p/r section (press the button below CV2 until the red LED below the "r" lights up). The slide ratio can range from 0 to 1, where 1 is the duration of a clock period (the default is 0.1). 
+
+* **AUTOSTEP**: For information on this switche, please see [general concepts](general-concepts) above.
+
+* **Reset on Run**, **AutoSeq**: For information on these settings in the right-click menu, please see [general concepts](general-concepts) above.
 
 ([Back to module list](#modules))
 
