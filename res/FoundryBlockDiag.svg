@@ -25,7 +25,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -43,7 +43,7 @@
      id="namedview223"
      showgrid="false"
      inkscape:zoom="1.597898"
-     inkscape:cx="269.80184"
+     inkscape:cx="61.403058"
      inkscape:cy="254.27059"
      inkscape:window-x="-8"
      inkscape:window-y="-8"
@@ -1109,7 +1109,7 @@
        y="67.257858"
        x="79.355927"
        id="tspan970-9-5-4-7-6-3-8-6"
-       sodipodi:role="line">SONG OPERATIONS :   COPY / PASTE** (4, 8, END)</tspan></text>
+       sodipodi:role="line">SONG OPERATIONS :   COPY** / PASTE (4, 8, END)</tspan></text>
   <text
      id="text972-4-0-6-4-1-2-6-5-7"
      y="40.326649"
@@ -1273,7 +1273,7 @@
      d="m 30.878487,82.472819 c 3.015875,-0.03837 0.1392,7.712328 3.01588,7.731511"
      style="fill:none;stroke:#000000;stroke-width:0.26458272px;stroke-linecap:butt;stroke-linejoin:bevel;stroke-opacity:1" />
   <rect
-     style="fill:#dde9af;stroke:#000000;stroke-width:0.132;paint-order:stroke markers fill"
+     style="fill:#e9afaf;stroke:#000000;stroke-width:0.132;paint-order:stroke markers fill"
      id="rect101-6-2-1-8"
      ry="0"
      rx="0"

@@ -7,23 +7,6 @@ Version 0.6.12
 [//]: # (!!!!!UPDATE VERSION NUMBER IN MAKEFILE ALSO!!!!!   120% Zoom for jpgs)
 
 
-## License
-
-Based on code from the Fundamental and Audible Instruments plugins by Andrew Belt and graphics from the Component Library by Wes Milholen. See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
-
-
-## Acknowledgements
-Impromptu Modular is not a single-person endeavor:
-
-* Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in Talking Rackheads [epsiode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg), as well as PhraseSeq32 and GateSeq64 in [episode 10](https://www.youtube.com/watch?v=bjqWwTKqERQ) and Clocked in [episode 12](https://www.youtube.com/watch?v=ymfOh1yCzU4). 
-* Thanks to **Xavier Belmont** for suggesting improvements to the modules, for testing/bug-reports, for the concept design of the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
-* Thanks to **Steve Baker** for many fruitful discussions regarding the BPM Detection method in Clocked, testing and improvements that were suggested for that module. 
-* Thanks to **Omri Cohen** for testing and suggesting improvements to the modules, and for the [PhraseSeq16/32 tutorial](https://www.youtube.com/watch?v=N8_rMNzsS7w) and the [advanced gate mode tutorial](https://www.youtube.com/watch?v=B2w0_h5oN6M).
-* Thanks to **Latif Karoumi** for [testing](https://www.youtube.com/watch?v=5PZCXvWlFZM) and suggesting improvement to the modules, particularly the advanced gate modes in the GateSeq64 and PhraseSeq sequencers.
-* Thanks also to **Pyer (Pierre Collard)**, **Alfredo Santamaria**, **Nay Seven**, **Alberto Zamora**, **Clément Foulc**, **Espen Storø**, **Wouter Spekkink**, **Jakub Mudrák**, **Georg Carlson**, **Jean-Sébastien Monzani**, **John Melcher**, **Paul Piko**, **Joop van der Linden** for suggesting improvements to the modules, bug reports and testing.
-
-
-
 # Modules <a id="modules"></a>
 
 Each module is available in light (Classic) or dark (Dark-valor) panels, selectable by right-clicking the module in Rack.
@@ -57,6 +40,21 @@ Details about each module are given below. Feedback and bug reports (and [donati
 For sequencers and clock modules, it is advisable to have a core audio module added to your patch and assigned to a sound device in order for the timing and response delays in the user interface to be of the proper duration. This is a [known artifact](https://github.com/VCVRack/Rack/issues/919) in VCV Rack.
 
 
+## License
+
+Based on code from the Fundamental and Audible Instruments plugins by Andrew Belt and graphics from the Component Library by Wes Milholen. See ./LICENSE.txt for all licenses (and ./res/fonts/ for font licenses).
+
+
+## Acknowledgements
+Impromptu Modular is not a single-person endeavor:
+
+* Thanks to **Nigel Sixsmith** for the many fruitful discussions and numerous design improvements that were suggested for the modules, for the concept proposal and development of GateSeq64, for detailed testing/bug-reports, and also for the in-depth presentation of PhraseSeq16 and TwelveKey in Talking Rackheads [epsiode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg), as well as PhraseSeq32 and GateSeq64 in [episode 10](https://www.youtube.com/watch?v=bjqWwTKqERQ) and Clocked in [episode 12](https://www.youtube.com/watch?v=ymfOh1yCzU4). 
+* Thanks to **Xavier Belmont** for suggesting improvements to the modules, for testing/bug-reports, for the concept design of the SMS16 module and the blank panel, and for graciously providing the dark panels of all modules. 
+* Thanks to **Steve Baker** for many fruitful discussions regarding the BPM Detection method in Clocked, testing and improvements that were suggested for that module. 
+* Thanks to **Omri Cohen** for testing and suggesting improvements to the modules, and for the [PhraseSeq16/32 tutorial](https://www.youtube.com/watch?v=N8_rMNzsS7w) and the [advanced gate mode tutorial](https://www.youtube.com/watch?v=B2w0_h5oN6M).
+* Thanks to **Latif Karoumi** for [testing](https://www.youtube.com/watch?v=5PZCXvWlFZM) and suggesting improvement to the modules, particularly the advanced gate modes in the GateSeq64 and PhraseSeq sequencers.
+* Thanks also to **Pyer (Pierre Collard)**, **Alfredo Santamaria**, **Nay Seven**, **Alberto Zamora**, **Clément Foulc**, **Espen Storø**, **Wouter Spekkink**, **Jakub Mudrák**, **Georg Carlson**, **Jean-Sébastien Monzani**, **John Melcher**, **Paul Piko**, **Joop van der Linden** for suggesting improvements to the modules, bug reports and testing.
+
 
 ## General Concepts <a id="general-concepts"></a>
 
@@ -74,7 +72,7 @@ A concept related to AutoStep, which is called "**AutoSeq** when writing via CV 
 
 Many modules feature an **Expansion panel** to provide additional CV inputs for the module (available in the right-click menu of the module). The expansion panel is added to the right side of the module, thus it is advisable to first make room in your Rack for this (4 to 7 HP depending on the module).
 
-Many sequencers feature a **SEQ# CV input**, which can be used to select the active sequence (Seq mode only), and in all PhraseSeq and GateSeq sequencers it can even be used to externally control the playing order of the sequences. Three different modes are available for this input in the right click menu under **Seq CV in** (new in upcoming version 0.6.13). 
+Many sequencers feature a **SEQ# CV input**, which can be used to select the active sequence for editing; in all PhraseSeq and GateSeq sequencers it can even be used to externally control the playing order of the sequences. Three different modes are available for this input in the right click menu under **Seq CV in** (new in upcoming version 0.6.13). 
 * 0-10V: a 0 to 10V input is proportionally mapped to the 1 to N sequence numbers (1 to 16 in the case of PhraseSeq16, for example);
 * C4-D5# (or other note intervals): CV levels corresponding to the note voltages are mapped to the 1 to N sequence numbers;
 * Trig-Incr: the input is trigger sensitive and moves to the next sequence number every time a trigger is received. A reset can be used to move back to the first sequence.
@@ -191,18 +189,20 @@ The following block diagram shows how the different sequencer elements are hiera
 
 Here are some further details on the different functions of the sequencer.
 
-* **SEQ/SONG**: This is the main mode switch for the sequencer. It is used to determine whether a sequence or the song are to be edited (attach must be turned off for editing, see next item).
+* **CLK**: The clock inputs for each track. When the input is unconnected in a track, the track automatically uses the clock source of the preceeding track (indicated by arrows above each clock input). 
+
+* **SEQ / SONG**: This is the main mode switch for the sequencer. It is used to determine whether a sequence or the song are to be edited (attach must be turned off for editing, see next item).
 
 * **ATTACH**: The sequencer has one edit head, and four run heads. When attach is turned on, the sequencer is in view-only mode, and no editing can be performed. In this case the effect of the SEQ/SONG switch is limited to either hiding or showing the phrase number. When attach is turned off, editing becomes possible. In this case the edit head can be positionned to at any given step/sequence/phrase for editing, according to the SEQ/SONG switch.
 
-* **BEG/END**: The BEG and END buttons set the endpoints of the song, such that when working on a long song, we can more easily work on a section of it, which is more practical.
+* **BEG / END**: The BEG and END buttons set the endpoints of the song, such that when working on a long song, we can more easily work on a section of it, which is more practical.
 
-* **LEN/REP**: Sequence lengths can be set by clicking the button when when in SEQ mode, and then either turning the main knob below the main display or clicking the desired length directly in the steps (the second method is the recommended way since the display will automatically return to its default state afterwards). The sequences can have different lengths. When in Song mode, the same button instead serves to set the number of repetitions of the currely phrase. To skip the give phrase when the song plays, set the number of repetitions to 0.
+* **LEN / REP**: Sequence lengths can be set by clicking the button when when in SEQ mode, and then either turning the main knob below the main display or clicking the desired length directly in the steps (the second method is the recommended way since the display will automatically return to its default state afterwards). The sequences can have different lengths. When in Song mode, the same button instead serves to set the number of repetitions of the currely phrase. To skip the give phrase when the song plays, set the number of repetitions to 0.
 
 * **CV2**: These secondary CV outputs can be used for accents, velocities or any other auxiliary control voltage. Three modes are available in the right click menu:
     * 0-10V: direct control of the CV2 output voltages, with 0.05V resolution;
     * 0-127: midi-like numbered levels, mapped to 0-10V on the CV2 outputs;
-    * 0-127semitone: same as 0-127 but rescales the CV2 outputs to semitones. The mapping is as follows: `0 = C4 = 0V, 1 = C4# = 0.08V, 2 = D4 = 0.17V, ... 120 = 10V`. Values from 121 to 127 are clamped to 10V.
+    * 0-127semitone: same as 0-127 but rescales the CV2 outputs to semitones. The mapping is as follows: `0 = C4 = 0V; 1 = C4# = 0.08V; 2 = D4 = 0.17V; ... 120 = 10V`. Values from 121 to 127 are clamped to 10V.
 	
 * **CV IN and CV2 IN**: These inputs can be used for programming the sequencer from external sources. The CV2 IN inputs are located in the expansion panel (see right click menu). When a trigger is sent to the WRITE input, the states of the inputs is witten into the sequencer at the current step/sequence. Unconnected inputs are ignored. When planning a project, all sequences that are to hold chords must have the same sequence numbers across all tracks. AUTOSTEP automatically moves to the next step in the sequence when a write occurs.
 
@@ -210,21 +210,21 @@ Here are some further details on the different functions of the sequencer.
 
 * **SEL and ALL**:  The SEL and ALL buttons allow the selection and simulaneous editing across multiple steps and tracks respectively; however, since there is currently no undo feature in the sequencer; patches should be saved often. The number of steps selected by SEL is specified using the 4/8/END switch. 
 
-* **COPY / PASTE**: Copies part or all of a sequence to the sequence buffer when main switch is set to SEQ, copies part or all of a song to the song buffer when the main switch is set to SONG. The number of steps/phrases copy-pasted is given by the 4/8/END switch. When copy-pasting sequence steps, they do not need to be selected with the SEL button. The END setting, when properly used, allows insert and delete to be performed more efficiently. In order to copy paste all steps/phrases, the edit head (cursor) must be in the first step/phrase. 
+* **COPY-PASTE**: Copies part or all of a sequence to the sequence buffer when the main switch is set to SEQ, or copies part or all of a song to the song buffer when the main switch is set to SONG. The number of steps/phrases copy-pasted is given by the 4/8/END switch. When copy-pasting sequence steps, they do not need to be selected with the SEL button. The END setting, when properly used, allows insert and delete to be performed more efficiently. In order to copy paste all steps/phrases, the edit head (cursor) must be in the first step/phrase. Since there is only one sequence buffer, there is currently no way to copy sequence #1 of all tracks to sequence #2 of their respective tracks, for example, in a single operation. This must be repeated manually in each track.
 
-* **SEQ# CV input**: This CV input is located in the expansion panel. Please see [general concepts](general-concepts) above.
+* **SEQ# CV input**: This CV input is located in the expansion panel. Please see [general concepts](#general-concepts) above.
 
-* **TRACK input**: This CV input is located in the expansion panel, and allows the selection of the track number (0-10V mapped to A-D).
+* **TRACK input**: This CV input is located in the expansion panel, and allows the selection of the track number (0-10V mapped to tracks A-D).
 
-* **TIED**: Please see [PhraseSeq16](#phrase-seq-16).
+* **TIED**: Please see [PhraseSeq16](#phrase-seq-16)'s section on [tied steps](#tied-ps).
 
 * **GATEP**: Activates the use of probability in the current step's gate. The probability controls the chance that when the gate is active it is actually sent to its output jack. The probability for the step can be set using the CV2/p/r section (press the button below CV2 until the yellow LED below the "p" lights up). The probability ranges from 0 to 1, where 0 is no chance to fire and 1 is 100% chance to fire (the default is 0.5 for 50% chance). 
 
-* **SLIDE**: Portamento between CVs of successive steps. Slide can be activated for a given step using the slide button. The slide duration for the step can be set using the CV2/p/r section (press the button below CV2 until the red LED below the "r" lights up). The slide ratio can range from 0 to 1, where 1 is the duration of a clock period (the default is 0.1). 
+* **SLIDE**: Portamento between CVs of successive steps. Slide can be activated for a given step using the slide button. The slide duration of the step can be set using the CV2/p/r section (press the button below CV2 until the red LED below the "r" lights up). The slide ratio can range from 0 to 1, where 1 is the duration of a clock period (the default is 0.1). 
 
-* **AUTOSTEP**: For information on this switche, please see [general concepts](general-concepts) above.
+* **AUTOSTEP**: For information on this switche, please see [general concepts](#general-concepts) above.
 
-* **Reset on Run**, **AutoSeq**: For information on these settings in the right-click menu, please see [general concepts](general-concepts) above.
+* **Reset on Run**, **AutoSeq**: For information on these settings in the right-click menu, please see [general concepts](#general-concepts) above.
 
 ([Back to module list](#modules))
 
@@ -242,35 +242,56 @@ The following block diagram shows how sequences and phrases relate to each other
 
 Familiarity with the Fundamental SEQ-3 sequencer is recommended, as some operating principles are similar in both sequencers. For an in depth review of the sequencer's capabilities, please see Nigel Sixsmith's [Talking Rackheads episode 8](https://www.youtube.com/watch?v=KOpo2oUPTjg) or Omri Cohen's [PhraseSeq tutorial](https://www.youtube.com/watch?v=N8_rMNzsS7w).
 
-* **SEQ/SONG**: This is the main switch that controls the two major modes of the sequencer. Seq mode allows the currently selected sequence to be played/edited. In this mode, all controls are available (run mode, transpose, rotate, copy-paste, gates, slide, octave, notes) and the content of a sequence can be modified even when the sequencer is running. Song mode allows the creation of a series of sequence numbers (called phrases). In this mode, the run mode and length of the song and the sequence index numbers themselves can be modified (whether the sequence is running or not); some of the other aforementioned controls are unavailable and the actual contents of the sequences cannot be modified.
+* **SEQ / SONG**: This is the main switch that controls the two major modes of the sequencer. Seq mode allows the currently selected sequence to be played/edited. In this mode, all controls are available (run mode, transpose, rotate, copy-paste, gates, slide, octave, notes) and the content of a sequence can be modified even when the sequencer is running. Song mode allows the creation of a series of sequence numbers (called phrases). In this mode, the run mode and length of the song and the sequence index numbers themselves can be modified (whether the sequence is running or not); some of the other aforementioned controls are unavailable and the actual contents of the sequences cannot be modified.
 
 * **SEQ STEP / SONG PHRASE**: Step/phrase selection is done by directly clicking the 16 steps at the top. When the **Reset on run** option is not active (in the right-click menu), and song mode is selected, after stopping the sequencer it will restart playing the song where it left off when it was stopped, provided no steps were clicked. When stopped, clicking a step will position the run head at that point and the song will restart at that point when turned on again. 
 
-* **LEN/MODE**: Sequence lengths can be set by clicking the button once, and then either turning the main knob below the main display or clicking the desired length directly in the steps (the second method is the recommended way since the display will automatically return to its default state afterwards). The sequences can have different lengths. When in Song mode, the length setting can be used to set the number of phrases in the song (the default is 4). The run modes can be set by clicking the LEN/MODE button twice starting from its initial state. Mode controls the run mode of both the sequences and the song (one setting for each sequence and one for the song). The modes are: FWD (forward), REV (reverse), PPG (ping-pong, also called forward-reverse), PEN (Pendulum, like PPG but the first and last steps are not played twice), BRN (Brownian random), RND (random), FW2 (forward, play twice), FW3 (play three times) and FW4 (four times). For example, setting the run mode to FWD for sequences and to RND for the song will play the phrases that are part of a song randomly, and the probability of a given phrase playing is proportional to the number of times it appears in the song. For sequences, the FW2, FW3 and FW4 modes can be used to repeat sequences more easily without consuming additional phrases in the song. These last three modes are not available for the song's run mode however. Holding the MODE button for **two seconds** allows the selection of the clock resolution, and is the mechanism used to enable the [advanced gate mode](#advanced-gate-mode-ps).
+* **ATTACH**: Allows the edit head to follow the run head (Attach on). The position of the edit head is shown with a red LED, and when running, the position of the run head is shown with a green LED. When in Seq mode, the actual content of the step corresponding to the edit head position (i.e. note, oct, gates, slide) can be modified in real time, whether the sequencer is running or not. The edit head automatically follows the run head when Attach is on, or can manually positioned by clicking the steps when Attach is off.
+
+* **LEN / MODE**: Sequence lengths can be set by clicking the button once, and then either turning the main knob below the main display or clicking the desired length directly in the steps (the second method is the recommended way since the display will automatically return to its default state afterwards). The sequences can have different lengths. When in Song mode, the length setting can be used to set the number of phrases in the song (the default is 4). The run modes can be set by clicking the LEN/MODE button twice starting from its initial state. Mode controls the run mode of both the sequences and the song (one setting for each sequence and one for the song). The modes are: FWD (forward), REV (reverse), PPG (ping-pong, also called forward-reverse), PEN (Pendulum, like PPG but the first and last steps are not played twice), BRN (Brownian random), RND (random), FW2 (forward, play twice), FW3 (play three times) and FW4 (four times). For example, setting the run mode to FWD for sequences and to RND for the song will play the phrases that are part of a song randomly, and the probability of a given phrase playing is proportional to the number of times it appears in the song. For sequences, the FW2, FW3 and FW4 modes can be used to repeat sequences more easily without consuming additional phrases in the song. These last three modes are not available for the song's run mode however. Holding the MODE button for **two seconds** allows the selection of the clock resolution, and is the mechanism used to enable the [advanced gate mode](#advanced-gate-mode-ps).
 
 * **SEQ#**: In Seq mode, the main display and knob determine which sequence is being edited/played. In Song mode, they detemine the sequence number for the currently selected phrase in the 16 LEDs at the top of the module. 
 
-* **SEQ# CV input**:  Please see [general concepts](general-concepts) above.
+* **SEQ# CV input**:  Please see [general concepts](#general-concepts) above.
 
-* **ATTACH**: Allows the edit head to follow the run head (Attach on). The position of the edit head is shown with a red LED, and when running, the position of the run head is shown with a green LED. When in Seq mode, the actual content of the step corresponding to the edit head position (i.e. note, oct, gates, slide) can be modified in real time, whether the sequencer is running or not. The edit head automatically follows the run head when Attach is on, or can manually positioned by clicking the steps when Attach is off.
-
-* **TRAN/ROT**: Transpose/Rotate the currently selected sequence up-down/left-right by a given number of semi-tones/steps. The main knob is used to set the transposition/rotation amount. Only available in Seq mode.
+* **TRAN / ROT**: Transpose/Rotate the currently selected sequence up-down/left-right by a given number of semitones/steps. The main knob is used to set the transposition/rotation amount. Only available in Seq mode. Transposition numbers are stored in the sequencer; however, rotation numbers are not.
 
 * **COPY-PASTE**: Copy and paste sequences or parts of sequences in Seq mode, or parts of the song when in Song mode. When ALL is selected, the run mode and length are also copied for a sequence. More advanced copy-paste shortcuts are also available when clicking copy in Seq mode and then paste in Song mode (and vice versa); see [cross paste](#cross-paste-ps) below.
 
-* **OCT and keyboard**: When in Seq mode, the octave LED buttons and the keyboard can be used to set the notes of a sequence. The octave and keyboard LEDs are used for display purposes only in Song mode with attach on.
+* **OCT and Keyboard**: When in Seq mode, the octave LED buttons and the keyboard can be used to set the notes of a sequence. The octave and keyboard LEDs are used for display purposes only in Song mode with attach on.
 
 * **GATE 1, 2 buttons and probability knob**: The gate buttons control whether the gate of a current step is active or not. The probability knob controls the chance that when gate 1 is active it is actually sent to its output jack. In the leftmost position, no gates are output, and in the rightmost position, gates are output exactly as stored in a sequence. This knob's probability setting is not memorized for each step and applies to the sequencer as a whole.
 
 * **SLIDE**: Portamento between CVs of successive steps. Slide can be activated for a given step using the slide button. The slide duration can be set using the slide knob. The slide duration can range from 0 to T seconds, where T is the duration of a clock period (the default is 10% of T). This knob's setting is not memorized for each step and applies to the sequencer as a whole.
 
-* **TIED STEP**: When CVs are intended to be held across subsequent steps, this button can be used to tie the CV of the current step to the CV of the previous step. When tied, any changes to the CV of the head note will be propagated to all consecutive contiguous tied notes automatically. Two different *gate 1 behaviors* are available (new in upcoming version 0.6.13), and can be toggled in the right-click menu. All gate types are adjusted automatically when tying and untying notes, and in all cases, manual insepction of the gate types will reveal what has been done in the sequencer. Any change to this option will only take effect on changes made afterwards in the sequencer.
-    * When the **Held tied notes** option is activated (default behavior), then gate 1 is sustained (held high) across a series of contiguous tied steps, and the initial gate type of the head note will be propagated to last step's gate type. (new in upcoming version 0.6.13)
-    * When the **Held tied notes** option is activated, only the head note has a gate and the remainder of any follolwing contiguous gates are turned off, but can be manually turned back on if desired.
+* **TIED STEP**: See [tied steps](#tied-ps) below.
 
-* **WRITE**, **CV IN**, **AUTOSTEP**: For information on these inputs/switches, please see [general concepts](general-concepts) above.
+* **WRITE**, **CV IN**, **AUTOSTEP**: For information on these inputs/switches, please see [general concepts](#general-concepts) above.
 
-* **Reset on Run**, **AutoSeq**: For information on these settings in the right-click menu, please see [general concepts](general-concepts) above.
+* **Reset on Run**, **AutoSeq**: For information on these settings in the right-click menu, please see [general concepts](#general-concepts) above.
+
+
+### Tied steps<a id="tied-ps"></a>
+
+When CVs are intended to be held across subsequent steps, this button can be used to tie the CV of the current step to the CV of the previous step. When tied, any changes to the CV of the head note will be propagated to all consecutive contiguous tied notes automatically. Two different *gate 1 behaviors* are available (new in upcoming version 0.6.13), and can be toggled in the right-click menu. All gate types are adjusted automatically when tying and untying notes, and in all cases, manual insepction of the gate types will reveal what has been done in the sequencer. Any change to this option will only take effect on subsequent edits in the sequencer.
+
+* When the **Held tied notes** option is activated (default behavior), then the gate 1 output is sustained (held high) across a series of contiguous tied steps, and the initial gate type of the head note will be propagated to last step's gate type. (new in upcoming version 0.6.13)
+
+* When the **Held tied notes** option is deactivated, only the head note has a gate and the remainder of any follolwing contiguous gates are turned off, but can be manually turned back on if desired.
+	
+The following diagram shows the effect of the Held tied notes option.	
+	
+```
+Held tied notes activated
+CV:    D# D# D# D# 
+Gate:  -- -- -- -_
+Step:  s1 s2 s3 s4
+
+Held tied notes deactivated
+CV:    D# D# D# D# 
+Gate:  -_ __ __ __
+Step:  s1 s2 s3 s4
+```
 
 Extra CV inputs are aso avaialable in the **expansion panel** (can be activald in the right-click menu). Only the bottom-most input is level sensitive, the other four are trigger inputs. The expansion CV inputs can only be used in Seq mode.
 
