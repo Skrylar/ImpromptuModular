@@ -1492,7 +1492,7 @@ struct FoundryWidget : ModuleWidget {
         panel->mode = &module->panelTheme;
 		panel->expWidth = &expWidth;
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Foundry.svg")));
-        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Foundry.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/Foundry_dark.svg")));
         box.size = panel->box.size;
 		box.size.x = box.size.x - (1 - module->expansion) * expWidth;
         addChild(panel);
