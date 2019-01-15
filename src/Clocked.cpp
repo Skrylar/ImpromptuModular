@@ -621,8 +621,8 @@ struct Clocked : Module {
 			bool warningFlashState = true;
 			if (cantRunWarning > 0l) 
 				warningFlashState = calcWarningFlash(cantRunWarning, (long) (0.7 * sampleRate / displayRefreshStepSkips));
-			lights[BPMSYNC_LIGHT + 0].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? 1.0f : 0.0f;
-			lights[BPMSYNC_LIGHT + 1].value = (bpmDetectionMode && warningFlashState && inputs[BPM_INPUT].active) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
+			lights[BPMSYNC_LIGHT + 0].value = (bpmDetectionMode && warningFlashState) ? 1.0f : 0.0f;
+			lights[BPMSYNC_LIGHT + 1].value = (bpmDetectionMode && warningFlashState) ? (float)((ppqn - 4)*(ppqn - 4))/400.0f : 0.0f;			
 			
 			// ratios synched lights
 			for (int i = 1; i < 4; i++)
