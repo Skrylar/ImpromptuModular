@@ -1325,10 +1325,16 @@ struct FoundryWidget : ModuleWidget {
 		lightItem->theme = 0;
 		menu->addChild(lightItem);
 
+		PanelThemeItem *metalItem = new PanelThemeItem();
+		metalItem->text = "Liquid metal";// ImpromptuModular.hpp
+		metalItem->module = module;
+		metalItem->theme = 1;
+		menu->addChild(metalItem);
+
 		PanelThemeItem *darkItem = new PanelThemeItem();
 		darkItem->text = darkPanelID;// ImpromptuModular.hpp
 		darkItem->module = module;
-		darkItem->theme = 1;
+		darkItem->theme = 2;
 		menu->addChild(darkItem);
 
 		menu->addChild(new MenuLabel());// empty line
@@ -1492,6 +1498,7 @@ struct FoundryWidget : ModuleWidget {
         panel->mode = &module->panelTheme;
 		panel->expWidth = &expWidth;
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Foundry.svg")));
+        panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/Foundry_metal.svg")));
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/Foundry_dark.svg")));
         box.size = panel->box.size;
 		box.size.x = box.size.x - (1 - module->expansion) * expWidth;

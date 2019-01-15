@@ -13,7 +13,7 @@
    version="1.1"
    id="svg256"
    sodipodi:docname="Foundry.svg"
-   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)">
+   inkscape:version="0.92.3 (2405546, 2018-03-11)">
   <metadata
      id="metadata262">
     <rdf:RDF>
@@ -44,8 +44,8 @@
      showguides="true"
      inkscape:guide-bbox="true"
      inkscape:zoom="2.1236842"
-     inkscape:cx="337.50017"
-     inkscape:cy="190"
+     inkscape:cx="478.99955"
+     inkscape:cy="378.35192"
      inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
@@ -119,7 +119,7 @@
        inkscape:label=""
        inkscape:color="rgb(0,0,255)" />
     <sodipodi:guide
-       position="164.73951,33.77338"
+       position="164.70312,33.77338"
        orientation="1,0"
        id="guide1208"
        inkscape:locked="false"
@@ -379,7 +379,7 @@
   <g
      style="line-height:1.25"
      id="g206"
-     transform="translate(29.104334,3.3589895)">
+     transform="translate(29.700997,3.3589895)">
     <path
        word-spacing="0"
        letter-spacing="0"

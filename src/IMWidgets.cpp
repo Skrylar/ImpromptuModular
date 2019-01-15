@@ -137,6 +137,9 @@ void DynamicSVGPanel::addPanel(std::shared_ptr<SVG> svg) {
         border->box.size = box.size;
     }
 }
+void DynamicSVGPanel::dupPanel() {
+    panels.push_back(panels[panels.size() - 1]);
+}
 
 void DynamicSVGPanel::step() { // all code except middle if() from SVGPanel::step() in SVGPanel.cpp
     if (isNear(gPixelRatio, 1.0)) {
@@ -173,7 +176,7 @@ void DynamicSVGPort::step() {
         oversample = 2.f;
     }
     if(mode != nullptr && *mode != oldMode) {
-        background->setSVG(frames[*mode]);
+        background->setSVG(frames[min(*mode, frames.size() - 1)]);
         oldMode = *mode;
         dirty = true;
     }

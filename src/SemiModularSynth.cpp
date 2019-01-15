@@ -182,8 +182,7 @@ struct SemiModularSynth : Module {
 	enum DisplayStateIds {DISP_NORMAL, DISP_MODE, DISP_LENGTH, DISP_TRANSPOSE, DISP_ROTATE};
 
 	// Need to save
-	int panelTheme = 1;
-	int portTheme = 1;
+	int panelTheme = 2;
 	bool autoseq;
 	bool holdTiedNotes = true;
 	int pulsesPerStep;// 1 means normal gate mode, alt choices are 4, 6, 12, 24 PPS (Pulses per step)
@@ -400,9 +399,8 @@ struct SemiModularSynth : Module {
 	json_t *toJson() override {
 		json_t *rootJ = json_object();
 
-		// panelTheme and portTheme
+		// panelTheme
 		json_object_set_new(rootJ, "panelTheme", json_integer(panelTheme));
-		json_object_set_new(rootJ, "portTheme", json_integer(portTheme));
 
 		// autoseq
 		json_object_set_new(rootJ, "autoseq", json_boolean(autoseq));
@@ -481,13 +479,10 @@ struct SemiModularSynth : Module {
 	}
 
 	void fromJson(json_t *rootJ) override {
-		// panelTheme and portTheme
+		// panelTheme
 		json_t *panelThemeJ = json_object_get(rootJ, "panelTheme");
 		if (panelThemeJ)
 			panelTheme = json_integer_value(panelThemeJ);
-		json_t *portThemeJ = json_object_get(rootJ, "portTheme");
-		if (portThemeJ)
-			portTheme = json_integer_value(portThemeJ);
 
 		// autoseq
 		json_t *autoseqJ = json_object_get(rootJ, "autoseq");
@@ -1708,13 +1703,11 @@ struct SemiModularSynthWidget : ModuleWidget {
 	struct PanelThemeItem : MenuItem {
 		SemiModularSynth *module;
 		int panelTheme;
-		int portTheme;
 		void onAction(EventAction &e) override {
 			module->panelTheme = panelTheme;
-			module->portTheme = portTheme;
 		}
 		void step() override {
-			rightText = ((module->panelTheme == panelTheme) && (module->portTheme == portTheme)) ? "✔" : "";
+			rightText = (module->panelTheme == panelTheme) ? "✔" : "";
 		}
 	};
 	struct ResetOnRunItem : MenuItem {
@@ -1752,21 +1745,18 @@ struct SemiModularSynthWidget : ModuleWidget {
 		classicItem->text = lightPanelID;// ImpromptuModular.hpp
 		classicItem->module = module;
 		classicItem->panelTheme = 0;
-		classicItem->portTheme = 0;
 		menu->addChild(classicItem);
 
 		PanelThemeItem *lightItem = new PanelThemeItem();
 		lightItem->text = "Light";
 		lightItem->module = module;
-		lightItem->panelTheme = 0;
-		lightItem->portTheme = 1;
+		lightItem->panelTheme = 1;
 		menu->addChild(lightItem);
 
 		PanelThemeItem *darkItem = new PanelThemeItem();
 		darkItem->text = darkPanelID;// ImpromptuModular.hpp
 		darkItem->module = module;
-		darkItem->panelTheme = 1;
-		darkItem->portTheme = 1;
+		darkItem->panelTheme = 2;
 		menu->addChild(darkItem);
 
 		menu->addChild(new MenuLabel());// empty line
@@ -1846,19 +1836,20 @@ struct SemiModularSynthWidget : ModuleWidget {
         panel = new DynamicSVGPanel();
         panel->mode = &module->panelTheme;
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/light/SemiModular.svg")));
+		panel->dupPanel();
         panel->addPanel(SVG::load(assetPlugin(plugin, "res/dark/SemiModular_dark.svg")));
         box.size = panel->box.size;
         addChild(panel);		
 		
 		// Screws
-		addChild(createDynamicScrew<IMScrew>(Vec(15, 0), &module->portTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(15, 365), &module->portTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec((box.size.x - 90) * 1 / 3 + 30 , 0), &module->portTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec((box.size.x - 90) * 1 / 3 + 30 , 365), &module->portTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec((box.size.x - 90) * 2 / 3 + 45 , 0), &module->portTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec((box.size.x - 90) * 2 / 3 + 45 , 365), &module->portTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->portTheme));
-		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->portTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(15, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(15, 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec((box.size.x - 90) * 1 / 3 + 30 , 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec((box.size.x - 90) * 1 / 3 + 30 , 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec((box.size.x - 90) * 2 / 3 + 45 , 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec((box.size.x - 90) * 2 / 3 + 45 , 365), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 0), &module->panelTheme));
+		addChild(createDynamicScrew<IMScrew>(Vec(box.size.x-30, 365), &module->panelTheme));
 
 		
 		
@@ -1963,7 +1954,7 @@ struct SemiModularSynthWidget : ModuleWidget {
 		addParam(createParam<LEDBezel>(Vec(columnRulerMK0 + offsetLEDbezel, rowRulerMK1 + 7 + offsetLEDbezel), module, SemiModularSynth::RUN_PARAM, 0.0f, 1.0f, 0.0f));
 		addChild(createLight<MuteLight<GreenLight>>(Vec(columnRulerMK0 + offsetLEDbezel + offsetLEDbezelLight, rowRulerMK1 + 7 + offsetLEDbezel + offsetLEDbezelLight), module, SemiModularSynth::RUN_LIGHT));
 		// Sequence knob
-		addParam(createDynamicParam<SequenceKnob>(Vec(columnRulerMK1 + 1 + offsetIMBigKnob, rowRulerMK0 + 55 + offsetIMBigKnob), module, SemiModularSynth::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->portTheme));		
+		addParam(createDynamicParam<SequenceKnob>(Vec(columnRulerMK1 + 1 + offsetIMBigKnob, rowRulerMK0 + 55 + offsetIMBigKnob), module, SemiModularSynth::SEQUENCE_PARAM, -INFINITY, INFINITY, 0.0f, &module->panelTheme));		
 		// Transpose/rotate button
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerMK2 + offsetCKD6b, rowRulerMK1 + 4 + offsetCKD6b), module, SemiModularSynth::TRAN_ROT_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		
@@ -2018,20 +2009,20 @@ struct SemiModularSynthWidget : ModuleWidget {
 		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerB0 + posLEDvsButton + offsetMediumLight, rowRulerB1 + offsetMediumLight), module, SemiModularSynth::GATE1_PROB_LIGHT));		
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerB0 + offsetCKD6b, rowRulerB1 + offsetCKD6b), module, SemiModularSynth::GATE1_PROB_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Gate 1 probability knob
-		addParam(createDynamicParam<IMSmallKnob>(Vec(columnRulerB1 + offsetIMSmallKnob, rowRulerB1 + offsetIMSmallKnob), module, SemiModularSynth::GATE1_KNOB_PARAM, 0.0f, 1.0f, 1.0f, &module->portTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(columnRulerB1 + offsetIMSmallKnob, rowRulerB1 + offsetIMSmallKnob), module, SemiModularSynth::GATE1_KNOB_PARAM, 0.0f, 1.0f, 1.0f, &module->panelTheme));
 		// Slide light and button
 		addChild(createLight<MediumLight<RedLight>>(Vec(columnRulerB2 + posLEDvsButton + offsetMediumLight, rowRulerB1 + offsetMediumLight), module, SemiModularSynth::SLIDE_LIGHT));		
 		addParam(createDynamicParam<IMBigPushButton>(Vec(columnRulerB2 + offsetCKD6b, rowRulerB1 + offsetCKD6b), module, SemiModularSynth::SLIDE_BTN_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 		// Slide knob
-		addParam(createDynamicParam<IMSmallKnob>(Vec(columnRulerB3 + offsetIMSmallKnob, rowRulerB1 + offsetIMSmallKnob), module, SemiModularSynth::SLIDE_KNOB_PARAM, 0.0f, 2.0f, 0.2f, &module->portTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(columnRulerB3 + offsetIMSmallKnob, rowRulerB1 + offsetIMSmallKnob), module, SemiModularSynth::SLIDE_KNOB_PARAM, 0.0f, 2.0f, 0.2f, &module->panelTheme));
 		// Autostep
 		addParam(createParam<CKSS>(Vec(columnRulerB4 + hOffsetCKSS, rowRulerB1 + vOffsetCKSS), module, SemiModularSynth::AUTOSTEP_PARAM, 0.0f, 1.0f, 1.0f));		
 		// CV in
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, SemiModularSynth::CV_INPUT, &module->portTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB5, rowRulerB1), Port::INPUT, module, SemiModularSynth::CV_INPUT, &module->panelTheme));
 		// Reset
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB6, rowRulerB1), Port::INPUT, module, SemiModularSynth::RESET_INPUT, &module->portTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB6, rowRulerB1), Port::INPUT, module, SemiModularSynth::RESET_INPUT, &module->panelTheme));
 		// Clock
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, SemiModularSynth::CLOCK_INPUT, &module->portTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB7, rowRulerB1), Port::INPUT, module, SemiModularSynth::CLOCK_INPUT, &module->panelTheme));
 
 		
 
@@ -2039,15 +2030,15 @@ struct SemiModularSynthWidget : ModuleWidget {
 
 	
 		// CV control Inputs 
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, SemiModularSynth::LEFTCV_INPUT, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, SemiModularSynth::RIGHTCV_INPUT, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, SemiModularSynth::SEQCV_INPUT, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, SemiModularSynth::RUNCV_INPUT, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, SemiModularSynth::WRITE_INPUT, &module->portTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB0, rowRulerB0), Port::INPUT, module, SemiModularSynth::LEFTCV_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB1, rowRulerB0), Port::INPUT, module, SemiModularSynth::RIGHTCV_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB2, rowRulerB0), Port::INPUT, module, SemiModularSynth::SEQCV_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB3, rowRulerB0), Port::INPUT, module, SemiModularSynth::RUNCV_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(columnRulerB4, rowRulerB0), Port::INPUT, module, SemiModularSynth::WRITE_INPUT, &module->panelTheme));
 		// Outputs
-		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB5, rowRulerB0), Port::OUTPUT, module, SemiModularSynth::CV_OUTPUT, &module->portTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, SemiModularSynth::GATE1_OUTPUT, &module->portTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB7, rowRulerB0), Port::OUTPUT, module, SemiModularSynth::GATE2_OUTPUT, &module->portTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB5, rowRulerB0), Port::OUTPUT, module, SemiModularSynth::CV_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB6, rowRulerB0), Port::OUTPUT, module, SemiModularSynth::GATE1_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(columnRulerB7, rowRulerB0), Port::OUTPUT, module, SemiModularSynth::GATE2_OUTPUT, &module->panelTheme));
 		
 		
 		// VCO
@@ -2063,25 +2054,25 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static const int colRulerVCO0 = 460;
 		static const int colRulerVCO1 = colRulerVCO0 + 55;// exact value from svg
 
-		addParam(createDynamicParam<IMBigKnob>(Vec(colRulerVCO0 + offsetIMBigKnob + 55 / 2, rowRulerVCO0 + offsetIMBigKnob), module, SemiModularSynth::VCO_FREQ_PARAM, -54.0f, 54.0f, 0.0f, &module->portTheme));
+		addParam(createDynamicParam<IMBigKnob>(Vec(colRulerVCO0 + offsetIMBigKnob + 55 / 2, rowRulerVCO0 + offsetIMBigKnob), module, SemiModularSynth::VCO_FREQ_PARAM, -54.0f, 54.0f, 0.0f, &module->panelTheme));
 		
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCO0 + offsetIMSmallKnob, rowRulerVCO1 + offsetIMSmallKnob), module, SemiModularSynth::VCO_FINE_PARAM, -1.0f, 1.0f, 0.0f, &module->portTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCO1 + offsetIMSmallKnob, rowRulerVCO1 + offsetIMSmallKnob), module, SemiModularSynth::VCO_PW_PARAM, 0.0f, 1.0f, 0.5f, &module->portTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCO0 + offsetIMSmallKnob, rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCO_FM_PARAM, 0.0f, 1.0f, 0.0f, &module->portTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCO1 + offsetIMSmallKnob, rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCO_PWM_PARAM, 0.0f, 1.0f, 0.0f, &module->portTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCO0 + offsetIMSmallKnob, rowRulerVCO1 + offsetIMSmallKnob), module, SemiModularSynth::VCO_FINE_PARAM, -1.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCO1 + offsetIMSmallKnob, rowRulerVCO1 + offsetIMSmallKnob), module, SemiModularSynth::VCO_PW_PARAM, 0.0f, 1.0f, 0.5f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCO0 + offsetIMSmallKnob, rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCO_FM_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCO1 + offsetIMSmallKnob, rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCO_PWM_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
 
 		addParam(createParam<CKSS>(Vec(colRulerVCO0 + hOffsetCKSS, rowRulerVCO3 + vOffsetCKSS), module, SemiModularSynth::VCO_MODE_PARAM, 0.0f, 1.0f, 1.0f));
-		addParam(createDynamicParam<IMFivePosSmallKnob>(Vec(colRulerVCO1 + offsetIMSmallKnob, rowRulerVCO3 + offsetIMSmallKnob), module, SemiModularSynth::VCO_OCT_PARAM, -2.0f, 2.0f, 0.0f, &module->portTheme));
+		addParam(createDynamicParam<IMFivePosSmallKnob>(Vec(colRulerVCO1 + offsetIMSmallKnob, rowRulerVCO3 + offsetIMSmallKnob), module, SemiModularSynth::VCO_OCT_PARAM, -2.0f, 2.0f, 0.0f, &module->panelTheme));
 
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO0, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::VCO_SIN_OUTPUT, &module->portTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO1, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::VCO_TRI_OUTPUT, &module->portTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO0, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCO_SAW_OUTPUT, &module->portTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCO_SQR_OUTPUT, &module->portTheme));		
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO0, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::VCO_SIN_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO1, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::VCO_TRI_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO0, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCO_SAW_OUTPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCO1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCO_SQR_OUTPUT, &module->panelTheme));		
 		
-		addInput(createDynamicPort<IMPort>(Vec(colRulerVCO0, rowRulerVCO6), Port::INPUT, module, SemiModularSynth::VCO_PITCH_INPUT, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(colRulerVCO1, rowRulerVCO6), Port::INPUT, module, SemiModularSynth::VCO_FM_INPUT, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(colRulerVCO0, rowRulerVCO7), Port::INPUT, module, SemiModularSynth::VCO_SYNC_INPUT, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(colRulerVCO1, rowRulerVCO7), Port::INPUT, module, SemiModularSynth::VCO_PW_INPUT, &module->portTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCO0, rowRulerVCO6), Port::INPUT, module, SemiModularSynth::VCO_PITCH_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCO1, rowRulerVCO6), Port::INPUT, module, SemiModularSynth::VCO_FM_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCO0, rowRulerVCO7), Port::INPUT, module, SemiModularSynth::VCO_SYNC_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCO1, rowRulerVCO7), Port::INPUT, module, SemiModularSynth::VCO_PW_INPUT, &module->panelTheme));
 
 		
 		// CLK
@@ -2089,17 +2080,17 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static const int rowRulerClk1 = rowRulerClk0 + 45;// exact value from svg
 		static const int rowRulerClk2 = rowRulerClk1 + 38;
 		static const int colRulerClk0 = colRulerVCO1 + 55;// exact value from svg
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk0 + offsetIMSmallKnob), module, SemiModularSynth::CLK_FREQ_PARAM, -2.0f, 4.0f, 1.0f, &module->portTheme));// 120 BMP when default value
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk1 + offsetIMSmallKnob), module, SemiModularSynth::CLK_PW_PARAM, 0.0f, 1.0f, 0.5f, &module->portTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerClk2), Port::OUTPUT, module, SemiModularSynth::CLK_OUT_OUTPUT, &module->portTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk0 + offsetIMSmallKnob), module, SemiModularSynth::CLK_FREQ_PARAM, -2.0f, 4.0f, 1.0f, &module->panelTheme));// 120 BMP when default value
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerClk1 + offsetIMSmallKnob), module, SemiModularSynth::CLK_PW_PARAM, 0.0f, 1.0f, 0.5f, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerClk2), Port::OUTPUT, module, SemiModularSynth::CLK_OUT_OUTPUT, &module->panelTheme));
 		
 		
 		// VCA
 		static const int colRulerVca1 = colRulerClk0 + 55;// exact value from svg
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerVCO3 + offsetIMSmallKnob), module, SemiModularSynth::VCA_LEVEL1_PARAM, 0.0f, 1.0f, 1.0f, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::VCA_LIN1_INPUT, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO5), Port::INPUT, module, SemiModularSynth::VCA_IN1_INPUT, &module->portTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCA_OUT1_OUTPUT, &module->portTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerClk0 + offsetIMSmallKnob, rowRulerVCO3 + offsetIMSmallKnob), module, SemiModularSynth::VCA_LEVEL1_PARAM, 0.0f, 1.0f, 1.0f, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::VCA_LIN1_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerClk0, rowRulerVCO5), Port::INPUT, module, SemiModularSynth::VCA_IN1_INPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCA_OUT1_OUTPUT, &module->panelTheme));
 		
 		
 		// ADSR
@@ -2107,27 +2098,27 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static const int rowRulerAdsr3 = rowRulerVCO2 + 6;
 		static const int rowRulerAdsr1 = rowRulerAdsr0 + (rowRulerAdsr3 - rowRulerAdsr0) * 1 / 3;
 		static const int rowRulerAdsr2 = rowRulerAdsr0 + (rowRulerAdsr3 - rowRulerAdsr0) * 2 / 3;
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr0 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_ATTACK_PARAM, 0.0f, 1.0f, 0.1f, &module->portTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr1 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_DECAY_PARAM,  0.0f, 1.0f, 0.5f, &module->portTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr2 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_SUSTAIN_PARAM, 0.0f, 1.0f, 0.5f, &module->portTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr3 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_RELEASE_PARAM, 0.0f, 1.0f, 0.5f, &module->portTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO3), Port::OUTPUT, module, SemiModularSynth::ADSR_ENVELOPE_OUTPUT, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::ADSR_GATE_INPUT, &module->portTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr0 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_ATTACK_PARAM, 0.0f, 1.0f, 0.1f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr1 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_DECAY_PARAM,  0.0f, 1.0f, 0.5f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr2 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_SUSTAIN_PARAM, 0.0f, 1.0f, 0.5f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVca1 + offsetIMSmallKnob, rowRulerAdsr3 + offsetIMSmallKnob), module, SemiModularSynth::ADSR_RELEASE_PARAM, 0.0f, 1.0f, 0.5f, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO3), Port::OUTPUT, module, SemiModularSynth::ADSR_ENVELOPE_OUTPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVca1, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::ADSR_GATE_INPUT, &module->panelTheme));
 
 		
 		// VCF
 		static const int colRulerVCF0 = colRulerVca1 + 55;// exact value from svg
 		static const int colRulerVCF1 = colRulerVCF0 + 55;// exact value from svg
-		addParam(createDynamicParam<IMBigKnob>(Vec(colRulerVCF0 + offsetIMBigKnob + 55 / 2, rowRulerVCO0 + offsetIMBigKnob), module, SemiModularSynth::VCF_FREQ_PARAM, 0.0f, 1.0f, 0.666f, &module->portTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCF0 + offsetIMSmallKnob + 55 / 2, rowRulerVCO1 + offsetIMSmallKnob), module, SemiModularSynth::VCF_RES_PARAM, 0.0f, 1.0f, 0.0f, &module->portTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCF0 + offsetIMSmallKnob , rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCF_FREQ_CV_PARAM, -1.0f, 1.0f, 0.0f, &module->portTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCF1 + offsetIMSmallKnob , rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCF_DRIVE_PARAM, 0.0f, 1.0f, 0.0f, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF0, rowRulerVCO3), Port::INPUT, module, SemiModularSynth::VCF_FREQ_INPUT, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF1, rowRulerVCO3), Port::INPUT, module, SemiModularSynth::VCF_RES_INPUT, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF0, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::VCF_DRIVE_INPUT, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF0, rowRulerVCO5), Port::INPUT, module, SemiModularSynth::VCF_IN_INPUT, &module->portTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCF1, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::VCF_HPF_OUTPUT, &module->portTheme));		
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCF1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCF_LPF_OUTPUT, &module->portTheme));
+		addParam(createDynamicParam<IMBigKnob>(Vec(colRulerVCF0 + offsetIMBigKnob + 55 / 2, rowRulerVCO0 + offsetIMBigKnob), module, SemiModularSynth::VCF_FREQ_PARAM, 0.0f, 1.0f, 0.666f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCF0 + offsetIMSmallKnob + 55 / 2, rowRulerVCO1 + offsetIMSmallKnob), module, SemiModularSynth::VCF_RES_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCF0 + offsetIMSmallKnob , rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCF_FREQ_CV_PARAM, -1.0f, 1.0f, 0.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerVCF1 + offsetIMSmallKnob , rowRulerVCO2 + offsetIMSmallKnob), module, SemiModularSynth::VCF_DRIVE_PARAM, 0.0f, 1.0f, 0.0f, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF0, rowRulerVCO3), Port::INPUT, module, SemiModularSynth::VCF_FREQ_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF1, rowRulerVCO3), Port::INPUT, module, SemiModularSynth::VCF_RES_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF0, rowRulerVCO4), Port::INPUT, module, SemiModularSynth::VCF_DRIVE_INPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerVCF0, rowRulerVCO5), Port::INPUT, module, SemiModularSynth::VCF_IN_INPUT, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCF1, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::VCF_HPF_OUTPUT, &module->panelTheme));		
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerVCF1, rowRulerVCO5), Port::OUTPUT, module, SemiModularSynth::VCF_LPF_OUTPUT, &module->panelTheme));
 		
 		
 		// LFO
@@ -2135,12 +2126,12 @@ struct SemiModularSynthWidget : ModuleWidget {
 		static const int rowRulerLfo0 = rowRulerAdsr0;
 		static const int rowRulerLfo2 = rowRulerVCO2;
 		static const int rowRulerLfo1 = rowRulerLfo0 + (rowRulerLfo2 - rowRulerLfo0) / 2;
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerLfo + offsetIMSmallKnob, rowRulerLfo0 + offsetIMSmallKnob), module, SemiModularSynth::LFO_FREQ_PARAM, -8.0f, 6.0f, -1.0f, &module->portTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerLfo + offsetIMSmallKnob, rowRulerLfo1 + offsetIMSmallKnob), module, SemiModularSynth::LFO_GAIN_PARAM, 0.0f, 1.0f, 0.5f, &module->portTheme));
-		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerLfo + offsetIMSmallKnob, rowRulerLfo2 + offsetIMSmallKnob), module, SemiModularSynth::LFO_OFFSET_PARAM, -1.0f, 1.0f, 0.0f, &module->portTheme));
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerLfo, rowRulerVCO3), Port::OUTPUT, module, SemiModularSynth::LFO_TRI_OUTPUT, &module->portTheme));		
-		addOutput(createDynamicPort<IMPort>(Vec(colRulerLfo, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::LFO_SIN_OUTPUT, &module->portTheme));
-		addInput(createDynamicPort<IMPort>(Vec(colRulerLfo, rowRulerVCO5), Port::INPUT, module, SemiModularSynth::LFO_RESET_INPUT, &module->portTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerLfo + offsetIMSmallKnob, rowRulerLfo0 + offsetIMSmallKnob), module, SemiModularSynth::LFO_FREQ_PARAM, -8.0f, 6.0f, -1.0f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerLfo + offsetIMSmallKnob, rowRulerLfo1 + offsetIMSmallKnob), module, SemiModularSynth::LFO_GAIN_PARAM, 0.0f, 1.0f, 0.5f, &module->panelTheme));
+		addParam(createDynamicParam<IMSmallKnob>(Vec(colRulerLfo + offsetIMSmallKnob, rowRulerLfo2 + offsetIMSmallKnob), module, SemiModularSynth::LFO_OFFSET_PARAM, -1.0f, 1.0f, 0.0f, &module->panelTheme));
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerLfo, rowRulerVCO3), Port::OUTPUT, module, SemiModularSynth::LFO_TRI_OUTPUT, &module->panelTheme));		
+		addOutput(createDynamicPort<IMPort>(Vec(colRulerLfo, rowRulerVCO4), Port::OUTPUT, module, SemiModularSynth::LFO_SIN_OUTPUT, &module->panelTheme));
+		addInput(createDynamicPort<IMPort>(Vec(colRulerLfo, rowRulerVCO5), Port::INPUT, module, SemiModularSynth::LFO_RESET_INPUT, &module->panelTheme));
 	}
 };
 

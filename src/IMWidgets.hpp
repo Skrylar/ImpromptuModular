@@ -64,6 +64,7 @@ struct DynamicSVGPanel : FramebufferWidget { // like SVGPanel (in app.hpp and SV
     PanelBorderWidget* border;
     DynamicSVGPanel();
     void addPanel(std::shared_ptr<SVG> svg);
+    void dupPanel();
     void step() override;
 };
 
