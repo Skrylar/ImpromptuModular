@@ -178,13 +178,13 @@ CVs can be entered into the sequencer via CV inputs when using an external keybo
 Although this sequencer has many similarities to [PhraseSeq32](#phrase-seq-32), many differences must also be kept in mind for existing PhraseSeq users. Notably:
 
 * No editing can be performed when attached is turned on.
-* Song phrases are now in a separate display/knob instead of the step at the top left.
+* Song phrases are now in a separate display/knob instead of in the steps at the top left.
 * The Copy/Paste ALL setting was replaced with an END setting (more details are given below).
 * The sequence repetitions are no longer in the run modes (formerly FW2, FW3, FW4), but are instead specified in the phrases. This allows the repitition of any run mode up to 99 times.
-* Only the song can be run. For example, when attached is turned off and the main switch is in SEQ mode, changing the current sequence number will have no effect on the running sequencer, and serves only to select the sequence that is to be edited. Thus, the SEQ CV input (now located in the expansion panel) is only used for editing sequences. In other PhraseSeqs, the SEQ CV input can be used to actually control the playing of the phrases.	
+* Only the song can be run. For example, when attached is turned off and the main switch is in SEQ mode, changing the sequence number will have no effect on the running sequencer; instead, it allows the selected sequence to be edited while the song is playing, a feature not offered in PhraseSeqs. Thus, the SEQ CV input (now located in the expansion panel) is only used for editing sequences (in other PhraseSeqs, the SEQ CV input can be used to actually control the playing of the phrases).	
 
 The following block diagram shows how the different sequencer elements are hierarchically related.
-
+ 
 ![IM](res/img/FoundryBlockDiag.jpg)
 
 Here are some further details on the different functions of the sequencer.
