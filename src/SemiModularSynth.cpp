@@ -308,7 +308,7 @@ struct SemiModularSynth : Module {
 		// SEQUENCER
 		autoseq = false;
 		pulsesPerStep = 1;
-		running = false;
+		running = true;
 		runModeSong = MODE_FWD;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
@@ -336,7 +336,7 @@ struct SemiModularSynth : Module {
 		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
-		attached = true;
+		attached = false;
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 		attachedWarning = 0l;
@@ -358,7 +358,6 @@ struct SemiModularSynth : Module {
 
 	
 	void onRandomize() override {
-		//running = false;
 		runModeSong = randomu32() % 5;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;

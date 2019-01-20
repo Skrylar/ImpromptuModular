@@ -172,7 +172,7 @@ struct Foundry : Module {
 	// onReset() is also called when right-click initialization of module
 	void onReset() override {
 		autoseq = false;
-		running = false;
+		running = true;
 		displayState = DISP_NORMAL;
 		tiedWarning = 0l;
 		attachedWarning = 0l;
@@ -193,7 +193,6 @@ struct Foundry : Module {
 	
 	void onRandomize() override {
 		seq.randomize();
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 	
 	
@@ -299,7 +298,6 @@ struct Foundry : Module {
 		
 		// Initialize dependants after everything loaded
 		seq.initRun();
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
 
@@ -319,7 +317,6 @@ struct Foundry : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
 			if (running) {
-				//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
 				if (resetOnRun)
 					seq.initRun();
 			}

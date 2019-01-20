@@ -108,6 +108,8 @@ class Clock {
 			else if ((step >= p3) && (step < p4))
 				high = 2;
 		}
+		else
+			high = 1;// default state is clock high, in first pulse, when reset
 		return high;
 	}	
 };
@@ -134,7 +136,7 @@ class ClockDelay {
 	void reset() {
 		stepCounter = 0l;
 		lastWriteValue = 0;
-		readState = true;
+		readState = true;// default is clock high
 		stepRise1 = 0l;
 		stepFall1 = 0l;
 		stepRise2 = 0l;
@@ -239,7 +241,7 @@ struct Clocked : Module {
 	
 	// No need to save
 	Clock clk[4];
-	ClockDelay delay[4];
+	ClockDelay delay[3];// only channels 1 to 3 have delay
 	bool syncRatios[4];// 0 index unused
 	int ratiosDoubled[4];
 	int extPulseNumber;// 0 to ppqn - 1
@@ -248,6 +250,11 @@ struct Clocked : Module {
 	float newMasterLength;
 	float masterLength;
 	long editingBpmMode;// 0 when no edit bpmMode, downward step counter timer when edit, negative upward when show can't edit ("--") 
+	float pulseWidth[4];
+	float swingAmount[4];
+	long delaySamples[4];
+	double sampleRate;
+	double sampleTime;
 	
 	bool scheduledReset = false;
 	int notifyingSource[4] = {-1, -1, -1, -1};
@@ -269,6 +276,7 @@ struct Clocked : Module {
 			return (float)bpmMin;	
 		return knobBPM;
 	}
+	
 	int getRatioDoubled(int ratioKnobIndex) {
 		// ratioKnobIndex is 0 for master BPM's ratio (1 is implicitly returned), and 1 to 3 for other ratio knobs
 		// returns a positive ratio for mult, negative ratio for div (0 never returned)
@@ -289,6 +297,35 @@ struct Clocked : Module {
 		return ret;
 	}
 	
+	void updatePulseSwingDelay() {
+		for (int i = 0; i < 4; i++) {
+			// Pulse Width
+			pulseWidth[i] = params[PW_PARAMS + i].value;
+			if (i < 3 && inputs[PW_INPUTS + i].active) {
+				pulseWidth[i] += (inputs[PW_INPUTS + i].value / 10.0f) - 0.5f;
+				pulseWidth[i] = clamp(pulseWidth[i], 0.0f, 1.0f);
+			}
+			
+			// Swing
+			swingAmount[i] = params[SWING_PARAMS + i].value;
+			if (i < 3 && inputs[SWING_INPUTS + i].active) {
+				swingAmount[i] += (inputs[SWING_INPUTS + i].value / 5.0f) - 1.0f;
+				swingAmount[i] = clamp(swingAmount[i], -1.0f, 1.0f);
+			}
+		}
+
+		// Delay
+		delaySamples[0] = 0ul;
+		for (int i = 1; i < 4; i++) {	
+			int delayKnobIndex = (int)(params[DELAY_PARAMS + i].value + 0.5f);
+			float delayFraction = delayValues[delayKnobIndex];
+			float ratioValue = ((float)ratiosDoubled[i]) / 2.0f;
+			if (ratioValue < 0)
+				ratioValue = 1.0f / (-1.0f * ratioValue);
+			delaySamples[i] = (long)(masterLength * delayFraction * sampleRate / (ratioValue * 2.0));
+		}				
+	}
+	
 	
 	// called from the main thread (step() can not be called until all modules created)
 	Clocked() : Module(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS) {
@@ -299,6 +336,8 @@ struct Clocked : Module {
 	
 
 	void onReset() override {
+		sampleRate = (double)engineGetSampleRate();
+		sampleTime = 1.0 / sampleRate;
 		running = true;
 		editingBpmMode = 0l;
 		resetClocked(true);		
@@ -313,9 +352,11 @@ struct Clocked : Module {
 	void resetClocked(bool hardReset) {// set hardReset to true to revert learned BPM to 120 in sync mode, or else when false, learned bmp will stay persistent
 		for (int i = 0; i < 4; i++) {
 			clk[i].reset();
-			delay[i].reset();
+			if (i < 3) 
+				delay[i].reset();
 			syncRatios[i] = false;
 			ratiosDoubled[i] = getRatioDoubled(i);
+			updatePulseSwingDelay();
 			outputs[CLK_OUTPUTS + i].value = 10.0f;
 		}
 		extPulseNumber = -1;
@@ -406,13 +447,13 @@ struct Clocked : Module {
 
 	
 	void onSampleRateChange() override {
+		sampleRate = (double)engineGetSampleRate();
+		sampleTime = 1.0 / sampleRate;
 		resetClocked(false);
 	}		
 	
 
 	void step() override {		
-		double sampleRate = (double)engineGetSampleRate();
-		double sampleTime = 1.0 / sampleRate;// do this here since engineGetSampleRate() returns float
 
 		// Scheduled reset
 		if (scheduledReset) {
@@ -442,27 +483,33 @@ struct Clocked : Module {
 			resetClocked(false);	
 		}	
 
-		// BPM mode
-		if (bpmModeTrigger.process(params[BPMMODE_PARAM].value)) {// no input refresh here, not worth it just for one button (this is the only potential button to input-refresh optimize)
-			if (editingBpmMode != 0ul) {// force active before allow change
-				if (bpmDetectionMode == false) {
-					bpmDetectionMode = true;
-					ppqn = 4;
-				}
-				else {
-					if (ppqn == 4)
-						ppqn = 8;
-					else if (ppqn == 8)
-						ppqn = 12;
-					else if (ppqn == 12)
-						ppqn = 24;
-					else 
-						bpmDetectionMode = false;
-				}
-			}
-			editingBpmMode = (long) (3.0 * sampleRate / displayRefreshStepSkips);
-		}
+		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
+
+			updatePulseSwingDelay();
 		
+			// BPM mode
+			if (bpmModeTrigger.process(params[BPMMODE_PARAM].value)) {// no input refresh here, not worth it just for one button (this is the only potential button to input-refresh optimize)
+				if (editingBpmMode != 0ul) {// force active before allow change
+					if (bpmDetectionMode == false) {
+						bpmDetectionMode = true;
+						ppqn = 4;
+					}
+					else {
+						if (ppqn == 4)
+							ppqn = 8;
+						else if (ppqn == 8)
+							ppqn = 12;
+						else if (ppqn == 12)
+							ppqn = 24;
+						else 
+							bpmDetectionMode = false;
+					}
+				}
+				editingBpmMode = (long) (3.0 * sampleRate / displayRefreshStepSkips);
+			}
+			
+		}// userInputs refresh
+	
 		// BPM input and knob
 		newMasterLength = masterLength;
 		if (inputs[BPM_INPUT].active) { 
@@ -516,7 +563,6 @@ struct Clocked : Module {
 		else {// BPM_INPUT not active
 			newMasterLength = clamp(120.0f / getBpmKnob(), masterLengthMin, masterLengthMax);
 		}
-		//newMasterLength = clamp(newMasterLength, masterLengthMin, masterLengthMax);// done above separately, so can relax range when sync mode
 		if (newMasterLength != masterLength) {
 			double lengthStretchFactor = ((double)newMasterLength) / ((double)masterLength);
 			for (int i = 0; i < 4; i++) {
@@ -526,7 +572,7 @@ struct Clocked : Module {
 		}
 		
 		
-		// main clock engine
+		// main clock engine and outputs
 		if (running) {
 			// See if clocks finished their prescribed number of iteratios of double periods (and syncWait for sub) or 
 			//    if they were forced reset and if so, recalc and restart them
@@ -535,15 +581,16 @@ struct Clocked : Module {
 			if (clk[0].isReset()) {
 				// See if ratio knobs changed (or unitinialized)
 				for (int i = 1; i < 4; i++) {
-					if (syncRatios[i]) {// unused for master (undetermined state)
+					if (syncRatios[i]) {// unused (undetermined state) for master
 						clk[i].reset();// force reset (thus refresh) of that sub-clock
-						ratiosDoubled[i] = getRatioDoubled(i);//newRatiosDoubled[i];
+						ratiosDoubled[i] = getRatioDoubled(i);
 						syncRatios[i] = false;
 					}
 				}
 				clk[0].setup(masterLength, 1, sampleTime);// must call setup before start. length = double_period
 				clk[0].start();
 			}
+			outputs[CLK_OUTPUTS + 0].value = clk[0].isHigh(swingAmount[0], pulseWidth[0]) ? 10.0f : 0.0f;		
 			
 			// Sub clocks
 			for (int i = 1; i < 4; i++) {
@@ -564,34 +611,11 @@ struct Clocked : Module {
 					}
 					clk[i].start();
 				}
+				delay[i - 1].write(clk[i].isHigh(swingAmount[i], pulseWidth[i]));
+				outputs[CLK_OUTPUTS + i].value = delay[i - 1].read(delaySamples[i]) ? 10.0f : 0.0f;
 			}
-			
-			for (int i = 0; i < 4; i++) {
-				// Write generated clk signals into delay buffers
-				float pulseWidth = params[PW_PARAMS + i].value;
-				if (i < 3 && inputs[PW_INPUTS + i].active) {
-					pulseWidth += (inputs[PW_INPUTS + i].value / 10.0f) - 0.5f;
-					pulseWidth = clamp(pulseWidth, 0.0f, 1.0f);
-				}
-				float swingAmount = params[SWING_PARAMS + i].value;
-				if (i < 3 && inputs[SWING_INPUTS + i].active) {
-					swingAmount += (inputs[SWING_INPUTS + i].value / 5.0f) - 1.0f;
-					swingAmount = clamp(swingAmount, -1.0f, 1.0f);
-				}
-				delay[i].write(clk[i].isHigh(swingAmount, pulseWidth));
 
-				// Read delay buffers and set clock output ports
-				long delaySamples = 0l;
-				if (i > 0) {
-					int delayKnobIndex = (int)(params[DELAY_PARAMS + i].value + 0.5f);
-					float delayFraction = delayValues[delayKnobIndex];
-					float ratioValue = ((float)ratiosDoubled[i]) / 2.0f;
-					if (ratioValue < 0)
-						ratioValue = 1.0f / (-1.0f * ratioValue);
-					delaySamples = (long)(masterLength * delayFraction * sampleRate / (ratioValue * 2.0));
-				}
-				outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples) ? 10.0f : 0.0f;
-			}
+			// Step clocks
 			for (int i = 0; i < 4; i++)
 				clk[i].stepClock();
 		}
@@ -674,7 +698,7 @@ struct ClockedWidget : ModuleWidget {
 			{
 				int srcParam = module->notifyingSource[knobIndex];
 				if ( (srcParam >= Clocked::SWING_PARAMS + 0) && (srcParam <= Clocked::SWING_PARAMS + 3) ) {
-					float swValue = module->params[Clocked::SWING_PARAMS + knobIndex].value;
+					float swValue = module->swingAmount[knobIndex];//module->params[Clocked::SWING_PARAMS + knobIndex].value;
 					int swInt = (int)round(swValue * 99.0f);
 					snprintf(displayStr, 4, " %2u", (unsigned) abs(swInt));
 					if (swInt < 0)
@@ -690,7 +714,7 @@ struct ClockedWidget : ModuleWidget {
 						snprintf(displayStr, 4, "%s", (delayLabelsClock[delayKnobIndex]).c_str());
 				}					
 				else if ( (srcParam >= Clocked::PW_PARAMS + 0) && (srcParam <= Clocked::PW_PARAMS + 3) ) {				
-					float pwValue = module->params[Clocked::PW_PARAMS + knobIndex].value;
+					float pwValue = module->pulseWidth[knobIndex];//module->params[Clocked::PW_PARAMS + knobIndex].value;
 					int pwInt = ((int)round(pwValue * 98.0f)) + 1;
 					snprintf(displayStr, 4, "_%2u", (unsigned) abs(pwInt));
 				}					
@@ -822,6 +846,7 @@ struct ClockedWidget : ModuleWidget {
 	struct IMSmallKnobNotify : IMSmallKnob {
 		IMSmallKnobNotify() {};
 		void onDragMove(EventDragMove &e) override {
+			Clocked *module = dynamic_cast<Clocked*>(this->module);
 			int dispIndex = 0;
 			if ( (paramId >= Clocked::SWING_PARAMS + 0) && (paramId <= Clocked::SWING_PARAMS + 3) )
 				dispIndex = paramId - Clocked::SWING_PARAMS;
@@ -829,8 +854,8 @@ struct ClockedWidget : ModuleWidget {
 				dispIndex = paramId - Clocked::DELAY_PARAMS;
 			else if ( (paramId >= Clocked::PW_PARAMS + 0) && (paramId <= Clocked::PW_PARAMS + 3) )
 				dispIndex = paramId - Clocked::PW_PARAMS;
-			((Clocked*)(module))->notifyingSource[dispIndex] = paramId;
-			((Clocked*)(module))->notifyInfo[dispIndex] = (long) (Clocked::delayInfoTime * (float)engineGetSampleRate() / displayRefreshStepSkips);
+			module->notifyingSource[dispIndex] = paramId;
+			module->notifyInfo[dispIndex] = (long) (Clocked::delayInfoTime * module->sampleRate / displayRefreshStepSkips);
 			Knob::onDragMove(e);
 		}
 	};

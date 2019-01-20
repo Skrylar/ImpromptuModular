@@ -223,7 +223,7 @@ struct GateSeq64 : Module {
 		stepConfig = getStepConfig(CONFIG_PARAM_INIT_VALUE);
 		autoseq = false;
 		pulsesPerStep = 1;
-		running = false;
+		running = true;
 		runModeSong = MODE_FWD;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
@@ -254,6 +254,7 @@ struct GateSeq64 : Module {
 		blinkCount = 0l;
 		blinkNum = blinkNumInit;
 		editingPhraseSongRunning = 0l;
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
 	
@@ -289,7 +290,6 @@ struct GateSeq64 : Module {
 		ppqnCount = 0;
 		for (int i = 0; i < 4; i += stepConfig)
 			gateCode[i] = calcGateCode(attributes[seq][(i * 16) + stepIndexRun[i]], 0, pulsesPerStep);
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 	
 	
@@ -528,8 +528,6 @@ struct GateSeq64 : Module {
 			if (running) {
 				if (resetOnRun)
 					initRun();
-				// else
-					// clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
 			}
 			else
 				blinkNum = blinkNumInit;
@@ -919,6 +917,7 @@ struct GateSeq64 : Module {
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			initRun();// must be after sequence reset
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 			resetLight = 1.0f;
 			displayState = DISP_GATE;
 			if (inputs[SEQCV_INPUT].active && seqCVmethod == 2)

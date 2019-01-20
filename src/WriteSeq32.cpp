@@ -103,7 +103,7 @@ struct WriteSeq32 : Module {
 	
 
 	void onReset() override {
-		running = false;
+		running = true;
 		indexStep = 0;
 		indexStepStage = 0;
 		indexChannel = 0;
@@ -123,7 +123,6 @@ struct WriteSeq32 : Module {
 
 	
 	void onRandomize() override {
-		//running = false;
 		indexStep = 0;
 		indexStepStage = 0;
 		indexChannel = 0;
@@ -137,7 +136,6 @@ struct WriteSeq32 : Module {
 		}
 		//infoCopyPaste = 0l;
 		pendingPaste = 0;
-		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		//resetOnRun = false;
 	}
 
@@ -254,7 +252,6 @@ struct WriteSeq32 : Module {
 				indexStep = 0;
 				indexStepStage = 0;
 			}
-			//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 		
 		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {

@@ -199,7 +199,7 @@ struct PhraseSeq16 : Module {
 	void onReset() override {
 		autoseq = false;
 		pulsesPerStep = 1;
-		running = false;
+		running = true;
 		runModeSong = MODE_FWD;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
@@ -227,7 +227,7 @@ struct PhraseSeq16 : Module {
 		infoCopyPaste = 0l;
 		displayState = DISP_NORMAL;
 		slideStepsRemain = 0ul;
-		attached = true;
+		attached = false;
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 		attachedWarning = 0l;
@@ -236,6 +236,7 @@ struct PhraseSeq16 : Module {
 		editingGateLength = 0l;
 		lastGateEdit = 1l;
 		editingPpqn = 0l;
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 
 	
@@ -273,7 +274,6 @@ struct PhraseSeq16 : Module {
 		gate1Code = calcGate1Code(attributes[seq][stepIndexRun], 0, pulsesPerStep, params[GATE1_KNOB_PARAM].value);
 		gate2Code = calcGate2Code(attributes[seq][stepIndexRun], 0, pulsesPerStep);
 		slideStepsRemain = 0ul;
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 	
 	
@@ -645,12 +645,8 @@ struct PhraseSeq16 : Module {
 		// Run button
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
-			if (running) {
-				if (resetOnRun)
-					initRun();
-				// else
-					// clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
-			}
+			if (running && resetOnRun)
+				initRun();
 			displayState = DISP_NORMAL;
 		}
 
@@ -1156,6 +1152,7 @@ struct PhraseSeq16 : Module {
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			initRun();// must be after sequence reset
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
 			if (inputs[SEQCV_INPUT].active && seqCVmethod == 2)

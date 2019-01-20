@@ -212,7 +212,7 @@ struct PhraseSeq32 : Module {
 		stepConfig = getStepConfig(CONFIG_PARAM_INIT_VALUE);
 		autoseq = false;
 		pulsesPerStep = 1;
-		running = false;
+		running = true;
 		runModeSong = MODE_FWD;
 		stepIndexEdit = 0;
 		phraseIndexEdit = 0;
@@ -241,7 +241,7 @@ struct PhraseSeq32 : Module {
 		displayState = DISP_NORMAL;
 		slideStepsRemain[0] = 0ul;
 		slideStepsRemain[1] = 0ul;
-		attached = true;
+		attached = false;
 		clockPeriod = 0ul;
 		tiedWarning = 0ul;
 		attachedWarning = 0l;
@@ -251,6 +251,7 @@ struct PhraseSeq32 : Module {
 		editingGateLength = 0l;
 		lastGateEdit = 1l;
 		editingPpqn = 0l;
+		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}
 	
 	
@@ -294,7 +295,6 @@ struct PhraseSeq32 : Module {
 		}
 		slideStepsRemain[0] = 0ul;
 		slideStepsRemain[1] = 0ul;
-		clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 	}	
 
 	
@@ -596,8 +596,6 @@ struct PhraseSeq32 : Module {
 			if (running) {
 				if (resetOnRun)
 					initRun();
-				// else
-					// clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
 				attachedChanB = stepIndexEdit >= 16;
 			}
 			displayState = DISP_NORMAL;
@@ -1158,6 +1156,7 @@ struct PhraseSeq32 : Module {
 		// Reset
 		if (resetTrigger.process(inputs[RESET_INPUT].value + params[RESET_PARAM].value)) {
 			initRun();// must be after sequence reset
+			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 			resetLight = 1.0f;
 			displayState = DISP_NORMAL;
 			if (inputs[SEQCV_INPUT].active && seqCVmethod == 2)

@@ -106,7 +106,7 @@ struct WriteSeq64 : Module {
 
 	
 	void onReset() override {
-		running = false;
+		running = true;
 		indexChannel = 0;
 		for (int c = 0; c < 5; c++) {
 			indexStep[c] = 0;
@@ -146,7 +146,6 @@ struct WriteSeq64 : Module {
 		stepsCPbuffer = 64;
 		//infoCopyPaste = 0l;
 		pendingPaste = 0;
-		//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		//resetOnRun = false;
 	}
 
@@ -279,7 +278,6 @@ struct WriteSeq64 : Module {
 				for (int c = 0; c < 5; c++) 
 					indexStep[c] = 0;
 			}
-			//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 	
 		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
