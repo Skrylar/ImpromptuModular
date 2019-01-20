@@ -317,8 +317,10 @@ struct Foundry : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
 			if (running) {
-				if (resetOnRun)
+				if (resetOnRun) {
 					seq.initRun();
+					clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
+				}
 			}
 			displayState = DISP_NORMAL;
 			multiSteps = false;

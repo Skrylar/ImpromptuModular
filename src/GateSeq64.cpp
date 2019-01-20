@@ -526,8 +526,10 @@ struct GateSeq64 : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
 			if (running) {
-				if (resetOnRun)
+				if (resetOnRun) {
 					initRun();
+					clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
+				}
 			}
 			else
 				blinkNum = blinkNumInit;

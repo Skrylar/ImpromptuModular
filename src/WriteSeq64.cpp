@@ -277,6 +277,7 @@ struct WriteSeq64 : Module {
 			if (running && resetOnRun) {
 				for (int c = 0; c < 5; c++) 
 					indexStep[c] = 0;
+				clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 			}
 		}
 	

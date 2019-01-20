@@ -678,10 +678,9 @@ struct SemiModularSynth : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
 			if (running) {
+				clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);// keep this since CLK gets reset when run turned on
 				if (resetOnRun)
 					initRun();
-				else
-					clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);// keep this since CLK gets reset when run turned on
 			}
 			displayState = DISP_NORMAL;
 		}

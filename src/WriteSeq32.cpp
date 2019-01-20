@@ -251,6 +251,7 @@ struct WriteSeq32 : Module {
 			if (running && resetOnRun) {
 				indexStep = 0;
 				indexStepStage = 0;
+				clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 			}
 		}
 		
