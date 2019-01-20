@@ -319,7 +319,7 @@ struct Foundry : Module {
 		if (runningTrigger.process(params[RUN_PARAM].value + inputs[RUNCV_INPUT].value)) {// no input refresh here, don't want to introduce startup skew
 			running = !running;
 			if (running) {
-				clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
+				//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
 				if (resetOnRun)
 					seq.initRun();
 			}

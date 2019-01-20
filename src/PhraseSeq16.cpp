@@ -648,8 +648,8 @@ struct PhraseSeq16 : Module {
 			if (running) {
 				if (resetOnRun)
 					initRun();
-				else
-					clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
+				// else
+					// clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
 			}
 			displayState = DISP_NORMAL;
 		}

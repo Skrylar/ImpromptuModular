@@ -682,7 +682,7 @@ struct SemiModularSynth : Module {
 				if (resetOnRun)
 					initRun();
 				else
-					clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
+					clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);// keep this since CLK gets reset when run turned on
 			}
 			displayState = DISP_NORMAL;
 		}

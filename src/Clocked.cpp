@@ -134,7 +134,7 @@ class ClockDelay {
 	void reset() {
 		stepCounter = 0l;
 		lastWriteValue = 0;
-		readState = false;
+		readState = true;
 		stepRise1 = 0l;
 		stepFall1 = 0l;
 		stepRise2 = 0l;
@@ -299,7 +299,7 @@ struct Clocked : Module {
 	
 
 	void onReset() override {
-		running = false;
+		running = true;
 		editingBpmMode = 0l;
 		resetClocked(true);		
 	}
@@ -316,7 +316,7 @@ struct Clocked : Module {
 			delay[i].reset();
 			syncRatios[i] = false;
 			ratiosDoubled[i] = getRatioDoubled(i);
-			outputs[CLK_OUTPUTS + i].value = 0.0f;// ISSUE 25 FIX (to revert, remove this line)
+			outputs[CLK_OUTPUTS + i].value = 10.0f;
 		}
 		extPulseNumber = -1;
 		extIntervalTime = 0.0;
@@ -426,9 +426,9 @@ struct Clocked : Module {
 				running = !running;
 				runPulse.trigger(0.001f);
 				if (!running && emitResetOnStopRun) {
-					resetClocked(false);// ISSUE 25 FIX (to revert, move this up one line)
+					resetClocked(false);
 					resetPulse.trigger(0.001f);
-					resetLight = 1.0f;// ISSUE 25 FIX (to revert, remove this line)
+					resetLight = 1.0f;
 				}
 			}
 			else
@@ -500,9 +500,9 @@ struct Clocked : Module {
 						running = false;
 						runPulse.trigger(0.001f);
 						if (emitResetOnStopRun) {
-							resetClocked(false);// ISSUE 25 FIX (to revert, move this up one line)
+							resetClocked(false);
 							resetPulse.trigger(0.001f);
-							resetLight = 1.0f;// ISSUE 25 FIX (to revert, remove this line)
+							resetLight = 1.0f;
 						}
 					}
 				}
@@ -592,13 +592,9 @@ struct Clocked : Module {
 				}
 				outputs[CLK_OUTPUTS + i].value = delay[i].read(delaySamples) ? 10.0f : 0.0f;
 			}
-			for (int i = 0; i < 4; i++)// ISSUE 25 FIX (to revert, move these three lines four lines down (to put after the else block))
+			for (int i = 0; i < 4; i++)
 				clk[i].stepClock();
 		}
-		// else {// ISSUE 25 FIX (to revert, uncomment these four lines)
-			// for (int i = 0; i < 4; i++) 
-				// outputs[CLK_OUTPUTS + i].value = 0.0f;
-		// }
 			
 		// Chaining outputs
 		outputs[RESET_OUTPUT].value = (resetPulse.process((float)sampleTime) ? 10.0f : 0.0f);

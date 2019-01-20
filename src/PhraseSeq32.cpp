@@ -596,8 +596,8 @@ struct PhraseSeq32 : Module {
 			if (running) {
 				if (resetOnRun)
 					initRun();
-				else
-					clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
+				// else
+					// clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
 				attachedChanB = stepIndexEdit >= 16;
 			}
 			displayState = DISP_NORMAL;

@@ -528,8 +528,8 @@ struct GateSeq64 : Module {
 			if (running) {
 				if (resetOnRun)
 					initRun();
-				else
-					clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
+				// else
+					// clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * sampleRate);
 			}
 			else
 				blinkNum = blinkNumInit;

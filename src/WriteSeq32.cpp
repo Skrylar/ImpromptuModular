@@ -254,7 +254,7 @@ struct WriteSeq32 : Module {
 				indexStep = 0;
 				indexStepStage = 0;
 			}
-			clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
+			//clockIgnoreOnReset = (long) (clockIgnoreOnResetDuration * engineGetSampleRate());
 		}
 		
 		if ((lightRefreshCounter & userInputsStepSkipMask) == 0) {
